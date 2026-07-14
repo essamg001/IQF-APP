@@ -7,18 +7,35 @@ import { z } from "zod";
 const microSchema = z.object({
   status: z.enum(["PENDING", "APPROVED", "FAILED_MINOR", "FAILED_SEVERE"]),
   notes: z.string().optional(),
+  certificateNumber: z.string().optional(),
+  labName: z.string().optional(),
+  sampleId: z.string().optional(),
+  protocolNumber: z.string().optional(),
+  samplingBagSerial: z.string().optional(),
+  samplingPlace: z.string().optional(),
+  analysisStartDate: z.string().optional(),
+  analysisEndDate: z.string().optional(),
+  methodName: z.string().optional(),
+  personInCharge: z.string().optional(),
+  resultsSummary: z.string().optional(),
 });
 
 export async function updateMicrobiologyAction(lotId: string, formData: FormData) {
-  const parsed = microSchema.parse({
-    status: formData.get("status"),
-    notes: formData.get("notes") || undefined,
-  });
+  const raw = Object.fromEntries(
+    Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v])
+  );
+  const parsed = microSchema.parse(raw);
+  const { analysisStartDate, analysisEndDate, ...rest } = parsed;
 
   await prisma.$transaction(async (tx) => {
     await tx.microbiologyResult.update({
       where: { lotId },
-      data: { status: parsed.status, notes: parsed.notes, receivedDate: new Date() },
+      data: {
+        ...rest,
+        receivedDate: new Date(),
+        analysisStartDate: analysisStartDate ? new Date(analysisStartDate) : undefined,
+        analysisEndDate: analysisEndDate ? new Date(analysisEndDate) : undefined,
+      },
     });
 
     if (parsed.status === "FAILED_SEVERE") {

@@ -81,6 +81,9 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
     .map((l) => l.microbiologyResult?.receivedDate)
     .filter((d): d is Date => !!d)
     .sort((a, b) => b.getTime() - a.getTime())[0];
+  const microCerts = distinctLots
+    .map((l) => l.microbiologyResult)
+    .filter((m): m is NonNullable<typeof m> => !!m?.certificateNumber);
 
   const spec = container.order.client.specs.find(
     (s) => s.grade === container.order.grade && s.format === container.order.format
@@ -340,10 +343,16 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
               {checksForCert.every((c) => !c.complianceLevel) && <span className="ca-chip">On file</span>}
             </div>
             <p className="ca-micro">
-              <strong>Microbiology:</strong>{" "}
+              <strong>Lab Clearance:</strong>{" "}
               {allApproved
-                ? `Approved${microDate ? ` ${format(microDate, "dd MMM yyyy")}` : ""} — no pathogenic organisms detected; results compliant with destination-market food safety regulation.`
-                : "Pending or not yet approved for this lot — do not rely on this certificate until microbiology is confirmed."}
+                ? `Approved${microDate ? ` ${format(microDate, "dd MMM yyyy")}` : ""}${
+                    microCerts.length
+                      ? ` — certificate ${microCerts.map((m) => m.certificateNumber).join(", ")}${
+                          microCerts[0]?.labName ? ` (${microCerts[0].labName})` : ""
+                        }`
+                      : ""
+                  } on file; results compliant with destination-market food safety regulation.`
+                : "Pending or not yet approved for this lot — do not rely on this certificate until lab clearance is confirmed."}
             </p>
           </div>
           <div className="ca-seal-wrap">

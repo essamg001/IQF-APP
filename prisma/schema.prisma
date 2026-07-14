@@ -412,6 +412,10 @@ model QualityCheck {
   @@index([palletId])
 }
 
+// "Microbiology" here is used the way the factory uses it: whichever external
+// lab clearance is required before a lot can ship — in practice this can be a
+// residue/contaminant panel (e.g. chlorates & perchlorates) rather than a
+// literal pathogen test. One certificate gates one lot.
 model MicrobiologyResult {
   id           String             @id @default(cuid())
   lotId        String             @unique
@@ -419,7 +423,21 @@ model MicrobiologyResult {
   status       MicrobiologyStatus @default(PENDING)
   receivedDate DateTime?
   notes        String?
-  createdAt    DateTime           @default(now())
+
+  // Fields transcribed from the lab's own test certificate.
+  certificateNumber String? // e.g. "Dokki-434301"
+  labName           String? // e.g. "QCAP — Central Laboratory of Residue Analysis of Pesticides and Heavy Metals in Food"
+  sampleId          String? // e.g. "Dokki-2026-170105"
+  protocolNumber    String? // e.g. "MAFA 04- IQF UNIT (11) LOT-M41126146-1" — the lab's own reference, distinct from our lotNumber
+  samplingBagSerial String? // the certificate's own "Lot Number" field is actually this, not our lot number — kept distinct to avoid confusion
+  samplingPlace     String? // e.g. "M4 FARM" — free text, not forced to match a Field record exactly
+  analysisStartDate DateTime?
+  analysisEndDate   DateTime?
+  methodName        String? // e.g. "Chlorates & Perchlorates"
+  personInCharge    String?
+  resultsSummary    String? // free text since the tested compounds/panel vary by certificate
+
+  createdAt DateTime @default(now())
 }
 
 model Waste {
