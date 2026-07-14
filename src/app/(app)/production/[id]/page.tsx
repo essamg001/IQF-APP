@@ -2,10 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, FieldGroup, Input } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/button";
 import { format } from "date-fns";
-import { updateMicrobiologyAction } from "../actions-micro";
 import { FORMAT_LABEL } from "@/lib/format";
 
 const PALLET_STATUS_COLOR = {
@@ -45,14 +43,49 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       <Card>
-        <h2 className="text-sm font-semibold text-slate-900">Microbiology / Lab Clearance Approval</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-900">Microbiology / Lab Clearance Approval</h2>
+          <LinkButton href="/lab" variant="secondary" className="text-xs">
+            Manage in Lab section
+          </LinkButton>
+        </div>
         <p className="mt-1 text-xs text-slate-500">
-          Pallets cannot ship until this lot is approved. Severe failures move pallets to waste automatically;
-          minor failures offer pallets at a discount. Fields below are transcribed from the lab&apos;s test certificate.
+          Pallets cannot ship until this lot is approved. Dispatch, results, and the certificate file are managed
+          from the Lab section — this is a read-only summary.
         </p>
 
-        {lot.microbiologyResult && (lot.microbiologyResult.certificateNumber || lot.microbiologyResult.labName) && (
+        <div className="mt-4 flex items-center gap-2">
+          <Badge
+            color={
+              lot.microbiologyResult?.status === "APPROVED"
+                ? "green"
+                : lot.microbiologyResult?.status === "FAILED_MINOR"
+                  ? "amber"
+                  : lot.microbiologyResult?.status === "FAILED_SEVERE"
+                    ? "red"
+                    : lot.microbiologyResult?.status === "SENT_TO_LAB"
+                      ? "blue"
+                      : "slate"
+          }
+          >
+            {(lot.microbiologyResult?.status ?? "PENDING").replace(/_/g, " ")}
+          </Badge>
+          {lot.microbiologyResult?.certificateFileName && (
+            <a
+              href={`/api/files/certificates/${lot.microbiologyResult.certificateFileName}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-emerald-700 hover:underline"
+            >
+              View certificate
+            </a>
+          )}
+        </div>
+
+        {lot.microbiologyResult && (lot.microbiologyResult.certificateNumber || lot.microbiologyResult.labName || lot.microbiologyResult.sentDate) && (
           <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-1 rounded-md bg-slate-50 p-3 text-xs">
+            <Row label="Sent to lab" value={lot.microbiologyResult.sentDate ? format(lot.microbiologyResult.sentDate, "dd MMM yyyy") : undefined} />
+            <Row label="Tracking ref" value={lot.microbiologyResult.trackingRef} />
             <Row label="Certificate #" value={lot.microbiologyResult.certificateNumber} />
             <Row label="Lab" value={lot.microbiologyResult.labName} />
             <Row label="Method" value={lot.microbiologyResult.methodName} />
@@ -70,70 +103,6 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             )}
           </dl>
         )}
-
-        <form action={updateMicrobiologyAction.bind(null, lot.id)} className="mt-4 space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            <FieldGroup label="Status">
-              <Select name="status" defaultValue={lot.microbiologyResult?.status ?? "PENDING"}>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="FAILED_MINOR">Failed — Minor</option>
-                <option value="FAILED_SEVERE">Failed — Severe</option>
-              </Select>
-            </FieldGroup>
-            <FieldGroup label="Certificate Number">
-              <Input name="certificateNumber" defaultValue={lot.microbiologyResult?.certificateNumber ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Lab Name">
-              <Input name="labName" defaultValue={lot.microbiologyResult?.labName ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Sample ID">
-              <Input name="sampleId" defaultValue={lot.microbiologyResult?.sampleId ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Protocol Number">
-              <Input name="protocolNumber" defaultValue={lot.microbiologyResult?.protocolNumber ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Sampling Bag Serial">
-              <Input name="samplingBagSerial" defaultValue={lot.microbiologyResult?.samplingBagSerial ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Sampling Place">
-              <Input name="samplingPlace" defaultValue={lot.microbiologyResult?.samplingPlace ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Method Name">
-              <Input name="methodName" defaultValue={lot.microbiologyResult?.methodName ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Person In Charge">
-              <Input name="personInCharge" defaultValue={lot.microbiologyResult?.personInCharge ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Analysis Start Date">
-              <Input
-                name="analysisStartDate"
-                type="date"
-                defaultValue={lot.microbiologyResult?.analysisStartDate?.toISOString().slice(0, 10) ?? ""}
-              />
-            </FieldGroup>
-            <FieldGroup label="Analysis End Date">
-              <Input
-                name="analysisEndDate"
-                type="date"
-                defaultValue={lot.microbiologyResult?.analysisEndDate?.toISOString().slice(0, 10) ?? ""}
-              />
-            </FieldGroup>
-          </div>
-          <FieldGroup label="Results Summary">
-            <Input
-              name="resultsSummary"
-              placeholder="e.g. Chlorates: Not detected. Perchlorates: Not detected."
-              defaultValue={lot.microbiologyResult?.resultsSummary ?? ""}
-            />
-          </FieldGroup>
-          <FieldGroup label="Notes">
-            <Input name="notes" defaultValue={lot.microbiologyResult?.notes ?? ""} />
-          </FieldGroup>
-          <Button type="submit" variant="secondary">
-            Update result
-          </Button>
-        </form>
       </Card>
 
       <Card>

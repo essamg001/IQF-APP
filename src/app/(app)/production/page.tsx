@@ -8,6 +8,7 @@ import { FORMAT_LABEL } from "@/lib/format";
 
 const MICRO_COLOR = {
   PENDING: "amber",
+  SENT_TO_LAB: "blue",
   APPROVED: "green",
   FAILED_MINOR: "amber",
   FAILED_SEVERE: "red",

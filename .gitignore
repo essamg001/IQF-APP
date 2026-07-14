@@ -39,6 +39,9 @@ yarn-error.log*
 # local dev database (postgres binaries + data, see scripts/dev-db.mjs)
 .devdb
 
+# uploaded files (certificates, etc.) — never committed, local disk only
+/uploads
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

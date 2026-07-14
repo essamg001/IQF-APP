@@ -55,7 +55,8 @@ enum ComplianceLevel {
 }
 
 enum MicrobiologyStatus {
-  PENDING
+  PENDING       // not yet sent to the lab
+  SENT_TO_LAB   // sample dispatched, awaiting result
   APPROVED
   FAILED_MINOR
   FAILED_SEVERE
@@ -110,6 +111,7 @@ enum Station {
   POST_FREEZE_INSPECTION
   LOAD_OUT
   FINAL_PRODUCT_ENTRY
+  LAB
 }
 
 enum QualityDecision {
@@ -130,6 +132,7 @@ model User {
   createdAt    DateTime @default(now())
 
   qualityChecks QualityCheck[]
+  sentMicrobiologyResults MicrobiologyResult[] @relation("MicrobiologySentBy")
 }
 
 model Client {
@@ -424,6 +427,13 @@ model MicrobiologyResult {
   receivedDate DateTime?
   notes        String?
 
+  // Dispatch — when the sample was actually sent out to the lab, tracked
+  // separately from the result so the lab rep can see what's in flight.
+  sentDate     DateTime?
+  sentByUserId String?
+  sentBy       User?     @relation("MicrobiologySentBy", fields: [sentByUserId], references: [id])
+  trackingRef  String?
+
   // Fields transcribed from the lab's own test certificate.
   certificateNumber String? // e.g. "Dokki-434301"
   labName           String? // e.g. "QCAP — Central Laboratory of Residue Analysis of Pesticides and Heavy Metals in Food"
@@ -436,6 +446,11 @@ model MicrobiologyResult {
   methodName        String? // e.g. "Chlorates & Perchlorates"
   personInCharge    String?
   resultsSummary    String? // free text since the tested compounds/panel vary by certificate
+
+  // The certificate file itself, stored on local disk outside public/ and
+  // only ever served through an authenticated route — see src/lib/files.ts.
+  certificateFileName         String? // generated on-disk filename
+  certificateFileOriginalName String? // original filename, for display
 
   createdAt DateTime @default(now())
 }

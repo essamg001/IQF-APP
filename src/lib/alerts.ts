@@ -131,7 +131,7 @@ async function checkLowStock() {
 
 async function checkMicrobiologyPending() {
   const pending = await prisma.microbiologyResult.findMany({
-    where: { status: "PENDING" },
+    where: { status: { in: ["PENDING", "SENT_TO_LAB"] } },
     include: { lot: true },
   });
 

@@ -10,6 +10,7 @@ const STATION_OPTIONS_BY_ROLE: Partial<Record<Role, { value: string; label: stri
   QUALITY: [
     { value: "ARRIVAL_INSPECTION", label: "Arrival Inspection only" },
     { value: "POST_FREEZE_INSPECTION", label: "Post-Freeze Inspection only" },
+    { value: "LAB", label: "Lab only" },
   ],
   LOGISTICS: [{ value: "LOAD_OUT", label: "Load-Out only" }],
   PRODUCTION: [{ value: "FINAL_PRODUCT_ENTRY", label: "Final Product Entry only" }],

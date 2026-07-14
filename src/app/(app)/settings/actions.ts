@@ -60,7 +60,7 @@ const userSchema = z.object({
   role: z.enum(["OWNER", "SALES", "QUALITY", "PRODUCTION", "LOGISTICS"]),
   password: z.string().min(6),
   isHeadOfSales: z.boolean(),
-  station: z.enum(["ARRIVAL_INSPECTION", "POST_FREEZE_INSPECTION", "LOAD_OUT", "FINAL_PRODUCT_ENTRY"]).optional(),
+  station: z.enum(["ARRIVAL_INSPECTION", "POST_FREEZE_INSPECTION", "LOAD_OUT", "FINAL_PRODUCT_ENTRY", "LAB"]).optional(),
 });
 
 export async function addUserAction(_prevState: string | undefined, formData: FormData) {

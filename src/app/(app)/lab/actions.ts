@@ -1,11 +1,41 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { saveUploadedFile } from "@/lib/files";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-const microSchema = z.object({
-  status: z.enum(["PENDING", "APPROVED", "FAILED_MINOR", "FAILED_SEVERE"]),
+const sendSchema = z.object({
+  labName: z.string().optional(),
+  trackingRef: z.string().optional(),
+  sentDate: z.string().optional(),
+});
+
+export async function markSentToLabAction(lotId: string, formData: FormData) {
+  const raw = Object.fromEntries(
+    Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v])
+  );
+  const parsed = sendSchema.parse(raw);
+  const session = await auth();
+
+  await prisma.microbiologyResult.update({
+    where: { lotId },
+    data: {
+      status: "SENT_TO_LAB",
+      labName: parsed.labName,
+      trackingRef: parsed.trackingRef,
+      sentDate: parsed.sentDate ? new Date(parsed.sentDate) : new Date(),
+      sentByUserId: session?.user.id,
+    },
+  });
+
+  revalidatePath("/lab");
+  revalidatePath(`/production/${lotId}`);
+}
+
+const resultSchema = z.object({
+  status: z.enum(["PENDING", "SENT_TO_LAB", "APPROVED", "FAILED_MINOR", "FAILED_SEVERE"]),
   notes: z.string().optional(),
   certificateNumber: z.string().optional(),
   labName: z.string().optional(),
@@ -20,18 +50,28 @@ const microSchema = z.object({
   resultsSummary: z.string().optional(),
 });
 
-export async function updateMicrobiologyAction(lotId: string, formData: FormData) {
+export async function updateLabResultAction(lotId: string, formData: FormData) {
   const raw = Object.fromEntries(
-    Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v])
+    Array.from(formData.entries())
+      .filter(([k]) => k !== "certificateFile")
+      .map(([k, v]) => [k, v === "" ? undefined : v])
   );
-  const parsed = microSchema.parse(raw);
+  const parsed = resultSchema.parse(raw);
   const { analysisStartDate, analysisEndDate, ...rest } = parsed;
+
+  const file = formData.get("certificateFile");
+  let fileFields: { certificateFileName?: string; certificateFileOriginalName?: string } = {};
+  if (file instanceof File && file.size > 0) {
+    const saved = await saveUploadedFile(file, "certificates");
+    fileFields = { certificateFileName: saved.fileName, certificateFileOriginalName: saved.originalName };
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.microbiologyResult.update({
       where: { lotId },
       data: {
         ...rest,
+        ...fileFields,
         receivedDate: new Date(),
         analysisStartDate: analysisStartDate ? new Date(analysisStartDate) : undefined,
         analysisEndDate: analysisEndDate ? new Date(analysisEndDate) : undefined,
@@ -60,8 +100,8 @@ export async function updateMicrobiologyAction(lotId: string, formData: FormData
     }
   });
 
+  revalidatePath("/lab");
   revalidatePath(`/production/${lotId}`);
-  revalidatePath("/production");
   revalidatePath("/storage");
   revalidatePath("/waste");
 }

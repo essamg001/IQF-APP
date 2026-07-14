@@ -14,7 +14,7 @@ export default async function DashboardPage() {
       prisma.pallet.count({ where: { status: "IN_STORAGE" } }),
       prisma.claim.count({ where: { status: { in: ["OPEN", "UNDER_REVIEW"] } } }),
       role ? prisma.alert.count({ where: { targetRole: role, status: "UNREAD" } }) : 0,
-      prisma.microbiologyResult.count({ where: { status: "PENDING" } }),
+      prisma.microbiologyResult.count({ where: { status: { in: ["PENDING", "SENT_TO_LAB"] } } }),
     ]);
 
   let revenueHint: string | undefined;
