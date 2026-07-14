@@ -6,6 +6,9 @@ import { format } from "date-fns";
 
 export default async function QualityPage() {
   const checks = await prisma.qualityCheck.findMany({
+    // Standalone arrival-inspection checks (no lot yet) live on their own
+    // dedicated page — this dashboard is lot-tied checks only.
+    where: { lotId: { not: null } },
     include: { lot: { include: { shift: { include: { factory: true } } } }, inspector: true },
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -16,7 +19,8 @@ export default async function QualityPage() {
     { label: string; factory: string; brix: number[]; mould: number[]; skin: number[]; internal: number[] }
   >();
   for (const c of checks) {
-    const shift = c.lot.shift;
+    // Guaranteed non-null by the lotId-not-null filter above.
+    const shift = c.lot!.shift;
     const key = shift.id;
     if (!shiftGroups.has(key)) {
       shiftGroups.set(key, {
@@ -101,8 +105,8 @@ export default async function QualityPage() {
             {checks.map((c) => (
               <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <a href={`/production/${c.lot.id}`} className="text-emerald-700 hover:underline">
-                    {c.lot.lotNumber}
+                  <a href={`/production/${c.lot!.id}`} className="text-emerald-700 hover:underline">
+                    {c.lot!.lotNumber}
                   </a>
                 </td>
                 <td className="px-4 py-2">

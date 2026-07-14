@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
@@ -25,6 +26,8 @@ const CAPACITY_TONNES: Record<"PALLETISED" | "UNPALLETISED", number> = {
 
 export default async function ContainerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const session = await auth();
+  const isLoadOutStation = session?.user.station === "LOAD_OUT";
   const container = await prisma.container.findUnique({
     where: { id },
     include: {
@@ -71,38 +74,42 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             {container.order.client.name}
           </p>
         </div>
-        <LinkButton href={`/certificates/container/${container.id}`} variant="secondary">
-          View Certificate
-        </LinkButton>
+        {!isLoadOutStation && (
+          <LinkButton href={`/certificates/container/${container.id}`} variant="secondary">
+            View Certificate
+          </LinkButton>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Shipment Details</h2>
-          <dl className="mt-3 space-y-2 text-sm">
-            <Row label="Carrier" value={container.carrier} />
-            <Row label="Departure port" value={container.departurePort} />
-            <Row label="Destination port" value={container.destinationPort} />
-            <Row label="Departure date" value={container.departureDate?.toDateString()} />
-            <Row label="Expected transit" value={container.expectedTransitDays ? `${container.expectedTransitDays} days` : undefined} />
-            <Row label="Tracking provider" value={container.trackingProvider} />
-            <Row label="Tracking reference" value={container.trackingRef} />
-          </dl>
-        </Card>
+      {!isLoadOutStation && (
+        <div className="grid grid-cols-2 gap-4">
+          <Card>
+            <h2 className="text-sm font-semibold text-slate-900">Shipment Details</h2>
+            <dl className="mt-3 space-y-2 text-sm">
+              <Row label="Carrier" value={container.carrier} />
+              <Row label="Departure port" value={container.departurePort} />
+              <Row label="Destination port" value={container.destinationPort} />
+              <Row label="Departure date" value={container.departureDate?.toDateString()} />
+              <Row label="Expected transit" value={container.expectedTransitDays ? `${container.expectedTransitDays} days` : undefined} />
+              <Row label="Tracking provider" value={container.trackingProvider} />
+              <Row label="Tracking reference" value={container.trackingRef} />
+            </dl>
+          </Card>
 
-        <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Current Location</h2>
-          <p className="mt-1 text-sm text-slate-700">{container.currentLocation ?? "Not set"}</p>
-          <form action={updateContainerLocationAction.bind(null, container.id)} className="mt-4 space-y-3">
-            <FieldGroup label="Update location">
-              <Input name="currentLocation" placeholder="e.g. Suez Canal, In transit" defaultValue={container.currentLocation ?? ""} />
-            </FieldGroup>
-            <Button type="submit" variant="secondary">
-              Update
-            </Button>
-          </form>
-        </Card>
-      </div>
+          <Card>
+            <h2 className="text-sm font-semibold text-slate-900">Current Location</h2>
+            <p className="mt-1 text-sm text-slate-700">{container.currentLocation ?? "Not set"}</p>
+            <form action={updateContainerLocationAction.bind(null, container.id)} className="mt-4 space-y-3">
+              <FieldGroup label="Update location">
+                <Input name="currentLocation" placeholder="e.g. Suez Canal, In transit" defaultValue={container.currentLocation ?? ""} />
+              </FieldGroup>
+              <Button type="submit" variant="secondary">
+                Update
+              </Button>
+            </form>
+          </Card>
+        </div>
+      )}
 
       <Card className="border-emerald-200 bg-emerald-50/40">
         <div className="flex items-center justify-between">

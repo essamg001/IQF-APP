@@ -5,6 +5,13 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ROLE_LABELS } from "@/lib/roles";
+import type { Station } from "@prisma/client";
+
+const STATION_LABELS: Record<Station, string> = {
+  ARRIVAL_INSPECTION: "Arrival Inspection only",
+  POST_FREEZE_INSPECTION: "Post-Freeze Inspection only",
+  LOAD_OUT: "Load-Out only",
+};
 import {
   addFactoryAction,
   addColdRoomAction,
@@ -44,6 +51,7 @@ export default async function SettingsPage() {
                 </span>
                 <span className="flex items-center gap-3">
                   <Badge color="slate">{ROLE_LABELS[u.role]}</Badge>
+                  {u.station && <Badge color="amber">{STATION_LABELS[u.station]}</Badge>}
                   {u.role === "SALES" &&
                     (u.isHeadOfSales ? (
                       <Badge color="green">Head of Sales</Badge>

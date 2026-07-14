@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <p className="text-sm font-semibold text-slate-900">IQF Factory Manager</p>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <Nav role={session.user.role} isHeadOfSales={session.user.isHeadOfSales} />
+            <Nav role={session.user.role} isHeadOfSales={session.user.isHeadOfSales} station={session.user.station} />
           </div>
           <div className="border-t border-slate-200 pt-3">
             <p className="truncate px-1 text-sm font-medium text-slate-900">{session.user.name}</p>

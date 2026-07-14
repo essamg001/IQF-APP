@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -10,7 +11,10 @@ const CAPACITY_TONNES: Record<"PALLETISED" | "UNPALLETISED", number> = {
 };
 
 export default async function LogisticsPage() {
-  const containers = await prisma.container.findMany({
+  const session = await auth();
+  const isLoadOutStation = session?.user.station === "LOAD_OUT";
+
+  const allContainers = await prisma.container.findMany({
     include: {
       order: { include: { client: true } },
       palletLines: { select: { quantityTonnes: true } },
@@ -19,12 +23,20 @@ export default async function LogisticsPage() {
     take: 200,
   });
 
+  const containers = isLoadOutStation
+    ? allContainers.filter((c) => !(c.loadOutSignedAt && c.qualitySignedAt))
+    : allContainers;
+
   return (
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Logistics</h1>
-          <p className="mt-1 text-sm text-slate-500">Container tracking: departure, transit, and current location.</p>
+          <h1 className="text-xl font-semibold text-slate-900">{isLoadOutStation ? "Load-Out" : "Logistics"}</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {isLoadOutStation
+              ? "Containers awaiting load-out. Open one to fill the manifest and sign off."
+              : "Container tracking: departure, transit, and current location."}
+          </p>
         </div>
       </div>
 

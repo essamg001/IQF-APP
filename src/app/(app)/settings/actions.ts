@@ -60,6 +60,7 @@ const userSchema = z.object({
   role: z.enum(["OWNER", "SALES", "QUALITY", "PRODUCTION", "LOGISTICS"]),
   password: z.string().min(6),
   isHeadOfSales: z.boolean(),
+  station: z.enum(["ARRIVAL_INSPECTION", "POST_FREEZE_INSPECTION", "LOAD_OUT"]).optional(),
 });
 
 export async function addUserAction(_prevState: string | undefined, formData: FormData) {
@@ -69,6 +70,7 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
     role: formData.get("role"),
     password: formData.get("password"),
     isHeadOfSales: formData.get("isHeadOfSales") === "on",
+    station: formData.get("station") || undefined,
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
@@ -84,6 +86,7 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
       email: parsed.data.email,
       role: parsed.data.role,
       isHeadOfSales: parsed.data.isHeadOfSales,
+      station: parsed.data.station,
       passwordHash,
     },
   });

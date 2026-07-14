@@ -102,6 +102,20 @@ enum AlertStatus {
   READ
 }
 
+// A user with a Station set is locked to a single-purpose entry screen (used for
+// shop-floor accounts — arrival inspector, post-freeze inspector, load-out supervisor)
+// instead of the normal role-wide access. Null means normal, unrestricted access for their role.
+enum Station {
+  ARRIVAL_INSPECTION
+  POST_FREEZE_INSPECTION
+  LOAD_OUT
+}
+
+enum QualityDecision {
+  ACCEPTED
+  REJECTED
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -111,6 +125,7 @@ model User {
   // Historical/trend financials are restricted to Owner + whoever holds this flag,
   // not the whole Sales role — deliberately narrower than order-level pricing access.
   isHeadOfSales Boolean @default(false)
+  station      Station?
   createdAt    DateTime @default(now())
 
   qualityChecks QualityCheck[]
@@ -278,11 +293,20 @@ model Pallet {
 // Fields not relevant to a given checkpoint are simply left null.
 model QualityCheck {
   id         String            @id @default(cuid())
-  lotId      String
-  lot        ProductionLot     @relation(fields: [lotId], references: [id])
+  // Nullable: raw-material checks happen at the receiving dock before a
+  // production lot exists, so they're logged standalone. Post-packaging
+  // checks are still tied to the lot they came from (enforced in the action).
+  lotId      String?
+  lot        ProductionLot?    @relation(fields: [lotId], references: [id])
   palletId   String?
   pallet     Pallet?           @relation(fields: [palletId], references: [id])
   checkpoint QualityCheckpoint
+
+  // RAW_MATERIAL only: the accept/reject call made at intake, and whether it
+  // covers just the sampled pallet or the whole delivery (a supervisor can
+  // reject an entire truckload outright without inspecting every pallet on it).
+  decision               QualityDecision?
+  appliesToWholeDelivery Boolean          @default(false)
 
   complianceLevel ComplianceLevel?
   complianceOther String?
@@ -329,6 +353,8 @@ model QualityCheck {
   mouldPct      Float @default(0)
   skinDamagePct Float @default(0)
   firmnessScore Float?
+
+  notes String?
 
   inspectorId String?
   inspector   User? @relation(fields: [inspectorId], references: [id])
