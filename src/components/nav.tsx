@@ -12,8 +12,11 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/available-to-sell", label: "Available to Sell" },
   { href: "/logistics", label: "Logistics" },
   { href: "/production", label: "Production" },
+  { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
   { href: "/storage", label: "Storage" },
   { href: "/quality", label: "Quality" },
+  { href: "/arrival-inspection", label: "Arrival Inspection", roles: ["OWNER", "QUALITY"] },
+  { href: "/post-freeze-inspection", label: "Post-Freeze Inspection", roles: ["OWNER", "QUALITY"] },
   { href: "/claims", label: "Claims" },
   { href: "/waste", label: "Waste" },
   { href: "/shifts", label: "Hours Worked" },
@@ -28,6 +31,7 @@ const STATION_ITEM: Record<Station, { href: string; label: string }> = {
   ARRIVAL_INSPECTION: { href: "/arrival-inspection", label: "Arrival Inspection" },
   POST_FREEZE_INSPECTION: { href: "/post-freeze-inspection", label: "Post-Freeze Inspection" },
   LOAD_OUT: { href: "/logistics", label: "Load-Out" },
+  FINAL_PRODUCT_ENTRY: { href: "/final-product-entry", label: "Final Product Entry" },
 };
 
 export function Nav({ role, isHeadOfSales, station }: { role: Role; isHeadOfSales: boolean; station: Station | null }) {

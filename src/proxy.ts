@@ -8,6 +8,7 @@ const STATION_HOME: Record<Station, string> = {
   ARRIVAL_INSPECTION: "/arrival-inspection",
   POST_FREEZE_INSPECTION: "/post-freeze-inspection",
   LOAD_OUT: "/logistics",
+  FINAL_PRODUCT_ENTRY: "/final-product-entry",
 };
 
 export default auth((req) => {

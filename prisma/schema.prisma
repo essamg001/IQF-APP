@@ -109,6 +109,7 @@ enum Station {
   ARRIVAL_INSPECTION
   POST_FREEZE_INSPECTION
   LOAD_OUT
+  FINAL_PRODUCT_ENTRY
 }
 
 enum QualityDecision {
@@ -253,8 +254,12 @@ model ProductionLot {
 }
 
 // cartonLogo/cartonSize/variety are physical carton attributes fixed at packing.
-// loadingStart/loadingEnd are set when the pallet is loaded into a container for
-// shipment, per form GEN03115 "Identification of Packed Pallets" (a load-out manifest).
+// packing*/palletization* fields mirror form GEN03115 "Identification of Packed
+// Pallets" — filled out by the Final Product Entry role as each pallet is wrapped,
+// which is what actually creates most Pallet rows (a lot can also still be bulk
+// pallet-generated at production time as a quicker fallback — see createLotAction).
+// loadingStart/loadingEnd (on ContainerPalletLine) are a separate, later moment:
+// when the pallet is loaded into a container for shipment.
 model Pallet {
   id            String       @id @default(cuid())
   palletNumber  String       @unique
@@ -273,6 +278,18 @@ model Pallet {
   cartonLogo String?
   cartonSize String?
   variety    String?
+
+  // GEN03115 fields
+  traceabilityCode  String?
+  clientSpecNote    String?   // اسم العميل/المواصفة — intended client/spec, may be set before a formal Order exists
+  isMixedVariety    Boolean   @default(false)
+  fullPallet        Boolean   @default(true)
+  totalCartons      Int?
+  packingDate       DateTime?
+  packingLocation   String?
+  packingSupervisor String?
+  palletizationStart DateTime?
+  palletizationEnd   DateTime?
 
   // Cartons packed without a confirmed client/sale go out blank and need a
   // client sticker applied at the load-out bay before they can go in the container.
@@ -302,9 +319,9 @@ model QualityCheck {
   pallet     Pallet?           @relation(fields: [palletId], references: [id])
   checkpoint QualityCheckpoint
 
-  // RAW_MATERIAL only: the accept/reject call made at intake, and whether it
-  // covers just the sampled pallet or the whole delivery (a supervisor can
-  // reject an entire truckload outright without inspecting every pallet on it).
+  // Both checkpoints end in an Acceptable/Unacceptable call + corrective action
+  // (the "notes" field below). appliesToWholeDelivery is RAW_MATERIAL only: a
+  // supervisor can reject an entire truckload outright without inspecting every pallet on it.
   decision               QualityDecision?
   appliesToWholeDelivery Boolean          @default(false)
 
@@ -323,6 +340,18 @@ model QualityCheck {
   sampleCollectionTime DateTime?
   sampleWeightKg     Float?
 
+  // Defect items that appear on both STR03110 and STR03111/STR03116 (same
+  // % unit, different limit per form — the limit is enforced in the UI, not the DB).
+  incompleteMaturityPct Float?
+  shapeDeformitiesPct   Float?
+  oxidationPct          Float?
+  foreignBodiesPct      Float?
+  insectsLarvaePct      Float?
+  totalDefectsPct       Float?
+  foreignOdor           String?
+  foreignTaste          String?
+  overmaturePct         Float?
+
   // STR03110 — raw material intake only
   sampleNo               String?
   rawMaterialSource      String?
@@ -332,6 +361,18 @@ model QualityCheck {
   numberOfBoxesReceived  Int?
   crateWeightKg          Float?
   sizeCaliber            String?
+  moldSignsPct           Float? // بوادر عفن — distinct from Mold itself (mouldPct)
+  capsuleRemainsPct      Float? // بقايا الكبسولة (STR03110 measures this as a %)
+  birdFoodPct            Float? // اكل طيور
+  seedClusteringPct      Float? // تجمع البذور
+  bruisesPct             Float? // كدمات
+  dryCavitiesPct         Float? // تجاويف جافة
+  overDecappingPct       Float? // تجهير جائر
+  sandDustPct            Float? // تربة/رمال
+  leafStemRemainsCount   Float? // بقايا اوراق / سيقان — limit is 1 piece/1kg
+  brokenUncleanPalletsPct Float? // باليتات مكسورة او غير نظيفة
+  unfumigatedPalletsPct   Float? // باليتات غير مبخرة
+  brokenUncleanCratesPct  Float? // اطباق مكسورة او غير نظيفة
 
   // STR03111 / STR03116 — post-packaging only
   clientName                     String?
@@ -345,9 +386,16 @@ model QualityCheck {
   fruitDiameterCalibratedRegular String?
   fruitDiameterCalibratedIrregular String?
   fruitDiameterCalibratedSmall   String?
-  foreignOdor                    String?
-  foreignTaste                   String?
-  overmaturePct                  Float?
+  capsuleRemainsCount   Float? // بقايا الكبسولة — measured as pieces/10kg here, distinct unit from raw's capsuleRemainsPct
+  leafRemainsCount      Float? // رض الاوراق وبقايا اوراق — pieces/10kg
+  stemFragmentsCount    Float? // السيقان وشظايا الساق — pieces/10kg
+  cohesiveClustersPct   Float? // كتل متماسكة (2:3 قطع)
+  crushedBrokenFruitPct Float? // ثمار محطمة/مكسورة
+  dryBruisesPct         Float? // خبطات جافة
+  mechanicalFactorsPct  Float? // عوامل ميكانيكية
+  fungalInfectionPct    Float? // اصابة فطرية
+  insectInfestationPct  Float? // اصابة حشرية (distinct from insectsLarvaePct)
+  frozenProductWaitMinutes Float? // فترة انتظار المنتج المجمد
 
   // Legacy/general defect fields
   mouldPct      Float @default(0)

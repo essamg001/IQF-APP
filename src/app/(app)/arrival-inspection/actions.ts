@@ -5,23 +5,58 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+const pct = () => z.coerce.number().min(0).max(100).optional();
+
 const arrivalCheckSchema = z
   .object({
     appliesToWholeDelivery: z.boolean(),
     decision: z.enum(["ACCEPTED", "REJECTED"]),
-    sampleNo: z.string().optional(),
+
+    shiftNumber: z.string().optional(),
+    complianceLevel: z.enum(["GLOBALGAP", "SPRING", "LEAF", "OTHER"]).optional(),
+    complianceOther: z.string().optional(),
     rawMaterialSource: z.string().optional(),
     farmCode: z.string().optional(),
     transportVehicleNo: z.string().optional(),
     receiptNoteNo: z.string().optional(),
+    varietyName: z.string().optional(),
+
+    sampleNo: z.string().optional(),
     numberOfBoxesReceived: z.coerce.number().int().optional(),
+    sampleCollectionTime: z.string().optional(),
+    sampleWeightKg: z.coerce.number().optional(),
+    productTemperatureC: z.coerce.number().optional(),
+    acidityPh: z.coerce.number().optional(),
+
     crateWeightKg: z.coerce.number().optional(),
     sizeCaliber: z.string().optional(),
     brix: z.coerce.number().min(0).max(30).optional(),
-    fruitColorPct: z.coerce.number().min(0).max(100).optional(),
-    internalQualityPct: z.coerce.number().min(0).max(100).optional(),
-    mouldPct: z.coerce.number().min(0).max(100).optional(),
-    skinDamagePct: z.coerce.number().min(0).max(100).optional(),
+    fruitColorPct: pct(),
+    internalQualityPct: pct(),
+    foreignOdor: z.string().optional(),
+    foreignTaste: z.string().optional(),
+
+    incompleteMaturityPct: pct(),
+    moldSignsPct: pct(),
+    mouldPct: pct(),
+    capsuleRemainsPct: pct(),
+    birdFoodPct: pct(),
+    overmaturePct: pct(),
+    skinDamagePct: pct(),
+    shapeDeformitiesPct: pct(),
+    seedClusteringPct: pct(),
+    bruisesPct: pct(),
+    dryCavitiesPct: pct(),
+    overDecappingPct: pct(),
+    oxidationPct: pct(),
+    sandDustPct: pct(),
+    insectsLarvaePct: pct(),
+    foreignBodiesPct: pct(),
+    leafStemRemainsCount: z.coerce.number().min(0).optional(),
+    brokenUncleanPalletsPct: pct(),
+    unfumigatedPalletsPct: pct(),
+    brokenUncleanCratesPct: pct(),
+
     notes: z.string().optional(),
   })
   .refine((data) => data.appliesToWholeDelivery || data.sampleNo, {
@@ -32,6 +67,28 @@ const arrivalCheckSchema = z
     message: "Brix is required unless this is a whole-delivery rejection.",
     path: ["brix"],
   });
+
+const DEFECT_PCT_FIELDS = [
+  "incompleteMaturityPct",
+  "moldSignsPct",
+  "mouldPct",
+  "capsuleRemainsPct",
+  "birdFoodPct",
+  "overmaturePct",
+  "skinDamagePct",
+  "shapeDeformitiesPct",
+  "seedClusteringPct",
+  "bruisesPct",
+  "dryCavitiesPct",
+  "overDecappingPct",
+  "oxidationPct",
+  "sandDustPct",
+  "insectsLarvaePct",
+  "foreignBodiesPct",
+  "brokenUncleanPalletsPct",
+  "unfumigatedPalletsPct",
+  "brokenUncleanCratesPct",
+] as const;
 
 export async function createArrivalCheckAction(_prevState: string | undefined, formData: FormData) {
   const raw = Object.fromEntries(
@@ -46,7 +103,9 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
   }
 
   const session = await auth();
-  const { ...data } = parsed.data;
+  const { sampleCollectionTime, notes, ...data } = parsed.data;
+
+  const totalDefectsPct = DEFECT_PCT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
 
   const created = await prisma.qualityCheck.create({
     data: {
@@ -54,20 +113,49 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
       lotId: null,
       decision: data.decision,
       appliesToWholeDelivery: data.appliesToWholeDelivery,
-      sampleNo: data.sampleNo,
+      shiftNumber: data.shiftNumber,
+      complianceLevel: data.complianceLevel,
+      complianceOther: data.complianceOther,
       rawMaterialSource: data.rawMaterialSource,
       farmCode: data.farmCode,
       transportVehicleNo: data.transportVehicleNo,
       receiptNoteNo: data.receiptNoteNo,
+      varietyName: data.varietyName,
+      sampleNo: data.sampleNo,
       numberOfBoxesReceived: data.numberOfBoxesReceived,
+      sampleCollectionTime: sampleCollectionTime ? new Date(sampleCollectionTime) : undefined,
+      sampleWeightKg: data.sampleWeightKg,
+      productTemperatureC: data.productTemperatureC,
+      acidityPh: data.acidityPh,
       crateWeightKg: data.crateWeightKg,
       sizeCaliber: data.sizeCaliber,
       brix: data.brix ?? 0,
       fruitColorPct: data.fruitColorPct ?? 0,
       internalQualityPct: data.internalQualityPct ?? 0,
+      foreignOdor: data.foreignOdor,
+      foreignTaste: data.foreignTaste,
+      incompleteMaturityPct: data.incompleteMaturityPct,
+      moldSignsPct: data.moldSignsPct,
       mouldPct: data.mouldPct ?? 0,
+      capsuleRemainsPct: data.capsuleRemainsPct,
+      birdFoodPct: data.birdFoodPct,
+      overmaturePct: data.overmaturePct,
       skinDamagePct: data.skinDamagePct ?? 0,
-      notes: data.notes,
+      shapeDeformitiesPct: data.shapeDeformitiesPct,
+      seedClusteringPct: data.seedClusteringPct,
+      bruisesPct: data.bruisesPct,
+      dryCavitiesPct: data.dryCavitiesPct,
+      overDecappingPct: data.overDecappingPct,
+      oxidationPct: data.oxidationPct,
+      sandDustPct: data.sandDustPct,
+      insectsLarvaePct: data.insectsLarvaePct,
+      foreignBodiesPct: data.foreignBodiesPct,
+      leafStemRemainsCount: data.leafStemRemainsCount,
+      brokenUncleanPalletsPct: data.brokenUncleanPalletsPct,
+      unfumigatedPalletsPct: data.unfumigatedPalletsPct,
+      brokenUncleanCratesPct: data.brokenUncleanCratesPct,
+      totalDefectsPct: data.appliesToWholeDelivery ? undefined : totalDefectsPct,
+      notes,
       inspectorId: session?.user.id,
     },
   });

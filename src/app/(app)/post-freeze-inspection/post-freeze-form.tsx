@@ -5,15 +5,49 @@ import { createPostFreezeCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { ProductionLot, Field, Pallet } from "@prisma/client";
+import type { ProductionLot, Field, Pallet, Grade } from "@prisma/client";
 
 type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[] };
+
+// STR03111 (Grade A) vs STR03116 (Grade B) — same items, different tolerances.
+const LIMITS: Record<Grade, Record<string, string>> = {
+  A: {
+    fruitColor: "90% of body",
+    overmature: "3%",
+    incompleteMaturity: "3%",
+    shapeDeformities: "3%",
+    skinDeformities: "2%",
+    cohesiveClusters: "2%",
+    crushedBroken: "2%",
+    dryBruises: "1%",
+    mechanicalFactors: "2%",
+    oxidation: "4%",
+    totalDefects: "<5%",
+    calibratedSmall: "15-25mm",
+  },
+  B: {
+    fruitColor: "80% of body",
+    overmature: "5%",
+    incompleteMaturity: "5%",
+    shapeDeformities: "5%",
+    skinDeformities: "3%",
+    cohesiveClusters: "3%",
+    crushedBroken: "3%",
+    dryBruises: "2%",
+    mechanicalFactors: "2%",
+    oxidation: "6%",
+    totalDefects: "10%",
+    calibratedSmall: "15-25mm (Class II)",
+  },
+};
 
 export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] }) {
   const [state, formAction, pending] = useActionState(createPostFreezeCheckAction, undefined);
   const [lotId, setLotId] = useState(lots[0]?.id ?? "");
 
-  const pallets = useMemo(() => lots.find((l) => l.id === lotId)?.pallets ?? [], [lots, lotId]);
+  const selectedLot = lots.find((l) => l.id === lotId);
+  const pallets = selectedLot?.pallets ?? [];
+  const grade = selectedLot?.grade ?? "A";
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
@@ -25,7 +59,10 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
   return (
     <form action={formAction} className="space-y-4">
       <Card className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <h2 className="text-sm font-semibold text-slate-900">
+          {grade === "A" ? "Final Product (Frozen) — Grade A — STR03111" : "Final Product (Frozen) — Grade B — STR03116"}
+        </h2>
+        <div className="grid grid-cols-3 gap-3">
           <FieldGroup label="Lot">
             <Select name="lotId" required value={lotId} onChange={(e) => setLotId(e.target.value)}>
               {lots.map((l) => (
@@ -35,14 +72,46 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
               ))}
             </Select>
           </FieldGroup>
-          <FieldGroup label="Pallet (optional — this specific pallet's sample)">
-            {/* Remounts on each successful save so it doesn't stick to the last pallet picked. */}
-            <PalletSelect key={isSuccess ? state : "initial"} pallets={pallets} />
+          <FieldGroup label="Pallet No.">
+            <PalletSelect key={isSuccess ? state : `${lotId}-initial`} pallets={pallets} />
+          </FieldGroup>
+          <FieldGroup label="Client">
+            <Input name="clientName" />
+          </FieldGroup>
+          <FieldGroup label="Traceability Code">
+            <Input name="traceabilityCode" />
+          </FieldGroup>
+          <FieldGroup label="Variety">
+            <Input name="varietyName" />
+          </FieldGroup>
+          <FieldGroup label="Shift #">
+            <Input name="shiftNumber" />
+          </FieldGroup>
+          <FieldGroup label="Operation Date">
+            <Input name="operationDate" type="date" />
+          </FieldGroup>
+          <FieldGroup label="Expiry Date">
+            <Input name="expiryDate" type="date" />
+          </FieldGroup>
+          <FieldGroup label="PH (limit 3.3±0.2)">
+            <Input name="acidityPh" type="number" step="0.01" />
+          </FieldGroup>
+          <FieldGroup label="Compliance level">
+            <Select name="complianceLevel" defaultValue="">
+              <option value="">—</option>
+              <option value="GLOBALGAP">GLOBALG.A.P</option>
+              <option value="SPRING">Spring</option>
+              <option value="LEAF">LEAF</option>
+              <option value="OTHER">Other</option>
+            </Select>
+          </FieldGroup>
+          <FieldGroup label="Compliance (if Other)">
+            <Input name="complianceOther" />
           </FieldGroup>
         </div>
       </Card>
 
-      <MeasurementFields key={isSuccess ? state : "initial"} />
+      <MeasurementFields key={isSuccess ? state : "initial"} grade={grade} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — logged.</p>}
@@ -66,53 +135,127 @@ function PalletSelect({ pallets }: { pallets: Pallet[] }) {
   );
 }
 
-function MeasurementFields() {
+function MeasurementFields({ grade }: { grade: Grade }) {
+  const limits = useMemo(() => LIMITS[grade], [grade]);
+  const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
+
   return (
-    <Card className="space-y-4">
-      <h2 className="text-sm font-semibold text-slate-900">Final Product (Frozen) — STR03111 / STR03116</h2>
-      <div className="grid grid-cols-4 gap-3">
-        <FieldGroup label="Brix">
-          <Input name="brix" type="number" step="0.1" required />
-        </FieldGroup>
-        <FieldGroup label="Size Caliber">
-          <Input name="sizeCaliber" placeholder="25-40mm" />
-        </FieldGroup>
-        <FieldGroup label="Fruit Color (%)">
-          <Input name="fruitColorPct" type="number" step="0.1" min="0" max="100" defaultValue={0} />
-        </FieldGroup>
-        <FieldGroup label="Internal Quality (%)">
-          <Input name="internalQualityPct" type="number" step="0.1" min="0" max="100" defaultValue={0} />
-        </FieldGroup>
-        <FieldGroup label="Mould (%)">
-          <Input name="mouldPct" type="number" step="0.1" min="0" max="100" defaultValue={0} />
-        </FieldGroup>
-        <FieldGroup label="Skin Damage (%)">
-          <Input name="skinDamagePct" type="number" step="0.1" min="0" max="100" defaultValue={0} />
-        </FieldGroup>
-        <FieldGroup label="Overmature / Soft Texture (%)">
-          <Input name="overmaturePct" type="number" step="0.1" />
-        </FieldGroup>
-        <FieldGroup label="Foreign Odor">
-          <Input name="foreignOdor" placeholder="NIL" />
-        </FieldGroup>
-        <FieldGroup label="Foreign Taste">
-          <Input name="foreignTaste" placeholder="NIL" />
-        </FieldGroup>
-      </div>
-      <div className="flex gap-6">
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="fullPallet" /> Full pallet
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="packageClosureOk" /> Package closure OK
-        </label>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="dataLabelReviewOk" /> Data label review OK
-        </label>
-      </div>
-      <FieldGroup label="Notes (optional)">
-        <Input name="notes" />
-      </FieldGroup>
-    </Card>
+    <>
+      <Card className="space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900">Sample & Packaging</h2>
+        <div className="grid grid-cols-4 gap-3">
+          <FieldGroup label="Sample Collection Time">
+            <Input name="sampleCollectionTime" type="datetime-local" />
+          </FieldGroup>
+          <FieldGroup label="Sample Weight (limit 2kg)">
+            <Input name="sampleWeightKg" type="number" step="0.01" />
+          </FieldGroup>
+          <FieldGroup label="Carton/Package Weight">
+            <Input name="cartonWeightKg" type="number" step="0.01" />
+          </FieldGroup>
+          <FieldGroup label="Product Temperature (limit -18°C)">
+            <Input name="productTemperatureC" type="number" step="0.1" />
+          </FieldGroup>
+          <FieldGroup label="Fruit Diameter — Uncalibrated (25-40mm or per client spec)">
+            <Input name="fruitDiameterUncalibrated" placeholder="25-40mm" />
+          </FieldGroup>
+          <FieldGroup label={`Fruit Diameter — Calibrated, small (${limits.calibratedSmall})`}>
+            <Input name="fruitDiameterCalibratedSmall" />
+          </FieldGroup>
+          <FieldGroup label="Fruit Diameter — Calibrated, regular (25-35mm)">
+            <Input name="fruitDiameterCalibratedRegular" />
+          </FieldGroup>
+          <FieldGroup label="Fruit Diameter — Calibrated, irregular (>35mm)">
+            <Input name="fruitDiameterCalibratedIrregular" />
+          </FieldGroup>
+        </div>
+        <div className="flex gap-6">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="packageClosureOk" /> Package closure OK (tightly sealed)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="dataLabelReviewOk" /> Data label review OK
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="fullPallet" /> Full pallet
+          </label>
+        </div>
+      </Card>
+
+      <Card className="space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900">Fruit Quality</h2>
+        <div className="grid grid-cols-4 gap-3">
+          <FieldGroup label="Brix (from raw material check, limit 8±1%)">
+            <Input name="brix" type="number" step="0.1" required />
+          </FieldGroup>
+          <FieldGroup label={`Fruit Color (limit ${limits.fruitColor})`}>
+            <Input name="fruitColorPct" type="number" step="0.1" min="0" max="100" />
+          </FieldGroup>
+          <FieldGroup label="Internal Quality (limit 3%)">
+            <Input name="internalQualityPct" type="number" step="0.1" min="0" max="100" />
+          </FieldGroup>
+          <FieldGroup label="Foreign Odor (limit NIL)">
+            <Input name="foreignOdor" placeholder="NIL" />
+          </FieldGroup>
+          <FieldGroup label="Foreign Taste (limit NIL)">
+            <Input name="foreignTaste" placeholder="NIL" />
+          </FieldGroup>
+        </div>
+      </Card>
+
+      <Card className="space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900">Defects</h2>
+        <div className="grid grid-cols-4 gap-3">
+          <Pct name="overmaturePct" label="Overmature" limit={limits.overmature} />
+          <Pct name="incompleteMaturityPct" label="Incomplete Maturity" limit={limits.incompleteMaturity} />
+          <FieldGroup label="Capsule Remains (limit 10 pieces/10kg)">
+            <Input name="capsuleRemainsCount" type="number" step="0.1" min="0" />
+          </FieldGroup>
+          <FieldGroup label="Leaf Remains (limit 10 pieces/10kg)">
+            <Input name="leafRemainsCount" type="number" step="0.1" min="0" />
+          </FieldGroup>
+          <FieldGroup label="Stem Fragments (limit 1 piece/10kg)">
+            <Input name="stemFragmentsCount" type="number" step="0.1" min="0" />
+          </FieldGroup>
+          <Pct name="shapeDeformitiesPct" label="Shape Deformities" limit={limits.shapeDeformities} />
+          <Pct name="skinDamagePct" label="Skin Deformities" limit={limits.skinDeformities} />
+          <Pct name="cohesiveClustersPct" label="Cohesive Clusters (2-3 pcs)" limit={limits.cohesiveClusters} />
+          <Pct name="crushedBrokenFruitPct" label="Crushed/Broken Fruit" limit={limits.crushedBroken} />
+          <Pct name="dryBruisesPct" label="Dry Bruises" limit={limits.dryBruises} />
+          <Pct name="mechanicalFactorsPct" label="Mechanical Factors" limit={limits.mechanicalFactors} />
+          <Pct name="oxidationPct" label="Oxidation" limit={limits.oxidation} />
+          <Pct name="fungalInfectionPct" label="Fungal Infection" limit="0%" />
+          <Pct name="insectsLarvaePct" label="Insects/Larvae" limit="0%" />
+          <Pct name="insectInfestationPct" label="Insect Infestation" limit="0%" />
+          <Pct name="foreignBodiesPct" label="Foreign Bodies" limit="0%" />
+          <FieldGroup label="Frozen Product Waiting Period (limit 10-30 min)">
+            <Input name="frozenProductWaitMinutes" type="number" step="1" />
+          </FieldGroup>
+        </div>
+        <p className="text-xs text-slate-400">Total defects (limit {limits.totalDefects}) is calculated automatically from the values above.</p>
+      </Card>
+
+      <Card className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <FieldGroup label="Decision — Acceptable / Unacceptable">
+            <Select name="decision" required value={decision} onChange={(e) => setDecision(e.target.value as typeof decision)}>
+              <option value="ACCEPTED">Acceptable</option>
+              <option value="REJECTED">Unacceptable</option>
+            </Select>
+          </FieldGroup>
+          <FieldGroup label={decision === "REJECTED" ? "Corrective Action" : "Corrective Action (optional)"}>
+            <Input name="notes" required={decision === "REJECTED"} />
+          </FieldGroup>
+        </div>
+      </Card>
+    </>
+  );
+}
+
+function Pct({ name, label, limit }: { name: string; label: string; limit: string }) {
+  return (
+    <FieldGroup label={`${label} (limit ${limit})`}>
+      <Input name={name} type="number" step="0.1" min="0" max="100" />
+    </FieldGroup>
   );
 }

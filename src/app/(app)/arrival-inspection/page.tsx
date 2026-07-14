@@ -55,6 +55,7 @@ export default async function ArrivalInspectionPage() {
               <th className="px-4 py-2 font-medium">Sample / Pallet</th>
               <th className="px-4 py-2 font-medium">Vehicle</th>
               <th className="px-4 py-2 font-medium">Brix</th>
+              <th className="px-4 py-2 font-medium">Total Defects</th>
               <th className="px-4 py-2 font-medium">Decision</th>
             </tr>
           </thead>
@@ -70,13 +71,20 @@ export default async function ArrivalInspectionPage() {
                 <td className="px-4 py-2">{c.transportVehicleNo ?? "—"}</td>
                 <td className="px-4 py-2">{c.appliesToWholeDelivery ? "—" : c.brix}</td>
                 <td className="px-4 py-2">
+                  {c.totalDefectsPct != null ? (
+                    <Badge color={c.totalDefectsPct > 5 ? "red" : "green"}>{c.totalDefectsPct.toFixed(1)}%</Badge>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td className="px-4 py-2">
                   <Badge color={c.decision === "ACCEPTED" ? "green" : "red"}>{c.decision}</Badge>
                 </td>
               </tr>
             ))}
             {todaysChecks.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                   Nothing logged yet today.
                 </td>
               </tr>

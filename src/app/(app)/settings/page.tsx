@@ -11,6 +11,7 @@ const STATION_LABELS: Record<Station, string> = {
   ARRIVAL_INSPECTION: "Arrival Inspection only",
   POST_FREEZE_INSPECTION: "Post-Freeze Inspection only",
   LOAD_OUT: "Load-Out only",
+  FINAL_PRODUCT_ENTRY: "Final Product Entry only",
 };
 import {
   addFactoryAction,

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { PostFreezeInspectionForm } from "./post-freeze-form";
 
 export default async function PostFreezeInspectionPage() {
@@ -48,7 +49,8 @@ export default async function PostFreezeInspectionPage() {
               <th className="px-4 py-2 font-medium">Lot</th>
               <th className="px-4 py-2 font-medium">Pallet</th>
               <th className="px-4 py-2 font-medium">Brix</th>
-              <th className="px-4 py-2 font-medium">Mould %</th>
+              <th className="px-4 py-2 font-medium">Total Defects</th>
+              <th className="px-4 py-2 font-medium">Decision</th>
             </tr>
           </thead>
           <tbody>
@@ -60,12 +62,21 @@ export default async function PostFreezeInspectionPage() {
                 <td className="px-4 py-2">{c.lot?.lotNumber ?? "—"}</td>
                 <td className="px-4 py-2">{c.pallet?.palletNumber ?? "Lot-level"}</td>
                 <td className="px-4 py-2">{c.brix}</td>
-                <td className="px-4 py-2">{c.mouldPct}</td>
+                <td className="px-4 py-2">
+                  {c.totalDefectsPct != null ? `${c.totalDefectsPct.toFixed(1)}%` : "—"}
+                </td>
+                <td className="px-4 py-2">
+                  {c.decision ? (
+                    <Badge color={c.decision === "ACCEPTED" ? "green" : "red"}>{c.decision}</Badge>
+                  ) : (
+                    "—"
+                  )}
+                </td>
               </tr>
             ))}
             {todaysChecks.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                   Nothing logged yet today.
                 </td>
               </tr>

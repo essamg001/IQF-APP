@@ -6,15 +6,27 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
+function Pct({ name, label, limit }: { name: string; label: string; limit: string }) {
+  return (
+    <FieldGroup label={`${label} (limit ${limit})`}>
+      <Input name={name} type="number" step="0.1" min="0" max="100" />
+    </FieldGroup>
+  );
+}
+
 export function ArrivalInspectionForm() {
   const [state, formAction, pending] = useActionState(createArrivalCheckAction, undefined);
 
-  // Delivery header fields carry over between consecutive samples from the
-  // same truck; only the per-pallet fields (in SampleFields below) reset.
+  // Shift/delivery header fields carry over between consecutive samples from
+  // the same truck; only the per-pallet fields (in SampleFields below) reset.
+  const [shiftNumber, setShiftNumber] = useState("");
+  const [complianceLevel, setComplianceLevel] = useState("");
+  const [complianceOther, setComplianceOther] = useState("");
   const [source, setSource] = useState("");
   const [farmCode, setFarmCode] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");
   const [receiptNoteNo, setReceiptNoteNo] = useState("");
+  const [varietyName, setVarietyName] = useState("");
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
@@ -22,9 +34,24 @@ export function ArrivalInspectionForm() {
   return (
     <form action={formAction} className="space-y-4">
       <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">Delivery</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Farm / Source">
+        <h2 className="text-sm font-semibold text-slate-900">Shift / Delivery — STR03110</h2>
+        <div className="grid grid-cols-3 gap-3">
+          <FieldGroup label="Shift #">
+            <Input name="shiftNumber" value={shiftNumber} onChange={(e) => setShiftNumber(e.target.value)} />
+          </FieldGroup>
+          <FieldGroup label="Compliance level">
+            <Select name="complianceLevel" value={complianceLevel} onChange={(e) => setComplianceLevel(e.target.value)}>
+              <option value="">—</option>
+              <option value="GLOBALGAP">GLOBALG.A.P</option>
+              <option value="SPRING">Spring</option>
+              <option value="LEAF">LEAF</option>
+              <option value="OTHER">Other</option>
+            </Select>
+          </FieldGroup>
+          <FieldGroup label="Compliance (if Other)">
+            <Input name="complianceOther" value={complianceOther} onChange={(e) => setComplianceOther(e.target.value)} />
+          </FieldGroup>
+          <FieldGroup label="Raw Material Source (station/line code)">
             <Input name="rawMaterialSource" value={source} onChange={(e) => setSource(e.target.value)} />
           </FieldGroup>
           <FieldGroup label="Farm Code">
@@ -36,15 +63,20 @@ export function ArrivalInspectionForm() {
           <FieldGroup label="Receipt Note No.">
             <Input name="receiptNoteNo" value={receiptNoteNo} onChange={(e) => setReceiptNoteNo(e.target.value)} />
           </FieldGroup>
+          <FieldGroup label="Variety">
+            <Input name="varietyName" value={varietyName} onChange={(e) => setVarietyName(e.target.value)} />
+          </FieldGroup>
         </div>
       </Card>
 
-      {/* Remounts (resetting whole-delivery/decision/inputs to defaults) whenever a new save succeeds. */}
+      {/* Remounts (resetting to defaults) whenever a new save succeeds. */}
       <SampleFields key={isSuccess ? state : "initial"} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — logged.</p>}
-      <SubmitButton pending={pending} />
+      <Button type="submit" disabled={pending} className="w-full">
+        {pending ? "Saving…" : "Log sample"}
+      </Button>
     </form>
   );
 }
@@ -54,68 +86,116 @@ function SampleFields() {
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
 
   return (
-    <Card className="space-y-4">
-      <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-        <input
-          type="checkbox"
-          name="appliesToWholeDelivery"
-          checked={wholeDelivery}
-          onChange={(e) => setWholeDelivery(e.target.checked)}
-        />
-        Reject the entire delivery (skip pallet-by-pallet detail)
-      </label>
+    <>
+      <Card className="space-y-4">
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <input
+            type="checkbox"
+            name="appliesToWholeDelivery"
+            checked={wholeDelivery}
+            onChange={(e) => setWholeDelivery(e.target.checked)}
+          />
+          Reject the entire delivery (skip pallet-by-pallet detail below)
+        </label>
+      </Card>
 
       {!wholeDelivery && (
-        <div className="grid grid-cols-4 gap-3">
-          <FieldGroup label="Pallet / Sample Ref.">
-            <Input name="sampleNo" required={!wholeDelivery} />
-          </FieldGroup>
-          <FieldGroup label="Fruit Size Caliber">
-            <Input name="sizeCaliber" placeholder="25-40mm" />
-          </FieldGroup>
-          <FieldGroup label="Number of Boxes">
-            <Input name="numberOfBoxesReceived" type="number" />
-          </FieldGroup>
-          <FieldGroup label="Crate Weight (kg)">
-            <Input name="crateWeightKg" type="number" step="0.1" />
-          </FieldGroup>
-          <FieldGroup label="Brix">
-            <Input name="brix" type="number" step="0.1" required={!wholeDelivery} />
-          </FieldGroup>
-          <FieldGroup label="Fruit Color (%)">
-            <Input name="fruitColorPct" type="number" step="0.1" min="0" max="100" />
-          </FieldGroup>
-          <FieldGroup label="Internal Quality (%)">
-            <Input name="internalQualityPct" type="number" step="0.1" min="0" max="100" />
-          </FieldGroup>
-          <FieldGroup label="Mould (%)">
-            <Input name="mouldPct" type="number" step="0.1" min="0" max="100" />
-          </FieldGroup>
-          <FieldGroup label="Skin Damage (%)">
-            <Input name="skinDamagePct" type="number" step="0.1" min="0" max="100" />
-          </FieldGroup>
-        </div>
+        <>
+          <Card className="space-y-4">
+            <h2 className="text-sm font-semibold text-slate-900">Sample Identity</h2>
+            <div className="grid grid-cols-4 gap-3">
+              <FieldGroup label="Sample No.">
+                <Input name="sampleNo" required />
+              </FieldGroup>
+              <FieldGroup label="No. of Boxes Received">
+                <Input name="numberOfBoxesReceived" type="number" />
+              </FieldGroup>
+              <FieldGroup label="Sample Collection Time">
+                <Input name="sampleCollectionTime" type="datetime-local" />
+              </FieldGroup>
+              <FieldGroup label="Sample Weight (kg)">
+                <Input name="sampleWeightKg" type="number" step="0.01" />
+              </FieldGroup>
+              <FieldGroup label="Temperature (limit 10°C)">
+                <Input name="productTemperatureC" type="number" step="0.1" />
+              </FieldGroup>
+              <FieldGroup label="PH (limit 3.3±0.2)">
+                <Input name="acidityPh" type="number" step="0.01" />
+              </FieldGroup>
+            </div>
+          </Card>
+
+          <Card className="space-y-4">
+            <h2 className="text-sm font-semibold text-slate-900">Physical Measurements</h2>
+            <div className="grid grid-cols-4 gap-3">
+              <FieldGroup label="Crate Weight (limit 3.3-3.7kg)">
+                <Input name="crateWeightKg" type="number" step="0.1" />
+              </FieldGroup>
+              <FieldGroup label="Fruit Size Caliber (limit 25-40mm, or per customer spec)">
+                <Input name="sizeCaliber" placeholder="25-40mm" />
+              </FieldGroup>
+              <FieldGroup label="Brix (per customer spec)">
+                <Input name="brix" type="number" step="0.1" required />
+              </FieldGroup>
+              <FieldGroup label="Fruit Color (limit 90% of body)">
+                <Input name="fruitColorPct" type="number" step="0.1" min="0" max="100" />
+              </FieldGroup>
+              <FieldGroup label="Internal Quality Colour (limit 3%)">
+                <Input name="internalQualityPct" type="number" step="0.1" min="0" max="100" />
+              </FieldGroup>
+              <FieldGroup label="Foreign Odor (limit NIL)">
+                <Input name="foreignOdor" placeholder="NIL" />
+              </FieldGroup>
+              <FieldGroup label="Foreign Taste (limit NIL)">
+                <Input name="foreignTaste" placeholder="NIL" />
+              </FieldGroup>
+            </div>
+          </Card>
+
+          <Card className="space-y-4">
+            <h2 className="text-sm font-semibold text-slate-900">Defects</h2>
+            <div className="grid grid-cols-4 gap-3">
+              <Pct name="incompleteMaturityPct" label="Incomplete Maturity" limit="1%" />
+              <Pct name="moldSignsPct" label="Signs of Mold" limit="1%" />
+              <Pct name="mouldPct" label="Mold" limit="0%" />
+              <Pct name="capsuleRemainsPct" label="Capsule Remains" limit="2%" />
+              <Pct name="birdFoodPct" label="Bird Food" limit="2%" />
+              <Pct name="overmaturePct" label="Overmature (soft texture)" limit="5%" />
+              <Pct name="skinDamagePct" label="Skin Deformities" limit="2%" />
+              <Pct name="shapeDeformitiesPct" label="Shape Deformities" limit="3%" />
+              <Pct name="seedClusteringPct" label="Seed Clustering" limit="1%" />
+              <Pct name="bruisesPct" label="Bruises" limit="1%" />
+              <Pct name="dryCavitiesPct" label="Dry Cavities" limit="1%" />
+              <Pct name="overDecappingPct" label="Over De-capping" limit="1%" />
+              <Pct name="oxidationPct" label="Oxidation" limit="4%" />
+              <Pct name="sandDustPct" label="Sand/Dust" limit="1%" />
+              <Pct name="insectsLarvaePct" label="Insects or Larvae" limit="0%" />
+              <Pct name="foreignBodiesPct" label="Foreign Bodies" limit="0%" />
+              <FieldGroup label="Leaf/Stem Remains (limit 1 piece/1kg)">
+                <Input name="leafStemRemainsCount" type="number" step="0.1" min="0" />
+              </FieldGroup>
+              <Pct name="brokenUncleanPalletsPct" label="Broken/Unclean Pallets" limit="0%" />
+              <Pct name="unfumigatedPalletsPct" label="Unfumigated Pallets" limit="0%" />
+              <Pct name="brokenUncleanCratesPct" label="Broken/Unclean Crates" limit="0%" />
+            </div>
+            <p className="text-xs text-slate-400">Total defects (limit 5%) is calculated automatically from the values above.</p>
+          </Card>
+        </>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <FieldGroup label="Decision">
-          <Select name="decision" required value={decision} onChange={(e) => setDecision(e.target.value as typeof decision)}>
-            <option value="ACCEPTED">Accept</option>
-            <option value="REJECTED">Reject</option>
-          </Select>
-        </FieldGroup>
-        <FieldGroup label={decision === "REJECTED" ? "Reason for rejection" : "Notes (optional)"}>
-          <Input name="notes" required={decision === "REJECTED" && wholeDelivery} />
-        </FieldGroup>
-      </div>
-    </Card>
-  );
-}
-
-function SubmitButton({ pending }: { pending: boolean }) {
-  return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Saving…" : "Log sample"}
-    </Button>
+      <Card className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <FieldGroup label="Decision — Acceptable / Unacceptable">
+            <Select name="decision" required value={decision} onChange={(e) => setDecision(e.target.value as typeof decision)}>
+              <option value="ACCEPTED">Acceptable</option>
+              <option value="REJECTED">Unacceptable</option>
+            </Select>
+          </FieldGroup>
+          <FieldGroup label={decision === "REJECTED" ? "Corrective Action" : "Corrective Action (optional)"}>
+            <Input name="notes" required={decision === "REJECTED" && wholeDelivery} />
+          </FieldGroup>
+        </div>
+      </Card>
+    </>
   );
 }

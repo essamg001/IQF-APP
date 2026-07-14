@@ -12,6 +12,7 @@ const STATION_OPTIONS_BY_ROLE: Partial<Record<Role, { value: string; label: stri
     { value: "POST_FREEZE_INSPECTION", label: "Post-Freeze Inspection only" },
   ],
   LOGISTICS: [{ value: "LOAD_OUT", label: "Load-Out only" }],
+  PRODUCTION: [{ value: "FINAL_PRODUCT_ENTRY", label: "Final Product Entry only" }],
 };
 
 export function AddUserForm() {
