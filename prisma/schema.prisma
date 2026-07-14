@@ -1,0 +1,542 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  SALES
+  QUALITY
+  PRODUCTION
+  LOGISTICS
+}
+
+enum Grade {
+  A
+  B
+}
+
+enum Format {
+  WHOLE
+  SLICED
+  DICED
+}
+
+enum PalletStatus {
+  IN_STORAGE
+  ALLOCATED
+  SHIPPED
+  WASTE
+  DISCOUNT_OFFERED
+}
+
+// Most shipments load loose cartons directly into the container (no pallet
+// underneath); some clients require the pallet itself to travel. This is a
+// per-container (load-out time) choice, not a fixed client/order setting.
+enum LoadType {
+  PALLETISED
+  UNPALLETISED
+}
+
+enum QualityCheckpoint {
+  RAW_MATERIAL
+  POST_PACKAGING
+}
+
+enum ComplianceLevel {
+  GLOBALGAP
+  SPRING
+  LEAF
+  OTHER
+}
+
+enum MicrobiologyStatus {
+  PENDING
+  APPROVED
+  FAILED_MINOR
+  FAILED_SEVERE
+}
+
+enum OrderStage {
+  CONFIRMED
+  IN_PRODUCTION
+  PACKED
+  SHIPPED
+  DELIVERED
+  PAID
+}
+
+enum ClaimReason {
+  QUALITY
+  PACKAGING
+  FOREIGN_MATERIAL
+  TRANSPORT
+}
+
+enum ClaimSeverity {
+  RED
+  AMBER
+}
+
+enum ClaimStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_CREDITED
+  CLOSED
+}
+
+enum AlertType {
+  SPEC_MISMATCH
+  CONTAINER_OVERDUE
+  LOW_STOCK
+  MICROBIOLOGY_PENDING
+  MICROBIOLOGY_LOAD_ATTEMPT
+}
+
+enum AlertStatus {
+  UNREAD
+  READ
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  // Historical/trend financials are restricted to Owner + whoever holds this flag,
+  // not the whole Sales role — deliberately narrower than order-level pricing access.
+  isHeadOfSales Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  qualityChecks QualityCheck[]
+}
+
+model Client {
+  id            String   @id @default(cuid())
+  name          String
+  country       String?
+  contactName   String?
+  contactEmail  String?
+  contactPhone  String?
+  paymentTerms  String?
+  incoterms     String?
+  currency      String   @default("USD")
+  createdAt     DateTime @default(now())
+
+  specs    ClientSpec[]
+  orders   Order[]
+  pallets  Pallet[]
+  claims   Claim[]
+
+  @@index([name])
+}
+
+// One row per product-form spec (e.g. "Whole 25-35mm", "Sliced 6-8mm", "Diced 10x10x10mm").
+// A client can have any number of these; each can independently exist as Grade A and/or Grade B.
+// Defect tolerances are stored as free text because source spec sheets mix units
+// (percentages, "3pcs/10kg" counts, "*" for not-applicable, or a note pointing at `notes`).
+model ClientSpec {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  specName String // e.g. "Whole 25-35mm", "Sliced 6-8mm", "Standard"
+  grade    Grade
+  format   Format
+
+  brix        String?
+  ph          String?
+  sizeCaliber String?
+
+  overripe         String?
+  unripe           String?
+  calyx            String?
+  leaves           String?
+  stems            String?
+  misshapen        String?
+  blemish          String?
+  dryPump          String?
+  clumps           String?
+  broken           String?
+  oxidation        String?
+  mechanicalDamage String?
+  rotten           String?
+  insectDamage     String?
+  internalQuality  String?
+  deadWorm         String?
+
+  notes String?
+
+  @@index([clientId])
+}
+
+model Factory {
+  id                    String @id @default(cuid())
+  name                  String @unique
+  capacityTonnesPerHour Float
+
+  shifts ShiftLog[]
+  lots   ProductionLot[]
+}
+
+model ColdRoom {
+  id             String  @id @default(cuid())
+  name           String  @unique
+  capacityPallets Int
+  isNew          Boolean @default(false)
+
+  pallets Pallet[]
+}
+
+model Field {
+  id            String @id @default(cuid())
+  name          String @unique
+  mapReference  String?
+
+  lots ProductionLot[]
+}
+
+model ShiftLog {
+  id          String   @id @default(cuid())
+  factoryId   String
+  factory     Factory  @relation(fields: [factoryId], references: [id])
+  date        DateTime
+  startTime   DateTime
+  endTime     DateTime
+  workerCount Int
+  createdAt   DateTime @default(now())
+
+  lots ProductionLot[]
+
+  @@index([factoryId, date])
+}
+
+model ProductionLot {
+  id                  String   @id @default(cuid())
+  lotNumber           String   @unique
+  shiftId             String
+  shift               ShiftLog @relation(fields: [shiftId], references: [id])
+  factoryId           String
+  factory             Factory  @relation(fields: [factoryId], references: [id])
+  fieldId             String
+  field               Field    @relation(fields: [fieldId], references: [id])
+  grade               Grade
+  format              Format
+  isEndOfDayGradeB    Boolean  @default(false)
+  createdAt           DateTime @default(now())
+
+  pallets            Pallet[]
+  qualityChecks      QualityCheck[]
+  microbiologyResult MicrobiologyResult?
+
+  @@index([factoryId, grade])
+}
+
+// cartonLogo/cartonSize/variety are physical carton attributes fixed at packing.
+// loadingStart/loadingEnd are set when the pallet is loaded into a container for
+// shipment, per form GEN03115 "Identification of Packed Pallets" (a load-out manifest).
+model Pallet {
+  id            String       @id @default(cuid())
+  palletNumber  String       @unique
+  lotId         String
+  lot           ProductionLot @relation(fields: [lotId], references: [id])
+  coldRoomId    String?
+  coldRoom      ColdRoom?    @relation(fields: [coldRoomId], references: [id])
+  weightTonnes  Float        @default(1.2)
+  status        PalletStatus @default(IN_STORAGE)
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  orderId       String?
+  order         Order?       @relation(fields: [orderId], references: [id])
+  createdAt     DateTime     @default(now())
+
+  cartonLogo String?
+  cartonSize String?
+  variety    String?
+
+  // Cartons packed without a confirmed client/sale go out blank and need a
+  // client sticker applied at the load-out bay before they can go in the container.
+  stickeringRequired    Boolean   @default(false)
+  stickeringCompletedAt DateTime?
+
+  waste         Waste[]
+  qualityChecks QualityCheck[]
+  loadLines     ContainerPalletLine[]
+
+  @@index([status])
+  @@index([coldRoomId])
+}
+
+// Mirrors the real inspection forms:
+// - RAW_MATERIAL:    STR03110 "Inspection of Prepared Strawberries Upon Receipt"
+// - POST_PACKAGING:  STR03111 / STR03116 "Inspection of Frozen Strawberries at End of Line" (Grade A / B)
+// Fields not relevant to a given checkpoint are simply left null.
+model QualityCheck {
+  id         String            @id @default(cuid())
+  lotId      String
+  lot        ProductionLot     @relation(fields: [lotId], references: [id])
+  palletId   String?
+  pallet     Pallet?           @relation(fields: [palletId], references: [id])
+  checkpoint QualityCheckpoint
+
+  complianceLevel ComplianceLevel?
+  complianceOther String?
+  shiftNumber     String?
+
+  // Shared measurements
+  brix               Float
+  fruitColorPct      Float @default(0)
+  internalQualityPct Float @default(0)
+  acidityPh          Float?
+  productTemperatureC Float?
+  varietyName        String?
+  traceabilityCode   String?
+  sampleCollectionTime DateTime?
+  sampleWeightKg     Float?
+
+  // STR03110 — raw material intake only
+  sampleNo               String?
+  rawMaterialSource      String?
+  farmCode               String?
+  transportVehicleNo     String?
+  receiptNoteNo          String?
+  numberOfBoxesReceived  Int?
+  crateWeightKg          Float?
+  sizeCaliber            String?
+
+  // STR03111 / STR03116 — post-packaging only
+  clientName                     String?
+  operationDate                  DateTime?
+  expiryDate                     DateTime?
+  fullPallet                     Boolean?
+  cartonWeightKg                 Float?
+  packageClosureOk               Boolean?
+  dataLabelReviewOk              Boolean?
+  fruitDiameterUncalibrated      String?
+  fruitDiameterCalibratedRegular String?
+  fruitDiameterCalibratedIrregular String?
+  fruitDiameterCalibratedSmall   String?
+  foreignOdor                    String?
+  foreignTaste                   String?
+  overmaturePct                  Float?
+
+  // Legacy/general defect fields
+  mouldPct      Float @default(0)
+  skinDamagePct Float @default(0)
+  firmnessScore Float?
+
+  inspectorId String?
+  inspector   User? @relation(fields: [inspectorId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([lotId, checkpoint])
+  @@index([palletId])
+}
+
+model MicrobiologyResult {
+  id           String             @id @default(cuid())
+  lotId        String             @unique
+  lot          ProductionLot      @relation(fields: [lotId], references: [id])
+  status       MicrobiologyStatus @default(PENDING)
+  receivedDate DateTime?
+  notes        String?
+  createdAt    DateTime           @default(now())
+}
+
+model Waste {
+  id        String   @id @default(cuid())
+  palletId  String
+  pallet    Pallet   @relation(fields: [palletId], references: [id])
+  quantity  Float
+  reason    String
+  date      DateTime @default(now())
+}
+
+model Order {
+  id              String     @id @default(cuid())
+  orderNumber     String     @unique
+  clientId        String
+  client          Client     @relation(fields: [clientId], references: [id])
+  grade           Grade
+  format          Format
+  quantityPallets Int
+  valueUsd        Float
+  stage           OrderStage @default(CONFIRMED)
+  orderDate       DateTime
+  shipDate        DateTime?
+  isHistorical    Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+
+  pallets    Pallet[]
+  containers Container[]
+
+  @@index([clientId])
+}
+
+// A container holds ~25t loose-packed or ~24t palletised; since a pallet is
+// 1.2t, that rarely divides evenly. Large orders span multiple containers,
+// and the pallet that's mid-way through when a container fills up gets its
+// remaining cartons carried into the next container (see ContainerPalletLine).
+model Container {
+  id                   String    @id @default(cuid())
+  orderId              String
+  order                Order     @relation(fields: [orderId], references: [id])
+  containerNumber      String    @unique
+  carrier              String?
+  departurePort        String?
+  destinationPort      String?
+  departureDate        DateTime?
+  expectedTransitDays  Int?
+  currentLocation      String?
+  trackingProvider     String?
+  trackingRef          String?
+  createdAt            DateTime  @default(now())
+
+  // Load-out manifest header (GEN03115): captured when pallets are loaded for shipment.
+  loadingDate     DateTime?
+  loadingLocation String?
+  loadingSupervisor String?
+  loadType        LoadType?
+
+  // Sign-off once loading is complete: one rep from the load-out team, one from quality.
+  loadOutRepName   String?
+  loadOutSignedAt  DateTime?
+  qualityRepName   String?
+  qualitySignedAt  DateTime?
+
+  claimLines ClaimContainerLine[]
+  palletLines ContainerPalletLine[]
+}
+
+// How much of a given pallet's tonnage went into a given container. Normally
+// a pallet appears in exactly one line at its full weight; when a container
+// fills up mid-pallet, that pallet gets a second line in the next container
+// for its remaining tonnage.
+model ContainerPalletLine {
+  id             String    @id @default(cuid())
+  containerId    String
+  container      Container @relation(fields: [containerId], references: [id])
+  palletId       String
+  pallet         Pallet    @relation(fields: [palletId], references: [id])
+  quantityTonnes Float
+  // Start/end of physically loading this pallet's cartons — frozen product
+  // sitting in the loading bay loses temperature, so this measures how long
+  // that took, not just a single "done" timestamp.
+  loadingStart   DateTime?
+  loadingEnd     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([containerId])
+  @@index([palletId])
+}
+
+// Mirrors form CH08403 "Client Claim Form". One claim can span multiple
+// containers (see ClaimContainerLine) — the form has a repeating per-container
+// table under a single claim header.
+model Claim {
+  id          String        @id @default(cuid())
+  claimNumber String?
+  claimDate   DateTime      @default(now())
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id])
+  variety     String?
+  reason      ClaimReason
+  severity    ClaimSeverity
+  valueUsd    Float
+  status      ClaimStatus   @default(OPEN)
+
+  // Weight deduction (if claim involves a weight discrepancy)
+  weightMagrabiTon        Float?
+  weightClientTon         Float?
+  weightDifferenceKg      Float?
+  weightDifferencePct     Float?
+
+  // Pricing / contract context
+  clientPrice               Float?
+  shippingPricePerContainer Float?
+  clientFarmGateBeforeIssue Float?
+  clientFarmGateAfterIssue  Float?
+  totalShippingPrice        Float?
+  priceAgreement            String?
+  paymentTerms              String?
+  contractWithCompany       String?
+
+  claimDetails    String?
+  qualityResponse String?
+
+  // Third-party container inspection
+  inspectionCompanySent   Boolean?
+  inspectionCompanyName   String?
+  inspectionCompanyCost   Float?
+  inspectionCompanyReport String?
+
+  // Financial negotiation trail
+  amountRequestedFromClient Float?
+  amountAfterNegotiation    Float?
+  discountValue             Float?
+  amountRequestedForApproval Float?
+  totalShipmentValue         Float?
+  discountPct                 Float?
+
+  otherNotes String?
+
+  // Approval sign-offs
+  accountManager     String?
+  itManager          String?
+  exportManager      String?
+  exportDirector     String?
+  commercialDirector String?
+  chairman           String?
+
+  resolvedDate DateTime?
+  createdAt    DateTime @default(now())
+
+  containers ClaimContainerLine[]
+
+  @@index([clientId])
+}
+
+// One row per container listed in the claim's per-container table.
+model ClaimContainerLine {
+  id                   String    @id @default(cuid())
+  claimId              String
+  claim                Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  containerNumber      String
+  containerId          String?
+  container            Container? @relation(fields: [containerId], references: [id])
+  variety              String?
+  shippingLine         String?
+  cartonsPerContainer  Int?
+  netWeight            Float?
+  shipmentDate         DateTime?
+  arrivalDate          DateTime?
+  complaintDate        DateTime?
+  sellingPricePerCarton Float?
+  shippingPrice        Float?
+  lostCartons          Int?
+  creditRequired       Float?
+  claimPct             Float?
+  claimAmount          Float?
+  totalSales           Float?
+
+  @@index([claimId])
+  @@index([containerId])
+}
+
+model Alert {
+  id               String      @id @default(cuid())
+  type             AlertType
+  message          String
+  relatedEntityType String?
+  relatedEntityId  String?
+  targetRole       Role
+  status           AlertStatus @default(UNREAD)
+  createdAt        DateTime    @default(now())
+
+  @@index([targetRole, status])
+}
