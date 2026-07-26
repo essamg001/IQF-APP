@@ -365,6 +365,8 @@ model QualityCheck {
   sampleNo               String?
   rawMaterialSource      String?
   farmCode               String?
+  decapPackHouse         String? // which decapping pack house this delivery is arriving from
+  decapQcApprover        String? // who at that pack house approved it to leave
   transportVehicleNo     String?
   receiptNoteNo          String?
   numberOfBoxesReceived  Int?

@@ -25,6 +25,8 @@ export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCh
   const [shiftNumber, setShiftNumber] = useState("");
   const [source, setSource] = useState("");
   const [farmCode, setFarmCode] = useState("");
+  const [decapPackHouse, setDecapPackHouse] = useState("");
+  const [decapQcApprover, setDecapQcApprover] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");
   const [receiptNoteNo, setReceiptNoteNo] = useState("");
   const [varietyName, setVarietyName] = useState("");
@@ -51,6 +53,22 @@ export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCh
           </FieldGroup>
           <FieldGroup label="Farm Code">
             <Input name="farmCode" value={farmCode} onChange={(e) => setFarmCode(e.target.value)} />
+          </FieldGroup>
+          <FieldGroup label="Decapping Pack House">
+            <Input
+              name="decapPackHouse"
+              value={decapPackHouse}
+              onChange={(e) => setDecapPackHouse(e.target.value)}
+              placeholder="Which pack house this delivery is from"
+            />
+          </FieldGroup>
+          <FieldGroup label="QC Approver (Pack House)">
+            <Input
+              name="decapQcApprover"
+              value={decapQcApprover}
+              onChange={(e) => setDecapQcApprover(e.target.value)}
+              placeholder="Who approved it to leave the decap facility"
+            />
           </FieldGroup>
           <FieldGroup label="Transport Vehicle No.">
             <Input name="transportVehicleNo" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} />
