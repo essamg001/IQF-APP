@@ -8,7 +8,7 @@ import { z } from "zod";
 const lotSchema = z.object({
   lotNumber: z.string().min(1),
   shiftId: z.string().min(1),
-  fieldId: z.string().min(1),
+  fieldName: z.string().min(1),
   grade: z.enum(["A", "B"]),
   format: z.enum(["WHOLE", "SLICED", "DICED"]),
   isEndOfDayGradeB: z.boolean(),
@@ -23,7 +23,7 @@ export async function createLotAction(_prevState: string | undefined, formData: 
   const parsed = lotSchema.safeParse({
     lotNumber: formData.get("lotNumber"),
     shiftId: formData.get("shiftId"),
-    fieldId: formData.get("fieldId"),
+    fieldName: formData.get("fieldName"),
     grade: formData.get("grade"),
     format: formData.get("format"),
     isEndOfDayGradeB: formData.get("isEndOfDayGradeB") === "on",
@@ -43,6 +43,16 @@ export async function createLotAction(_prevState: string | undefined, formData: 
   const existing = await prisma.productionLot.findUnique({ where: { lotNumber: parsed.data.lotNumber } });
   if (existing) return "A lot with this number already exists.";
 
+  // Field entry is free text (not a fixed list) -- match an existing field by
+  // name or create one on the fly, so production isn't blocked on someone
+  // pre-registering the field in Settings first.
+  const fieldName = parsed.data.fieldName.trim();
+  const field = await prisma.field.upsert({
+    where: { name: fieldName },
+    update: {},
+    create: { name: fieldName },
+  });
+
   const { cartonLogo, cartonSize, variety } = parsed.data;
 
   await prisma.productionLot.create({
@@ -50,7 +60,7 @@ export async function createLotAction(_prevState: string | undefined, formData: 
       lotNumber: parsed.data.lotNumber,
       shiftId: parsed.data.shiftId,
       factoryId: shift.factoryId,
-      fieldId: parsed.data.fieldId,
+      fieldId: field.id,
       grade: parsed.data.grade,
       format: parsed.data.format,
       isEndOfDayGradeB: parsed.data.isEndOfDayGradeB,

@@ -35,13 +35,12 @@ export function LotForm({
           </Select>
         </FieldGroup>
         <FieldGroup label="Field">
-          <Select name="fieldId" required>
+          <Input name="fieldName" list="field-suggestions" required placeholder="Type the field/farm name" />
+          <datalist id="field-suggestions">
             {fields.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
+              <option key={f.id} value={f.name} />
             ))}
-          </Select>
+          </datalist>
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Grade">

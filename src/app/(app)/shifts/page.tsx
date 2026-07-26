@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
 export default async function ShiftsPage() {
@@ -26,6 +27,7 @@ export default async function ShiftsPage() {
             <tr>
               <th className="px-4 py-2 font-medium">Date</th>
               <th className="px-4 py-2 font-medium">Factory</th>
+              <th className="px-4 py-2 font-medium">Shift</th>
               <th className="px-4 py-2 font-medium">Start</th>
               <th className="px-4 py-2 font-medium">End</th>
               <th className="px-4 py-2 font-medium">Hours</th>
@@ -40,6 +42,11 @@ export default async function ShiftsPage() {
                 <tr key={s.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2">{format(s.date, "dd MMM yyyy")}</td>
                   <td className="px-4 py-2">{s.factory.name}</td>
+                  <td className="px-4 py-2">
+                    <Badge color={s.shiftType === "DAY" ? "amber" : "blue"}>
+                      {s.shiftType === "DAY" ? "Shift 1 (Day)" : "Shift 2 (Night)"}
+                    </Badge>
+                  </td>
                   <td className="px-4 py-2">{format(s.startTime, "HH:mm")}</td>
                   <td className="px-4 py-2">{format(s.endTime, "HH:mm")}</td>
                   <td className="px-4 py-2">{hours.toFixed(1)}</td>
@@ -50,7 +57,7 @@ export default async function ShiftsPage() {
             })}
             {shifts.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   No shifts logged yet.
                 </td>
               </tr>

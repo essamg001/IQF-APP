@@ -47,6 +47,11 @@ enum QualityCheckpoint {
   POST_PACKAGING
 }
 
+enum ShiftType {
+  DAY
+  NIGHT
+}
+
 enum ComplianceLevel {
   GLOBALGAP
   SPRING
@@ -221,14 +226,15 @@ model Field {
 }
 
 model ShiftLog {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   factoryId   String
-  factory     Factory  @relation(fields: [factoryId], references: [id])
+  factory     Factory   @relation(fields: [factoryId], references: [id])
   date        DateTime
+  shiftType   ShiftType
   startTime   DateTime
   endTime     DateTime
   workerCount Int
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   lots ProductionLot[]
 

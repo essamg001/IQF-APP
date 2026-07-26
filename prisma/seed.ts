@@ -89,6 +89,7 @@ async function main() {
       id: "seed-shift-1",
       factoryId: factory1.id,
       date: new Date("2026-06-15"),
+      shiftType: "DAY",
       startTime: new Date("2026-06-15T06:00:00"),
       endTime: new Date("2026-06-15T14:00:00"),
       workerCount: 24,

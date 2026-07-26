@@ -8,6 +8,7 @@ import { z } from "zod";
 const shiftSchema = z
   .object({
     factoryId: z.string().min(1),
+    shiftType: z.enum(["DAY", "NIGHT"]),
     date: z.string().min(1),
     startTime: z.string().min(1),
     endTime: z.string().min(1),
@@ -15,6 +16,7 @@ const shiftSchema = z
   })
   .transform((s) => ({
     factoryId: s.factoryId,
+    shiftType: s.shiftType,
     date: new Date(s.date),
     startTime: new Date(`${s.date}T${s.startTime}:00`),
     endTime: new Date(`${s.date}T${s.endTime}:00`),
@@ -24,6 +26,7 @@ const shiftSchema = z
 export async function createShiftAction(_prevState: string | undefined, formData: FormData) {
   const parsed = shiftSchema.safeParse({
     factoryId: formData.get("factoryId"),
+    shiftType: formData.get("shiftType"),
     date: formData.get("date"),
     startTime: formData.get("startTime"),
     endTime: formData.get("endTime"),
