@@ -60,7 +60,12 @@ export function PackingForm({ lots, coldRooms }: { lots: LotWithField[]; coldRoo
         </div>
       </Card>
 
-      <PalletFields key={isSuccess ? state : "initial"} coldRooms={coldRooms} lotNumber={lots.find((l) => l.id === lotId)?.lotNumber} />
+      <PalletFields
+        key={isSuccess ? state : "initial"}
+        coldRooms={coldRooms}
+        lotNumber={lots.find((l) => l.id === lotId)?.lotNumber}
+        lotGrade={lots.find((l) => l.id === lotId)?.grade}
+      />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — pallet recorded.</p>}
@@ -71,7 +76,15 @@ export function PackingForm({ lots, coldRooms }: { lots: LotWithField[]; coldRoo
   );
 }
 
-function PalletFields({ coldRooms, lotNumber }: { coldRooms: ColdRoom[]; lotNumber?: string }) {
+function PalletFields({
+  coldRooms,
+  lotNumber,
+  lotGrade,
+}: {
+  coldRooms: ColdRoom[];
+  lotNumber?: string;
+  lotGrade?: "A" | "B";
+}) {
   const [isMixedVariety, setIsMixedVariety] = useState(false);
 
   return (
@@ -92,8 +105,15 @@ function PalletFields({ coldRooms, lotNumber }: { coldRooms: ColdRoom[]; lotNumb
         <FieldGroup label="Traceability Code / Lot">
           <Input name="traceabilityCode" defaultValue={lotNumber} />
         </FieldGroup>
-        <FieldGroup label="Client / Quality Grade">
-          <Input name="clientSpecNote" placeholder="Client name / spec, if known" />
+        <FieldGroup label="Client">
+          <Input name="clientSpecNote" placeholder="Client name, if known" />
+        </FieldGroup>
+        <FieldGroup label="Quality Grade">
+          <Select name="qualityGrade" defaultValue={lotGrade ?? ""}>
+            <option value="">—</option>
+            <option value="A">Grade A</option>
+            <option value="B">Grade B</option>
+          </Select>
         </FieldGroup>
         <FieldGroup label="Total No. of Cartons">
           <Input name="totalCartons" type="number" min="1" />

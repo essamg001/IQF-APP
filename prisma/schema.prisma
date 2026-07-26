@@ -317,7 +317,8 @@ model Pallet {
 
   // GEN03115 fields
   traceabilityCode  String?
-  clientSpecNote    String?   // اسم العميل/المواصفة — intended client/spec, may be set before a formal Order exists
+  clientSpecNote    String?   // اسم العميل — intended client, may be set before a formal Order exists
+  qualityGrade      Grade?    // standalone from client — defaults to the lot's grade but overridable per pallet at pack time
   isMixedVariety    Boolean   @default(false)
   fullPallet        Boolean   @default(true)
   totalCartons      Int?

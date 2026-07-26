@@ -17,6 +17,7 @@ const packedPalletSchema = z.object({
   totalCartons: z.coerce.number().int().positive().optional(),
   traceabilityCode: z.string().optional(),
   clientSpecNote: z.string().optional(),
+  qualityGrade: z.enum(["A", "B"]).optional(),
   packingDate: z.string().optional(),
   packingLocation: z.string().optional(),
   packingSupervisor: z.string().optional(),
