@@ -200,9 +200,11 @@ model ClientSpec {
 }
 
 model Factory {
-  id                    String @id @default(cuid())
-  name                  String @unique
+  id                    String  @id @default(cuid())
+  name                  String  @unique
   capacityTonnesPerHour Float
+  // The IQF unit code used in lot numbering, e.g. IQF 1 = "11", IQF 2 = "13".
+  code                  String?
 
   shifts ShiftLog[]
   lots   ProductionLot[]
@@ -268,9 +270,12 @@ model ShiftLog {
   @@index([factoryId, date])
 }
 
+// lotNumber is auto-generated: {farmCode}{factory.code}{YY}{DDD}-{shift digit}
+// e.g. M41126146-1 = farm M4, IQF 1 (code 11), 2026, day 146 (26 May), shift 1 (day).
 model ProductionLot {
   id                  String   @id @default(cuid())
   lotNumber           String   @unique
+  farmCode            String
   shiftId             String
   shift               ShiftLog @relation(fields: [shiftId], references: [id])
   factoryId           String

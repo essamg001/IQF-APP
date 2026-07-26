@@ -105,6 +105,7 @@ async function main() {
     update: {},
     create: {
       lotNumber: "L-2026-0001",
+      farmCode: "M4",
       shiftId: shift.id,
       factoryId: factory1.id,
       fieldId: fieldA.id,

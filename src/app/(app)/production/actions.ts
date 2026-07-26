@@ -3,10 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { generateLotNumber } from "@/lib/lotNumber";
 import { z } from "zod";
 
 const lotSchema = z.object({
-  lotNumber: z.string().min(1),
+  farmCode: z.string().min(1),
   shiftId: z.string().min(1),
   fieldName: z.string().min(1),
   grade: z.enum(["A", "B"]),
@@ -21,7 +22,7 @@ const lotSchema = z.object({
 
 export async function createLotAction(_prevState: string | undefined, formData: FormData) {
   const parsed = lotSchema.safeParse({
-    lotNumber: formData.get("lotNumber"),
+    farmCode: formData.get("farmCode"),
     shiftId: formData.get("shiftId"),
     fieldName: formData.get("fieldName"),
     grade: formData.get("grade"),
@@ -37,11 +38,22 @@ export async function createLotAction(_prevState: string | undefined, formData: 
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  const shift = await prisma.shiftLog.findUnique({ where: { id: parsed.data.shiftId } });
+  const shift = await prisma.shiftLog.findUnique({ where: { id: parsed.data.shiftId }, include: { factory: true } });
   if (!shift) return "Shift not found.";
+  if (!shift.factory.code) return `${shift.factory.name} has no IQF unit code set — add one in Settings first.`;
 
-  const existing = await prisma.productionLot.findUnique({ where: { lotNumber: parsed.data.lotNumber } });
-  if (existing) return "A lot with this number already exists.";
+  const farmCode = parsed.data.farmCode.trim().toUpperCase();
+  const lotNumber = generateLotNumber({
+    farmCode,
+    factoryCode: shift.factory.code,
+    date: shift.date,
+    shiftType: shift.shiftType,
+  });
+
+  const existing = await prisma.productionLot.findUnique({ where: { lotNumber } });
+  if (existing) {
+    return `Lot ${lotNumber} already exists — this farm/facility/day/shift combination has already been logged.`;
+  }
 
   // Field entry is free text (not a fixed list) -- match an existing field by
   // name or create one on the fly, so production isn't blocked on someone
@@ -57,7 +69,8 @@ export async function createLotAction(_prevState: string | undefined, formData: 
 
   await prisma.productionLot.create({
     data: {
-      lotNumber: parsed.data.lotNumber,
+      lotNumber,
+      farmCode,
       shiftId: parsed.data.shiftId,
       factoryId: shift.factoryId,
       fieldId: field.id,
@@ -67,7 +80,7 @@ export async function createLotAction(_prevState: string | undefined, formData: 
       microbiologyResult: { create: {} },
       pallets: {
         create: Array.from({ length: parsed.data.palletCount }, (_, i) => ({
-          palletNumber: `${parsed.data.lotNumber}-P${i + 1}`,
+          palletNumber: `${lotNumber}-P${i + 1}`,
           coldRoomId: parsed.data.coldRoomId,
           cartonLogo,
           cartonSize,
