@@ -8,7 +8,7 @@ export default async function NewOrderPage() {
   const session = await auth();
   if (!canSeePricing(session?.user.role)) redirect("/orders");
 
-  const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
+  const clients = await prisma.client.findMany({ orderBy: { name: "asc" }, include: { specs: true } });
 
   return (
     <div>

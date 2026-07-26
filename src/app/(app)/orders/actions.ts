@@ -6,12 +6,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+const PALLET_WEIGHT_TONNES = 1.2;
+
 const orderSchema = z.object({
   orderNumber: z.string().min(1),
   clientId: z.string().min(1),
   grade: z.enum(["A", "B"]),
   format: z.enum(["WHOLE", "SLICED", "DICED"]),
-  quantityPallets: z.coerce.number().int().positive(),
+  quantityTonnes: z.coerce.number().positive(),
   valueUsd: z.coerce.number().nonnegative(),
   orderDate: z.string().min(1),
 });
@@ -22,7 +24,7 @@ export async function createOrderAction(_prevState: string | undefined, formData
     clientId: formData.get("clientId"),
     grade: formData.get("grade"),
     format: formData.get("format"),
-    quantityPallets: formData.get("quantityPallets"),
+    quantityTonnes: formData.get("quantityTonnes"),
     valueUsd: formData.get("valueUsd"),
     orderDate: formData.get("orderDate"),
   });
@@ -33,8 +35,13 @@ export async function createOrderAction(_prevState: string | undefined, formData
   const existing = await prisma.order.findUnique({ where: { orderNumber: parsed.data.orderNumber } });
   if (existing) return "An order with this number already exists.";
 
+  const { quantityTonnes, ...rest } = parsed.data;
+  // Pallets are the actual allocatable unit in storage, so the tonnage the
+  // client agrees to gets converted to whole pallets at 1.2t each.
+  const quantityPallets = Math.max(1, Math.round(quantityTonnes / PALLET_WEIGHT_TONNES));
+
   const order = await prisma.order.create({
-    data: { ...parsed.data, orderDate: new Date(parsed.data.orderDate) },
+    data: { ...rest, quantityPallets, orderDate: new Date(rest.orderDate) },
   });
 
   revalidatePath("/orders");
