@@ -39,7 +39,11 @@ export function PackingForm({ lots, coldRooms }: { lots: LotWithField[]; coldRoo
             />
           </FieldGroup>
           <FieldGroup label="Packing Location">
-            <Input name="packingLocation" value={packingLocation} onChange={(e) => setPackingLocation(e.target.value)} />
+            <Select name="packingLocation" value={packingLocation} onChange={(e) => setPackingLocation(e.target.value)}>
+              <option value="">—</option>
+              <option value="IQF 1">IQF 1</option>
+              <option value="IQF 2">IQF 2</option>
+            </Select>
           </FieldGroup>
           <FieldGroup label="Supervisor">
             <Input name="packingSupervisor" value={packingSupervisor} onChange={(e) => setPackingSupervisor(e.target.value)} />
