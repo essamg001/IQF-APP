@@ -11,6 +11,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/orders", label: "Orders" },
   { href: "/active-orders", label: "Active Orders" },
   { href: "/available-to-sell", label: "Available to Sell" },
+  { href: "/load-out", label: "Load Out" },
   { href: "/logistics", label: "Logistics" },
   { href: "/production", label: "Production" },
   { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
