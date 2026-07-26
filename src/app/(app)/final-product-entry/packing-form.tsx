@@ -108,9 +108,6 @@ function PalletFields({
         <FieldGroup label="Variety">
           <Input name="variety" />
         </FieldGroup>
-        <FieldGroup label="Traceability Code / Lot">
-          <Input name="traceabilityCode" defaultValue={lotNumber} />
-        </FieldGroup>
         <FieldGroup label="Client">
           <Input name="clientSpecNote" placeholder="Client name, if known" />
         </FieldGroup>

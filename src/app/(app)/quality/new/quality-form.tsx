@@ -96,9 +96,6 @@ export function QualityCheckForm({ lots }: { lots: LotWithRelations[] }) {
           <FieldGroup label="Variety Name">
             <Input name="varietyName" />
           </FieldGroup>
-          <FieldGroup label="Traceability Code">
-            <Input name="traceabilityCode" />
-          </FieldGroup>
           <FieldGroup label="Sample Collection Time">
             <Input name="sampleCollectionTime" type="datetime-local" />
           </FieldGroup>

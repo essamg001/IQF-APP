@@ -21,7 +21,6 @@ const checkSchema = z.object({
   acidityPh: z.coerce.number().optional(),
   productTemperatureC: z.coerce.number().optional(),
   varietyName: z.string().optional(),
-  traceabilityCode: z.string().optional(),
   sampleCollectionTime: z.string().optional(),
   sampleWeightKg: z.coerce.number().optional(),
 

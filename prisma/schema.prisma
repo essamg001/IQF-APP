@@ -322,7 +322,6 @@ model Pallet {
   variety    String?
 
   // GEN03115 fields
-  traceabilityCode  String?
   clientSpecNote    String?   // اسم العميل — intended client, may be set before a formal Order exists
   qualityGrade      Grade?    // standalone from client — defaults to the lot's grade but overridable per pallet at pack time
   isMixedVariety    Boolean   @default(false)
@@ -380,7 +379,6 @@ model QualityCheck {
   acidityPh          Float?
   productTemperatureC Float?
   varietyName        String?
-  traceabilityCode   String?
   sampleCollectionTime DateTime?
   sampleWeightKg     Float?
 

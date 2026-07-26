@@ -14,7 +14,6 @@ const postFreezeSchema = z.object({
   decision: z.enum(["ACCEPTED", "REJECTED"]),
 
   clientName: z.string().optional(),
-  traceabilityCode: z.string().optional(),
   varietyName: z.string().optional(),
   operationDate: z.string().optional(),
   expiryDate: z.string().optional(),

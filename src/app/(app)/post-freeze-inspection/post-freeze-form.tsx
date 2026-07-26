@@ -84,9 +84,6 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
           <FieldGroup label="Client">
             <Input name="clientName" />
           </FieldGroup>
-          <FieldGroup label="Traceability Code">
-            <Input name="traceabilityCode" />
-          </FieldGroup>
           <FieldGroup label="Variety">
             <Input name="varietyName" />
           </FieldGroup>
