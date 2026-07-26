@@ -8,8 +8,8 @@ import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
 
 const checkSchema = z.object({
-  lotId: z.string().min(1),
-  palletId: z.string().optional(),
+  lotNumber: z.string().min(1),
+  palletNumber: z.string().optional(),
   checkpoint: z.enum(["RAW_MATERIAL", "POST_PACKAGING"]),
   complianceLevel: z.enum(["GLOBALGAP", "SPRING", "LEAF", "OTHER"]).optional(),
   complianceOther: z.string().optional(),
@@ -68,12 +68,24 @@ export async function createQualityCheckAction(_prevState: string | undefined, f
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
+  const lot = await prisma.productionLot.findUnique({ where: { lotNumber: parsed.data.lotNumber.trim() } });
+  if (!lot) return `Lot ${parsed.data.lotNumber} not found — check the number and try again.`;
+
+  let palletId: string | undefined;
+  if (parsed.data.palletNumber) {
+    const pallet = await prisma.pallet.findUnique({ where: { palletNumber: parsed.data.palletNumber.trim() } });
+    if (!pallet) return `Pallet ${parsed.data.palletNumber} not found — check the number and try again.`;
+    palletId = pallet.id;
+  }
+
   const session = await auth();
-  const { operationDate, expiryDate, sampleCollectionTime, ...rest } = parsed.data;
+  const { lotNumber, palletNumber, operationDate, expiryDate, sampleCollectionTime, ...rest } = parsed.data;
 
   await prisma.qualityCheck.create({
     data: {
       ...rest,
+      lotId: lot.id,
+      palletId,
       operationDate: parseDateSafe(operationDate),
       expiryDate: parseDateSafe(expiryDate),
       sampleCollectionTime: parseDateSafe(sampleCollectionTime),

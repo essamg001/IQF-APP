@@ -6,7 +6,7 @@ import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
 
 const packedPalletSchema = z.object({
-  lotId: z.string().min(1),
+  lotNumber: z.string().min(1),
   coldRoomId: z.string().optional(),
   palletNumber: z.string().min(1),
   cartonLogo: z.string().optional(),
@@ -40,11 +40,15 @@ export async function createPackedPalletAction(_prevState: string | undefined, f
   const existing = await prisma.pallet.findUnique({ where: { palletNumber: parsed.data.palletNumber } });
   if (existing) return `Pallet ${parsed.data.palletNumber} already exists.`;
 
-  const { packingDate, palletizationStart, palletizationEnd, parcelStatus, ...data } = parsed.data;
+  const lot = await prisma.productionLot.findUnique({ where: { lotNumber: parsed.data.lotNumber.trim() } });
+  if (!lot) return `Lot ${parsed.data.lotNumber} not found — check the number and try again.`;
+
+  const { lotNumber, packingDate, palletizationStart, palletizationEnd, parcelStatus, ...data } = parsed.data;
 
   const created = await prisma.pallet.create({
     data: {
       ...data,
+      lotId: lot.id,
       fullPallet: parcelStatus === "FULL",
       packingDate: parseDateSafe(packingDate),
       palletizationStart: parseDateSafe(palletizationStart),

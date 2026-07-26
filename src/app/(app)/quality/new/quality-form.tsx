@@ -11,23 +11,32 @@ type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[] };
 
 export function QualityCheckForm({ lots }: { lots: LotWithRelations[] }) {
   const [error, formAction, pending] = useActionState(createQualityCheckAction, undefined);
-  const [lotId, setLotId] = useState(lots[0]?.id ?? "");
+  const [lotNumber, setLotNumber] = useState("");
   const [checkpoint, setCheckpoint] = useState<"RAW_MATERIAL" | "POST_PACKAGING">("RAW_MATERIAL");
 
-  const pallets = useMemo(() => lots.find((l) => l.id === lotId)?.pallets ?? [], [lots, lotId]);
+  const pallets = useMemo(
+    () => lots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase())?.pallets ?? [],
+    [lots, lotNumber]
+  );
 
   return (
     <form action={formAction} className="space-y-4">
       <Card className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Lot">
-            <Select name="lotId" required value={lotId} onChange={(e) => setLotId(e.target.value)}>
+          <FieldGroup label="Lot number">
+            <Input
+              name="lotNumber"
+              required
+              list="lot-suggestions"
+              placeholder="e.g. M41126146-1"
+              value={lotNumber}
+              onChange={(e) => setLotNumber(e.target.value)}
+            />
+            <datalist id="lot-suggestions">
               {lots.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.lotNumber} — {l.field.name} (Grade {l.grade})
-                </option>
+                <option key={l.id} value={l.lotNumber} />
               ))}
-            </Select>
+            </datalist>
           </FieldGroup>
           <FieldGroup label="Checkpoint">
             <Select
@@ -43,15 +52,13 @@ export function QualityCheckForm({ lots }: { lots: LotWithRelations[] }) {
         </div>
 
         {checkpoint === "POST_PACKAGING" && (
-          <FieldGroup label="Pallet (optional — this specific pallet's sample)">
-            <Select name="palletId" defaultValue="">
-              <option value="">— Lot-level check —</option>
+          <FieldGroup label="Pallet number (optional — leave blank for a lot-level check)">
+            <Input name="palletNumber" list="pallet-suggestions" placeholder="e.g. M41126146-1-P1" />
+            <datalist id="pallet-suggestions">
               {pallets.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.palletNumber}
-                </option>
+                <option key={p.id} value={p.palletNumber} />
               ))}
-            </Select>
+            </datalist>
           </FieldGroup>
         )}
 

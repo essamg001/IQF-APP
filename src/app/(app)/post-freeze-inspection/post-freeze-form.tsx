@@ -43,9 +43,9 @@ const LIMITS: Record<Grade, Record<string, string>> = {
 
 export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] }) {
   const [state, formAction, pending] = useActionState(createPostFreezeCheckAction, undefined);
-  const [lotId, setLotId] = useState(lots[0]?.id ?? "");
+  const [lotNumber, setLotNumber] = useState("");
 
-  const selectedLot = lots.find((l) => l.id === lotId);
+  const selectedLot = lots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase());
   const pallets = selectedLot?.pallets ?? [];
   const grade = selectedLot?.grade ?? "A";
 
@@ -63,17 +63,23 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
           {grade === "A" ? "Final Product (Frozen) — Grade A — STR03111" : "Final Product (Frozen) — Grade B — STR03116"}
         </h2>
         <div className="grid grid-cols-3 gap-3">
-          <FieldGroup label="Lot">
-            <Select name="lotId" required value={lotId} onChange={(e) => setLotId(e.target.value)}>
+          <FieldGroup label="Lot number">
+            <Input
+              name="lotNumber"
+              required
+              list="lot-suggestions"
+              placeholder="e.g. M41126146-1"
+              value={lotNumber}
+              onChange={(e) => setLotNumber(e.target.value)}
+            />
+            <datalist id="lot-suggestions">
               {lots.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.lotNumber} — {l.field.name} (Grade {l.grade})
-                </option>
+                <option key={l.id} value={l.lotNumber} />
               ))}
-            </Select>
+            </datalist>
           </FieldGroup>
-          <FieldGroup label="Pallet No.">
-            <PalletSelect key={isSuccess ? state : `${lotId}-initial`} pallets={pallets} />
+          <FieldGroup label="Pallet number (optional — leave blank for a lot-level check)">
+            <PalletInput key={isSuccess ? state : `${lotNumber}-initial`} pallets={pallets} />
           </FieldGroup>
           <FieldGroup label="Client">
             <Input name="clientName" />
@@ -122,16 +128,16 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
   );
 }
 
-function PalletSelect({ pallets }: { pallets: Pallet[] }) {
+function PalletInput({ pallets }: { pallets: Pallet[] }) {
   return (
-    <Select name="palletId" defaultValue="">
-      <option value="">— Lot-level check —</option>
-      {pallets.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.palletNumber}
-        </option>
-      ))}
-    </Select>
+    <>
+      <Input name="palletNumber" list="pallet-suggestions" placeholder="e.g. M41126146-1-P1" />
+      <datalist id="pallet-suggestions">
+        {pallets.map((p) => (
+          <option key={p.id} value={p.palletNumber} />
+        ))}
+      </datalist>
+    </>
   );
 }
 

@@ -9,8 +9,8 @@ import { z } from "zod";
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
 const postFreezeSchema = z.object({
-  lotId: z.string().min(1),
-  palletId: z.string().optional(),
+  lotNumber: z.string().min(1),
+  palletNumber: z.string().optional(),
   decision: z.enum(["ACCEPTED", "REJECTED"]),
 
   clientName: z.string().optional(),
@@ -91,14 +91,26 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
+  const lot = await prisma.productionLot.findUnique({ where: { lotNumber: parsed.data.lotNumber.trim() } });
+  if (!lot) return `Lot ${parsed.data.lotNumber} not found — check the number and try again.`;
+
+  let palletId: string | undefined;
+  if (parsed.data.palletNumber) {
+    const pallet = await prisma.pallet.findUnique({ where: { palletNumber: parsed.data.palletNumber.trim() } });
+    if (!pallet) return `Pallet ${parsed.data.palletNumber} not found — check the number and try again.`;
+    palletId = pallet.id;
+  }
+
   const session = await auth();
-  const { operationDate, expiryDate, sampleCollectionTime, ...data } = parsed.data;
+  const { lotNumber, palletNumber, operationDate, expiryDate, sampleCollectionTime, ...data } = parsed.data;
 
   const totalDefectsPct = DEFECT_PCT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
 
   const created = await prisma.qualityCheck.create({
     data: {
       ...data,
+      lotId: lot.id,
+      palletId,
       checkpoint: "POST_PACKAGING",
       operationDate: parseDateSafe(operationDate),
       expiryDate: parseDateSafe(expiryDate),

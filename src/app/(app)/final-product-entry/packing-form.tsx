@@ -16,7 +16,7 @@ export function PackingForm({ lots, coldRooms }: { lots: LotWithField[]; coldRoo
   const [packingDate, setPackingDate] = useState(new Date().toISOString().slice(0, 10));
   const [packingLocation, setPackingLocation] = useState("");
   const [packingSupervisor, setPackingSupervisor] = useState("");
-  const [lotId, setLotId] = useState(lots[0]?.id ?? "");
+  const [lotNumber, setLotNumber] = useState("");
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
@@ -48,14 +48,20 @@ export function PackingForm({ lots, coldRooms }: { lots: LotWithField[]; coldRoo
           <FieldGroup label="Supervisor">
             <Input name="packingSupervisor" value={packingSupervisor} onChange={(e) => setPackingSupervisor(e.target.value)} />
           </FieldGroup>
-          <FieldGroup label="Lot">
-            <Select name="lotId" required value={lotId} onChange={(e) => setLotId(e.target.value)}>
+          <FieldGroup label="Lot number">
+            <Input
+              name="lotNumber"
+              required
+              list="lot-suggestions"
+              placeholder="e.g. M41126146-1"
+              value={lotNumber}
+              onChange={(e) => setLotNumber(e.target.value)}
+            />
+            <datalist id="lot-suggestions">
               {lots.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.lotNumber} — {l.field.name} (Grade {l.grade})
-                </option>
+                <option key={l.id} value={l.lotNumber} />
               ))}
-            </Select>
+            </datalist>
           </FieldGroup>
         </div>
       </Card>
@@ -63,8 +69,8 @@ export function PackingForm({ lots, coldRooms }: { lots: LotWithField[]; coldRoo
       <PalletFields
         key={isSuccess ? state : "initial"}
         coldRooms={coldRooms}
-        lotNumber={lots.find((l) => l.id === lotId)?.lotNumber}
-        lotGrade={lots.find((l) => l.id === lotId)?.grade}
+        lotNumber={lotNumber || undefined}
+        lotGrade={lots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase())?.grade}
       />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
