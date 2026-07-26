@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { format } from "date-fns";
-import { allocatePalletsAction, advanceOrderStageAction } from "../actions";
+import { allocatePalletsAction, advanceOrderStageAction, updateOrderValueAction } from "../actions";
+import { Input, FieldGroup } from "@/components/ui/field";
 import { FORMAT_LABEL } from "@/lib/format";
 
 const STAGE_ORDER = ["CONFIRMED", "IN_PRODUCTION", "PACKED", "SHIPPED", "DELIVERED", "PAID"] as const;
@@ -83,12 +84,23 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">Order Details</h2>
           <dl className="mt-3 space-y-2 text-sm">
+            <Row label="PO Number" value={order.poNumber} />
             <Row label="Order date" value={format(order.orderDate, "dd MMM yyyy")} />
             <Row label="Quantity" value={`${order.quantityPallets} pallets`} />
             <Row label="Allocated" value={`${order.pallets.length} / ${order.quantityPallets}`} />
             {showPricing && <Row label="Gross value" value={`$${order.valueUsd.toLocaleString()}`} />}
             {showPricing && <Row label="Net value (after claims)" value={`$${netValue.toLocaleString()}`} />}
           </dl>
+          {showPricing && (
+            <form action={updateOrderValueAction.bind(null, order.id)} className="mt-3 flex items-end gap-2 border-t border-slate-100 pt-3">
+              <FieldGroup label={order.valueUsd > 0 ? "Update value (USD)" : "Set value (USD)"}>
+                <Input name="valueUsd" type="number" step="0.01" min="0" defaultValue={order.valueUsd || ""} className="w-40" />
+              </FieldGroup>
+              <Button type="submit" variant="secondary">
+                Save
+              </Button>
+            </form>
+          )}
         </Card>
 
         <Card>

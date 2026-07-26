@@ -29,8 +29,8 @@ export function OrderForm({ clients }: { clients: ClientWithSpecs[] }) {
   return (
     <form action={formAction}>
       <Card className="space-y-4">
-        <FieldGroup label="Order Number">
-          <Input name="orderNumber" required placeholder="e.g. ORD-2026-0142" />
+        <FieldGroup label="PO Number (optional)">
+          <Input name="poNumber" placeholder="Client's purchase order number, if provided" />
         </FieldGroup>
         <FieldGroup label="Client">
           <Select name="clientId" required value={clientId} onChange={(e) => setClientId(e.target.value)}>
@@ -80,25 +80,20 @@ export function OrderForm({ clients }: { clients: ClientWithSpecs[] }) {
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Quantity (tonnes)">
-            <Input
-              name="quantityTonnes"
-              type="number"
-              step="0.1"
-              min="0.1"
-              required
-              value={quantityTonnes}
-              onChange={(e) => setQuantityTonnes(e.target.value)}
-            />
-            {estimatedPallets && (
-              <p className="mt-1 text-xs text-slate-400">≈ {estimatedPallets} pallets at 1.2t each</p>
-            )}
-          </FieldGroup>
-          <FieldGroup label="Value (USD)">
-            <Input name="valueUsd" type="number" step="0.01" min="0" required />
-          </FieldGroup>
-        </div>
+        <FieldGroup label="Quantity (tonnes)">
+          <Input
+            name="quantityTonnes"
+            type="number"
+            step="0.1"
+            min="0.1"
+            required
+            value={quantityTonnes}
+            onChange={(e) => setQuantityTonnes(e.target.value)}
+          />
+          {estimatedPallets && (
+            <p className="mt-1 text-xs text-slate-400">≈ {estimatedPallets} pallets at 1.2t each</p>
+          )}
+        </FieldGroup>
         <FieldGroup label="Order date">
           <Input name="orderDate" type="date" required />
         </FieldGroup>

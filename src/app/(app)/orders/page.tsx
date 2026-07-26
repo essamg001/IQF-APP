@@ -58,6 +58,7 @@ export default async function OrdersPage() {
                   <Link href={`/orders/${o.id}`} className="font-medium text-emerald-700 hover:underline">
                     {o.orderNumber}
                   </Link>
+                  {o.poNumber && <p className="text-xs text-slate-400">PO {o.poNumber}</p>}
                 </td>
                 <td className="px-4 py-2">{o.client.name}</td>
                 <td className="px-4 py-2">

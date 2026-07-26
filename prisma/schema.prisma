@@ -503,7 +503,8 @@ model Waste {
 
 model Order {
   id              String     @id @default(cuid())
-  orderNumber     String     @unique
+  orderNumber     String     @unique // our own internal reference, auto-generated
+  poNumber        String?    // the client's own purchase-order number, optional -- may not exist or arrive later
   clientId        String
   client          Client     @relation(fields: [clientId], references: [id])
   grade           Grade
