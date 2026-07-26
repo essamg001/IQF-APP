@@ -153,12 +153,20 @@ model Client {
   currency      String   @default("USD")
   createdAt     DateTime @default(now())
 
+  // Groups sibling entities under one mother company for the historical
+  // trends view (e.g. "Chaucer - Linyi"/"Chaucer - Shandong" both set this to
+  // "Chaucer"). Null means the client stands alone. A client whose own name
+  // equals another client's groupName (e.g. plain "Chaucer") is treated as
+  // part of that group too, without needing this field set on itself.
+  groupName String?
+
   specs    ClientSpec[]
   orders   Order[]
   pallets  Pallet[]
   claims   Claim[]
 
   @@index([name])
+  @@index([groupName])
 }
 
 // One row per product-form spec (e.g. "Whole 25-35mm", "Sliced 6-8mm", "Diced 10x10x10mm").

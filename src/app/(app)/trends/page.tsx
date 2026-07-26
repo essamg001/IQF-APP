@@ -18,22 +18,37 @@ export default async function TrendsPage() {
 
   const thisYear = new Date().getFullYear();
 
-  const rows = clients
-    .map((c) => {
-      const lifetimeValue = c.orders.reduce((s, o) => s + o.valueUsd, 0);
-      const lifetimeClaims = c.claims
+  // Sibling entities under one mother company (Client.groupName, e.g.
+  // "Chaucer - Linyi"/"Chaucer - Shandong" both grouped under "Chaucer")
+  // are combined into a single row here; the row links to a breakdown page
+  // listing each member if there's more than one, or straight to that
+  // client's own trend page if it's a standalone group of one.
+  const groups = new Map<string, typeof clients>();
+  for (const c of clients) {
+    const key = c.groupName || c.name;
+    const group = groups.get(key);
+    if (group) group.push(c);
+    else groups.set(key, [c]);
+  }
+
+  const rows = Array.from(groups.entries())
+    .map(([groupKey, members]) => {
+      const orders = members.flatMap((c) => c.orders);
+      const claims = members.flatMap((c) => c.claims);
+      const lifetimeValue = orders.reduce((s, o) => s + o.valueUsd, 0);
+      const lifetimeClaims = claims
         .filter((claim) => claim.status === "RESOLVED_CREDITED")
         .reduce((s, claim) => s + claim.valueUsd, 0);
       const lifetimeNetValue = lifetimeValue - lifetimeClaims;
-      const lifetimeVolume = c.orders.reduce((s, o) => s + o.quantityPallets, 0);
-      const thisYearValue = c.orders
+      const lifetimeVolume = orders.reduce((s, o) => s + o.quantityPallets, 0);
+      const thisYearValue = orders
         .filter((o) => o.orderDate.getFullYear() === thisYear)
         .reduce((s, o) => s + o.valueUsd, 0);
-      const lastYearValue = c.orders
+      const lastYearValue = orders
         .filter((o) => o.orderDate.getFullYear() === thisYear - 1)
         .reduce((s, o) => s + o.valueUsd, 0);
       const trend = lastYearValue === 0 ? null : (thisYearValue - lastYearValue) / lastYearValue;
-      return { client: c, lifetimeValue, lifetimeNetValue, lifetimeVolume, trend };
+      return { groupKey, members, lifetimeValue, lifetimeNetValue, lifetimeVolume, trend };
     })
     .sort((a, b) => b.lifetimeValue - a.lifetimeValue);
 
@@ -61,27 +76,32 @@ export default async function TrendsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ client, lifetimeValue, lifetimeNetValue, lifetimeVolume, trend }) => (
-              <tr key={client.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-2">
-                  <Link href={`/trends/${client.id}`} className="font-medium text-emerald-700 hover:underline">
-                    {client.name}
-                  </Link>
-                </td>
-                <td className="px-4 py-2">${lifetimeValue.toLocaleString()}</td>
-                <td className="px-4 py-2">${lifetimeNetValue.toLocaleString()}</td>
-                <td className="px-4 py-2">{lifetimeVolume}</td>
-                <td className="px-4 py-2">
-                  {trend === null ? (
-                    <span className="text-slate-400">—</span>
-                  ) : (
-                    <Badge color={trend >= 0 ? "green" : "red"}>
-                      {trend >= 0 ? "▲" : "▼"} {Math.abs(trend * 100).toFixed(0)}%
-                    </Badge>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {rows.map(({ groupKey, members, lifetimeValue, lifetimeNetValue, lifetimeVolume, trend }) => {
+              const href =
+                members.length > 1 ? `/trends/group/${encodeURIComponent(groupKey)}` : `/trends/${members[0].id}`;
+              return (
+                <tr key={groupKey} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-2">
+                    <Link href={href} className="font-medium text-emerald-700 hover:underline">
+                      {groupKey}
+                    </Link>
+                    {members.length > 1 && <Badge color="slate" className="ml-2">{members.length} entities</Badge>}
+                  </td>
+                  <td className="px-4 py-2">${lifetimeValue.toLocaleString()}</td>
+                  <td className="px-4 py-2">${lifetimeNetValue.toLocaleString()}</td>
+                  <td className="px-4 py-2">{lifetimeVolume}</td>
+                  <td className="px-4 py-2">
+                    {trend === null ? (
+                      <span className="text-slate-400">—</span>
+                    ) : (
+                      <Badge color={trend >= 0 ? "green" : "red"}>
+                        {trend >= 0 ? "▲" : "▼"} {Math.abs(trend * 100).toFixed(0)}%
+                      </Badge>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
