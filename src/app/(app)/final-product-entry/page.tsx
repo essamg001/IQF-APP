@@ -16,6 +16,15 @@ export default async function FinalProductEntryPage() {
     prisma.coldRoom.findMany({ orderBy: { name: "asc" } }),
   ]);
 
+  // Post-freeze inspection's size/caliber data auto-fills onto a pallet here
+  // once its number is entered (exact pallet match preferred, else the lot's
+  // latest lot-level check) -- see packing-form.tsx.
+  const postFreezeChecks = await prisma.qualityCheck.findMany({
+    where: { checkpoint: "POST_PACKAGING", lotId: { in: lots.map((l) => l.id) } },
+    orderBy: { createdAt: "desc" },
+    include: { pallet: true },
+  });
+
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
@@ -38,7 +47,7 @@ export default async function FinalProductEntryPage() {
       <Badge color="slate">{todaysPallets.length} pallets recorded today</Badge>
 
       <div className="max-w-4xl">
-        <PackingForm lots={lots} coldRooms={coldRooms} />
+        <PackingForm lots={lots} coldRooms={coldRooms} postFreezeChecks={postFreezeChecks} />
       </div>
 
       <Card className="max-w-4xl overflow-x-auto p-0">

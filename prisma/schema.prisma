@@ -341,6 +341,15 @@ model Pallet {
   palletizationStart DateTime?
   palletizationEnd   DateTime?
 
+  // Auto-filled from the matching post-freeze inspection (QualityCheck,
+  // checkpoint POST_PACKAGING) once a pallet number is entered here -- exact
+  // pallet match preferred, falling back to the lot's latest lot-level
+  // check. Still editable afterward in case the packer needs to correct it.
+  fruitDiameterUncalibrated        String?
+  fruitDiameterCalibratedRegular   String?
+  fruitDiameterCalibratedIrregular String?
+  fruitDiameterCalibratedSmall     String?
+
   // Cartons packed without a confirmed client/sale go out blank and need a
   // client sticker applied at the load-out bay before they can go in the container.
   stickeringRequired    Boolean   @default(false)

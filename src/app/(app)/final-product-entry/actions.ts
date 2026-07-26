@@ -22,6 +22,10 @@ const packedPalletSchema = z.object({
   packingSupervisor: z.string().optional(),
   palletizationStart: z.string().optional(),
   palletizationEnd: z.string().optional(),
+  fruitDiameterUncalibrated: z.string().optional(),
+  fruitDiameterCalibratedRegular: z.string().optional(),
+  fruitDiameterCalibratedIrregular: z.string().optional(),
+  fruitDiameterCalibratedSmall: z.string().optional(),
 });
 
 export async function createPackedPalletAction(_prevState: string | undefined, formData: FormData) {
