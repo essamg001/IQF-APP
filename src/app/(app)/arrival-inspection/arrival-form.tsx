@@ -218,8 +218,8 @@ function SampleFields() {
               <option value="REJECTED">Unacceptable</option>
             </Select>
           </FieldGroup>
-          <FieldGroup label={decision === "REJECTED" ? "Corrective Action" : "Corrective Action (optional)"}>
-            <Input name="notes" required={decision === "REJECTED" && wholeDelivery} />
+          <FieldGroup label={decision === "REJECTED" ? "Reason" : "Reason (optional)"}>
+            <Input name="notes" placeholder={decision === "REJECTED" ? "Why was it rejected?" : undefined} required={decision === "REJECTED" && wholeDelivery} />
           </FieldGroup>
         </div>
       </Card>
