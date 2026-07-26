@@ -165,11 +165,11 @@ function MeasurementFields({ grade }: { grade: Grade }) {
           <FieldGroup label={`Fruit Diameter — Calibrated, small (${limits.calibratedSmall})`}>
             <Input name="fruitDiameterCalibratedSmall" />
           </FieldGroup>
-          <FieldGroup label="Fruit Diameter — Calibrated, regular (25-35mm)">
-            <Input name="fruitDiameterCalibratedRegular" />
+          <FieldGroup label="Fruit Diameter — Calibrated, medium (25-35mm)">
+            <Input name="fruitDiameterCalibratedMedium" />
           </FieldGroup>
-          <FieldGroup label="Fruit Diameter — Calibrated, irregular (>35mm)">
-            <Input name="fruitDiameterCalibratedIrregular" />
+          <FieldGroup label="Fruit Diameter — Calibrated, large (>35mm)">
+            <Input name="fruitDiameterCalibratedLarge" />
           </FieldGroup>
         </div>
         <div className="flex gap-6">

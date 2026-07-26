@@ -216,20 +216,20 @@ function FruitDiameterFields({ matchedCheck }: { matchedCheck: PostFreezeCheck |
       <FieldGroup label="Uncalibrated">
         <Input name="fruitDiameterUncalibrated" defaultValue={matchedCheck?.fruitDiameterUncalibrated ?? ""} />
       </FieldGroup>
-      <FieldGroup label="Calibrated — Regular">
-        <Input
-          name="fruitDiameterCalibratedRegular"
-          defaultValue={matchedCheck?.fruitDiameterCalibratedRegular ?? ""}
-        />
-      </FieldGroup>
-      <FieldGroup label="Calibrated — Irregular">
-        <Input
-          name="fruitDiameterCalibratedIrregular"
-          defaultValue={matchedCheck?.fruitDiameterCalibratedIrregular ?? ""}
-        />
-      </FieldGroup>
       <FieldGroup label="Calibrated — Small (Class II)">
         <Input name="fruitDiameterCalibratedSmall" defaultValue={matchedCheck?.fruitDiameterCalibratedSmall ?? ""} />
+      </FieldGroup>
+      <FieldGroup label="Calibrated — Medium">
+        <Input
+          name="fruitDiameterCalibratedMedium"
+          defaultValue={matchedCheck?.fruitDiameterCalibratedMedium ?? ""}
+        />
+      </FieldGroup>
+      <FieldGroup label="Calibrated — Large">
+        <Input
+          name="fruitDiameterCalibratedLarge"
+          defaultValue={matchedCheck?.fruitDiameterCalibratedLarge ?? ""}
+        />
       </FieldGroup>
     </div>
   );

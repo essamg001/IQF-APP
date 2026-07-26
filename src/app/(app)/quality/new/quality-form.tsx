@@ -171,14 +171,14 @@ export function QualityCheckForm({ lots }: { lots: LotWithRelations[] }) {
             <FieldGroup label="Fruit Diameter — Uncalibrated">
               <Input name="fruitDiameterUncalibrated" placeholder="25-40mm" />
             </FieldGroup>
-            <FieldGroup label="Fruit Diameter — Calibrated (regular)">
-              <Input name="fruitDiameterCalibratedRegular" placeholder="25-35mm" />
-            </FieldGroup>
-            <FieldGroup label="Fruit Diameter — Calibrated (irregular)">
-              <Input name="fruitDiameterCalibratedIrregular" placeholder=">35mm" />
-            </FieldGroup>
             <FieldGroup label="Fruit Diameter — Calibrated (small / Class II)">
               <Input name="fruitDiameterCalibratedSmall" placeholder="15-25mm" />
+            </FieldGroup>
+            <FieldGroup label="Fruit Diameter — Calibrated (medium)">
+              <Input name="fruitDiameterCalibratedMedium" placeholder="25-35mm" />
+            </FieldGroup>
+            <FieldGroup label="Fruit Diameter — Calibrated (large)">
+              <Input name="fruitDiameterCalibratedLarge" placeholder=">35mm" />
             </FieldGroup>
             <FieldGroup label="Foreign Odor">
               <Input name="foreignOdor" placeholder="NIL" />

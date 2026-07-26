@@ -345,10 +345,10 @@ model Pallet {
   // checkpoint POST_PACKAGING) once a pallet number is entered here -- exact
   // pallet match preferred, falling back to the lot's latest lot-level
   // check. Still editable afterward in case the packer needs to correct it.
-  fruitDiameterUncalibrated        String?
-  fruitDiameterCalibratedRegular   String?
-  fruitDiameterCalibratedIrregular String?
-  fruitDiameterCalibratedSmall     String?
+  fruitDiameterUncalibrated      String?
+  fruitDiameterCalibratedSmall   String?
+  fruitDiameterCalibratedMedium  String?
+  fruitDiameterCalibratedLarge   String?
 
   // Cartons packed without a confirmed client/sale go out blank and need a
   // client sticker applied at the load-out bay before they can go in the container.
@@ -444,9 +444,9 @@ model QualityCheck {
   packageClosureOk               Boolean?
   dataLabelReviewOk              Boolean?
   fruitDiameterUncalibrated      String?
-  fruitDiameterCalibratedRegular String?
-  fruitDiameterCalibratedIrregular String?
   fruitDiameterCalibratedSmall   String?
+  fruitDiameterCalibratedMedium  String?
+  fruitDiameterCalibratedLarge   String?
   capsuleRemainsCount   Float? // بقايا الكبسولة — measured as pieces/10kg here, distinct unit from raw's capsuleRemainsPct
   leafRemainsCount      Float? // رض الاوراق وبقايا اوراق — pieces/10kg
   stemFragmentsCount    Float? // السيقان وشظايا الساق — pieces/10kg
