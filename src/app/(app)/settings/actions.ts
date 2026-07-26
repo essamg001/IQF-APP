@@ -40,6 +40,12 @@ export async function addColdRoomAction(formData: FormData) {
   revalidatePath("/settings");
 }
 
+export async function updateColdRoomCapacityAction(coldRoomId: string, formData: FormData) {
+  const capacityPallets = z.coerce.number().int().positive().parse(formData.get("capacityPallets"));
+  await prisma.coldRoom.update({ where: { id: coldRoomId }, data: { capacityPallets } });
+  revalidatePath("/settings");
+}
+
 export async function addFieldAction(formData: FormData) {
   const parsed = fieldSchema.parse({
     name: formData.get("name"),

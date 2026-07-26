@@ -36,11 +36,15 @@ async function main() {
   });
   console.log("Seeded 2 factories");
 
+  // Capacities from the real storage map (كروكى خريطة ثلاجات مصنع التجميد.xlsx):
+  // Cold Store 1-2 are 2 rounds x 11 racks x 14 levels = 308 pallet positions each.
+  // Cold Store 3-5 are 4 rounds x 16 racks x 26 levels = 1,664 pallet positions each.
+  const COLD_ROOM_CAPACITY: Record<number, number> = { 1: 308, 2: 308, 3: 1664, 4: 1664, 5: 1664 };
   for (let i = 1; i <= 5; i++) {
     await prisma.coldRoom.upsert({
       where: { name: `Cold Store ${i}` },
       update: {},
-      create: { name: `Cold Store ${i}`, capacityPallets: 1200, isNew: i <= 3 },
+      create: { name: `Cold Store ${i}`, capacityPallets: COLD_ROOM_CAPACITY[i], isNew: i <= 3 },
     });
   }
   console.log("Seeded 5 cold rooms (Cold Store 1-5)");

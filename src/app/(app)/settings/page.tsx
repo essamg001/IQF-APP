@@ -17,6 +17,7 @@ const STATION_LABELS: Record<Station, string> = {
 import {
   addFactoryAction,
   addColdRoomAction,
+  updateColdRoomCapacityAction,
   addFieldAction,
   deleteFieldAction,
   deleteUserAction,
@@ -110,7 +111,19 @@ export default async function SettingsPage() {
                 {c.name}
                 <Badge color={c.isNew ? "green" : "slate"}>{c.isNew ? "New" : "Old"}</Badge>
               </span>
-              <span className="text-slate-500">{c.capacityPallets} pallets</span>
+              <form action={updateColdRoomCapacityAction.bind(null, c.id)} className="flex items-center gap-2">
+                <Input
+                  name="capacityPallets"
+                  type="number"
+                  min="1"
+                  defaultValue={c.capacityPallets}
+                  className="w-24 py-1"
+                />
+                <span className="text-slate-500">pallets</span>
+                <button type="submit" className="text-xs text-emerald-700 hover:underline">
+                  Save
+                </button>
+              </form>
             </li>
           ))}
         </ul>
