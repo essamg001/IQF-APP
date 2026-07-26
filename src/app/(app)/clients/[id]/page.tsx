@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { deleteClientAction } from "../actions";
 import { DEFECT_FIELDS } from "@/lib/validation/client";
+import { AddSpecForm } from "./add-spec-form";
 
 const FORMAT_LABEL = { WHOLE: "Whole", SLICED: "Sliced", DICED: "Diced" } as const;
 
@@ -51,7 +52,17 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <div className="mt-6 space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">Specifications ({client.specs.length})</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-900">Specifications ({client.specs.length})</h2>
+        </div>
+        <Card>
+          <details>
+            <summary className="cursor-pointer text-sm font-medium text-slate-800">+ Add specification</summary>
+            <div className="mt-4">
+              <AddSpecForm clientId={client.id} />
+            </div>
+          </details>
+        </Card>
         {client.specs.length === 0 && (
           <Card>
             <p className="text-sm text-slate-400">No specs on file.</p>

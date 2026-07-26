@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { clientSchema } from "@/lib/validation/client";
+import { clientSchema, specSchema } from "@/lib/validation/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -66,4 +66,19 @@ export async function deleteClientAction(id: string) {
   await prisma.client.delete({ where: { id } });
   revalidatePath("/clients");
   redirect("/clients");
+}
+
+export async function addClientSpecAction(clientId: string, _prevState: string | undefined, formData: FormData) {
+  const raw = Object.fromEntries(
+    Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v])
+  );
+  const parsed = specSchema.safeParse(raw);
+  if (!parsed.success) {
+    return parsed.error.issues[0]?.message ?? "Invalid input.";
+  }
+
+  await prisma.clientSpec.create({ data: { ...parsed.data, clientId } });
+
+  revalidatePath(`/clients/${clientId}`);
+  return "ok";
 }
