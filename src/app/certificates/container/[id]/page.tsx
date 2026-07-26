@@ -1,13 +1,10 @@
-import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
+import { auth } from "@/lib/auth";
 import { FORMAT_LABEL } from "@/lib/format";
-import { parseBrixRange } from "@/lib/allocation";
+import { computeContainerCertificateData, type CertificateData } from "@/lib/certificate";
 import { PrintButton } from "./print-button";
-
-function avg(nums: number[]) {
-  return nums.length ? nums.reduce((s, n) => s + n, 0) / nums.length : null;
-}
+import { ApproveForm } from "./approve-form";
 
 function fmtPct(v: number | null) {
   return v === null ? "—" : `${v.toFixed(1)}%`;
@@ -37,64 +34,36 @@ function PassPill({ pass }: { pass: boolean | null }) {
 
 export default async function ContainerCertificatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const session = await auth();
 
-  const container = await prisma.container.findUnique({
-    where: { id },
-    include: {
-      order: { include: { client: { include: { specs: true } } } },
-      palletLines: {
-        include: {
-          pallet: {
-            include: {
-              lot: {
-                include: { field: true, factory: true, shift: true, microbiologyResult: true, qualityChecks: true },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-  if (!container) notFound();
+  const result = await computeContainerCertificateData(id);
+  if (!result) notFound();
+  const { container, gate, data: liveData } = result;
 
-  const lots = new Map(container.palletLines.map((l) => [l.pallet.lot.id, l.pallet.lot]));
-  const distinctLots = [...lots.values()];
-  const primaryLot = distinctLots[0];
+  const isApproved = !!container.certificateApprovedAt;
+  const data: CertificateData = isApproved ? (container.certificateSnapshot as CertificateData) : liveData;
 
-  const postChecks = distinctLots.flatMap((l) => l.qualityChecks.filter((q) => q.checkpoint === "POST_PACKAGING"));
-  const checksForCert = postChecks.length
-    ? postChecks
-    : distinctLots.flatMap((l) => l.qualityChecks.filter((q) => q.checkpoint === "RAW_MATERIAL"));
+  // Not approved yet and conditions aren't met: no certificate content at
+  // all, just a status list of what's outstanding.
+  if (!isApproved && !gate.ready) {
+    return (
+      <div style={{ maxWidth: 640, margin: "60px auto", padding: "0 20px", fontFamily: "-apple-system,BlinkMacSystemFont,sans-serif" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "#1c211d" }}>Certificate not yet available</h1>
+        <p style={{ marginTop: 8, fontSize: 14, color: "#4d5750" }}>
+          Container <strong>{container.containerNumber}</strong> can&apos;t be certified until the following are resolved:
+        </p>
+        <ul style={{ marginTop: 16, paddingLeft: 20, fontSize: 14, color: "#1c211d", lineHeight: 1.8 }}>
+          {gate.reasons.map((r, i) => (
+            <li key={i}>{r}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
-  const brix = avg(checksForCert.map((c) => c.brix));
-  const fruitColorPct = avg(checksForCert.filter((c) => c.fruitColorPct !== null).map((c) => c.fruitColorPct as number));
-  const internalQualityPct = avg(checksForCert.map((c) => c.internalQualityPct));
-  const mouldPct = avg(checksForCert.map((c) => c.mouldPct));
-  const skinDamagePct = avg(checksForCert.map((c) => c.skinDamagePct));
-  const overmaturePct = avg(checksForCert.filter((c) => c.overmaturePct !== null).map((c) => c.overmaturePct as number));
-  const productTemp = checksForCert.find((c) => c.productTemperatureC !== null)?.productTemperatureC ?? -18;
-  const foreignOdor = checksForCert.find((c) => c.foreignOdor)?.foreignOdor ?? "NIL";
-  const foreignTaste = checksForCert.find((c) => c.foreignTaste)?.foreignTaste ?? "NIL";
-
-  const allApproved = distinctLots.every((l) => l.microbiologyResult?.status === "APPROVED");
-  const microDate = distinctLots
-    .map((l) => l.microbiologyResult?.receivedDate)
-    .filter((d): d is Date => !!d)
-    .sort((a, b) => b.getTime() - a.getTime())[0];
-  const microCerts = distinctLots
-    .map((l) => l.microbiologyResult)
-    .filter((m): m is NonNullable<typeof m> => !!m?.certificateNumber);
-
-  const spec = container.order.client.specs.find(
-    (s) => s.grade === container.order.grade && s.format === container.order.format
-  );
-  const brixRange = parseBrixRange(spec?.brix);
-  const brixPass = brixRange && brix !== null ? brix >= brixRange.min && brix <= brixRange.max : null;
-
-  const totalTonnes = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
-  const variety = container.palletLines.find((l) => l.pallet.variety)?.pallet.variety ?? "—";
-
-  const certNumber = `MA-QC-${container.containerNumber}`;
+  const canApprove = session?.user && ["QUALITY", "OWNER"].includes(session.user.role);
+  const productionDate = data.productionDate ? new Date(data.productionDate) : null;
+  const microDate = data.microDate ? new Date(data.microDate) : null;
 
   return (
     <div className="cert-stage">
@@ -102,9 +71,14 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
         dangerouslySetInnerHTML={{
           __html: `
         .cert-stage { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif; background:#dcdfe0; min-height:100vh; padding:28px 16px 80px; }
-        .toolbar-row { max-width:780px; margin:0 auto 18px; display:flex; justify-content:flex-end; }
+        .toolbar-row { max-width:780px; margin:0 auto 18px; display:flex; justify-content:flex-end; align-items:center; gap:12px; }
         .toolbar-print-btn { font:inherit; font-size:13px; font-weight:700; letter-spacing:0.02em; background:#1c211d; color:#f4f3ee; border:none; padding:9px 18px; border-radius:20px; cursor:pointer; }
         .toolbar-print-btn:hover { opacity:0.88; }
+        .approve-form { display:flex; align-items:center; gap:8px; }
+        .approve-input { font:inherit; font-size:13px; padding:8px 12px; border-radius:20px; border:1px solid #a9a48f; }
+        .approve-btn { font:inherit; font-size:13px; font-weight:700; letter-spacing:0.02em; background:#2f6b4f; color:#fff; border:none; padding:9px 18px; border-radius:20px; cursor:pointer; }
+        .draft-banner { max-width:780px; margin:0 auto 14px; background:#fff3cd; border:1px solid #e3c56b; color:#7a5d00; font-size:12.5px; font-weight:600; padding:10px 16px; border-radius:6px; text-align:center; letter-spacing:0.02em; }
+        .approved-banner { max-width:780px; margin:0 auto 14px; background:#e7f3ec; border:1px solid #2f6b4f; color:#1e4d38; font-size:12.5px; font-weight:600; padding:10px 16px; border-radius:6px; text-align:center; letter-spacing:0.02em; }
         .ca-root {
           --paper:#f4f3ee; --paper-edge:#e6e4da; --ink:#1c211d; --ink-soft:#4d5750; --ink-faint:#7c8579;
           --line:#cdc9b8; --line-strong:#a9a48f; --seal:#7a2331; --good:#2f6b4f; --good-soft:#2f6b4f14;
@@ -162,7 +136,7 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
           .ca-results .spec-col { display:none; }
         }
         @media print {
-          .toolbar-row { display:none; }
+          .toolbar-row, .draft-banner, .approved-banner { display:none; }
           .cert-stage { background:#fff; padding:0; }
           .ca-root { box-shadow:none; border:none; max-width:none; }
           .ca-root::before { display:none; }
@@ -173,8 +147,17 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
       />
 
       <div className="toolbar-row">
+        {!isApproved && canApprove && <ApproveForm containerId={container.id} />}
         <PrintButton />
       </div>
+
+      {!isApproved && <div className="draft-banner">DRAFT — Pending Final Approval</div>}
+      {isApproved && (
+        <div className="approved-banner">
+          Approved by {container.certificateApprovedByName} on{" "}
+          {format(container.certificateApprovedAt!, "dd MMM yyyy")} — this is the permanent record for this shipment.
+        </div>
+      )}
 
       <div className="ca-root">
         <div className="ca-letterhead">
@@ -191,9 +174,9 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
             </div>
           </div>
           <div className="ca-meta">
-            Certificate No. <strong>{certNumber}</strong>
+            Certificate No. <strong>{data.certNumber}</strong>
             <br />
-            Issue Date <strong>{format(new Date(), "dd MMM yyyy")}</strong>
+            Issue Date <strong>{format(new Date(data.issueDate), "dd MMM yyyy")}</strong>
             <br />
             Page <strong>1 of 1</strong>
           </div>
@@ -202,7 +185,7 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
         <div className="ca-title-row">
           <h2>Certificate of Quality</h2>
           <p>
-            IQF {FORMAT_LABEL[container.order.format]} Strawberries &mdash; Grade {container.order.grade}
+            IQF {FORMAT_LABEL[data.format as keyof typeof FORMAT_LABEL]} Strawberries &mdash; Grade {data.grade}
           </p>
         </div>
 
@@ -210,46 +193,45 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
           <dl className="ca-field">
             <dt>Consignee</dt>
             <dd>
-              {container.order.client.name}
+              {data.client.name}
               <br />
-              {container.order.client.country ?? ""}
-              {container.order.client.contactName ? ` · Attn. ${container.order.client.contactName}` : ""}
+              {data.client.country ?? ""}
+              {data.client.contactName ? ` · Attn. ${data.client.contactName}` : ""}
             </dd>
             <dt>Order Reference</dt>
-            <dd className="mono">{container.order.orderNumber}</dd>
+            <dd className="mono">{data.orderNumber}</dd>
           </dl>
           <dl className="ca-field">
             <dt>Product &amp; Variety</dt>
             <dd>
-              IQF Strawberries, {FORMAT_LABEL[container.order.format]}
-              {variety !== "—" ? ` — ${variety}` : ""}
+              IQF Strawberries, {FORMAT_LABEL[data.format as keyof typeof FORMAT_LABEL]}
+              {data.variety !== "—" ? ` — ${data.variety}` : ""}
             </dd>
             <dt>Container</dt>
-            <dd className="mono">{container.containerNumber}</dd>
+            <dd className="mono">{data.containerNumber}</dd>
           </dl>
         </div>
 
         <div className="ca-parties" style={{ marginBottom: 6 }}>
           <dl className="ca-field">
-            <dt>Traceability / Lot Code{distinctLots.length > 1 ? "s" : ""}</dt>
-            <dd className="mono">{distinctLots.map((l) => l.lotNumber).join(", ")}</dd>
-            <dt>Source Field{distinctLots.length > 1 ? "s" : ""}</dt>
-            <dd>{[...new Set(distinctLots.map((l) => l.field.name))].join(", ")}</dd>
+            <dt>Traceability / Lot Code{data.lotNumbers.length > 1 ? "s" : ""}</dt>
+            <dd className="mono">{data.lotNumbers.join(", ")}</dd>
+            <dt>Source Field{data.fieldNames.length > 1 ? "s" : ""}</dt>
+            <dd>{data.fieldNames.join(", ")}</dd>
           </dl>
           <dl className="ca-field">
             <dt>Production Date</dt>
             <dd>
-              {primaryLot ? format(primaryLot.shift.date, "dd MMM yyyy") : "—"} &middot;{" "}
-              {[...new Set(distinctLots.map((l) => l.factory.name))].join(", ")}
+              {productionDate ? format(productionDate, "dd MMM yyyy") : "—"} &middot; {data.factoryNames.join(", ")}
             </dd>
             <dt>Quantity Shipped</dt>
             <dd>
-              {container.palletLines.length} pallet{container.palletLines.length === 1 ? "" : "s"} &middot; {totalTonnes.toFixed(1)} MT net
+              {data.palletCount} pallet{data.palletCount === 1 ? "" : "s"} &middot; {data.totalTonnes.toFixed(1)} MT net
             </dd>
           </dl>
         </div>
 
-        <div className="ca-section-label">Inspection Results — {postChecks.length ? "Final Product (Frozen)" : "Raw Material"}</div>
+        <div className="ca-section-label">Inspection Results — {data.isPostPackaging ? "Final Product (Frozen)" : "Raw Material"}</div>
         <table className="ca-results">
           <thead>
             <tr>
@@ -262,15 +244,15 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
           <tbody>
             <tr>
               <td className="param">Brix (sugar content)</td>
-              <td className="value">{brix !== null ? `${brix.toFixed(1)} °Bx` : "—"}</td>
-              <td className="spec spec-col">{spec?.brix ?? "—"}</td>
+              <td className="value">{data.brix !== null ? `${data.brix.toFixed(1)} °Bx` : "—"}</td>
+              <td className="spec spec-col">{data.specBrix ?? "—"}</td>
               <td>
-                <PassPill pass={brixPass} />
+                <PassPill pass={data.brixPass} />
               </td>
             </tr>
             <tr>
               <td className="param">Fruit colour (red to dark red)</td>
-              <td className="value">{fruitColorPct !== null ? `${fruitColorPct.toFixed(0)}% of surface` : "—"}</td>
+              <td className="value">{data.fruitColorPct !== null ? `${data.fruitColorPct.toFixed(0)}% of surface` : "—"}</td>
               <td className="spec spec-col">—</td>
               <td>
                 <PassPill pass={null} />
@@ -278,15 +260,15 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
             </tr>
             <tr>
               <td className="param">Internal quality</td>
-              <td className="value">{fmtPct(internalQualityPct)}</td>
-              <td className="spec spec-col">{spec?.internalQuality ?? "—"}</td>
+              <td className="value">{fmtPct(data.internalQualityPct)}</td>
+              <td className="spec spec-col">{data.specInternalQuality ?? "—"}</td>
               <td>
                 <PassPill pass={null} />
               </td>
             </tr>
             <tr>
               <td className="param">Mould</td>
-              <td className="value">{fmtPct(mouldPct)}</td>
+              <td className="value">{fmtPct(data.mouldPct)}</td>
               <td className="spec spec-col">—</td>
               <td>
                 <PassPill pass={null} />
@@ -294,15 +276,15 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
             </tr>
             <tr>
               <td className="param">Skin damage</td>
-              <td className="value">{fmtPct(skinDamagePct)}</td>
-              <td className="spec spec-col">{spec?.mechanicalDamage ?? "—"}</td>
+              <td className="value">{fmtPct(data.skinDamagePct)}</td>
+              <td className="spec spec-col">{data.specMechanicalDamage ?? "—"}</td>
               <td>
                 <PassPill pass={null} />
               </td>
             </tr>
             <tr>
               <td className="param">Overmature / soft texture</td>
-              <td className="value">{fmtPct(overmaturePct)}</td>
+              <td className="value">{fmtPct(data.overmaturePct)}</td>
               <td className="spec spec-col">—</td>
               <td>
                 <PassPill pass={null} />
@@ -311,19 +293,19 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
             <tr>
               <td className="param">Foreign odour / taste</td>
               <td className="value">
-                {foreignOdor} / {foreignTaste}
+                {data.foreignOdor} / {data.foreignTaste}
               </td>
               <td className="spec spec-col">NIL</td>
               <td>
-                <PassPill pass={foreignOdor === "NIL" && foreignTaste === "NIL"} />
+                <PassPill pass={data.foreignOdor === "NIL" && data.foreignTaste === "NIL"} />
               </td>
             </tr>
             <tr>
               <td className="param">Product core temperature</td>
-              <td className="value">{productTemp} °C</td>
+              <td className="value">{data.productTemp} °C</td>
               <td className="spec spec-col">−18 °C</td>
               <td>
-                <PassPill pass={productTemp <= -18} />
+                <PassPill pass={data.productTemp <= -18} />
               </td>
             </tr>
           </tbody>
@@ -335,20 +317,20 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
               Certified Standards
             </div>
             <div className="ca-certs">
-              {[...new Set(checksForCert.map((c) => c.complianceLevel).filter(Boolean))].map((lvl) => (
+              {data.complianceLevels.map((lvl) => (
                 <span className="ca-chip" key={lvl}>
                   {lvl === "GLOBALGAP" ? "GLOBALG.A.P" : lvl}
                 </span>
               ))}
-              {checksForCert.every((c) => !c.complianceLevel) && <span className="ca-chip">On file</span>}
+              {data.complianceLevels.length === 0 && <span className="ca-chip">On file</span>}
             </div>
             <p className="ca-micro">
               <strong>Lab Clearance:</strong>{" "}
-              {allApproved
+              {data.allApproved
                 ? `Approved${microDate ? ` ${format(microDate, "dd MMM yyyy")}` : ""}${
-                    microCerts.length
-                      ? ` — certificate ${microCerts.map((m) => m.certificateNumber).join(", ")}${
-                          microCerts[0]?.labName ? ` (${microCerts[0].labName})` : ""
+                    data.microCerts.length
+                      ? ` — certificate ${data.microCerts.map((m) => m.certificateNumber).join(", ")}${
+                          data.microCerts[0]?.labName ? ` (${data.microCerts[0].labName})` : ""
                         }`
                       : ""
                   } on file; results compliant with destination-market food safety regulation.`
@@ -384,11 +366,11 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
 
         <div className="ca-approvals">
           <div className="ca-sig">
-            <p className="ca-sig-name">{container.qualityRepName ?? "—"}</p>
+            <p className="ca-sig-name">{data.qualityRepName ?? "—"}</p>
             <p className="ca-sig-role">Quality Manager</p>
           </div>
           <div className="ca-sig">
-            <p className="ca-sig-name">{container.loadOutRepName ?? "—"}</p>
+            <p className="ca-sig-name">{data.loadOutRepName ?? "—"}</p>
             <p className="ca-sig-role">Export / Load-Out</p>
           </div>
           <div className="ca-sig">
@@ -400,9 +382,9 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
         <div className="ca-footnote">
           This certificate attests to inspection results recorded at end-of-line packaging under Magrabi Agriculture&apos;s
           quality management system and is issued for the exclusive use of the named consignee for shipment against order{" "}
-          <span className="ref">{container.order.orderNumber}</span> / container{" "}
-          <span className="ref">{container.containerNumber}</span>. Full pallet-level traceability, raw-material intake
-          inspection, and microbiology reports are retained on file and available on request.
+          <span className="ref">{data.orderNumber}</span> / container <span className="ref">{data.containerNumber}</span>.
+          Full pallet-level traceability, raw-material intake inspection, and microbiology reports are retained on file
+          and available on request.
         </div>
       </div>
     </div>

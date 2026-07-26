@@ -516,6 +516,15 @@ model Container {
   qualityRepName   String?
   qualitySignedAt  DateTime?
 
+  // The Certificate of Quality is gated on (lab clearance approved for every
+  // lot in this container + both sign-offs above) and, once explicitly
+  // approved, frozen as a permanent snapshot so later data edits (a quality
+  // check correction, a lab re-classification) can't retroactively change
+  // what was actually certified at the time of shipment.
+  certificateApprovedAt     DateTime?
+  certificateApprovedByName String?
+  certificateSnapshot       Json?
+
   claimLines ClaimContainerLine[]
   palletLines ContainerPalletLine[]
 }
