@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
 
 const checkSchema = z.object({
@@ -73,9 +74,9 @@ export async function createQualityCheckAction(_prevState: string | undefined, f
   await prisma.qualityCheck.create({
     data: {
       ...rest,
-      operationDate: operationDate ? new Date(operationDate) : undefined,
-      expiryDate: expiryDate ? new Date(expiryDate) : undefined,
-      sampleCollectionTime: sampleCollectionTime ? new Date(sampleCollectionTime) : undefined,
+      operationDate: parseDateSafe(operationDate),
+      expiryDate: parseDateSafe(expiryDate),
+      sampleCollectionTime: parseDateSafe(sampleCollectionTime),
       inspectorId: session?.user.id,
     },
   });

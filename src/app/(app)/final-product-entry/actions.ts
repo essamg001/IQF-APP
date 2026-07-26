@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
 
 const packedPalletSchema = z.object({
@@ -44,9 +45,9 @@ export async function createPackedPalletAction(_prevState: string | undefined, f
     data: {
       ...data,
       fullPallet: parcelStatus === "FULL",
-      packingDate: packingDate ? new Date(packingDate) : undefined,
-      palletizationStart: palletizationStart ? new Date(palletizationStart) : undefined,
-      palletizationEnd: palletizationEnd ? new Date(palletizationEnd) : undefined,
+      packingDate: parseDateSafe(packingDate),
+      palletizationStart: parseDateSafe(palletizationStart),
+      palletizationEnd: parseDateSafe(palletizationEnd),
     },
   });
 

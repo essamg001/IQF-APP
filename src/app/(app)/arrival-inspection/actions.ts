@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
@@ -122,7 +123,7 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
       varietyName: data.varietyName,
       sampleNo: data.sampleNo,
       numberOfBoxesReceived: data.numberOfBoxesReceived,
-      sampleCollectionTime: sampleCollectionTime ? new Date(sampleCollectionTime) : undefined,
+      sampleCollectionTime: parseDateSafe(sampleCollectionTime),
       sampleWeightKg: data.sampleWeightKg,
       productTemperatureC: data.productTemperatureC,
       acidityPh: data.acidityPh,

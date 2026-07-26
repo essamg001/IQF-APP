@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { saveUploadedFile } from "@/lib/files";
+import { parseDateSafe } from "@/lib/dates";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -25,7 +26,7 @@ export async function markSentToLabAction(lotId: string, formData: FormData) {
       status: "SENT_TO_LAB",
       labName: parsed.labName,
       trackingRef: parsed.trackingRef,
-      sentDate: parsed.sentDate ? new Date(parsed.sentDate) : new Date(),
+      sentDate: parseDateSafe(parsed.sentDate) ?? new Date(),
       sentByUserId: session?.user.id,
     },
   });
@@ -73,8 +74,8 @@ export async function updateLabResultAction(lotId: string, formData: FormData) {
         ...rest,
         ...fileFields,
         receivedDate: new Date(),
-        analysisStartDate: analysisStartDate ? new Date(analysisStartDate) : undefined,
-        analysisEndDate: analysisEndDate ? new Date(analysisEndDate) : undefined,
+        analysisStartDate: parseDateSafe(analysisStartDate),
+        analysisEndDate: parseDateSafe(analysisEndDate),
       },
     });
 

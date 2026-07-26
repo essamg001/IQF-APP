@@ -5,6 +5,7 @@ import { createArrivalCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 function Pct({ name, label, limit }: { name: string; label: string; limit: string }) {
   return (
@@ -14,7 +15,9 @@ function Pct({ name, label, limit }: { name: string; label: string; limit: strin
   );
 }
 
-export function ArrivalInspectionForm() {
+type TodaysCheck = { receiptNoteNo: string | null; appliesToWholeDelivery: boolean };
+
+export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCheck[] }) {
   const [state, formAction, pending] = useActionState(createArrivalCheckAction, undefined);
 
   // Shift/delivery header fields carry over between consecutive samples from
@@ -25,9 +28,15 @@ export function ArrivalInspectionForm() {
   const [vehicleNo, setVehicleNo] = useState("");
   const [receiptNoteNo, setReceiptNoteNo] = useState("");
   const [varietyName, setVarietyName] = useState("");
+  const [palletsReceived, setPalletsReceived] = useState("");
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
+
+  const inspectedCount = receiptNoteNo
+    ? todaysChecks.filter((c) => c.receiptNoteNo === receiptNoteNo && !c.appliesToWholeDelivery).length
+    : 0;
+  const palletsReceivedNum = Number(palletsReceived) || 0;
 
   return (
     <form action={formAction} className="space-y-4">
@@ -52,7 +61,24 @@ export function ArrivalInspectionForm() {
           <FieldGroup label="Variety">
             <Input name="varietyName" value={varietyName} onChange={(e) => setVarietyName(e.target.value)} />
           </FieldGroup>
+          <FieldGroup label="Number of Pallets Received">
+            <Input
+              name="numberOfBoxesReceived"
+              type="number"
+              min="0"
+              value={palletsReceived}
+              onChange={(e) => setPalletsReceived(e.target.value)}
+            />
+          </FieldGroup>
         </div>
+        {palletsReceivedNum > 0 && (
+          <p className="text-xs text-slate-500">
+            One crate is sampled per pallet — this delivery needs{" "}
+            <Badge color={inspectedCount >= palletsReceivedNum ? "green" : "amber"}>
+              {inspectedCount} of {palletsReceivedNum} crates inspected
+            </Badge>
+          </p>
+        )}
       </Card>
 
       {/* Remounts (resetting to defaults) whenever a new save succeeds. */}
@@ -92,9 +118,6 @@ function SampleFields() {
             <div className="grid grid-cols-4 gap-3">
               <FieldGroup label="Sample No.">
                 <Input name="sampleNo" required />
-              </FieldGroup>
-              <FieldGroup label="No. of Boxes Received">
-                <Input name="numberOfBoxesReceived" type="number" />
               </FieldGroup>
               <FieldGroup label="Sample Collection Time">
                 <Input name="sampleCollectionTime" type="datetime-local" />

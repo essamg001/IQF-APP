@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
@@ -99,9 +100,9 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
     data: {
       ...data,
       checkpoint: "POST_PACKAGING",
-      operationDate: operationDate ? new Date(operationDate) : undefined,
-      expiryDate: expiryDate ? new Date(expiryDate) : undefined,
-      sampleCollectionTime: sampleCollectionTime ? new Date(sampleCollectionTime) : undefined,
+      operationDate: parseDateSafe(operationDate),
+      expiryDate: parseDateSafe(expiryDate),
+      sampleCollectionTime: parseDateSafe(sampleCollectionTime),
       totalDefectsPct,
       inspectorId: session?.user.id,
     },

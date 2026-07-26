@@ -43,7 +43,12 @@ export default async function ArrivalInspectionPage() {
       </div>
 
       <div className="max-w-3xl">
-        <ArrivalInspectionForm />
+        <ArrivalInspectionForm
+          todaysChecks={todaysChecks.map((c) => ({
+            receiptNoteNo: c.receiptNoteNo,
+            appliesToWholeDelivery: c.appliesToWholeDelivery,
+          }))}
+        />
       </div>
 
       <Card className="max-w-3xl overflow-x-auto p-0">
