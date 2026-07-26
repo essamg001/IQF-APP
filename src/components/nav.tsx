@@ -9,6 +9,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/", label: "Dashboard" },
   { href: "/clients", label: "Clients" },
   { href: "/orders", label: "Orders" },
+  { href: "/active-orders", label: "Active Orders" },
   { href: "/available-to-sell", label: "Available to Sell" },
   { href: "/logistics", label: "Logistics" },
   { href: "/production", label: "Production" },
