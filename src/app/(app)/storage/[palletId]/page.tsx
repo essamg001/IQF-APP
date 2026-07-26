@@ -26,6 +26,7 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
       waste: true,
       qualityChecks: true,
       loadLines: { include: { container: true }, orderBy: { createdAt: "asc" } },
+      slot: true,
     },
   });
   if (!pallet) notFound();
@@ -53,6 +54,25 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
             <Row label="Format" value={FORMAT_LABEL[pallet.lot.format]} />
             <Row label="Weight" value={`${pallet.weightTonnes} t`} />
             <Row label="Cold room" value={pallet.coldRoom?.name} />
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">Storage slot</dt>
+              <dd className="text-right text-slate-800">
+                {pallet.slot ? (
+                  <>
+                    Rack {pallet.slot.rack} · Level {pallet.slot.level} · Round {pallet.slot.round}{" "}
+                    <a href={`/storage/map/${pallet.coldRoomId}`} className="text-emerald-700 hover:underline">
+                      (view map)
+                    </a>
+                  </>
+                ) : pallet.coldRoomId ? (
+                  <a href={`/storage/map/${pallet.coldRoomId}`} className="text-emerald-700 hover:underline">
+                    Not yet assigned a slot — assign one
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
             <Row
               label="Microbiology"
               value={(pallet.lot.microbiologyResult?.status ?? "PENDING").replace("_", " ")}

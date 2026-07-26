@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { generateSlotsForColdRoom } from "@/lib/coldStorage";
 
 const factorySchema = z.object({
   name: z.string().min(1),
@@ -12,7 +13,9 @@ const factorySchema = z.object({
 
 const coldRoomSchema = z.object({
   name: z.string().min(1),
-  capacityPallets: z.coerce.number().int().positive(),
+  rounds: z.coerce.number().int().positive(),
+  rackCount: z.coerce.number().int().positive(),
+  levelCount: z.coerce.number().int().positive(),
   isNew: z.boolean(),
 });
 
@@ -33,16 +36,14 @@ export async function addFactoryAction(formData: FormData) {
 export async function addColdRoomAction(formData: FormData) {
   const parsed = coldRoomSchema.parse({
     name: formData.get("name"),
-    capacityPallets: formData.get("capacityPallets"),
+    rounds: formData.get("rounds"),
+    rackCount: formData.get("rackCount"),
+    levelCount: formData.get("levelCount"),
     isNew: formData.get("isNew") === "on",
   });
-  await prisma.coldRoom.create({ data: parsed });
-  revalidatePath("/settings");
-}
-
-export async function updateColdRoomCapacityAction(coldRoomId: string, formData: FormData) {
-  const capacityPallets = z.coerce.number().int().positive().parse(formData.get("capacityPallets"));
-  await prisma.coldRoom.update({ where: { id: coldRoomId }, data: { capacityPallets } });
+  const capacityPallets = parsed.rounds * parsed.rackCount * parsed.levelCount;
+  const room = await prisma.coldRoom.create({ data: { ...parsed, capacityPallets } });
+  await generateSlotsForColdRoom(room.id, parsed.rounds, parsed.rackCount, parsed.levelCount);
   revalidatePath("/settings");
 }
 

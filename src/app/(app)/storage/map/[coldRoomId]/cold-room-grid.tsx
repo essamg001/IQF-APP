@@ -1,0 +1,266 @@
+"use client";
+
+import { useActionState, useMemo, useState } from "react";
+import { assignPalletToSlotAction, unassignSlotAction } from "../actions";
+import { Select, FieldGroup } from "@/components/ui/field";
+import { Button, LinkButton } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+type SlotPallet = {
+  id: string;
+  palletNumber: string;
+  status: string;
+  lotNumber: string;
+  fieldName: string;
+  clientName: string | null;
+  quality: {
+    grade: string;
+    microbiologyStatus: string;
+    brix: number | null;
+    mouldPct: number | null;
+    internalQualityPct: number | null;
+    source: "pallet" | "lot" | "none";
+  } | null;
+};
+
+type Slot = { id: string; round: number; rack: string; level: number; pallet: SlotPallet | null };
+type UnassignedPallet = { id: string; palletNumber: string; lotNumber: string; fieldName: string };
+
+const STATUS_COLOR: Record<string, string> = {
+  APPROVED: "bg-emerald-100 border-emerald-300 text-emerald-900 hover:bg-emerald-200",
+  SENT_TO_LAB: "bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200",
+  PENDING: "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100",
+  FAILED_MINOR: "bg-red-100 border-red-300 text-red-900 hover:bg-red-200",
+  FAILED_SEVERE: "bg-red-200 border-red-400 text-red-950 hover:bg-red-300",
+};
+
+export function ColdRoomGrid({
+  rounds,
+  rackCount,
+  levelCount,
+  slots,
+  unassignedPallets,
+}: {
+  coldRoomId: string;
+  rounds: number;
+  rackCount: number;
+  levelCount: number;
+  slots: Slot[];
+  unassignedPallets: UnassignedPallet[];
+}) {
+  const [round, setRound] = useState(1);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+
+  const racks = useMemo(() => Array.from({ length: rackCount }, (_, i) => rackLetter(i)), [rackCount]);
+  const levels = useMemo(() => Array.from({ length: levelCount }, (_, i) => levelCount - i), [levelCount]);
+
+  const slotByPosition = useMemo(() => {
+    const m = new Map<string, Slot>();
+    for (const s of slots) m.set(`${s.round}-${s.rack}-${s.level}`, s);
+    return m;
+  }, [slots]);
+
+  const selectedSlot = slots.find((s) => s.id === selectedSlotId) ?? null;
+
+  return (
+    <div className="mt-4 grid grid-cols-[1fr_320px] gap-4">
+      <Card className="overflow-x-auto p-3">
+        {rounds > 1 && (
+          <div className="mb-3 flex gap-1">
+            {Array.from({ length: rounds }, (_, i) => i + 1).map((r) => (
+              <button
+                key={r}
+                onClick={() => setRound(r)}
+                className={`rounded-md px-3 py-1 text-xs font-medium ${
+                  r === round ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                Round {r}
+              </button>
+            ))}
+          </div>
+        )}
+        <div
+          className="grid gap-1"
+          style={{ gridTemplateColumns: `2rem repeat(${racks.length}, minmax(2.25rem, 1fr))` }}
+        >
+          <div />
+          {racks.map((rack) => (
+            <div key={rack} className="text-center text-xs font-semibold text-slate-500">
+              {rack}
+            </div>
+          ))}
+          {levels.map((level) => (
+            <RowFragment key={level} level={level} racks={racks} round={round} slotByPosition={slotByPosition} selectedSlotId={selectedSlotId} onSelect={setSelectedSlotId} />
+          ))}
+        </div>
+      </Card>
+
+      <div>
+        {selectedSlot ? (
+          <SlotDetail
+            key={selectedSlot.id}
+            slot={selectedSlot}
+            unassignedPallets={unassignedPallets}
+            onClose={() => setSelectedSlotId(null)}
+          />
+        ) : (
+          <Card className="text-sm text-slate-400">Click a slot to assign a pallet or view what&apos;s stored there.</Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RowFragment({
+  level,
+  racks,
+  round,
+  slotByPosition,
+  selectedSlotId,
+  onSelect,
+}: {
+  level: number;
+  racks: string[];
+  round: number;
+  slotByPosition: Map<string, Slot>;
+  selectedSlotId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-end pr-1 text-xs text-slate-400">{level}</div>
+      {racks.map((rack) => {
+        const slot = slotByPosition.get(`${round}-${rack}-${level}`);
+        if (!slot) return <div key={rack} />;
+        const occupied = !!slot.pallet;
+        const colorClass = occupied
+          ? STATUS_COLOR[slot.pallet!.quality?.microbiologyStatus ?? "PENDING"] ?? STATUS_COLOR.PENDING
+          : "bg-slate-50 border-slate-200 text-slate-300 hover:bg-slate-100";
+        return (
+          <button
+            key={rack}
+            title={occupied ? `${slot.pallet!.palletNumber} — Lot ${slot.pallet!.lotNumber}` : `${rack}${level} — empty`}
+            onClick={() => onSelect(slot.id)}
+            className={`h-8 truncate rounded border px-0.5 text-[10px] font-medium ${colorClass} ${
+              selectedSlotId === slot.id ? "ring-2 ring-emerald-600" : ""
+            }`}
+          >
+            {occupied ? slot.pallet!.palletNumber.slice(-6) : "+"}
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
+function SlotDetail({
+  slot,
+  unassignedPallets,
+  onClose,
+}: {
+  slot: Slot;
+  unassignedPallets: UnassignedPallet[];
+  onClose: () => void;
+}) {
+  const [error, formAction, pending] = useActionState(assignPalletToSlotAction, undefined);
+
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-900">
+          Rack {slot.rack} · Level {slot.level} · Round {slot.round}
+        </h2>
+        <button onClick={onClose} className="text-xs text-slate-400 hover:text-slate-600">
+          Close
+        </button>
+      </div>
+
+      {slot.pallet ? (
+        <>
+          <dl className="space-y-1 text-sm">
+            <Row label="Pallet #" value={slot.pallet.palletNumber} />
+            <Row label="Lot" value={slot.pallet.lotNumber} />
+            <Row label="Field" value={slot.pallet.fieldName} />
+            <Row label="Client" value={slot.pallet.clientName ?? "—"} />
+            <Row label="Grade" value={slot.pallet.quality ? `Grade ${slot.pallet.quality.grade}` : "—"} />
+            <Row
+              label="Lab clearance"
+              value={slot.pallet.quality?.microbiologyStatus.replace(/_/g, " ") ?? "—"}
+            />
+            <Row
+              label="Brix"
+              value={slot.pallet.quality?.brix != null ? String(slot.pallet.quality.brix) : "—"}
+            />
+            <Row
+              label="Mould %"
+              value={slot.pallet.quality?.mouldPct != null ? `${slot.pallet.quality.mouldPct}%` : "—"}
+            />
+            <Row
+              label="Internal quality %"
+              value={
+                slot.pallet.quality?.internalQualityPct != null ? `${slot.pallet.quality.internalQualityPct}%` : "—"
+              }
+            />
+          </dl>
+          {slot.pallet.quality?.source === "lot" && (
+            <p className="text-xs text-slate-400">Quality shown is the lot&apos;s latest check — no check logged against this specific pallet yet.</p>
+          )}
+          <div className="flex gap-2">
+            <LinkButton href={`/storage/${slot.pallet.id}`} variant="secondary" className="flex-1 text-center">
+              View pallet
+            </LinkButton>
+            <form action={unassignSlotAction.bind(null, slot.id)}>
+              <Button type="submit" variant="danger">
+                Unassign
+              </Button>
+            </form>
+          </div>
+        </>
+      ) : (
+        <form action={formAction} className="space-y-3">
+          <input type="hidden" name="slotId" value={slot.id} />
+          <FieldGroup label="Assign pallet to this slot">
+            <Select name="palletId" required defaultValue="">
+              <option value="" disabled>
+                Select a pallet…
+              </option>
+              {unassignedPallets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.palletNumber} — Lot {p.lotNumber} ({p.fieldName})
+                </option>
+              ))}
+            </Select>
+          </FieldGroup>
+          {unassignedPallets.length === 0 && (
+            <p className="text-xs text-slate-400">No unassigned pallets available right now.</p>
+          )}
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <Button type="submit" disabled={pending || unassignedPallets.length === 0} className="w-full">
+            {pending ? "Assigning…" : "Assign"}
+          </Button>
+        </form>
+      )}
+    </Card>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="text-right text-slate-800">{value}</dd>
+    </div>
+  );
+}
+
+function rackLetter(index: number) {
+  let n = index;
+  let s = "";
+  do {
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return s;
+}

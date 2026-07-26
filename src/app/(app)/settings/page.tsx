@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,6 @@ const STATION_LABELS: Record<Station, string> = {
 import {
   addFactoryAction,
   addColdRoomAction,
-  updateColdRoomCapacityAction,
   addFieldAction,
   deleteFieldAction,
   deleteUserAction,
@@ -104,6 +104,11 @@ export default async function SettingsPage() {
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">Cold Rooms</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Capacity is derived from the room&apos;s physical layout (rounds × racks × levels), matching the storage
+          map exactly — see the <Link href="/storage/map" className="text-emerald-700 hover:underline">Storage Map</Link> to
+          view or assign individual slots.
+        </p>
         <ul className="mt-3 divide-y divide-slate-100">
           {coldRooms.map((c) => (
             <li key={c.id} className="flex items-center justify-between py-2 text-sm">
@@ -111,28 +116,25 @@ export default async function SettingsPage() {
                 {c.name}
                 <Badge color={c.isNew ? "green" : "slate"}>{c.isNew ? "New" : "Old"}</Badge>
               </span>
-              <form action={updateColdRoomCapacityAction.bind(null, c.id)} className="flex items-center gap-2">
-                <Input
-                  name="capacityPallets"
-                  type="number"
-                  min="1"
-                  defaultValue={c.capacityPallets}
-                  className="w-24 py-1"
-                />
-                <span className="text-slate-500">pallets</span>
-                <button type="submit" className="text-xs text-emerald-700 hover:underline">
-                  Save
-                </button>
-              </form>
+              <span className="text-slate-500">
+                {c.capacityPallets} pallets ({c.rounds} round{c.rounds === 1 ? "" : "s"} × {c.rackCount} rack
+                {c.rackCount === 1 ? "" : "s"} × {c.levelCount} level{c.levelCount === 1 ? "" : "s"})
+              </span>
             </li>
           ))}
         </ul>
-        <form action={addColdRoomAction} className="mt-4 flex items-end gap-3">
+        <form action={addColdRoomAction} className="mt-4 flex flex-wrap items-end gap-3">
           <FieldGroup label="Name">
-            <Input name="name" required placeholder="Cold Store 6" className="w-48" />
+            <Input name="name" required placeholder="Cold Store 6" className="w-40" />
           </FieldGroup>
-          <FieldGroup label="Capacity (pallets)">
-            <Input name="capacityPallets" type="number" required className="w-32" />
+          <FieldGroup label="Rounds">
+            <Input name="rounds" type="number" min="1" required defaultValue={2} className="w-20" />
+          </FieldGroup>
+          <FieldGroup label="Racks">
+            <Input name="rackCount" type="number" min="1" required defaultValue={11} className="w-20" />
+          </FieldGroup>
+          <FieldGroup label="Levels">
+            <Input name="levelCount" type="number" min="1" required defaultValue={14} className="w-20" />
           </FieldGroup>
           <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" name="isNew" /> New room

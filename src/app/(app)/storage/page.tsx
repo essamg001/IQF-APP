@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LinkButton } from "@/components/ui/button";
 import Link from "next/link";
 
 const STATUS_COLOR = {
@@ -36,9 +37,14 @@ export default async function StoragePage({
 
   return (
     <div>
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Storage</h1>
-        <p className="mt-1 text-sm text-slate-500">Pallet-level view of what&apos;s in cold storage — sold vs. unsold, by room.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Storage</h1>
+          <p className="mt-1 text-sm text-slate-500">Pallet-level view of what&apos;s in cold storage — sold vs. unsold, by room.</p>
+        </div>
+        <LinkButton href="/storage/map" variant="secondary">
+          Storage Map
+        </LinkButton>
       </div>
 
       <div className="mt-4 grid grid-cols-5 gap-3">

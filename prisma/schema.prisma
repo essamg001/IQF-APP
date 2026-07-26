@@ -208,13 +208,40 @@ model Factory {
   lots   ProductionLot[]
 }
 
+// rounds/rackCount/levelCount mirror the real physical storage map exactly
+// (كروكى خريطة ثلاجات مصنع التجميد.xlsx): each round is a full rack section
+// (racks lettered A, B, C... up to rackCount), each rack has levelCount
+// vertical slots. capacityPallets = rounds * rackCount * levelCount.
 model ColdRoom {
-  id             String  @id @default(cuid())
-  name           String  @unique
+  id              String  @id @default(cuid())
+  name            String  @unique
   capacityPallets Int
-  isNew          Boolean @default(false)
+  isNew           Boolean @default(false)
+  rounds          Int     @default(1)
+  rackCount       Int     @default(1)
+  levelCount      Int     @default(1)
 
   pallets Pallet[]
+  slots   ColdRoomSlot[]
+}
+
+// One row per physical storage position. Generated in full when a cold room
+// is created (rounds * rackCount * levelCount rows) so empty slots are just
+// as visible as occupied ones -- matching the manual map, which shows the
+// whole grid, not just where pallets currently are.
+model ColdRoomSlot {
+  id         String   @id @default(cuid())
+  coldRoomId String
+  coldRoom   ColdRoom @relation(fields: [coldRoomId], references: [id])
+  round      Int
+  rack       String
+  level      Int
+  palletId   String?  @unique
+  pallet     Pallet?  @relation(fields: [palletId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([coldRoomId, round, rack, level])
+  @@index([coldRoomId])
 }
 
 model Field {
@@ -308,6 +335,7 @@ model Pallet {
   waste         Waste[]
   qualityChecks QualityCheck[]
   loadLines     ContainerPalletLine[]
+  slot          ColdRoomSlot?
 
   @@index([status])
   @@index([coldRoomId])
