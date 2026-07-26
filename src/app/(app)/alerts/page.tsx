@@ -13,6 +13,7 @@ const TYPE_LABEL = {
   LOW_STOCK: "Low Stock",
   MICROBIOLOGY_PENDING: "Microbiology Pending",
   MICROBIOLOGY_LOAD_ATTEMPT: "Blocked Load Attempt",
+  MICROBIOLOGY_REJECTED: "Lab Rejection",
 } as const;
 
 export default async function AlertsPage() {

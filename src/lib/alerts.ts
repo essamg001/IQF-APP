@@ -52,6 +52,38 @@ export async function raiseMicrobiologyLoadAttemptAlert(params: {
   }
 }
 
+/**
+ * Fired the moment a lab result is recorded as rejected, rather than waiting
+ * for the periodic scan, so quality/production can act before that fruit
+ * gets anywhere near a shipment.
+ */
+export async function raiseMicrobiologyRejectionAlert(params: {
+  lotId: string;
+  lotNumber: string;
+  severity: "FAILED_MINOR" | "FAILED_SEVERE";
+  rejectedQuantityTonnes: number | null;
+  rejectionReason: string | null;
+}) {
+  const severityLabel = params.severity === "FAILED_SEVERE" ? "SEVERE" : "MINOR";
+  const quantityPart = params.rejectedQuantityTonnes ? `${params.rejectedQuantityTonnes}t` : "quantity not yet specified";
+  const reasonPart = params.rejectionReason || "reason not yet specified";
+  const message = `Lab REJECTED Lot ${params.lotNumber} (${severityLabel}) — ${quantityPart} — reason: ${reasonPart}. Do not export this fruit.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "MICROBIOLOGY_REJECTED",
+        relatedEntityType: "MICROBIOLOGY_REJECTED",
+        relatedEntityId: params.lotId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Lab Rejection", message)));
+  }
+}
+
 async function checkSpecMismatch() {
   const pallets = await prisma.pallet.findMany({
     where: { status: "ALLOCATED" },

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { saveUploadedFile } from "@/lib/files";
 import { parseDateSafe } from "@/lib/dates";
+import { raiseMicrobiologyRejectionAlert } from "@/lib/alerts";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -49,6 +50,9 @@ const resultSchema = z.object({
   methodName: z.string().optional(),
   personInCharge: z.string().optional(),
   resultsSummary: z.string().optional(),
+  rejectedQuantityTonnes: z.coerce.number().min(0).optional(),
+  rejectionReason: z.string().optional(),
+  correctiveAction: z.string().optional(),
 });
 
 export async function updateLabResultAction(lotId: string, formData: FormData) {
@@ -66,6 +70,12 @@ export async function updateLabResultAction(lotId: string, formData: FormData) {
     const saved = await saveUploadedFile(file, "certificates");
     fileFields = { certificateFileName: saved.fileName, certificateFileOriginalName: saved.originalName };
   }
+
+  const existing = await prisma.microbiologyResult.findUnique({ where: { lotId } });
+  const isNewRejection =
+    (parsed.status === "FAILED_MINOR" || parsed.status === "FAILED_SEVERE") &&
+    existing?.status !== "FAILED_MINOR" &&
+    existing?.status !== "FAILED_SEVERE";
 
   await prisma.$transaction(async (tx) => {
     await tx.microbiologyResult.update({
@@ -89,7 +99,7 @@ export async function updateLabResultAction(lotId: string, formData: FormData) {
           data: {
             palletId: pallet.id,
             quantity: pallet.weightTonnes,
-            reason: "Microbiology failure (severe): " + (parsed.notes || "see quality report"),
+            reason: "Microbiology failure (severe): " + (parsed.rejectionReason || parsed.notes || "see quality report"),
           },
         });
       }
@@ -101,8 +111,22 @@ export async function updateLabResultAction(lotId: string, formData: FormData) {
     }
   });
 
+  if (isNewRejection) {
+    const lot = await prisma.productionLot.findUnique({ where: { id: lotId } });
+    if (lot) {
+      await raiseMicrobiologyRejectionAlert({
+        lotId,
+        lotNumber: lot.lotNumber,
+        severity: parsed.status as "FAILED_MINOR" | "FAILED_SEVERE",
+        rejectedQuantityTonnes: parsed.rejectedQuantityTonnes ?? null,
+        rejectionReason: parsed.rejectionReason ?? null,
+      });
+    }
+  }
+
   revalidatePath("/lab");
   revalidatePath(`/production/${lotId}`);
   revalidatePath("/storage");
   revalidatePath("/waste");
+  revalidatePath("/alerts");
 }

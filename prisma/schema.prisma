@@ -101,6 +101,7 @@ enum AlertType {
   LOW_STOCK
   MICROBIOLOGY_PENDING
   MICROBIOLOGY_LOAD_ATTEMPT
+  MICROBIOLOGY_REJECTED
 }
 
 enum AlertStatus {
@@ -493,6 +494,11 @@ model MicrobiologyResult {
   // only ever served through an authenticated route — see src/lib/files.ts.
   certificateFileName         String? // generated on-disk filename
   certificateFileOriginalName String? // original filename, for display
+
+  // Rejection detail — only meaningful when status is FAILED_MINOR/FAILED_SEVERE.
+  rejectedQuantityTonnes Float? // volume that did not make spec
+  rejectionReason        String? // why it failed
+  correctiveAction       String? // what was done about it
 
   createdAt DateTime @default(now())
 }

@@ -116,6 +116,12 @@ export default async function LabPage() {
                       View certificate
                     </a>
                   )}
+                  {(r.status === "FAILED_MINOR" || r.status === "FAILED_SEVERE") && r.rejectionReason && (
+                    <span className="ml-2 font-normal text-red-700">
+                      {r.rejectionReason}
+                      {r.rejectedQuantityTonnes ? ` — ${r.rejectedQuantityTonnes}t` : ""}
+                    </span>
+                  )}
                 </summary>
                 <ResultForm lotId={lot.id} result={r} />
               </details>
@@ -144,6 +150,9 @@ type ResultData = {
   resultsSummary: string | null;
   certificateFileName: string | null;
   certificateFileOriginalName: string | null;
+  rejectedQuantityTonnes: number | null;
+  rejectionReason: string | null;
+  correctiveAction: string | null;
 } | null | undefined;
 
 function ResultForm({ lotId, result }: { lotId: string; result: ResultData }) {
@@ -195,6 +204,27 @@ function ResultForm({ lotId, result }: { lotId: string; result: ResultData }) {
       <FieldGroup label="Notes">
         <Input name="notes" defaultValue={result?.notes ?? ""} />
       </FieldGroup>
+
+      <div className="rounded-md border border-red-100 bg-red-50/50 p-3">
+        <p className="mb-2 text-xs font-semibold text-red-700">Rejected sample details (only if Failed — Minor/Severe)</p>
+        <div className="grid grid-cols-3 gap-3">
+          <FieldGroup label="Rejected quantity (tonnes)">
+            <Input
+              name="rejectedQuantityTonnes"
+              type="number"
+              step="0.1"
+              min="0"
+              defaultValue={result?.rejectedQuantityTonnes ?? ""}
+            />
+          </FieldGroup>
+          <FieldGroup label="Reason">
+            <Input name="rejectionReason" placeholder="Why it failed spec" defaultValue={result?.rejectionReason ?? ""} />
+          </FieldGroup>
+          <FieldGroup label="Corrective action">
+            <Input name="correctiveAction" placeholder="What was done about it" defaultValue={result?.correctiveAction ?? ""} />
+          </FieldGroup>
+        </div>
+      </div>
       <FieldGroup label={result?.certificateFileOriginalName ? `Certificate File (currently: ${result.certificateFileOriginalName})` : "Certificate File (PDF, JPG, or PNG)"}>
         <input type="file" name="certificateFile" accept="application/pdf,image/jpeg,image/png" className="block text-sm" />
       </FieldGroup>
