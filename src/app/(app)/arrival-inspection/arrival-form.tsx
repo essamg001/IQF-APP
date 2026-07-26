@@ -20,8 +20,6 @@ export function ArrivalInspectionForm() {
   // Shift/delivery header fields carry over between consecutive samples from
   // the same truck; only the per-pallet fields (in SampleFields below) reset.
   const [shiftNumber, setShiftNumber] = useState("");
-  const [complianceLevel, setComplianceLevel] = useState("");
-  const [complianceOther, setComplianceOther] = useState("");
   const [source, setSource] = useState("");
   const [farmCode, setFarmCode] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");
@@ -38,18 +36,6 @@ export function ArrivalInspectionForm() {
         <div className="grid grid-cols-3 gap-3">
           <FieldGroup label="Shift #">
             <Input name="shiftNumber" value={shiftNumber} onChange={(e) => setShiftNumber(e.target.value)} />
-          </FieldGroup>
-          <FieldGroup label="Compliance level">
-            <Select name="complianceLevel" value={complianceLevel} onChange={(e) => setComplianceLevel(e.target.value)}>
-              <option value="">—</option>
-              <option value="GLOBALGAP">GLOBALG.A.P</option>
-              <option value="SPRING">Spring</option>
-              <option value="LEAF">LEAF</option>
-              <option value="OTHER">Other</option>
-            </Select>
-          </FieldGroup>
-          <FieldGroup label="Compliance (if Other)">
-            <Input name="complianceOther" value={complianceOther} onChange={(e) => setComplianceOther(e.target.value)} />
           </FieldGroup>
           <FieldGroup label="Raw Material Source (station/line code)">
             <Input name="rawMaterialSource" value={source} onChange={(e) => setSource(e.target.value)} />

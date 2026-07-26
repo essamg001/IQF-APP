@@ -13,8 +13,6 @@ const arrivalCheckSchema = z
     decision: z.enum(["ACCEPTED", "REJECTED"]),
 
     shiftNumber: z.string().optional(),
-    complianceLevel: z.enum(["GLOBALGAP", "SPRING", "LEAF", "OTHER"]).optional(),
-    complianceOther: z.string().optional(),
     rawMaterialSource: z.string().optional(),
     farmCode: z.string().optional(),
     transportVehicleNo: z.string().optional(),
@@ -114,8 +112,9 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
       decision: data.decision,
       appliesToWholeDelivery: data.appliesToWholeDelivery,
       shiftNumber: data.shiftNumber,
-      complianceLevel: data.complianceLevel,
-      complianceOther: data.complianceOther,
+      // We certify to a single standard, so this is stamped automatically
+      // rather than asked on every fast-entry submission.
+      complianceLevel: "GLOBALGAP",
       rawMaterialSource: data.rawMaterialSource,
       farmCode: data.farmCode,
       transportVehicleNo: data.transportVehicleNo,
