@@ -4,11 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { generateLotNumber } from "@/lib/lotNumber";
+import { parseLocalDateOnly } from "@/lib/dates";
 import { z } from "zod";
 
 const lotSchema = z.object({
   farmCode: z.string().min(1),
-  shiftId: z.string().min(1),
+  date: z.string().min(1),
+  factoryId: z.string().min(1),
+  shiftType: z.enum(["DAY", "NIGHT"]),
   fieldName: z.string().min(1),
   grade: z.enum(["A", "B"]),
   format: z.enum(["WHOLE", "SLICED", "DICED"]),
@@ -23,7 +26,9 @@ const lotSchema = z.object({
 export async function createLotAction(_prevState: string | undefined, formData: FormData) {
   const parsed = lotSchema.safeParse({
     farmCode: formData.get("farmCode"),
-    shiftId: formData.get("shiftId"),
+    date: formData.get("date"),
+    factoryId: formData.get("factoryId"),
+    shiftType: formData.get("shiftType"),
     fieldName: formData.get("fieldName"),
     grade: formData.get("grade"),
     format: formData.get("format"),
@@ -38,16 +43,27 @@ export async function createLotAction(_prevState: string | undefined, formData: 
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  const shift = await prisma.shiftLog.findUnique({ where: { id: parsed.data.shiftId }, include: { factory: true } });
-  if (!shift) return "Shift not found.";
-  if (!shift.factory.code) return `${shift.factory.name} has no IQF unit code set — add one in Settings first.`;
+  const date = parseLocalDateOnly(parsed.data.date);
+  if (!date) return "That date couldn't be read — please re-enter it.";
+
+  const factory = await prisma.factory.findUnique({ where: { id: parsed.data.factoryId } });
+  if (!factory) return "Factory not found.";
+  if (!factory.code) return `${factory.name} has no IQF unit code set — add one in Settings first.`;
+
+  const shift = await prisma.shiftLog.findFirst({
+    where: { factoryId: parsed.data.factoryId, shiftType: parsed.data.shiftType, date },
+  });
+  if (!shift) {
+    const shiftLabel = parsed.data.shiftType === "DAY" ? "Shift 1 (Day)" : "Shift 2 (Night)";
+    return `No shift logged for ${factory.name} — ${shiftLabel} on ${parsed.data.date}. Log the shift first.`;
+  }
 
   const farmCode = parsed.data.farmCode.trim().toUpperCase();
   const lotNumber = generateLotNumber({
     farmCode,
-    factoryCode: shift.factory.code,
-    date: shift.date,
-    shiftType: shift.shiftType,
+    factoryCode: factory.code,
+    date,
+    shiftType: parsed.data.shiftType,
   });
 
   const existing = await prisma.productionLot.findUnique({ where: { lotNumber } });
@@ -71,8 +87,8 @@ export async function createLotAction(_prevState: string | undefined, formData: 
     data: {
       lotNumber,
       farmCode,
-      shiftId: parsed.data.shiftId,
-      factoryId: shift.factoryId,
+      shiftId: shift.id,
+      factoryId: factory.id,
       fieldId: field.id,
       grade: parsed.data.grade,
       format: parsed.data.format,

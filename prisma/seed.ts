@@ -92,7 +92,11 @@ async function main() {
     create: {
       id: "seed-shift-1",
       factoryId: factory1.id,
-      date: new Date("2026-06-15"),
+      // Local midnight, not `new Date("2026-06-15")` (UTC midnight) -- must
+      // match how the real /shifts form stores date-only values (see
+      // combineDateAndTime in shifts/actions.ts) or date-based lookups like
+      // production lot creation won't find this shift.
+      date: new Date(2026, 5, 15),
       shiftType: "DAY",
       startTime: new Date("2026-06-15T06:00:00"),
       endTime: new Date("2026-06-15T14:00:00"),
