@@ -44,6 +44,7 @@ enum LoadType {
 
 enum QualityCheckpoint {
   RAW_MATERIAL
+  POST_DECAP
   POST_PACKAGING
 }
 
@@ -281,7 +282,8 @@ model Field {
   centroidY Float?
   boundary  Json?
 
-  lots ProductionLot[]
+  lots          ProductionLot[]
+  qualityChecks QualityCheck[]
 }
 
 model ShiftLog {
@@ -398,6 +400,12 @@ model QualityCheck {
   lot        ProductionLot?    @relation(fields: [lotId], references: [id])
   palletId   String?
   pallet     Pallet?           @relation(fields: [palletId], references: [id])
+  // The specific field plot this batch came from, for checks that can be
+  // tied to one field (e.g. Post-Decap Quality). A single delivery can carry
+  // fruit from multiple fields per the harvest ticket, so this is a
+  // one-field-at-a-time link, not the full per-field crate breakdown.
+  fieldId    String?
+  field      Field?            @relation(fields: [fieldId], references: [id])
   checkpoint QualityCheckpoint
 
   // Both checkpoints end in an Acceptable/Unacceptable call + corrective action
@@ -432,7 +440,7 @@ model QualityCheck {
   foreignTaste          String?
   overmaturePct         Float?
 
-  // STR03110 — raw material intake only
+  // STR03110 — raw material intake only (Arrival Inspection at Factory)
   sampleNo               String?
   rawMaterialSource      String?
   farmCode               String?
@@ -455,6 +463,11 @@ model QualityCheck {
   brokenUncleanPalletsPct Float? // باليتات مكسورة او غير نظيفة
   unfumigatedPalletsPct   Float? // باليتات غير مبخرة
   brokenUncleanCratesPct  Float? // اطباق مكسورة او غير نظيفة
+
+  // Post-decap quality only -- checked right after the calyx is removed at
+  // the decap facility, before freezing.
+  residualCalyxPct    Float? // calyx/hull not fully removed by decapping
+  decappingDamagePct  Float? // flesh damage caused by the decapping process itself
 
   // STR03111 / STR03116 — post-packaging only
   clientName                     String?

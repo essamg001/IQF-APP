@@ -18,7 +18,8 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
   { href: "/storage", label: "Storage" },
   { href: "/quality", label: "Quality" },
-  { href: "/arrival-inspection", label: "Arrival Inspection", roles: ["OWNER", "QUALITY"] },
+  { href: "/arrival-inspection", label: "Arrival Inspection at Factory", roles: ["OWNER", "QUALITY"] },
+  { href: "/post-decap-quality", label: "Decap: Post-Decap Quality", roles: ["OWNER", "QUALITY"] },
   { href: "/post-freeze-inspection", label: "Post-Freeze Inspection", roles: ["OWNER", "QUALITY"] },
   { href: "/lab", label: "Lab", roles: ["OWNER", "QUALITY"] },
   { href: "/claims", label: "Claims" },
@@ -32,7 +33,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
 // A single-purpose entry point for a station-locked user — proxy.ts already
 // bounces them off any other route, this just keeps the sidebar honest.
 const STATION_ITEM: Record<Station, { href: string; label: string }> = {
-  ARRIVAL_INSPECTION: { href: "/arrival-inspection", label: "Arrival Inspection" },
+  ARRIVAL_INSPECTION: { href: "/arrival-inspection", label: "Arrival Inspection at Factory" },
   POST_FREEZE_INSPECTION: { href: "/post-freeze-inspection", label: "Post-Freeze Inspection" },
   LOAD_OUT: { href: "/logistics", label: "Load-Out" },
   FINAL_PRODUCT_ENTRY: { href: "/final-product-entry", label: "Final Product Entry" },

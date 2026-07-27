@@ -3,9 +3,9 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrivalInspectionForm } from "./arrival-form";
+import { PostDecapForm } from "./post-decap-form";
 
-export default async function ArrivalInspectionPage() {
+export default async function PostDecapQualityPage() {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
@@ -14,26 +14,45 @@ export default async function ArrivalInspectionPage() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const todaysChecks = await prisma.qualityCheck.findMany({
-    where: {
-      checkpoint: "RAW_MATERIAL",
-      lotId: null,
-      createdAt: { gte: startOfToday },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [todaysChecks, fields, arrivalChecks] = await Promise.all([
+    prisma.qualityCheck.findMany({
+      where: { checkpoint: "POST_DECAP", createdAt: { gte: startOfToday } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } }),
+    prisma.qualityCheck.findMany({
+      where: {
+        checkpoint: "RAW_MATERIAL",
+        fieldId: { not: null },
+        receiptNoteNo: { not: null },
+        createdAt: { gte: startOfToday },
+      },
+      include: { field: true },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+  ]);
 
   const accepted = todaysChecks.filter((c) => c.decision === "ACCEPTED").length;
   const rejected = todaysChecks.filter((c) => c.decision === "REJECTED").length;
 
+  // Map receiptNoteNo -> field name from today's pre-decap arrivals, so the
+  // form can auto-fill the field once the same receipt note is entered here.
+  const fieldByReceiptNote: Record<string, string> = {};
+  for (const c of arrivalChecks) {
+    if (c.receiptNoteNo && c.field && !(c.receiptNoteNo in fieldByReceiptNote)) {
+      fieldByReceiptNote[c.receiptNoteNo] = c.field.name;
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Arrival Inspection at Factory</h1>
+        <h1 className="text-xl font-semibold text-slate-900">Decap — Post-Decap Quality</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Raw material intake (STR03110) — fruit arriving at the factory from the decap facility, before
-          freezing. Log every incoming sample, then accept or reject it.
+          Quality check right after the calyx is removed, before freezing. Enter the same Receipt Note No. as
+          the matching pre-decap arrival to auto-fill the field.
         </p>
       </div>
 
@@ -44,12 +63,7 @@ export default async function ArrivalInspectionPage() {
       </div>
 
       <div className="max-w-3xl">
-        <ArrivalInspectionForm
-          todaysChecks={todaysChecks.map((c) => ({
-            receiptNoteNo: c.receiptNoteNo,
-            appliesToWholeDelivery: c.appliesToWholeDelivery,
-          }))}
-        />
+        <PostDecapForm fields={fields} fieldByReceiptNote={fieldByReceiptNote} />
       </div>
 
       <Card className="max-w-3xl overflow-x-auto p-0">
@@ -58,9 +72,9 @@ export default async function ArrivalInspectionPage() {
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
               <th className="px-4 py-2 font-medium">Time</th>
-              <th className="px-4 py-2 font-medium">Sample / Pallet</th>
-              <th className="px-4 py-2 font-medium">Vehicle</th>
-              <th className="px-4 py-2 font-medium">Brix</th>
+              <th className="px-4 py-2 font-medium">Sample</th>
+              <th className="px-4 py-2 font-medium">Receipt Note</th>
+              <th className="px-4 py-2 font-medium">Residual Calyx</th>
               <th className="px-4 py-2 font-medium">Total Defects</th>
               <th className="px-4 py-2 font-medium">Decision</th>
             </tr>
@@ -71,11 +85,9 @@ export default async function ArrivalInspectionPage() {
                 <td className="px-4 py-2 text-slate-500">
                   {c.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </td>
-                <td className="px-4 py-2">
-                  {c.appliesToWholeDelivery ? <span className="text-slate-400">Whole delivery</span> : c.sampleNo ?? "—"}
-                </td>
-                <td className="px-4 py-2">{c.transportVehicleNo ?? "—"}</td>
-                <td className="px-4 py-2">{c.appliesToWholeDelivery ? "—" : c.brix}</td>
+                <td className="px-4 py-2">{c.sampleNo ?? "—"}</td>
+                <td className="px-4 py-2">{c.receiptNoteNo ?? "—"}</td>
+                <td className="px-4 py-2">{c.residualCalyxPct != null ? `${c.residualCalyxPct}%` : "—"}</td>
                 <td className="px-4 py-2">
                   {c.totalDefectsPct != null ? (
                     <Badge color={c.totalDefectsPct > 5 ? "red" : "green"}>{c.totalDefectsPct.toFixed(1)}%</Badge>
