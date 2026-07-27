@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
+
+// Leaflet touches `window` at module load time, so it can't be part of the
+// server-rendered pass even inside a client component tree.
+const FieldsLeafletMap = dynamic(() => import("./fields-leaflet-map").then((m) => m.FieldsLeafletMap), {
+  ssr: false,
+  loading: () => <p className="py-8 text-center text-sm text-slate-400">Loading map…</p>,
+});
 
 export type FieldRow = {
   id: string;
@@ -14,13 +22,10 @@ export type FieldRow = {
   plantingDate: string | null;
   avgTonPerFeddan: number | null;
   googleMapsUrl: string | null;
-  centroidX: number | null;
-  centroidY: number | null;
-  boundary: number[][][] | null;
+  latitude: number | null;
+  longitude: number | null;
+  boundaryLatLng: number[][][] | null;
 };
-
-const FILL = "#2a78d6"; // dataviz categorical slot 1 (blue) -- single-hue, identity is by geometry, not color
-const FILL_SELECTED = "#eb6834"; // slot 2 (orange) -- two-state selected/default only, safe pair
 
 export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
@@ -40,42 +45,7 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
   const selectedField = fields.find((f) => f.id === selectedFieldId) ?? null;
 
   const totalArea = fields.reduce((s, f) => s + (f.areaFeddans ?? 0), 0);
-
-  const bounds = useMemo(() => {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const f of fields) {
-      if (!f.boundary) continue;
-      for (const ring of f.boundary) {
-        for (const [x, y] of ring) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-    if (!isFinite(minX)) return null;
-    return { minX, minY, maxX, maxY };
-  }, [fields]);
-
-  const VIEW_W = 900;
-  const VIEW_H = 700;
-  const PAD = 0.04;
-
-  function project(x: number, y: number): [number, number] {
-    if (!bounds) return [0, 0];
-    const w = bounds.maxX - bounds.minX || 1;
-    const h = bounds.maxY - bounds.minY || 1;
-    const scale = Math.min((VIEW_W * (1 - 2 * PAD)) / w, (VIEW_H * (1 - 2 * PAD)) / h);
-    const offsetX = (VIEW_W - w * scale) / 2;
-    const offsetY = (VIEW_H - h * scale) / 2;
-    const px = offsetX + (x - bounds.minX) * scale;
-    const py = offsetY + (bounds.maxY - y) * scale; // flip Y: northing increases upward, SVG y increases downward
-    return [px, py];
-  }
+  const hasGeometry = fields.some((f) => f.boundaryLatLng);
 
   return (
     <div className="space-y-4">
@@ -87,29 +57,8 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
             </h2>
             <span className="text-xs text-slate-400">Click a plot for details</span>
           </div>
-          {bounds ? (
-            <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full rounded border border-slate-100 bg-slate-50">
-              {fields.map((f) => {
-                if (!f.boundary) return null;
-                const isSelected = f.id === selectedFieldId;
-                return (
-                  <g key={f.id} onClick={() => setSelectedFieldId(f.id)} className="cursor-pointer">
-                    {f.boundary.map((ring, i) => (
-                      <polygon
-                        key={i}
-                        points={ring.map(([x, y]) => project(x, y).join(",")).join(" ")}
-                        fill={isSelected ? FILL_SELECTED : FILL}
-                        fillOpacity={isSelected ? 0.55 : 0.35}
-                        stroke={isSelected ? FILL_SELECTED : FILL}
-                        strokeWidth={isSelected ? 2 : 1}
-                      >
-                        <title>{`${f.name}${f.areaFeddans ? ` — ${f.areaFeddans} feddans` : ""}`}</title>
-                      </polygon>
-                    ))}
-                  </g>
-                );
-              })}
-            </svg>
+          {hasGeometry ? (
+            <FieldsLeafletMap fields={fields} selectedFieldId={selectedFieldId} onSelect={setSelectedFieldId} />
           ) : (
             <p className="py-8 text-center text-sm text-slate-400">No boundary geometry.</p>
           )}

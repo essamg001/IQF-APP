@@ -33,9 +33,9 @@ export default async function FieldsPage() {
             plantingDate: f.plantingDate,
             avgTonPerFeddan: f.avgTonPerFeddan,
             googleMapsUrl: f.googleMapsUrl,
-            centroidX: f.centroidX,
-            centroidY: f.centroidY,
-            boundary: f.boundary as number[][][] | null,
+            latitude: f.latitude,
+            longitude: f.longitude,
+            boundaryLatLng: f.boundaryLatLng as number[][][] | null,
           }))}
         />
       </div>

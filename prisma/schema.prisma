@@ -275,12 +275,18 @@ model Field {
   googleMapsUrl   String?
 
   // Polygon boundary in the source GIS's coordinates (UTM Zone 36N, meters),
-  // for rendering the field-layout map -- centroid plus one or more rings of
-  // [x, y] points. Not a real geo type since this is just for our own map
-  // rendering, not spatial queries.
+  // for rendering the schematic field-layout map -- centroid plus one or
+  // more rings of [x, y] points. Not a real geo type since this is just for
+  // our own map rendering, not spatial queries.
   centroidX Float?
   centroidY Float?
   boundary  Json?
+
+  // Same boundary/centroid reprojected to WGS84 (lat/lng) for plotting on a
+  // real basemap (see /fields) -- see scripts/reproject-fields.ts.
+  latitude        Float?
+  longitude       Float?
+  boundaryLatLng  Json? // one or more rings of [lat, lng] points
 
   lots          ProductionLot[]
   qualityChecks QualityCheck[]
