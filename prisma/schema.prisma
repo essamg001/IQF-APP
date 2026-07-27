@@ -456,7 +456,7 @@ model QualityCheck {
   rawMaterialSource      String?
   farmCode               String?
   decapPackHouse         String? // which decapping pack house this delivery is arriving from
-  decapQcApprover        String? // who at that pack house approved it to leave
+  decapQcApprover        String? // the QC number (QC1-QC51) who approved it to leave the decap facility -- required on Post-Decap Quality itself, optionally echoed here
   transportVehicleNo     String?
   receiptNoteNo          String?
   numberOfBoxesReceived  Int?

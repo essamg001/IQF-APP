@@ -6,6 +6,9 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
+// The factory has 51 QC staff, each identified on paperwork as "QC1"..."QC51".
+const QC_NUMBERS = Array.from({ length: 51 }, (_, i) => `QC${i + 1}`);
+
 function Pct({ name, label }: { name: string; label: string }) {
   return (
     <FieldGroup label={label}>
@@ -159,7 +162,19 @@ function SampleFields() {
       </Card>
 
       <Card className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
+          <FieldGroup label="QC Approver">
+            <Select name="decapQcApprover" required defaultValue="">
+              <option value="" disabled>
+                Select QC…
+              </option>
+              {QC_NUMBERS.map((qc) => (
+                <option key={qc} value={qc}>
+                  {qc}
+                </option>
+              ))}
+            </Select>
+          </FieldGroup>
           <FieldGroup label="Conforming / Nonconforming to Specs">
             <Select
               name="decision"

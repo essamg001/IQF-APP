@@ -73,6 +73,7 @@ export default async function PostDecapQualityPage() {
             <tr>
               <th className="px-4 py-2 font-medium">Time</th>
               <th className="px-4 py-2 font-medium">Sample</th>
+              <th className="px-4 py-2 font-medium">QC</th>
               <th className="px-4 py-2 font-medium">Receipt Note</th>
               <th className="px-4 py-2 font-medium">Client</th>
               <th className="px-4 py-2 font-medium">Total Defects</th>
@@ -86,6 +87,7 @@ export default async function PostDecapQualityPage() {
                   {c.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </td>
                 <td className="px-4 py-2">{c.sampleNo ?? "—"}</td>
+                <td className="px-4 py-2">{c.decapQcApprover ?? "—"}</td>
                 <td className="px-4 py-2">{c.receiptNoteNo ?? "—"}</td>
                 <td className="px-4 py-2">{c.clientName ?? "—"}</td>
                 <td className="px-4 py-2">
@@ -102,7 +104,7 @@ export default async function PostDecapQualityPage() {
             ))}
             {todaysChecks.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                   Nothing logged yet today.
                 </td>
               </tr>

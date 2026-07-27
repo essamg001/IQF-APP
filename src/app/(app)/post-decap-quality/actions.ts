@@ -16,6 +16,9 @@ const postDecapCheckSchema = z.object({
   varietyName: z.string().optional(),
   clientName: z.string().optional(),
   processingLine: z.string().optional(),
+  decapQcApprover: z
+    .string()
+    .regex(/^QC([1-9]|[1-4][0-9]|5[01])$/, "QC number must be between QC1 and QC51."),
 
   sampleNo: z.string().min(1),
   sampleCollectionTime: z.string().optional(),
@@ -112,6 +115,7 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
       varietyName: data.varietyName,
       clientName: data.clientName,
       processingLine: data.processingLine,
+      decapQcApprover: data.decapQcApprover,
       sampleNo: data.sampleNo,
       sampleCollectionTime: parseDateSafe(sampleCollectionTime),
       crateWeightKg: data.crateWeightKg,
