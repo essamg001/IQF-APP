@@ -14,6 +14,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/load-out", label: "Load Out" },
   { href: "/logistics", label: "Logistics" },
   { href: "/production", label: "Production" },
+  { href: "/fields", label: "Fields" },
   { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
   { href: "/storage", label: "Storage" },
   { href: "/quality", label: "Quality" },

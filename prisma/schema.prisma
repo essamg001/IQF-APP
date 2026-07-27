@@ -255,10 +255,31 @@ model ColdRoomSlot {
   @@index([coldRoomId])
 }
 
+// Real farm-layout data (Farm/Station/Valve/Variety/boundary geometry) is
+// imported from the farm's own GIS system (a GeoPackage export) -- see
+// scripts/import-fields.ts. Fields entered by hand (no GIS match) simply
+// leave the extra columns null.
 model Field {
-  id            String @id @default(cuid())
-  name          String @unique
-  mapReference  String?
+  id           String  @id @default(cuid())
+  name         String  @unique
+  mapReference String?
+
+  farmName        String? // e.g. "MAFA 4"
+  station         String? // irrigation station/block, e.g. "2"
+  valve           String? // specific plot within the station, e.g. "1A"
+  variety         String? // strawberry variety code, e.g. "MO", "ML52"
+  areaFeddans     Float?
+  plantingDate    String? // free text -- source mixes years, "Adult", "G2020", "1995&2020"
+  avgTonPerFeddan Float? // average of the last few seasons' ton/feddan on file
+  googleMapsUrl   String?
+
+  // Polygon boundary in the source GIS's coordinates (UTM Zone 36N, meters),
+  // for rendering the field-layout map -- centroid plus one or more rings of
+  // [x, y] points. Not a real geo type since this is just for our own map
+  // rendering, not spatial queries.
+  centroidX Float?
+  centroidY Float?
+  boundary  Json?
 
   lots ProductionLot[]
 }
