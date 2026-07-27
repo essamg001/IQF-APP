@@ -51,8 +51,8 @@ export default async function PostDecapQualityPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Decap — Post-Decap Quality</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Quality check right after the calyx is removed, before freezing. Enter the same Receipt Note No. as
-          the matching pre-decap arrival to auto-fill the field.
+          Final product strawberry inspection (STR03107) — the greenlight for fruit to leave the decap facility
+          for the factory. Enter the same Receipt Note No. as the matching pre-decap arrival to auto-fill the field.
         </p>
       </div>
 
@@ -74,7 +74,7 @@ export default async function PostDecapQualityPage() {
               <th className="px-4 py-2 font-medium">Time</th>
               <th className="px-4 py-2 font-medium">Sample</th>
               <th className="px-4 py-2 font-medium">Receipt Note</th>
-              <th className="px-4 py-2 font-medium">Residual Calyx</th>
+              <th className="px-4 py-2 font-medium">Client</th>
               <th className="px-4 py-2 font-medium">Total Defects</th>
               <th className="px-4 py-2 font-medium">Decision</th>
             </tr>
@@ -87,10 +87,10 @@ export default async function PostDecapQualityPage() {
                 </td>
                 <td className="px-4 py-2">{c.sampleNo ?? "—"}</td>
                 <td className="px-4 py-2">{c.receiptNoteNo ?? "—"}</td>
-                <td className="px-4 py-2">{c.residualCalyxPct != null ? `${c.residualCalyxPct}%` : "—"}</td>
+                <td className="px-4 py-2">{c.clientName ?? "—"}</td>
                 <td className="px-4 py-2">
                   {c.totalDefectsPct != null ? (
-                    <Badge color={c.totalDefectsPct > 5 ? "red" : "green"}>{c.totalDefectsPct.toFixed(1)}%</Badge>
+                    <Badge color={c.totalDefectsPct > 6 ? "red" : "green"}>{c.totalDefectsPct.toFixed(1)}%</Badge>
                   ) : (
                     "—"
                   )}

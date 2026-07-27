@@ -397,6 +397,8 @@ model Pallet {
 // Mirrors the real inspection forms:
 // - PRE_DECAP:       STR03101 "Packhouse intake quality assessment: Strawberry for decapping"
 //                     (fruit arriving at the decap facility from the field)
+// - POST_DECAP:      STR03107 "Final product strawberry inspection: decapping"
+//                     (greenlight for fruit to leave the decap facility for the factory)
 // - RAW_MATERIAL:    STR03110 "Inspection of Prepared Strawberries Upon Receipt"
 // - POST_PACKAGING:  STR03111 / STR03116 "Inspection of Frozen Strawberries at End of Line" (Grade A / B)
 // Fields not relevant to a given checkpoint are simply left null.
@@ -437,7 +439,7 @@ model QualityCheck {
   sampleCollectionTime DateTime?
   sampleWeightKg     Float?
 
-  // Defect items that appear on both STR03110 and STR03111/STR03116 (same
+  // Defect items shared across STR03107, STR03110, and STR03111/STR03116 (same
   // % unit, different limit per form — the limit is enforced in the UI, not the DB).
   incompleteMaturityPct Float?
   shapeDeformitiesPct   Float?
@@ -473,10 +475,12 @@ model QualityCheck {
   unfumigatedPalletsPct   Float? // باليتات غير مبخرة
   brokenUncleanCratesPct  Float? // اطباق مكسورة او غير نظيفة
 
-  // Post-decap quality only -- checked right after the calyx is removed at
-  // the decap facility, before freezing.
-  residualCalyxPct    Float? // calyx/hull not fully removed by decapping
-  decappingDamagePct  Float? // flesh damage caused by the decapping process itself
+  // Post-Decap Quality only (STR03107) -- checked right after decapping, the
+  // greenlight for fruit to proceed from the decap facility to the factory.
+  // Its defect checklist is otherwise identical to STR03110's (reused above).
+  processingLine       String?  // رقم السير
+  divertedTo           String?  // تم تحويل الشحنة الى -- where a nonconforming shipment was diverted (e.g. local market)
+  retrainingRequested  Boolean? // اعادة تدريب مجموعة التجهيز -- packing group re-training requested
 
   // Pre-Decap Inspection only (STR03101) -- fruit arriving at the decap
   // facility from the field, before decapping. Cleaning/crates is a pass/fail
