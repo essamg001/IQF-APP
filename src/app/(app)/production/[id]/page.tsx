@@ -29,6 +29,21 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   });
   if (!lot) notFound();
 
+  // Fruit is mixed at the decap facility before being split across both
+  // factories, so a lot's fruit isn't traceable to one exact field -- this is
+  // the honest list of every field whose fruit cleared Post-Decap Quality
+  // during this shift's time window, any of which could be present in the mix.
+  const contributingChecks = await prisma.qualityCheck.findMany({
+    where: {
+      checkpoint: "POST_DECAP",
+      decision: "ACCEPTED",
+      fieldId: { not: null },
+      createdAt: { gte: lot.shift.startTime, lte: lot.shift.endTime },
+    },
+    include: { field: true },
+  });
+  const contributingFields = [...new Map(contributingChecks.map((c) => [c.fieldId, c.field!.name])).values()].sort();
+
   return (
     <div className="space-y-6">
       <div>
@@ -41,6 +56,26 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
           {lot.factory.name} · {format(lot.shift.date, "dd MMM yyyy")} shift · Field: {lot.field.name}
         </p>
       </div>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-slate-900">Fields Supplying This Shift</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Fruit is mixed at the decap facility and the mix is split across both factories, so this lot isn&apos;t
+          traceable to one exact field — this is every field that cleared Post-Decap Quality during this shift&apos;s
+          time window ({format(lot.shift.startTime, "HH:mm")}–{format(lot.shift.endTime, "HH:mm")}), any of which
+          could be present in the mix.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {contributingFields.map((name) => (
+            <Badge key={name} color="slate">
+              {name}
+            </Badge>
+          ))}
+          {contributingFields.length === 0 && (
+            <p className="text-sm text-slate-400">No Post-Decap Quality checks logged in this shift&apos;s window.</p>
+          )}
+        </div>
+      </Card>
 
       <Card>
         <div className="flex items-center justify-between">
