@@ -3,9 +3,9 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PostDecapForm } from "./post-decap-form";
+import { PreDecapForm } from "./pre-decap-form";
 
-export default async function PostDecapQualityPage() {
+export default async function PreDecapInspectionPage() {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
@@ -14,45 +14,27 @@ export default async function PostDecapQualityPage() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [todaysChecks, fields, arrivalChecks] = await Promise.all([
+  const [todaysChecks, fields] = await Promise.all([
     prisma.qualityCheck.findMany({
-      where: { checkpoint: "POST_DECAP", createdAt: { gte: startOfToday } },
+      where: { checkpoint: "PRE_DECAP", createdAt: { gte: startOfToday } },
+      include: { field: true },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
     prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } }),
-    prisma.qualityCheck.findMany({
-      where: {
-        checkpoint: "PRE_DECAP",
-        fieldId: { not: null },
-        receiptNoteNo: { not: null },
-        createdAt: { gte: startOfToday },
-      },
-      include: { field: true },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    }),
   ]);
 
   const accepted = todaysChecks.filter((c) => c.decision === "ACCEPTED").length;
   const rejected = todaysChecks.filter((c) => c.decision === "REJECTED").length;
 
-  // Map receiptNoteNo -> field name from today's Pre-Decap Arrivals (STR03101),
-  // so the form can auto-fill the field once the same receipt note is entered here.
-  const fieldByReceiptNote: Record<string, string> = {};
-  for (const c of arrivalChecks) {
-    if (c.receiptNoteNo && c.field && !(c.receiptNoteNo in fieldByReceiptNote)) {
-      fieldByReceiptNote[c.receiptNoteNo] = c.field.name;
-    }
-  }
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Decap — Post-Decap Quality</h1>
+        <h1 className="text-xl font-semibold text-slate-900">Decap: Pre-Decap Arrivals</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Quality check right after the calyx is removed, before freezing. Enter the same Receipt Note No. as
-          the matching pre-decap arrival to auto-fill the field.
+          Packhouse intake quality assessment (STR03101) — fruit arriving at the decap facility from the field,
+          before decapping. Recording the plot number here ties each day&apos;s frozen output back to the exact
+          fields it came from.
         </p>
       </div>
 
@@ -63,7 +45,7 @@ export default async function PostDecapQualityPage() {
       </div>
 
       <div className="max-w-3xl">
-        <PostDecapForm fields={fields} fieldByReceiptNote={fieldByReceiptNote} />
+        <PreDecapForm fields={fields} />
       </div>
 
       <Card className="max-w-3xl overflow-x-auto p-0">
@@ -73,8 +55,8 @@ export default async function PostDecapQualityPage() {
             <tr>
               <th className="px-4 py-2 font-medium">Time</th>
               <th className="px-4 py-2 font-medium">Sample</th>
+              <th className="px-4 py-2 font-medium">Plot</th>
               <th className="px-4 py-2 font-medium">Receipt Note</th>
-              <th className="px-4 py-2 font-medium">Residual Calyx</th>
               <th className="px-4 py-2 font-medium">Total Defects</th>
               <th className="px-4 py-2 font-medium">Decision</th>
             </tr>
@@ -86,11 +68,11 @@ export default async function PostDecapQualityPage() {
                   {c.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </td>
                 <td className="px-4 py-2">{c.sampleNo ?? "—"}</td>
+                <td className="px-4 py-2">{c.field?.name ?? "—"}</td>
                 <td className="px-4 py-2">{c.receiptNoteNo ?? "—"}</td>
-                <td className="px-4 py-2">{c.residualCalyxPct != null ? `${c.residualCalyxPct}%` : "—"}</td>
                 <td className="px-4 py-2">
                   {c.totalDefectsPct != null ? (
-                    <Badge color={c.totalDefectsPct > 5 ? "red" : "green"}>{c.totalDefectsPct.toFixed(1)}%</Badge>
+                    <Badge color={c.totalDefectsPct > 60 ? "red" : "green"}>{c.totalDefectsPct.toFixed(1)}%</Badge>
                   ) : (
                     "—"
                   )}

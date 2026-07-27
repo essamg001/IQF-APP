@@ -43,6 +43,7 @@ enum LoadType {
 }
 
 enum QualityCheckpoint {
+  PRE_DECAP
   RAW_MATERIAL
   POST_DECAP
   POST_PACKAGING
@@ -394,6 +395,8 @@ model Pallet {
 }
 
 // Mirrors the real inspection forms:
+// - PRE_DECAP:       STR03101 "Packhouse intake quality assessment: Strawberry for decapping"
+//                     (fruit arriving at the decap facility from the field)
 // - RAW_MATERIAL:    STR03110 "Inspection of Prepared Strawberries Upon Receipt"
 // - POST_PACKAGING:  STR03111 / STR03116 "Inspection of Frozen Strawberries at End of Line" (Grade A / B)
 // Fields not relevant to a given checkpoint are simply left null.
@@ -407,9 +410,9 @@ model QualityCheck {
   palletId   String?
   pallet     Pallet?           @relation(fields: [palletId], references: [id])
   // The specific field plot this batch came from, for checks that can be
-  // tied to one field (e.g. Post-Decap Quality). A single delivery can carry
-  // fruit from multiple fields per the harvest ticket, so this is a
-  // one-field-at-a-time link, not the full per-field crate breakdown.
+  // tied to one field (Pre-Decap Inspection and Post-Decap Quality). A single
+  // delivery can carry fruit from multiple fields per the harvest ticket, so
+  // this is a one-field-at-a-time link, not the full per-field crate breakdown.
   fieldId    String?
   field      Field?            @relation(fields: [fieldId], references: [id])
   checkpoint QualityCheckpoint
@@ -474,6 +477,15 @@ model QualityCheck {
   // the decap facility, before freezing.
   residualCalyxPct    Float? // calyx/hull not fully removed by decapping
   decappingDamagePct  Float? // flesh damage caused by the decapping process itself
+
+  // Pre-Decap Inspection only (STR03101) -- fruit arriving at the decap
+  // facility from the field, before decapping. Cleaning/crates is a pass/fail
+  // check, not a percentage, hence the boolean.
+  cleaningGoodCratesOk Boolean? // نظافه وسلامه الصناديق
+  diameterUnder22mmPct Float?   // قطر اقل من 22مم
+  botrytisPct          Float?   // عفن ثمار (Botrytis specifically, distinct from mouldPct)
+  pestDiseasePct       Float?   // حشرات / امراض
+  wormEatenPct         Float?   // اكل دود
 
   // STR03111 / STR03116 — post-packaging only
   clientName                     String?
