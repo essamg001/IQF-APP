@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 export type FieldRow = {
   id: string;
@@ -24,39 +23,30 @@ const FILL = "#2a78d6"; // dataviz categorical slot 1 (blue) -- single-hue, iden
 const FILL_SELECTED = "#eb6834"; // slot 2 (orange) -- two-state selected/default only, safe pair
 
 export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
-  const farms = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const f of fields) counts.set(f.farmName, (counts.get(f.farmName) ?? 0) + 1);
-    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
-  }, [fields]);
-
-  const [selectedFarm, setSelectedFarm] = useState(farms[0]?.[0] ?? "");
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
-  const farmFields = useMemo(() => fields.filter((f) => f.farmName === selectedFarm), [fields, selectedFarm]);
+  const farmLabel = useMemo(() => {
+    const names = new Set(fields.map((f) => f.farmName));
+    return names.size === 1 ? [...names][0] : `${names.size} farms`;
+  }, [fields]);
 
   const filteredFields = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return farmFields;
-    return farmFields.filter(
-      (f) =>
-        f.name.toLowerCase().includes(q) ||
-        (f.variety ?? "").toLowerCase().includes(q) ||
-        (f.valve ?? "").toLowerCase().includes(q)
-    );
-  }, [farmFields, query]);
+    if (!q) return fields;
+    return fields.filter((f) => f.name.toLowerCase().includes(q) || (f.valve ?? "").toLowerCase().includes(q));
+  }, [fields, query]);
 
   const selectedField = fields.find((f) => f.id === selectedFieldId) ?? null;
 
-  const totalArea = farmFields.reduce((s, f) => s + (f.areaFeddans ?? 0), 0);
+  const totalArea = fields.reduce((s, f) => s + (f.areaFeddans ?? 0), 0);
 
   const bounds = useMemo(() => {
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    for (const f of farmFields) {
+    for (const f of fields) {
       if (!f.boundary) continue;
       for (const ring of f.boundary) {
         for (const [x, y] of ring) {
@@ -69,7 +59,7 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
     }
     if (!isFinite(minX)) return null;
     return { minX, minY, maxX, maxY };
-  }, [farmFields]);
+  }, [fields]);
 
   const VIEW_W = 900;
   const VIEW_H = 700;
@@ -89,35 +79,17 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {farms.map(([farm, count]) => (
-          <button
-            key={farm}
-            onClick={() => {
-              setSelectedFarm(farm);
-              setSelectedFieldId(null);
-              setQuery("");
-            }}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              farm === selectedFarm ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            {farm} <span className="opacity-70">({count})</span>
-          </button>
-        ))}
-      </div>
-
       <div className="grid grid-cols-3 gap-4">
         <Card className="col-span-2 p-3">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900">
-              {selectedFarm} layout — {farmFields.length} plots, {totalArea.toFixed(1)} feddans
+              {farmLabel} layout — {fields.length} plots, {totalArea.toFixed(1)} feddans
             </h2>
             <span className="text-xs text-slate-400">Click a plot for details</span>
           </div>
           {bounds ? (
             <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full rounded border border-slate-100 bg-slate-50">
-              {farmFields.map((f) => {
+              {fields.map((f) => {
                 if (!f.boundary) return null;
                 const isSelected = f.id === selectedFieldId;
                 return (
@@ -131,11 +103,7 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
                         stroke={isSelected ? FILL_SELECTED : FILL}
                         strokeWidth={isSelected ? 2 : 1}
                       >
-                        <title>
-                          {f.name}
-                          {f.variety ? ` — ${f.variety}` : ""}
-                          {f.areaFeddans ? ` — ${f.areaFeddans} feddans` : ""}
-                        </title>
+                        <title>{`${f.name}${f.areaFeddans ? ` — ${f.areaFeddans} feddans` : ""}`}</title>
                       </polygon>
                     ))}
                   </g>
@@ -143,7 +111,7 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
               })}
             </svg>
           ) : (
-            <p className="py-8 text-center text-sm text-slate-400">No boundary geometry for this farm.</p>
+            <p className="py-8 text-center text-sm text-slate-400">No boundary geometry.</p>
           )}
         </Card>
 
@@ -155,7 +123,6 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
               <Row label="Farm" value={selectedField.farmName} />
               <Row label="Station" value={selectedField.station} />
               <Row label="Valve" value={selectedField.valve} />
-              <Row label="Variety" value={selectedField.variety} />
               <Row label="Area" value={selectedField.areaFeddans ? `${selectedField.areaFeddans} feddans` : null} />
               <Row label="Planting date" value={selectedField.plantingDate} />
               <Row
@@ -183,12 +150,10 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
 
       <Card className="overflow-x-auto p-0">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">
-            All plots — {selectedFarm} ({filteredFields.length})
-          </h2>
+          <h2 className="text-sm font-semibold text-slate-900">All plots ({filteredFields.length})</h2>
           <input
             type="text"
-            placeholder="Search name, variety, valve…"
+            placeholder="Search name or valve…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-56 rounded-md border border-slate-300 px-2 py-1 text-sm"
@@ -198,7 +163,6 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
               <th className="px-4 py-2 font-medium">Name</th>
-              <th className="px-4 py-2 font-medium">Variety</th>
               <th className="px-4 py-2 font-medium">Area (feddans)</th>
               <th className="px-4 py-2 font-medium">Planting Date</th>
               <th className="px-4 py-2 font-medium">Avg ton/fed</th>
@@ -215,9 +179,6 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
                 }`}
               >
                 <td className="px-4 py-2 font-medium text-slate-800">{f.name}</td>
-                <td className="px-4 py-2">
-                  <Badge color="slate">{f.variety ?? "—"}</Badge>
-                </td>
                 <td className="px-4 py-2">{f.areaFeddans ?? "—"}</td>
                 <td className="px-4 py-2">{f.plantingDate ?? "—"}</td>
                 <td className="px-4 py-2">{f.avgTonPerFeddan ?? "—"}</td>
@@ -240,7 +201,7 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
             ))}
             {filteredFields.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
                   No plots match.
                 </td>
               </tr>
