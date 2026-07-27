@@ -20,15 +20,18 @@ export function LotForm({
   factories,
   fields,
   coldRooms,
+  recentFieldNames,
 }: {
   factories: Factory[];
   fields: Field[];
   coldRooms: ColdRoom[];
+  recentFieldNames: string[];
 }) {
   const [error, formAction, pending] = useActionState(createLotAction, undefined);
 
   const [farmCode, setFarmCode] = useState("M4");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [fieldName, setFieldName] = useState(recentFieldNames[0] ?? "");
 
   const options = useMemo(
     () =>
@@ -90,12 +93,42 @@ export function LotForm({
           </p>
         )}
         <FieldGroup label="Field">
-          <Input name="fieldName" list="field-suggestions" required placeholder="Type the field/farm name" />
+          <Input
+            name="fieldName"
+            list="field-suggestions"
+            required
+            placeholder="Type the field/farm name"
+            value={fieldName}
+            onChange={(e) => setFieldName(e.target.value)}
+          />
           <datalist id="field-suggestions">
             {fields.map((f) => (
               <option key={f.id} value={f.name} />
             ))}
           </datalist>
+          {recentFieldNames.length > 0 && (
+            <p className="mt-1 text-xs text-slate-500">
+              Auto-filled from the most recent Post-Decap Quality check — change if this lot draws from a
+              different field.
+              {recentFieldNames.length > 1 && (
+                <>
+                  {" "}Also recent:{" "}
+                  {recentFieldNames.slice(1).map((name, i) => (
+                    <span key={name}>
+                      {i > 0 && ", "}
+                      <button
+                        type="button"
+                        onClick={() => setFieldName(name)}
+                        className="text-emerald-700 hover:underline"
+                      >
+                        {name}
+                      </button>
+                    </span>
+                  ))}
+                </>
+              )}
+            </p>
+          )}
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Grade">
