@@ -484,7 +484,10 @@ model QualityCheck {
 
   // Pre-Decap Inspection only (STR03101) -- fruit arriving at the decap
   // facility from the field, before decapping. Cleaning/crates is a pass/fail
-  // check, not a percentage, hence the boolean.
+  // check, not a percentage, hence the boolean. harvestSupervisor is not on
+  // the paper form itself but is who STR03101's own instructions say to
+  // notify (via GEN03108) if the delivery has defects.
+  harvestSupervisor    String?
   cleaningGoodCratesOk Boolean? // نظافه وسلامه الصناديق
   diameterUnder22mmPct Float?   // قطر اقل من 22مم
   botrytisPct          Float?   // عفن ثمار (Botrytis specifically, distinct from mouldPct)

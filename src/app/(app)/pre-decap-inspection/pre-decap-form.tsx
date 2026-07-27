@@ -81,6 +81,9 @@ function SampleFields({ fields }: { fields: FieldOption[] }) {
           <FieldGroup label="Temperature (°C, limit ≥30)">
             <Input name="productTemperatureC" type="number" step="0.1" />
           </FieldGroup>
+          <FieldGroup label="Harvest Supervisor">
+            <Input name="harvestSupervisor" placeholder="Who to notify via GEN03108 if defects found" />
+          </FieldGroup>
         </div>
       </Card>
 
