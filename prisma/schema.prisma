@@ -162,10 +162,11 @@ model Client {
   // part of that group too, without needing this field set on itself.
   groupName String?
 
-  specs    ClientSpec[]
-  orders   Order[]
-  pallets  Pallet[]
-  claims   Claim[]
+  specs         ClientSpec[]
+  orders        Order[]
+  pallets       Pallet[]
+  claims        Claim[]
+  qualityIssues QualityIssue[]
 
   @@index([name])
   @@index([groupName])
@@ -765,6 +766,35 @@ model ClaimContainerLine {
 
   @@index([claimId])
   @@index([containerId])
+}
+
+enum QualityIssueStatus {
+  OPEN
+  RESOLVED
+}
+
+// A quality problem reported (often by a client) without a financial claim
+// attached -- the goal is process improvement, not compensation. Reuses
+// ClaimReason since the categories (quality/packaging/foreign material/
+// transport) are the same either way.
+model QualityIssue {
+  id          String             @id @default(cuid())
+  issueDate   DateTime           @default(now())
+  clientId    String?
+  client      Client?            @relation(fields: [clientId], references: [id])
+  variety     String?
+  reason      ClaimReason
+  status      QualityIssueStatus @default(OPEN)
+  // Order #, container #, or lot # this relates to, if known -- free text
+  // since it may reference any of several entity types.
+  relatedReference String?
+
+  issueDetails     String?
+  correctiveAction String?
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
 }
 
 model Alert {

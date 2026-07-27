@@ -27,6 +27,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/load-out", label: "Load Out" },
   { href: "/logistics", label: "Logistics" },
   { href: "/claims", label: "Claims" },
+  { href: "/quality-issues", label: "Quality Issues" },
   { href: "/alerts", label: "Alerts" },
   { href: "/settings", label: "Setup" },
 ];
