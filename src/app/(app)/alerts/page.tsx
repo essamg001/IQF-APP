@@ -16,6 +16,7 @@ const TYPE_LABEL = {
   MICROBIOLOGY_LOAD_ATTEMPT: "Blocked Load Attempt",
   MICROBIOLOGY_REJECTED: "Lab Rejection",
   QUALITY_LIMIT_EXCEEDED: "Quality Limit Exceeded",
+  EARLY_WARNING: "Early Warning — Trend",
 } as const;
 
 export default async function AlertsPage() {

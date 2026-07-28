@@ -141,3 +141,45 @@ export function decodeActionResult(state: string): { id: string; violations: Lim
   if (sep === -1) return { id: rest, violations: [] };
   return { id: rest.slice(0, sep), violations: JSON.parse(rest.slice(sep + 2)) };
 }
+
+export type TrendWarning = { label: string; recentValues: number[]; limit: LimitRule };
+
+/**
+ * Flags a metric that hasn't breached its limit yet but is heading there --
+ * its last 3 readings for this field are strictly moving toward the limit
+ * (not just noisy) and are already within 30% of it. Zero-tolerance limits
+ * (max: 0) are excluded since there's no "approaching" a limit that any
+ * nonzero reading already breaches outright.
+ *
+ * `recentChecksChronological` must be the field's last 3 checks for this
+ * checkpoint, oldest first (including the one just saved).
+ */
+export function checkFieldTrend(
+  recentChecksChronological: Record<string, unknown>[],
+  checkpoint: QualityCheckpoint,
+  grade?: Grade
+): TrendWarning[] {
+  if (recentChecksChronological.length < 3) return [];
+  const lastThree = recentChecksChronological.slice(-3);
+  const warnings: TrendWarning[] = [];
+
+  for (const rule of limitsFor(checkpoint, grade)) {
+    if (rule.max === 0) continue;
+    const values = lastThree.map((c) => c[rule.field]).filter((v): v is number => typeof v === "number");
+    if (values.length < 3) continue;
+    const [v1, v2, v3] = values;
+    const avg3 = (v1 + v2 + v3) / 3;
+
+    if (rule.max != null && v1 < v2 && v2 < v3 && avg3 >= rule.max * 0.7) {
+      warnings.push({ label: rule.label, recentValues: values, limit: rule });
+    } else if (rule.min != null && v1 > v2 && v2 > v3 && avg3 <= rule.min * 1.15) {
+      warnings.push({ label: rule.label, recentValues: values, limit: rule });
+    }
+  }
+  return warnings;
+}
+
+export function formatTrendWarning(w: TrendWarning): string {
+  const limitText = w.limit.max != null ? `limit ≤${w.limit.max}` : `limit ≥${w.limit.min}`;
+  return `${w.label} trending toward its limit: ${w.recentValues.map((v) => v.toFixed(1)).join(" → ")} (${limitText})`;
+}

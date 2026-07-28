@@ -5,8 +5,8 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
-import { checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
-import { raiseQualityLimitAlert } from "@/lib/alerts";
+import { checkFieldTrend, checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
+import { raiseFieldTrendAlert, raiseQualityLimitAlert } from "@/lib/alerts";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
@@ -136,6 +136,21 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
     identifier: `${fieldLabel} (sample ${created.sampleNo})`,
     violations,
   });
+
+  if (fieldId) {
+    const recentChecks = await prisma.qualityCheck.findMany({
+      where: { checkpoint: "PRE_DECAP", fieldId },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+    });
+    const trendWarnings = checkFieldTrend(recentChecks.reverse(), "PRE_DECAP");
+    await raiseFieldTrendAlert({
+      fieldId,
+      checkpointLabel: "Pre-Decap Arrival",
+      identifier: fieldLabel,
+      warnings: trendWarnings,
+    });
+  }
 
   revalidatePath("/pre-decap-inspection");
   return encodeActionResult(created.id, violations);

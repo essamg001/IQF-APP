@@ -3,7 +3,7 @@ import type { AlertType, Role } from "@prisma/client";
 import { differenceInDays } from "date-fns";
 import { sendEmail } from "@/lib/email";
 import { parseBrixRange } from "@/lib/allocation";
-import { formatViolation, type LimitViolation } from "@/lib/qualityLimits";
+import { formatViolation, formatTrendWarning, type LimitViolation, type TrendWarning } from "@/lib/qualityLimits";
 
 const MICRO_PENDING_DAYS_THRESHOLD = 3;
 
@@ -116,6 +116,29 @@ export async function raiseQualityLimitAlert(params: {
     });
     const recipients = await prisma.user.findMany({ where: { role } });
     await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Quality Limit Exceeded", message)));
+  }
+}
+
+/**
+ * A softer, earlier signal than raiseQualityLimitAlert: a field's last 3
+ * readings are moving toward a limit, not just a single bad one. Doesn't
+ * touch overrideStatus -- nothing has actually breached spec yet, so there's
+ * nothing to block or sign off on, just a heads-up to go look at the field
+ * before it becomes a real problem. Targeted at Quality/Production only
+ * (not Owner) since it's advisory, not a production-blocking event.
+ */
+export async function raiseFieldTrendAlert(params: {
+  fieldId: string;
+  checkpointLabel: string;
+  identifier: string;
+  warnings: TrendWarning[];
+}) {
+  if (params.warnings.length === 0) return;
+  const warningText = params.warnings.map(formatTrendWarning).join("; ");
+  const message = `${params.checkpointLabel} — ${params.identifier}: quality trending toward its limit — ${warningText}.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await upsertAlert("EARLY_WARNING", params.fieldId, role, message);
   }
 }
 
