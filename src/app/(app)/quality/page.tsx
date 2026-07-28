@@ -1,61 +1,170 @@
 import { prisma } from "@/lib/prisma";
 import { LinkButton } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { limitsFor } from "@/lib/qualityLimits";
+import { format, startOfWeek } from "date-fns";
+import { QualityPeriodTable, type MetricDef, type Period, type PeriodRow } from "./quality-period-table";
+
+const RAW_MATERIAL_METRICS: MetricDef[] = [
+  { key: "brix", label: "Brix", suffix: "" },
+  ...limitsFor("RAW_MATERIAL").map((r) => ({
+    key: r.field,
+    label: `${r.label} (${r.max != null ? `≤${r.max}%` : `≥${r.min}%`})`,
+    suffix: "%",
+  })),
+];
+
+// Post-Packaging's tolerances differ by Grade (A vs B) for the same field
+// names, so the limit isn't shown in the header here -- Grade A's field list
+// is used as the reference set since both grades share the same fields.
+const POST_PACKAGING_METRICS: MetricDef[] = [
+  { key: "brix", label: "Brix", suffix: "" },
+  ...limitsFor("POST_PACKAGING", "A").map((r) => ({ key: r.field, label: r.label, suffix: "%" })),
+];
+
+type Check = {
+  id: string;
+  createdAt: Date;
+  decision: string | null;
+  brix: number;
+  shiftNumber: string | null;
+  lot?: { shiftId: string; shift: { date: Date; factory: { name: string } } } | null;
+  [key: string]: unknown;
+};
+
+function aggregate(rows: Check[], metrics: MetricDef[], key: string, label: string, sortValue: number): PeriodRow & { sortValue: number } {
+  const avg = (get: (r: Check) => number | null) => {
+    const vals = rows.map(get).filter((v): v is number => v != null);
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  const rejected = rows.filter((r) => r.decision === "REJECTED").length;
+  const metricValues: Record<string, number | null> = {};
+  for (const m of metrics) {
+    if (m.key === "brix") continue;
+    metricValues[m.key] = avg((r) => r[m.key] as number | null);
+  }
+  return {
+    key,
+    label,
+    sortValue,
+    count: rows.length,
+    rejected,
+    rejectionRate: rows.length ? (rejected / rows.length) * 100 : 0,
+    brix: avg((r) => r.brix),
+    metrics: metricValues,
+  };
+}
+
+function groupBy(rows: Check[], keyFn: (r: Check) => string) {
+  const map = new Map<string, Check[]>();
+  for (const r of rows) {
+    const key = keyFn(r);
+    const list = map.get(key) ?? [];
+    list.push(r);
+    map.set(key, list);
+  }
+  return map;
+}
+
+function byDay(rows: Check[], metrics: MetricDef[], take: number): PeriodRow[] {
+  const groups = groupBy(rows, (r) => format(r.createdAt, "yyyy-MM-dd"));
+  return [...groups.entries()]
+    .map(([key, group]) => aggregate(group, metrics, key, format(group[0].createdAt, "dd MMM yyyy"), new Date(key).getTime()))
+    .sort((a, b) => b.sortValue - a.sortValue)
+    .slice(0, take);
+}
+
+function byWeek(rows: Check[], metrics: MetricDef[], take: number): PeriodRow[] {
+  const groups = groupBy(rows, (r) => format(startOfWeek(r.createdAt, { weekStartsOn: 1 }), "yyyy-MM-dd"));
+  return [...groups.entries()]
+    .map(([key, group]) => aggregate(group, metrics, key, `Week of ${format(new Date(key), "dd MMM yyyy")}`, new Date(key).getTime()))
+    .sort((a, b) => b.sortValue - a.sortValue)
+    .slice(0, take);
+}
+
+function byMonth(rows: Check[], metrics: MetricDef[], take: number): PeriodRow[] {
+  const groups = groupBy(rows, (r) => format(r.createdAt, "yyyy-MM"));
+  return [...groups.entries()]
+    .map(([key, group]) => aggregate(group, metrics, key, format(group[0].createdAt, "MMM yyyy"), new Date(`${key}-01`).getTime()))
+    .sort((a, b) => b.sortValue - a.sortValue)
+    .slice(0, take);
+}
 
 export default async function QualityPage() {
   // Both checkpoints are filled in automatically from their own dedicated
   // fast-entry screens -- Raw Material Intake from Arrival Inspection at
-  // Factory, Post-Packaging/Final Product from Post-Freeze Inspection --
-  // rather than re-entered here. This page is a read-only rollup of both.
-  const checks = await prisma.qualityCheck.findMany({
-    where: { checkpoint: { in: ["RAW_MATERIAL", "POST_PACKAGING"] } },
-    include: { lot: { include: { shift: { include: { factory: true } } } }, inspector: true },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
+  // Factory, Post-Packaging/Final Product from Post-Freeze Inspection.
+  // Pallet-by-pallet results live on those two screens; this page is
+  // averages only, at four different granularities.
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-  // Shift averages only make sense for Post-Packaging checks -- they're tied
-  // to a production lot (and therefore a shift/factory). Raw Material checks
-  // happen at the receiving dock before a lot exists, so they have no shift
-  // (a handful of older Raw Material rows created before this checkpoint was
-  // decoupled from lots still carry a lotId -- excluded explicitly here too).
-  const lotTiedChecks = checks.filter((c) => c.checkpoint === "POST_PACKAGING" && c.lot);
+  const [rawChecks, postChecks] = await Promise.all([
+    prisma.qualityCheck.findMany({
+      where: { checkpoint: "RAW_MATERIAL", createdAt: { gte: sixMonthsAgo } },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.qualityCheck.findMany({
+      where: { checkpoint: "POST_PACKAGING", createdAt: { gte: sixMonthsAgo } },
+      include: { lot: { include: { shift: { include: { factory: true } } } } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
-  const shiftGroups = new Map<
-    string,
-    { label: string; factory: string; brix: number[]; mould: number[]; skin: number[]; internal: number[] }
-  >();
-  for (const c of lotTiedChecks) {
-    const shift = c.lot!.shift;
-    const key = shift.id;
-    if (!shiftGroups.has(key)) {
-      shiftGroups.set(key, {
-        label: format(shift.date, "dd MMM yyyy"),
-        factory: shift.factory.name,
-        brix: [],
-        mould: [],
-        skin: [],
-        internal: [],
-      });
-    }
-    const g = shiftGroups.get(key)!;
-    g.brix.push(c.brix);
-    g.mould.push(c.mouldPct);
-    g.skin.push(c.skinDamagePct);
-    g.internal.push(c.internalQualityPct);
-  }
-  const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
+  const rawByShift = [
+    ...groupBy(rawChecks as Check[], (r) => `${format(r.createdAt, "yyyy-MM-dd")}::${r.shiftNumber ?? "unspecified"}`).entries(),
+  ]
+    .map(([key, group]) =>
+      aggregate(
+        group,
+        RAW_MATERIAL_METRICS,
+        key,
+        `${format(group[0].createdAt, "dd MMM yyyy")} — Shift ${group[0].shiftNumber ?? "—"}`,
+        group[0].createdAt.getTime()
+      )
+    )
+    .sort((a, b) => b.sortValue - a.sortValue)
+    .slice(0, 30);
+
+  const rawByPeriod: Record<Period, PeriodRow[]> = {
+    SHIFT: rawByShift,
+    DAILY: byDay(rawChecks as Check[], RAW_MATERIAL_METRICS, 14),
+    WEEKLY: byWeek(rawChecks as Check[], RAW_MATERIAL_METRICS, 8),
+    MONTHLY: byMonth(rawChecks as Check[], RAW_MATERIAL_METRICS, 6),
+  };
+
+  // A handful of older Post-Packaging rows predate the lot relation being
+  // required and have no lot -- excluded from the shift breakdown since
+  // there's no shift to group them by, same as they'd be excluded anywhere
+  // else on the site that depends on lot -> shift.
+  const postLotTied = (postChecks as Check[]).filter((c) => c.lot);
+  const postByShift = [...groupBy(postLotTied, (r) => r.lot!.shiftId).entries()]
+    .map(([key, group]) =>
+      aggregate(
+        group,
+        POST_PACKAGING_METRICS,
+        key,
+        `${format(group[0].lot!.shift.date, "dd MMM yyyy")} — ${group[0].lot!.shift.factory.name}`,
+        group[0].lot!.shift.date.getTime()
+      )
+    )
+    .sort((a, b) => b.sortValue - a.sortValue)
+    .slice(0, 30);
+
+  const postByPeriod: Record<Period, PeriodRow[]> = {
+    SHIFT: postByShift,
+    DAILY: byDay(postChecks as Check[], POST_PACKAGING_METRICS, 14),
+    WEEKLY: byWeek(postChecks as Check[], POST_PACKAGING_METRICS, 8),
+    MONTHLY: byMonth(postChecks as Check[], POST_PACKAGING_METRICS, 6),
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Quality Reports</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Raw Material Intake and Post-Packaging/Final Product checks — filled in automatically from Arrival
-            Inspection at Factory and Post-Freeze Inspection as they&apos;re logged.
+            Shift, daily, weekly, and monthly averages — filled in automatically from Arrival Inspection at Factory
+            and Post-Freeze Inspection. Pallet-by-pallet results are on those two screens.
           </p>
         </div>
         <div className="flex gap-2">
@@ -66,93 +175,19 @@ export default async function QualityPage() {
         </div>
       </div>
 
-      <Card className="overflow-x-auto p-0">
-        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Shift Averages (Post-Packaging)</h2>
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
-            <tr>
-              <th className="px-4 py-2 font-medium">Shift Date</th>
-              <th className="px-4 py-2 font-medium">Factory</th>
-              <th className="px-4 py-2 font-medium">Avg Brix</th>
-              <th className="px-4 py-2 font-medium">Avg Mould %</th>
-              <th className="px-4 py-2 font-medium">Avg Skin Damage %</th>
-              <th className="px-4 py-2 font-medium">Avg Internal Quality %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...shiftGroups.values()].map((g, i) => (
-              <tr key={i} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-2">{g.label}</td>
-                <td className="px-4 py-2">{g.factory}</td>
-                <td className="px-4 py-2">{avg(g.brix).toFixed(1)}</td>
-                <td className="px-4 py-2">{avg(g.mould).toFixed(1)}</td>
-                <td className="px-4 py-2">{avg(g.skin).toFixed(1)}</td>
-                <td className="px-4 py-2">{avg(g.internal).toFixed(1)}</td>
-              </tr>
-            ))}
-            {shiftGroups.size === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                  No Post-Packaging checks logged yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <QualityPeriodTable
+        title="Raw Material Intake (STR03110)"
+        description="Averages of fruit arriving at the factory from the decap facility, before freezing."
+        dataByPeriod={rawByPeriod}
+        metrics={RAW_MATERIAL_METRICS}
+      />
 
-      <Card className="overflow-x-auto p-0">
-        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Individual Checks</h2>
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
-            <tr>
-              <th className="px-4 py-2 font-medium">Lot</th>
-              <th className="px-4 py-2 font-medium">Checkpoint</th>
-              <th className="px-4 py-2 font-medium">Brix</th>
-              <th className="px-4 py-2 font-medium">Size/Caliber</th>
-              <th className="px-4 py-2 font-medium">Fruit Color %</th>
-              <th className="px-4 py-2 font-medium">Mould %</th>
-              <th className="px-4 py-2 font-medium">Skin %</th>
-              <th className="px-4 py-2 font-medium">Internal %</th>
-              <th className="px-4 py-2 font-medium">Inspector</th>
-            </tr>
-          </thead>
-          <tbody>
-            {checks.map((c) => (
-              <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-2">
-                  {c.lot ? (
-                    <a href={`/production/${c.lot.id}`} className="text-emerald-700 hover:underline">
-                      {c.lot.lotNumber}
-                    </a>
-                  ) : (
-                    <span className="text-slate-500">{c.receiptNoteNo ?? c.sampleNo ?? "—"}</span>
-                  )}
-                </td>
-                <td className="px-4 py-2">
-                  <Badge color={c.checkpoint === "RAW_MATERIAL" ? "blue" : "green"}>
-                    {c.checkpoint === "RAW_MATERIAL" ? "Raw Material" : "Post-Packaging"}
-                  </Badge>
-                </td>
-                <td className="px-4 py-2">{c.brix}</td>
-                <td className="px-4 py-2">{c.sizeCaliber ?? "—"}</td>
-                <td className="px-4 py-2">{c.fruitColorPct}</td>
-                <td className="px-4 py-2">{c.mouldPct}</td>
-                <td className="px-4 py-2">{c.skinDamagePct}</td>
-                <td className="px-4 py-2">{c.internalQualityPct}</td>
-                <td className="px-4 py-2">{c.inspector?.name ?? "—"}</td>
-              </tr>
-            ))}
-            {checks.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                  No quality checks yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <QualityPeriodTable
+        title="Post-Packaging / Final Product (STR03111 / STR03116)"
+        description="Averages of frozen product at the end of the line, tied to the production lot/shift it came from."
+        dataByPeriod={postByPeriod}
+        metrics={POST_PACKAGING_METRICS}
+      />
     </div>
   );
 }
