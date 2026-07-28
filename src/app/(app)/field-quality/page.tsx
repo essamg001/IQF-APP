@@ -1,108 +1,108 @@
 import { prisma } from "@/lib/prisma";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { FieldQualityTable, type FieldPeriodRow, type Period } from "./field-quality-table";
 
-type FieldStats = {
-  count: number;
-  rejected: number;
-  totalDefectsSum: number;
-  totalDefectsCount: number;
-  brixSum: number;
-  brixCount: number;
-};
-
-function emptyStats(): FieldStats {
-  return { count: 0, rejected: 0, totalDefectsSum: 0, totalDefectsCount: 0, brixSum: 0, brixCount: 0 };
-}
-
-function avgDefects(s: FieldStats): number {
-  return s.totalDefectsCount > 0 ? s.totalDefectsSum / s.totalDefectsCount : 0;
-}
+const PERIODS: Period[] = ["DAILY", "WEEKLY", "MONTHLY"];
+const PERIOD_DAYS: Record<Period, number> = { DAILY: 1, WEEKLY: 7, MONTHLY: 30 };
 
 export default async function FieldQualityPage() {
-  const [fields, checks] = await Promise.all([
-    prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } }),
-    // Pre-Decap Arrivals only -- by Post-Decap Quality the fruit from
-    // multiple fields has already been mixed at the decap facility, so
-    // averaging its measurements against one field would be misleading.
-    prisma.qualityCheck.findMany({
-      where: { checkpoint: "PRE_DECAP", fieldId: { not: null } },
-      select: { fieldId: true, decision: true, totalDefectsPct: true, brix: true },
-    }),
-  ]);
+  const fields = await prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } });
 
-  const byField = new Map<string, FieldStats>();
-  for (const f of fields) byField.set(f.id, emptyStats());
-  for (const c of checks) {
-    if (!c.fieldId) continue;
-    const stats = byField.get(c.fieldId);
-    if (!stats) continue; // non-MS1 field, shouldn't happen but guard anyway
-    stats.count += 1;
-    if (c.decision === "REJECTED") stats.rejected += 1;
-    if (c.totalDefectsPct != null) {
-      stats.totalDefectsSum += c.totalDefectsPct;
-      stats.totalDefectsCount += 1;
+  const monthStart = new Date();
+  monthStart.setHours(0, 0, 0, 0);
+  monthStart.setDate(monthStart.getDate() - (PERIOD_DAYS.MONTHLY - 1));
+
+  // Pre-Decap Arrivals only -- by Post-Decap Quality the fruit from multiple
+  // fields has already been mixed at the decap facility, so averaging its
+  // measurements against one field would be misleading.
+  const checks = await prisma.qualityCheck.findMany({
+    where: { checkpoint: "PRE_DECAP", fieldId: { not: null }, createdAt: { gte: monthStart } },
+    select: {
+      fieldId: true,
+      createdAt: true,
+      decision: true,
+      brix: true,
+      fruitColorPct: true,
+      internalQualityPct: true,
+      cleaningGoodCratesOk: true,
+      overmaturePct: true,
+      diameterUnder22mmPct: true,
+      botrytisPct: true,
+      pestDiseasePct: true,
+      wormEatenPct: true,
+      bruisesPct: true,
+      shapeDeformitiesPct: true,
+      sandDustPct: true,
+      foreignBodiesPct: true,
+    },
+  });
+
+  const now = Date.now();
+  const dataByPeriod: Record<Period, FieldPeriodRow[]> = { DAILY: [], WEEKLY: [], MONTHLY: [] };
+
+  for (const period of PERIODS) {
+    const cutoff = now - PERIOD_DAYS[period] * 24 * 60 * 60 * 1000;
+    const inWindow = checks.filter((c) => c.createdAt.getTime() >= cutoff);
+
+    const byField = new Map<string, typeof inWindow>();
+    for (const c of inWindow) {
+      if (!c.fieldId) continue;
+      const list = byField.get(c.fieldId) ?? [];
+      list.push(c);
+      byField.set(c.fieldId, list);
     }
-    if (c.brix != null) {
-      stats.brixSum += c.brix;
-      stats.brixCount += 1;
-    }
+
+    dataByPeriod[period] = fields
+      .map((f) => {
+        const rows = byField.get(f.id) ?? [];
+        if (rows.length === 0) return null;
+        const avg = (get: (r: (typeof rows)[number]) => number | null) => {
+          const vals = rows.map(get).filter((v): v is number => v != null);
+          return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+        };
+        const rejected = rows.filter((r) => r.decision === "REJECTED").length;
+        const crateChecks = rows.filter((r) => r.cleaningGoodCratesOk != null);
+        const cratesOkPct =
+          crateChecks.length > 0
+            ? (crateChecks.filter((r) => r.cleaningGoodCratesOk).length / crateChecks.length) * 100
+            : null;
+
+        return {
+          fieldId: f.id,
+          fieldName: f.name,
+          count: rows.length,
+          rejected,
+          brix: avg((r) => r.brix),
+          fruitColorPct: avg((r) => r.fruitColorPct),
+          internalQualityPct: avg((r) => r.internalQualityPct),
+          cratesOkPct,
+          overmaturePct: avg((r) => r.overmaturePct),
+          diameterUnder22mmPct: avg((r) => r.diameterUnder22mmPct),
+          botrytisPct: avg((r) => r.botrytisPct),
+          pestDiseasePct: avg((r) => r.pestDiseasePct),
+          wormEatenPct: avg((r) => r.wormEatenPct),
+          bruisesPct: avg((r) => r.bruisesPct),
+          shapeDeformitiesPct: avg((r) => r.shapeDeformitiesPct),
+          sandDustPct: avg((r) => r.sandDustPct),
+          foreignBodiesPct: avg((r) => r.foreignBodiesPct),
+        } satisfies FieldPeriodRow;
+      })
+      .filter((r): r is FieldPeriodRow => r !== null)
+      .sort((a, b) => b.rejected / b.count - a.rejected / a.count);
   }
-
-  const rows = fields
-    .map((f) => ({ field: f, stats: byField.get(f.id)! }))
-    .filter((r) => r.stats.count > 0)
-    .sort((a, b) => avgDefects(b.stats) - avgDefects(a.stats));
 
   return (
     <div>
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Field Quality</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Defect rates, rejections, and Brix rolled up per field from Pre-Decap Arrivals — the last point before
-          fruit from multiple fields gets mixed at the decap facility. Fields with the worst quality sort to the top.
+          Every quality band from Pre-Decap Arrivals, rolled up per field — the last checkpoint before fruit from
+          multiple fields gets mixed at the decap facility. Fields with the worst rejection rate sort to the top.
         </p>
       </div>
 
-      <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
-            <tr>
-              <th className="px-4 py-2 font-medium">Field</th>
-              <th className="px-4 py-2 font-medium">Checks</th>
-              <th className="px-4 py-2 font-medium">Rejected</th>
-              <th className="px-4 py-2 font-medium">Avg Defects</th>
-              <th className="px-4 py-2 font-medium">Avg Brix</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ field, stats }) => {
-              const rejectionRate = (stats.rejected / stats.count) * 100;
-              const avgBrix = stats.brixCount > 0 ? stats.brixSum / stats.brixCount : null;
-              return (
-                <tr key={field.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-2 font-medium text-slate-800">{field.name}</td>
-                  <td className="px-4 py-2">{stats.count}</td>
-                  <td className="px-4 py-2">
-                    <Badge color={rejectionRate > 10 ? "red" : rejectionRate > 0 ? "amber" : "green"}>
-                      {stats.rejected} ({rejectionRate.toFixed(0)}%)
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-2">{avgDefects(stats).toFixed(1)}%</td>
-                  <td className="px-4 py-2">{avgBrix != null ? avgBrix.toFixed(1) : "—"}</td>
-                </tr>
-              );
-            })}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  No Pre-Decap Arrival checks logged against a field yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <div className="mt-6">
+        <FieldQualityTable dataByPeriod={dataByPeriod} />
+      </div>
     </div>
   );
 }
