@@ -10,6 +10,17 @@ function fmtPct(v: number | null) {
   return v === null ? "—" : `${v.toFixed(1)}%`;
 }
 
+function formatMicroCerts(groups: CertificateData["microCertsByLab"]): string {
+  if (groups.length === 0) return "";
+  const labLabel = (t: "IN_HOUSE" | "EXTERNAL") => (t === "IN_HOUSE" ? "In-House Lab" : "External Lab");
+  return (
+    " — " +
+    groups
+      .map((g) => `${labLabel(g.labType)}${g.labName ? ` (${g.labName})` : ""} certificate ${g.certificateNumbers.join(", ")}`)
+      .join("; ")
+  );
+}
+
 function PassPill({ pass }: { pass: boolean | null }) {
   if (pass === null) {
     return (
@@ -327,13 +338,9 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
             <p className="ca-micro">
               <strong>Lab Clearance:</strong>{" "}
               {data.allApproved
-                ? `Approved${microDate ? ` ${format(microDate, "dd MMM yyyy")}` : ""}${
-                    data.microCerts.length
-                      ? ` — certificate ${data.microCerts.map((m) => m.certificateNumber).join(", ")}${
-                          data.microCerts[0]?.labName ? ` (${data.microCerts[0].labName})` : ""
-                        }`
-                      : ""
-                  } on file; results compliant with destination-market food safety regulation.`
+                ? `Approved${microDate ? ` ${format(microDate, "dd MMM yyyy")}` : ""}${formatMicroCerts(
+                    data.microCertsByLab
+                  )} on file; results compliant with destination-market food safety regulation.`
                 : "Pending or not yet approved for this lot — do not rely on this certificate until lab clearance is confirmed."}
             </p>
           </div>

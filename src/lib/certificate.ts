@@ -38,7 +38,10 @@ export type CertificateData = {
   complianceLevels: string[];
   allApproved: boolean;
   microDate: string | null;
-  microCerts: { certificateNumber: string | null; labName: string | null }[];
+  // Grouped by lab, not flattened -- a container's lots each carry an
+  // in-house AND an external result, and mixing their certificate numbers
+  // into one undifferentiated list would hide which lab said what.
+  microCertsByLab: { labType: "IN_HOUSE" | "EXTERNAL"; labName: string | null; certificateNumbers: string[] }[];
   qualityRepName: string | null;
   loadOutRepName: string | null;
 };
@@ -125,10 +128,17 @@ export async function computeContainerCertificateData(containerId: string): Prom
     .flatMap((l) => l.microbiologyResults.map((m) => m.receivedDate))
     .filter((d): d is Date => !!d)
     .sort((a, b) => b.getTime() - a.getTime())[0];
-  const microCerts = distinctLots
-    .flatMap((l) => l.microbiologyResults)
-    .filter((m): m is typeof m & { certificateNumber: string } => !!m.certificateNumber)
-    .map((m) => ({ certificateNumber: m.certificateNumber, labName: m.labName }));
+  const allMicroResults = distinctLots.flatMap((l) => l.microbiologyResults);
+  const microCertsByLab: CertificateData["microCertsByLab"] = (["IN_HOUSE", "EXTERNAL"] as const)
+    .map((labType) => {
+      const forLab = allMicroResults.filter((m) => m.labType === labType && m.certificateNumber);
+      return {
+        labType,
+        labName: forLab.find((m) => m.labName)?.labName ?? null,
+        certificateNumbers: [...new Set(forLab.map((m) => m.certificateNumber as string))],
+      };
+    })
+    .filter((g) => g.certificateNumbers.length > 0);
 
   const spec = container.order.client.specs.find(
     (s) => s.grade === container.order.grade && s.format === container.order.format
@@ -175,7 +185,7 @@ export async function computeContainerCertificateData(containerId: string): Prom
     complianceLevels: [...new Set(checksForCert.map((c) => c.complianceLevel).filter((v): v is NonNullable<typeof v> => !!v))],
     allApproved,
     microDate: microDate ? microDate.toISOString() : null,
-    microCerts,
+    microCertsByLab,
     qualityRepName: container.qualityRepName,
     loadOutRepName: container.loadOutRepName,
   };
