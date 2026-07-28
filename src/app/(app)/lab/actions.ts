@@ -41,20 +41,17 @@ const resultSchema = z.object({
   status: z.enum(["PENDING", "SENT_TO_LAB", "APPROVED", "FAILED_MINOR", "FAILED_SEVERE"]),
   notes: z.string().optional(),
 
-  // External lab certificate fields.
+  // Shared by both lab types -- both real certificates on file turned out to
+  // have essentially the same client/sample header shape.
   certificateNumber: z.string().optional(),
   labName: z.string().optional(),
-  sampleId: z.string().optional(),
-  protocolNumber: z.string().optional(),
-  samplingBagSerial: z.string().optional(),
-  samplingPlace: z.string().optional(),
-  methodName: z.string().optional(),
-
-  // In-house lab certificate fields (QR MIC 13/100).
-  sampleCode: z.string().optional(),
   clientName: z.string().optional(),
   clientAddress: z.string().optional(),
+  attentionTo: z.string().optional(),
+  sampleCode: z.string().optional(),
   sampleType: z.string().optional(),
+  sampleSize: z.string().optional(),
+  sampleCondition: z.string().optional(),
   sampleData: z.string().optional(),
   otherData: z.string().optional(),
   reportDate: z.string().optional(),
@@ -62,12 +59,19 @@ const resultSchema = z.object({
   preparedBy: z.string().optional(),
   reviewedBy: z.string().optional(),
   approvedBy: z.string().optional(),
-
-  // Shared by both lab types.
   analysisStartDate: z.string().optional(),
   analysisEndDate: z.string().optional(),
   personInCharge: z.string().optional(),
   resultsSummary: z.string().optional(),
+
+  // Older external residue/contaminant panel certificates that don't fit the
+  // shared shape above -- left blank otherwise.
+  sampleId: z.string().optional(),
+  protocolNumber: z.string().optional(),
+  samplingBagSerial: z.string().optional(),
+  samplingPlace: z.string().optional(),
+  methodName: z.string().optional(),
+
   rejectedQuantityTonnes: z.coerce.number().min(0).optional(),
   rejectionReason: z.string().optional(),
   correctiveAction: z.string().optional(),
@@ -77,6 +81,7 @@ const testLineSchema = z.object({
   testName: z.string().optional(),
   result: z.string().optional(),
   unit: z.string().optional(),
+  measurementUncertainty: z.string().optional(),
   methodRef: z.string().optional(),
 });
 

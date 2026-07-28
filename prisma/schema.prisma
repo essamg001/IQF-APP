@@ -703,39 +703,42 @@ model MicrobiologyResult {
   sentBy       User?     @relation("MicrobiologySentBy", fields: [sentByUserId], references: [id])
   trackingRef  String?
 
-  // Fields transcribed from an external lab's own residue/contaminant
-  // certificate (e.g. chlorates & perchlorates), rather than a literal
-  // pathogen panel -- left blank for in-house results.
-  certificateNumber String? // e.g. "Dokki-434301"
-  labName           String? // e.g. "QCAP — Central Laboratory of Residue Analysis of Pesticides and Heavy Metals in Food"
-  sampleId          String? // e.g. "Dokki-2026-170105"
-  protocolNumber    String? // e.g. "MAFA 04- IQF UNIT (11) LOT-M41126146-1" — the lab's own reference, distinct from our lotNumber
-  samplingBagSerial String? // the certificate's own "Lot Number" field is actually this, not our lot number — kept distinct to avoid confusion
-  samplingPlace     String? // e.g. "M4 FARM" — free text, not forced to match a Field record exactly
-  methodName        String? // e.g. "Chlorates & Perchlorates" -- single-panel external certs only; in-house uses testLines below
-
-  // Fields transcribed from the in-house lab's own certificate (QR MIC
-  // 13/100 "Microbiology Analysis Results") -- left blank for external
-  // results, which use the fields above instead.
-  sampleCode      String? // "Sample Code" -- distinct from sampleId (external) and our own lotNumber
-  clientName      String? // "Client" -- the requesting entity, not a sales client
-  clientAddress   String?
-  sampleType      String?
-  sampleData      String? // "Data of Sample" (بيانات العينة)
-  otherData       String? // "Other Data" (بيانات آخري)
-  reportDate      DateTime?
-  recommendation  String?
-  preparedBy      String? // Documents Section
-  reviewedBy      String? // Head Section Lab
-  approvedBy      String? // Labs Director
-
-  // Shared by both lab types.
-  analysisStartDate DateTime? // "Analysis Date" / "Sample Received on" period start
-  analysisEndDate   DateTime? // "Analysis ended in"
+  // Shared by both lab types -- both real certificates on file (in-house's
+  // QR MIC 13/100, and external lab "Healthy Labs" Test Certificate) turned
+  // out to have essentially the same shape: a client/sample header, a
+  // repeatable tests table, and a reviewed/approved sign-off.
+  certificateNumber String? // in-house "Certificate No."; external "Certificate Code" e.g. "MGF 0622\26"
+  labName           String? // e.g. "Healthy Labs — Healthy Laboratories for Food and Water Testing"
+  clientName        String? // "Client" -- the requesting entity, not a sales client
+  clientAddress     String?
+  attentionTo       String? // external cert's "Attention" -- the contact person at Magrabi, e.g. "Eng. Adel Elzalabany"
+  sampleCode        String? // in-house "Sample Code"; external "Sample Code" (distinct code from our own lotNumber)
+  sampleType        String? // e.g. "Strawberry Frozen, Lot: M 41126059-1, Reduplicate: 1/3, Sample Date: 06/05/2026"
+  sampleSize        String? // e.g. "1 kg"
+  sampleCondition   String? // e.g. "Kept frozen"
+  sampleData        String? // in-house "Data of Sample" (بيانات العينة)
+  otherData         String? // in-house "Other Data" (بيانات آخري)
+  reportDate        DateTime?
+  recommendation    String? // in-house only -- external cert has no equivalent line
+  preparedBy        String? // in-house only -- "Documents Section"; external cert has no equivalent
+  reviewedBy        String? // in-house "Head Section Lab"; external e.g. "Quality Manager"
+  approvedBy        String? // in-house "Labs Director"; external e.g. "Lab Manager"
+  analysisStartDate DateTime? // in-house "Analysis Date"; external "Testing Date"
+  analysisEndDate   DateTime? // in-house "Analysis ended in"; external certs are usually same-day, leave blank
   personInCharge    String?
   resultsSummary    String? // free text catch-all; testLines below is the structured form
 
   testLines MicrobiologyTestLine[]
+
+  // Older external residue/contaminant certificates (e.g. chlorates &
+  // perchlorates panels) that don't fit the shared shape above -- kept for
+  // that case, left blank for both in-house and the standard external
+  // microbiology certificate.
+  sampleId          String? // e.g. "Dokki-2026-170105"
+  protocolNumber    String? // e.g. "MAFA 04- IQF UNIT (11) LOT-M41126146-1" — the lab's own reference, distinct from our lotNumber
+  samplingBagSerial String? // the certificate's own "Lot Number" field is actually this, not our lot number — kept distinct to avoid confusion
+  samplingPlace     String? // e.g. "M4 FARM" — free text, not forced to match a Field record exactly
+  methodName        String? // e.g. "Chlorates & Perchlorates" -- single-panel certs only; the standard case uses testLines above
 
   // The certificate file itself, stored on local disk outside public/ and
   // only ever served through an authenticated route — see src/lib/files.ts.
@@ -752,18 +755,21 @@ model MicrobiologyResult {
   @@unique([lotId, labType])
 }
 
-// The in-house certificate's repeatable "Tests" table -- e.g. "Aerobic total
-// plate count 30°C" / "CFU/gm" / "ISO 4833 2013". `result` is free text since
-// a reading can be a count, "<10", or "Not Detected".
+// The repeatable "Tests" table shared by both certificates -- e.g. "Aerobic
+// total plate count 30°C" / "3000 cfu/g" / "ISO 4833 2013" (in-house adds a
+// separate `unit` column; external expresses measurement uncertainty (MU)
+// instead, e.g. "± 0.015"). `result` is free text since a reading can be a
+// count, "<10", or "Not Detected".
 model MicrobiologyTestLine {
   id                   String             @id @default(cuid())
   microbiologyResultId String
   microbiologyResult   MicrobiologyResult @relation(fields: [microbiologyResultId], references: [id], onDelete: Cascade)
 
-  testName  String?
-  result    String?
-  unit      String?
-  methodRef String?
+  testName                String?
+  result                  String?
+  unit                    String?
+  measurementUncertainty  String? // external cert's "MU" column, e.g. "± 0.015"
+  methodRef               String?
 
   @@index([microbiologyResultId])
 }

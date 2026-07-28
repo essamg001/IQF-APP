@@ -194,14 +194,27 @@ type MicroResult = {
   protocolNumber: string | null;
   samplingBagSerial: string | null;
   samplingPlace: string | null;
+  clientName: string | null;
+  clientAddress: string | null;
+  attentionTo: string | null;
   sampleCode: string | null;
   sampleType: string | null;
+  sampleSize: string | null;
+  sampleCondition: string | null;
   analysisStartDate: Date | null;
   analysisEndDate: Date | null;
   personInCharge: string | null;
   resultsSummary: string | null;
   recommendation: string | null;
-  testLines: { testName: string | null; result: string | null; unit: string | null; methodRef: string | null }[];
+  reviewedBy: string | null;
+  approvedBy: string | null;
+  testLines: {
+    testName: string | null;
+    result: string | null;
+    unit: string | null;
+    measurementUncertainty: string | null;
+    methodRef: string | null;
+  }[];
 } | undefined;
 
 function MicroResultSummary({ label, result }: { label: string; result: MicroResult }) {
@@ -241,16 +254,23 @@ function MicroResultSummary({ label, result }: { label: string; result: MicroRes
           <Row label="Sent to lab" value={result.sentDate ? format(result.sentDate, "dd MMM yyyy") : undefined} />
           <Row label="Tracking ref" value={result.trackingRef} />
           <Row label="Certificate #" value={result.certificateNumber} />
-          <Row label="Sample Code" value={result.sampleCode} />
           <Row label="Lab" value={result.labName} />
+          <Row label="Client" value={result.clientName} />
+          <Row label="Client Address" value={result.clientAddress} />
+          <Row label="Attention" value={result.attentionTo} />
+          <Row label="Sample Code" value={result.sampleCode} />
+          <Row label="Sample Type" value={result.sampleType} />
+          <Row label="Sample Size" value={result.sampleSize} />
+          <Row label="Sample Condition" value={result.sampleCondition} />
           <Row label="Method" value={result.methodName} />
           <Row label="Sample ID" value={result.sampleId} />
-          <Row label="Sample Type" value={result.sampleType} />
           <Row label="Protocol #" value={result.protocolNumber} />
           <Row label="Sampling bag serial" value={result.samplingBagSerial} />
           <Row label="Sampling place" value={result.samplingPlace} />
           <Row label="Analysis period" value={dateRange(result.analysisStartDate, result.analysisEndDate)} />
           <Row label="Person in charge" value={result.personInCharge} />
+          <Row label="Reviewed By" value={result.reviewedBy} />
+          <Row label="Approved By" value={result.approvedBy} />
           {result.testLines.length > 0 && (
             <div className="col-span-2">
               <dt className="text-slate-400">Tests</dt>
@@ -258,6 +278,8 @@ function MicroResultSummary({ label, result }: { label: string; result: MicroRes
                 {result.testLines.map((t, i) => (
                   <div key={i}>
                     {t.testName}: {t.result ?? "—"} {t.unit ?? ""}
+                    {t.measurementUncertainty ? ` (MU ${t.measurementUncertainty})` : ""}
+                    {t.methodRef ? ` — ${t.methodRef}` : ""}
                   </div>
                 ))}
               </dd>

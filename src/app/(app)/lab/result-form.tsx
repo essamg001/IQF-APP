@@ -5,7 +5,13 @@ import { updateLabResultAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 
-type TestLine = { testName?: string | null; result?: string | null; unit?: string | null; methodRef?: string | null };
+type TestLine = {
+  testName?: string | null;
+  result?: string | null;
+  unit?: string | null;
+  measurementUncertainty?: string | null;
+  methodRef?: string | null;
+};
 
 const EMPTY_LINE: TestLine = {};
 
@@ -14,15 +20,13 @@ type ResultData = {
   notes: string | null;
   certificateNumber: string | null;
   labName: string | null;
-  sampleId: string | null;
-  protocolNumber: string | null;
-  samplingBagSerial: string | null;
-  samplingPlace: string | null;
-  methodName: string | null;
-  sampleCode: string | null;
   clientName: string | null;
   clientAddress: string | null;
+  attentionTo: string | null;
+  sampleCode: string | null;
   sampleType: string | null;
+  sampleSize: string | null;
+  sampleCondition: string | null;
   sampleData: string | null;
   otherData: string | null;
   reportDate: Date | null;
@@ -30,6 +34,11 @@ type ResultData = {
   preparedBy: string | null;
   reviewedBy: string | null;
   approvedBy: string | null;
+  sampleId: string | null;
+  protocolNumber: string | null;
+  samplingBagSerial: string | null;
+  samplingPlace: string | null;
+  methodName: string | null;
   analysisStartDate: Date | null;
   analysisEndDate: Date | null;
   personInCharge: string | null;
@@ -53,18 +62,21 @@ function TestLineRow({
 }) {
   const set = (key: keyof TestLine, value: string) => onChange({ ...line, [key]: value });
   return (
-    <div className="grid grid-cols-5 items-end gap-2">
+    <div className="grid grid-cols-6 items-end gap-2">
       <FieldGroup label="Test">
         <Input value={line.testName ?? ""} onChange={(e) => set("testName", e.target.value)} placeholder="e.g. Aerobic total plate count 30°C" />
       </FieldGroup>
       <FieldGroup label="Result">
-        <Input value={line.result ?? ""} onChange={(e) => set("result", e.target.value)} />
+        <Input value={line.result ?? ""} onChange={(e) => set("result", e.target.value)} placeholder="e.g. 3000 cfu/g" />
       </FieldGroup>
       <FieldGroup label="Unit">
         <Input value={line.unit ?? ""} onChange={(e) => set("unit", e.target.value)} placeholder="CFU/gm" />
       </FieldGroup>
+      <FieldGroup label="MU">
+        <Input value={line.measurementUncertainty ?? ""} onChange={(e) => set("measurementUncertainty", e.target.value)} placeholder="± 0.015" />
+      </FieldGroup>
       <FieldGroup label="Method Ref">
-        <Input value={line.methodRef ?? ""} onChange={(e) => set("methodRef", e.target.value)} placeholder="ISO 4833 2013" />
+        <Input value={line.methodRef ?? ""} onChange={(e) => set("methodRef", e.target.value)} placeholder="ISO 4833-1:2013" />
       </FieldGroup>
       <button type="button" onClick={onRemove} className="mb-2 justify-self-start text-xs text-red-600 hover:underline">
         Remove
@@ -82,7 +94,7 @@ export function ResultForm({
   labType: "IN_HOUSE" | "EXTERNAL";
   result: ResultData;
 }) {
-  const [lines, setLines] = useState<TestLine[]>(result?.testLines?.length ? result.testLines : labType === "IN_HOUSE" ? [{ ...EMPTY_LINE }] : []);
+  const [lines, setLines] = useState<TestLine[]>(result?.testLines?.length ? result.testLines : [{ ...EMPTY_LINE }]);
 
   return (
     <form action={updateLabResultAction.bind(null, resultId)} className="mt-3 space-y-3" encType="multipart/form-data">
@@ -98,7 +110,7 @@ export function ResultForm({
         <FieldGroup label="Person In Charge">
           <Input name="personInCharge" defaultValue={result?.personInCharge ?? ""} />
         </FieldGroup>
-        <FieldGroup label="Analysis Date">
+        <FieldGroup label={labType === "EXTERNAL" ? "Testing Date" : "Analysis Date"}>
           <Input name="analysisStartDate" type="date" defaultValue={result?.analysisStartDate?.toISOString().slice(0, 10) ?? ""} />
         </FieldGroup>
         <FieldGroup label="Analysis Ended In">
@@ -106,102 +118,123 @@ export function ResultForm({
         </FieldGroup>
       </div>
 
-      {labType === "EXTERNAL" ? (
-        <div className="grid grid-cols-4 gap-3">
-          <FieldGroup label="Certificate Number">
-            <Input name="certificateNumber" defaultValue={result?.certificateNumber ?? ""} />
+      <div className="grid grid-cols-4 gap-3">
+        <FieldGroup label="Certificate Number">
+          <Input name="certificateNumber" defaultValue={result?.certificateNumber ?? ""} />
+        </FieldGroup>
+        <FieldGroup label="Lab Name">
+          <Input name="labName" defaultValue={result?.labName ?? (labType === "EXTERNAL" ? "" : "Magrabi Administration Labs (MAFA)")} />
+        </FieldGroup>
+        <FieldGroup label="Client">
+          <Input name="clientName" defaultValue={result?.clientName ?? "Magrabi Agriculture Company"} />
+        </FieldGroup>
+        <FieldGroup label="Client Address">
+          <Input name="clientAddress" defaultValue={result?.clientAddress ?? ""} />
+        </FieldGroup>
+        {labType === "EXTERNAL" && (
+          <FieldGroup label="Attention">
+            <Input name="attentionTo" defaultValue={result?.attentionTo ?? ""} />
           </FieldGroup>
-          <FieldGroup label="Lab Name">
-            <Input name="labName" defaultValue={result?.labName ?? ""} />
-          </FieldGroup>
-          <FieldGroup label="Sample ID">
-            <Input name="sampleId" defaultValue={result?.sampleId ?? ""} />
-          </FieldGroup>
-          <FieldGroup label="Protocol Number">
-            <Input name="protocolNumber" defaultValue={result?.protocolNumber ?? ""} />
-          </FieldGroup>
-          <FieldGroup label="Sampling Bag Serial">
-            <Input name="samplingBagSerial" defaultValue={result?.samplingBagSerial ?? ""} />
-          </FieldGroup>
-          <FieldGroup label="Sampling Place">
-            <Input name="samplingPlace" defaultValue={result?.samplingPlace ?? ""} />
-          </FieldGroup>
-          <FieldGroup label="Method Name">
-            <Input name="methodName" defaultValue={result?.methodName ?? ""} />
-          </FieldGroup>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-4 gap-3">
-            <FieldGroup label="Certificate Number">
-              <Input name="certificateNumber" defaultValue={result?.certificateNumber ?? ""} />
+        )}
+        <FieldGroup label="Sample Code">
+          <Input name="sampleCode" defaultValue={result?.sampleCode ?? ""} />
+        </FieldGroup>
+        <FieldGroup label="Sample Type">
+          <Input name="sampleType" defaultValue={result?.sampleType ?? ""} placeholder="e.g. Strawberry Frozen, Lot, Sample Date" />
+        </FieldGroup>
+        {labType === "EXTERNAL" && (
+          <>
+            <FieldGroup label="Sample Size">
+              <Input name="sampleSize" defaultValue={result?.sampleSize ?? ""} placeholder="e.g. 1 kg" />
             </FieldGroup>
-            <FieldGroup label="Sample Code">
-              <Input name="sampleCode" defaultValue={result?.sampleCode ?? ""} />
+            <FieldGroup label="Sample Condition">
+              <Input name="sampleCondition" defaultValue={result?.sampleCondition ?? ""} placeholder="e.g. Kept frozen" />
             </FieldGroup>
-            <FieldGroup label="Client">
-              <Input name="clientName" defaultValue={result?.clientName ?? "Magrabi Agriculture"} />
-            </FieldGroup>
-            <FieldGroup label="Client Address">
-              <Input name="clientAddress" defaultValue={result?.clientAddress ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Sample Type">
-              <Input name="sampleType" defaultValue={result?.sampleType ?? ""} />
-            </FieldGroup>
+          </>
+        )}
+        {labType === "IN_HOUSE" && (
+          <>
             <FieldGroup label="Data of Sample">
               <Input name="sampleData" defaultValue={result?.sampleData ?? ""} />
             </FieldGroup>
             <FieldGroup label="Other Data">
               <Input name="otherData" defaultValue={result?.otherData ?? ""} />
             </FieldGroup>
-            <FieldGroup label="Report Date">
-              <Input name="reportDate" type="date" defaultValue={result?.reportDate?.toISOString().slice(0, 10) ?? ""} />
+          </>
+        )}
+        <FieldGroup label="Report Date">
+          <Input name="reportDate" type="date" defaultValue={result?.reportDate?.toISOString().slice(0, 10) ?? ""} />
+        </FieldGroup>
+      </div>
+
+      {labType === "EXTERNAL" && (
+        <details className="text-xs text-slate-500">
+          <summary className="cursor-pointer">Residue/contaminant panel fields (older certificate format)</summary>
+          <div className="mt-2 grid grid-cols-4 gap-3">
+            <FieldGroup label="Sample ID">
+              <Input name="sampleId" defaultValue={result?.sampleId ?? ""} />
+            </FieldGroup>
+            <FieldGroup label="Protocol Number">
+              <Input name="protocolNumber" defaultValue={result?.protocolNumber ?? ""} />
+            </FieldGroup>
+            <FieldGroup label="Sampling Bag Serial">
+              <Input name="samplingBagSerial" defaultValue={result?.samplingBagSerial ?? ""} />
+            </FieldGroup>
+            <FieldGroup label="Sampling Place">
+              <Input name="samplingPlace" defaultValue={result?.samplingPlace ?? ""} />
+            </FieldGroup>
+            <FieldGroup label="Method Name">
+              <Input name="methodName" defaultValue={result?.methodName ?? ""} />
             </FieldGroup>
           </div>
+        </details>
+      )}
 
-          <div>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-700">Tests (نتائج تحليل ميكروبيولوجي)</p>
-              <Button type="button" variant="secondary" className="text-xs" onClick={() => setLines([...lines, { ...EMPTY_LINE }])}>
-                Add test
-              </Button>
-            </div>
-            <div className="mt-2 space-y-2">
-              {lines.map((line, i) => (
-                <TestLineRow
-                  key={i}
-                  line={line}
-                  onChange={(next) => setLines(lines.map((l, j) => (j === i ? next : l)))}
-                  onRemove={() => setLines(lines.filter((_, j) => j !== i))}
-                />
-              ))}
-              {lines.length === 0 && <p className="text-sm text-slate-400">No tests added yet.</p>}
-            </div>
-            <input type="hidden" name="testLinesJson" value={JSON.stringify(lines)} />
-          </div>
+      <div>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-slate-700">Tests</p>
+          <Button type="button" variant="secondary" className="text-xs" onClick={() => setLines([...lines, { ...EMPTY_LINE }])}>
+            Add test
+          </Button>
+        </div>
+        <div className="mt-2 space-y-2">
+          {lines.map((line, i) => (
+            <TestLineRow
+              key={i}
+              line={line}
+              onChange={(next) => setLines(lines.map((l, j) => (j === i ? next : l)))}
+              onRemove={() => setLines(lines.filter((_, j) => j !== i))}
+            />
+          ))}
+          {lines.length === 0 && <p className="text-sm text-slate-400">No tests added yet.</p>}
+        </div>
+        <input type="hidden" name="testLinesJson" value={JSON.stringify(lines)} />
+      </div>
 
+      {labType === "IN_HOUSE" && (
+        <>
           <FieldGroup label="Recommendation">
             <Input name="recommendation" defaultValue={result?.recommendation ?? ""} />
           </FieldGroup>
-
-          <div className="grid grid-cols-3 gap-3">
-            <FieldGroup label="Prepared By (Documents Section)">
-              <Input name="preparedBy" defaultValue={result?.preparedBy ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Reviewed By (Head Section Lab)">
-              <Input name="reviewedBy" defaultValue={result?.reviewedBy ?? ""} />
-            </FieldGroup>
-            <FieldGroup label="Approved By (Labs Director)">
-              <Input name="approvedBy" defaultValue={result?.approvedBy ?? ""} />
-            </FieldGroup>
-          </div>
+          <FieldGroup label="Prepared By (Documents Section)">
+            <Input name="preparedBy" defaultValue={result?.preparedBy ?? ""} />
+          </FieldGroup>
         </>
       )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <FieldGroup label={labType === "EXTERNAL" ? "Reviewed By (e.g. Quality Manager)" : "Reviewed By (Head Section Lab)"}>
+          <Input name="reviewedBy" defaultValue={result?.reviewedBy ?? ""} />
+        </FieldGroup>
+        <FieldGroup label={labType === "EXTERNAL" ? "Approved By (e.g. Lab Manager)" : "Approved By (Labs Director)"}>
+          <Input name="approvedBy" defaultValue={result?.approvedBy ?? ""} />
+        </FieldGroup>
+      </div>
 
       <FieldGroup label="Results Summary">
         <Input
           name="resultsSummary"
-          placeholder={labType === "EXTERNAL" ? "e.g. Chlorates: Not detected. Perchlorates: Not detected." : "Free-text summary, if needed"}
+          placeholder="Free-text summary, if needed"
           defaultValue={result?.resultsSummary ?? ""}
         />
       </FieldGroup>
