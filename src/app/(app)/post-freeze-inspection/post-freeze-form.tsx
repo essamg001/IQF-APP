@@ -5,6 +5,8 @@ import { createPostFreezeCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
+import { decodeActionResult } from "@/lib/qualityLimits";
 import type { ProductionLot, Field, Pallet, Grade } from "@prisma/client";
 
 type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[] };
@@ -51,6 +53,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
+  const decoded = isSuccess ? decodeActionResult(state) : null;
 
   if (lots.length === 0) {
     return <p className="text-sm text-slate-500">No production lots yet — nothing to inspect.</p>;
@@ -117,6 +120,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
       <MeasurementFields key={isSuccess ? state : "initial"} grade={grade} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {decoded && <QualityLimitWarning violations={decoded.violations} />}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — logged.</p>}
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Saving…" : "Log check"}

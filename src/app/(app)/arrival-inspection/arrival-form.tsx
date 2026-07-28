@@ -6,6 +6,8 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
+import { decodeActionResult } from "@/lib/qualityLimits";
 
 function Pct({ name, label, limit }: { name: string; label: string; limit: string }) {
   return (
@@ -34,6 +36,7 @@ export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCh
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
+  const decoded = isSuccess ? decodeActionResult(state) : null;
 
   const inspectedCount = receiptNoteNo
     ? todaysChecks.filter((c) => c.receiptNoteNo === receiptNoteNo && !c.appliesToWholeDelivery).length
@@ -103,6 +106,7 @@ export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCh
       <SampleFields key={isSuccess ? state : "initial"} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {decoded && <QualityLimitWarning violations={decoded.violations} />}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — logged.</p>}
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Saving…" : "Log sample"}

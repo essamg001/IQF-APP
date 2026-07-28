@@ -5,6 +5,8 @@ import { createPostDecapCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
+import { decodeActionResult } from "@/lib/qualityLimits";
 
 // The factory has 51 QC staff, each identified on paperwork as "QC1"..."QC51".
 const QC_NUMBERS = Array.from({ length: 51 }, (_, i) => `QC${i + 1}`);
@@ -32,6 +34,7 @@ export function PostDecapForm({
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
+  const decoded = isSuccess ? decodeActionResult(state) : null;
 
   const matchedFieldName = fieldByReceiptNote[receiptNoteNo.trim()] ?? "";
 
@@ -62,6 +65,7 @@ export function PostDecapForm({
       <SampleFields key={isSuccess ? state : "initial"} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {decoded && <QualityLimitWarning violations={decoded.violations} />}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — logged.</p>}
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Saving…" : "Log check"}

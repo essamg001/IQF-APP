@@ -6,6 +6,8 @@ import { createPreDecapCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
+import { decodeActionResult } from "@/lib/qualityLimits";
 
 function Pct({ name, label }: { name: string; label: string }) {
   return (
@@ -22,12 +24,14 @@ export function PreDecapForm({ fields }: { fields: FieldOption[] }) {
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
+  const decoded = isSuccess ? decodeActionResult(state) : null;
 
   return (
     <form action={formAction} className="space-y-4">
       <SampleFields key={isSuccess ? state : "initial"} fields={fields} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {decoded && <QualityLimitWarning violations={decoded.violations} />}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — logged.</p>}
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Saving…" : "Log check"}

@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
+import { checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
+import { raiseQualityLimitAlert } from "@/lib/alerts";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
@@ -164,6 +166,23 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
     },
   });
 
+  // A whole-delivery rejection skips per-defect sampling entirely, so there's
+  // no measured values to check against a limit. Otherwise, checked against
+  // the parsed form values, not the saved row -- fields left blank get
+  // defaulted to 0 in the DB, which would otherwise misread as a genuine
+  // (and always-failing) 0% reading for min-style limits like Fruit Colour.
+  const violations = data.appliesToWholeDelivery
+    ? []
+    : checkQualityLimits("RAW_MATERIAL", { ...data, totalDefectsPct });
+  await raiseQualityLimitAlert({
+    checkId: created.id,
+    checkpointLabel: "Arrival Inspection at Factory",
+    identifier: created.appliesToWholeDelivery
+      ? `Receipt ${created.receiptNoteNo ?? "—"} (whole delivery)`
+      : `Sample ${created.sampleNo}`,
+    violations,
+  });
+
   revalidatePath("/arrival-inspection");
-  return `ok:${created.id}`;
+  return encodeActionResult(created.id, violations);
 }

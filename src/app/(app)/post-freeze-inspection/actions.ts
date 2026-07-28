@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
+import { checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
+import { raiseQualityLimitAlert } from "@/lib/alerts";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
@@ -119,6 +121,17 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
     },
   });
 
+  // Checked against the parsed form values, not the saved row -- fields left
+  // blank get defaulted to 0 in the DB, which would otherwise misread as a
+  // genuine (and always-failing) 0% reading for min-style limits like Fruit Colour.
+  const violations = checkQualityLimits("POST_PACKAGING", { ...data, totalDefectsPct }, lot.grade);
+  await raiseQualityLimitAlert({
+    checkId: created.id,
+    checkpointLabel: "Post-Freeze Inspection",
+    identifier: `Lot ${lot.lotNumber} (Grade ${lot.grade})${palletId ? ` — Pallet ${palletNumber}` : ""}`,
+    violations,
+  });
+
   revalidatePath("/post-freeze-inspection");
-  return `ok:${created.id}`;
+  return encodeActionResult(created.id, violations);
 }

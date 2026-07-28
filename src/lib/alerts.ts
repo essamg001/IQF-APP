@@ -3,6 +3,7 @@ import type { AlertType, Role } from "@prisma/client";
 import { differenceInDays } from "date-fns";
 import { sendEmail } from "@/lib/email";
 import { parseBrixRange } from "@/lib/allocation";
+import { formatViolation, type LimitViolation } from "@/lib/qualityLimits";
 
 const MICRO_PENDING_DAYS_THRESHOLD = 3;
 
@@ -81,6 +82,38 @@ export async function raiseMicrobiologyRejectionAlert(params: {
     });
     const recipients = await prisma.user.findMany({ where: { role } });
     await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Lab Rejection", message)));
+  }
+}
+
+/**
+ * Fired the moment any inspection checkpoint (Pre-Decap, Post-Decap, Arrival
+ * at Factory, Post-Freeze) is logged with a value outside its own printed
+ * tolerance. The point is to catch it immediately -- before that produce
+ * moves any further toward storage or load-out, and while corrective action
+ * in the field may still be possible -- not to wait for a periodic scan.
+ */
+export async function raiseQualityLimitAlert(params: {
+  checkId: string;
+  checkpointLabel: string;
+  identifier: string; // whatever best identifies this check to a human -- field name, lot number, sample no.
+  violations: LimitViolation[];
+}) {
+  if (params.violations.length === 0) return;
+  const violationText = params.violations.map(formatViolation).join("; ");
+  const message = `${params.checkpointLabel} — ${params.identifier}: out of spec — ${violationText}.`;
+
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "QUALITY_LIMIT_EXCEEDED",
+        relatedEntityType: "QUALITY_LIMIT_EXCEEDED",
+        relatedEntityId: params.checkId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Quality Limit Exceeded", message)));
   }
 }
 

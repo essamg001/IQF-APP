@@ -1,0 +1,143 @@
+// Every numeric tolerance printed on the real inspection forms (STR03101,
+// STR03107, STR03110, STR03111/STR03116), in one place, so a single check can
+// flag out-of-spec values consistently across every checkpoint. Ranges
+// (min+max together) cover things like PH; ceilings/floors cover defect
+// percentages and quality minimums.
+import type { QualityCheckpoint, Grade } from "@prisma/client";
+
+export type LimitRule = { field: string; label: string; min?: number; max?: number };
+export type LimitViolation = { label: string; value: number; min?: number; max?: number };
+
+const PRE_DECAP_LIMITS: LimitRule[] = [
+  { field: "brix", label: "Brix", min: 7 },
+  { field: "fruitColorPct", label: "Berry Colour", min: 85 },
+  { field: "internalQualityPct", label: "Internal Quality", max: 10 },
+  { field: "overmaturePct", label: "Over Maturity", max: 50 },
+  { field: "diameterUnder22mmPct", label: "Diameter <22mm", max: 10 },
+  { field: "botrytisPct", label: "Botrytis", max: 10 },
+  { field: "pestDiseasePct", label: "Pest/Disease", max: 10 },
+  { field: "wormEatenPct", label: "Worm-Eaten", max: 10 },
+  { field: "bruisesPct", label: "Bruises", max: 20 },
+  { field: "shapeDeformitiesPct", label: "Mishape", max: 50 },
+  { field: "sandDustPct", label: "Sand", max: 15 },
+  { field: "foreignBodiesPct", label: "Foreign Bodies", max: 0 },
+  { field: "totalDefectsPct", label: "Total Defects", max: 60 },
+];
+
+// Shared by both RAW_MATERIAL (STR03110, Arrival Inspection at Factory) and
+// POST_DECAP (STR03107, Post-Decap Quality) -- same defect checklist, same limits.
+const DECAP_SHARED_LIMITS: LimitRule[] = [
+  { field: "fruitColorPct", label: "Fruit Colour", min: 90 },
+  { field: "internalQualityPct", label: "Internal Quality", max: 3 },
+  { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 1 },
+  { field: "moldSignsPct", label: "Mold Signs", max: 1 },
+  { field: "mouldPct", label: "Mould", max: 0 },
+  { field: "capsuleRemainsPct", label: "Capsule Remains", max: 2 },
+  { field: "birdFoodPct", label: "Bird Food", max: 2 },
+  { field: "overmaturePct", label: "Overmature", max: 5 },
+  { field: "skinDamagePct", label: "Skin Deformities", max: 2 },
+  { field: "shapeDeformitiesPct", label: "Shape Deformities", max: 3 },
+  { field: "seedClusteringPct", label: "Seed Clustering", max: 1 },
+  { field: "bruisesPct", label: "Bruises", max: 1 },
+  { field: "dryCavitiesPct", label: "Dry Cavities", max: 1 },
+  { field: "overDecappingPct", label: "Over-Decapping", max: 1 },
+  { field: "oxidationPct", label: "Oxidation", max: 4 },
+  { field: "sandDustPct", label: "Sand/Dust", max: 1 },
+  { field: "insectsLarvaePct", label: "Insects/Larvae", max: 0 },
+  { field: "foreignBodiesPct", label: "Foreign Bodies", max: 0 },
+  { field: "brokenUncleanPalletsPct", label: "Broken/Unclean Pallets", max: 0 },
+  { field: "unfumigatedPalletsPct", label: "Unfumigated Pallets", max: 0 },
+  { field: "brokenUncleanCratesPct", label: "Broken/Unclean Crates", max: 0 },
+];
+
+const RAW_MATERIAL_LIMITS: LimitRule[] = [...DECAP_SHARED_LIMITS, { field: "totalDefectsPct", label: "Total Defects", max: 5 }];
+const POST_DECAP_LIMITS: LimitRule[] = [...DECAP_SHARED_LIMITS, { field: "totalDefectsPct", label: "Total Defects", max: 6 }];
+
+// STR03111 (Grade A) / STR03116 (Grade B) -- same checklist, tighter tolerances for A.
+const POST_PACKAGING_LIMITS: Record<Grade, LimitRule[]> = {
+  A: [
+    { field: "fruitColorPct", label: "Fruit Colour", min: 90 },
+    { field: "overmaturePct", label: "Overmature", max: 3 },
+    { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 3 },
+    { field: "shapeDeformitiesPct", label: "Shape Deformities", max: 3 },
+    { field: "skinDamagePct", label: "Skin Deformities", max: 2 },
+    { field: "cohesiveClustersPct", label: "Cohesive Clusters", max: 2 },
+    { field: "crushedBrokenFruitPct", label: "Crushed/Broken Fruit", max: 2 },
+    { field: "dryBruisesPct", label: "Dry Bruises", max: 1 },
+    { field: "mechanicalFactorsPct", label: "Mechanical Factors", max: 2 },
+    { field: "oxidationPct", label: "Oxidation", max: 4 },
+    { field: "totalDefectsPct", label: "Total Defects", max: 5 },
+    { field: "internalQualityPct", label: "Internal Quality", max: 3 },
+    { field: "fungalInfectionPct", label: "Fungal Infection", max: 0 },
+    { field: "insectsLarvaePct", label: "Insects/Larvae", max: 0 },
+    { field: "insectInfestationPct", label: "Insect Infestation", max: 0 },
+    { field: "foreignBodiesPct", label: "Foreign Bodies", max: 0 },
+  ],
+  B: [
+    { field: "fruitColorPct", label: "Fruit Colour", min: 80 },
+    { field: "overmaturePct", label: "Overmature", max: 5 },
+    { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 5 },
+    { field: "shapeDeformitiesPct", label: "Shape Deformities", max: 5 },
+    { field: "skinDamagePct", label: "Skin Deformities", max: 3 },
+    { field: "cohesiveClustersPct", label: "Cohesive Clusters", max: 3 },
+    { field: "crushedBrokenFruitPct", label: "Crushed/Broken Fruit", max: 3 },
+    { field: "dryBruisesPct", label: "Dry Bruises", max: 2 },
+    { field: "mechanicalFactorsPct", label: "Mechanical Factors", max: 2 },
+    { field: "oxidationPct", label: "Oxidation", max: 6 },
+    { field: "totalDefectsPct", label: "Total Defects", max: 10 },
+    { field: "internalQualityPct", label: "Internal Quality", max: 3 },
+    { field: "fungalInfectionPct", label: "Fungal Infection", max: 0 },
+    { field: "insectsLarvaePct", label: "Insects/Larvae", max: 0 },
+    { field: "insectInfestationPct", label: "Insect Infestation", max: 0 },
+    { field: "foreignBodiesPct", label: "Foreign Bodies", max: 0 },
+  ],
+};
+
+export function limitsFor(checkpoint: QualityCheckpoint, grade?: Grade): LimitRule[] {
+  switch (checkpoint) {
+    case "PRE_DECAP":
+      return PRE_DECAP_LIMITS;
+    case "RAW_MATERIAL":
+      return RAW_MATERIAL_LIMITS;
+    case "POST_DECAP":
+      return POST_DECAP_LIMITS;
+    case "POST_PACKAGING":
+      return POST_PACKAGING_LIMITS[grade ?? "A"];
+  }
+}
+
+/** Checks a saved check's values against its checkpoint's limits and returns every band that's out of spec. */
+export function checkQualityLimits(
+  checkpoint: QualityCheckpoint,
+  values: Record<string, unknown>,
+  grade?: Grade
+): LimitViolation[] {
+  const violations: LimitViolation[] = [];
+  for (const rule of limitsFor(checkpoint, grade)) {
+    const value = values[rule.field];
+    if (typeof value !== "number") continue;
+    if ((rule.max != null && value > rule.max) || (rule.min != null && value < rule.min)) {
+      violations.push({ label: rule.label, value, min: rule.min, max: rule.max });
+    }
+  }
+  return violations;
+}
+
+export function formatViolation(v: LimitViolation): string {
+  const limit = v.max != null ? `limit ≤${v.max}` : `limit ≥${v.min}`;
+  return `${v.label} ${v.value} (${limit})`;
+}
+
+/** Encodes a server action's success result, with any limit violations attached, into the single string these forms' useActionState hooks return. */
+export function encodeActionResult(id: string, violations: LimitViolation[]): string {
+  if (violations.length === 0) return `ok:${id}`;
+  return `ok:${id}::${JSON.stringify(violations)}`;
+}
+
+export function decodeActionResult(state: string): { id: string; violations: LimitViolation[] } | null {
+  if (!state.startsWith("ok:")) return null;
+  const rest = state.slice(3);
+  const sep = rest.indexOf("::");
+  if (sep === -1) return { id: rest, violations: [] };
+  return { id: rest.slice(0, sep), violations: JSON.parse(rest.slice(sep + 2)) };
+}
