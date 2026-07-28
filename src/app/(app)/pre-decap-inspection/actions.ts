@@ -11,7 +11,8 @@ import { raiseQualityLimitAlert } from "@/lib/alerts";
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
 const preDecapCheckSchema = z.object({
-  fieldName: z.string().min(1, "Plot is required."),
+  fieldName: z.string().optional(),
+  plotLineId: z.string().optional(),
   receiptNoteNo: z.string().optional(),
   varietyName: z.string().optional(),
   harvestSupervisor: z.string().optional(),
@@ -39,6 +40,8 @@ const preDecapCheckSchema = z.object({
 
   decision: z.enum(["ACCEPTED", "REJECTED"]),
   notes: z.string().optional(),
+}).refine((data) => Boolean(data.fieldName?.trim() || data.plotLineId), {
+  message: "Select a plot (via Serial Number, or type the Plot Number).",
 });
 
 const DEFECT_PCT_FIELDS = [
@@ -65,11 +68,26 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  const field = await prisma.field.findUnique({ where: { name: parsed.data.fieldName.trim() } });
-  if (!field) return `Plot "${parsed.data.fieldName}" not found — check the name and try again.`;
+  let fieldId: string | null = null;
+  let fieldLabel: string;
+
+  if (parsed.data.plotLineId) {
+    const plotLine = await prisma.harvestTicketPlotLine.findUnique({
+      where: { id: parsed.data.plotLineId },
+      include: { field: true },
+    });
+    if (!plotLine) return "Selected plot could not be found — please re-select it.";
+    fieldId = plotLine.fieldId;
+    fieldLabel = plotLine.field?.name ?? ([plotLine.stationNo, plotLine.plotValveGhNo].filter(Boolean).join(" · ") || plotLine.id);
+  } else {
+    const field = await prisma.field.findUnique({ where: { name: parsed.data.fieldName!.trim() } });
+    if (!field) return `Plot "${parsed.data.fieldName}" not found — check the name and try again.`;
+    fieldId = field.id;
+    fieldLabel = field.name;
+  }
 
   const session = await auth();
-  const { fieldName, sampleCollectionTime, notes, ...data } = parsed.data;
+  const { fieldName, plotLineId, sampleCollectionTime, notes, ...data } = parsed.data;
 
   const totalDefectsPct = DEFECT_PCT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
 
@@ -77,7 +95,8 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
     data: {
       checkpoint: "PRE_DECAP",
       lotId: null,
-      fieldId: field.id,
+      fieldId,
+      harvestTicketPlotLineId: plotLineId,
       decision: data.decision,
       complianceLevel: "GLOBALGAP",
       receiptNoteNo: data.receiptNoteNo,
@@ -114,7 +133,7 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
   await raiseQualityLimitAlert({
     checkId: created.id,
     checkpointLabel: "Pre-Decap Arrival",
-    identifier: `${field.name} (sample ${created.sampleNo})`,
+    identifier: `${fieldLabel} (sample ${created.sampleNo})`,
     violations,
   });
 

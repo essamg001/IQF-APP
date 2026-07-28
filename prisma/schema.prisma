@@ -59,6 +59,11 @@ enum ComplianceLevel {
   SPRING
   LEAF
   OTHER
+  NURTURE
+  AH_DL_GROW
+  FAIRTRADE
+  ORGANIC_100
+  BIO_SUISSE
 }
 
 enum MicrobiologyStatus {
@@ -301,8 +306,104 @@ model Field {
   longitude       Float?
   boundaryLatLng  Json? // one or more rings of [lat, lng] points
 
-  lots          ProductionLot[]
+  lots               ProductionLot[]
+  qualityChecks      QualityCheck[]
+  harvestTicketLines HarvestTicketPlotLine[]
+}
+
+enum HarvestProductType {
+  RAW
+  FINAL
+  REWORK
+}
+
+// GEN03107 "Product delivery sheet" -- filled out by the field/harvest team
+// before a tractor leaves for the decap facility. A single delivery can draw
+// from several plots at once, hence the separate line-item table below; the
+// receipt section at the bottom is filled in later, by the decap facility,
+// once the tractor actually arrives. Pre-Decap Inspection (STR03101) links to
+// this via serialNumber (its own "Serial Number (Receipt)" field) to know
+// which plot the QC sample was actually drawn from.
+model HarvestTicket {
+  id           String  @id @default(cuid())
+  serialNumber String  @unique
+  ggn          String?
+
+  complianceLevel ComplianceLevel?
+  complianceOther String?
+  productType     HarvestProductType?
+  reworkReason    String?
+
+  // Simple pass/fail checklist (left side of the form).
+  fruitConformityOk  Boolean?
+  fruitSafetyOk      Boolean?
+  cratesCleanlinessOk Boolean?
+  fieldCleanlinessOk  Boolean?
+  vehicleCleanlinessOk Boolean?
+
+  // Yes/No presence checklist, each with its own corrective action if flagged.
+  petsPresent                     Boolean?
+  petsPresentAction               String?
+  animalProductionNearby          Boolean?
+  animalProductionNearbyAction    String?
+  wildDomesticAnimalActivity      Boolean?
+  wildDomesticAnimalActivityAction String?
+  rodentDogActivity               Boolean?
+  rodentDogActivityAction         String?
+
+  loadingSupervisor String?
+  loadingTime       DateTime?
+  transferredBy     String? // transport method/vehicle description
+  vehicleNo         String?
+  authorizedGrower  String? // farm name/code
+  cropName          String?
+  harvestTime       DateTime?
+  harvestSupervisor String?
+  harvestDate       DateTime?
+  ipmConfirmationDate DateTime? // from IPM03208
+
+  // Packhouse/decap-facility receipt section -- completed on arrival.
+  receivedDate          DateTime?
+  receivedTime          DateTime?
+  deliveryNumber        String?
+  cratesReceived        Int?
+  palletsReceived       Int?
+  grossWeightKg         Float?
+  netWeightKg           Float?
+  electronicWeightCardNo String?
+  productTempC          Float?
+  optimumTempC          Float?
+  coldTruckTempC        Float?
+  acceptedAtPackhouse   Boolean?
+  receivedByName        String?
+
+  createdAt DateTime @default(now())
+
+  plotLines HarvestTicketPlotLine[]
+}
+
+model HarvestTicketPlotLine {
+  id              String        @id @default(cuid())
+  harvestTicketId String
+  harvestTicket   HarvestTicket @relation(fields: [harvestTicketId], references: [id], onDelete: Cascade)
+
+  stationNo     String?
+  plotValveGhNo String?
+  fieldId       String?
+  field         Field? @relation(fields: [fieldId], references: [id])
+
+  varietyName  String?
+  cycleNumber  String?
+  plantingYear String?
+  cutNo        String?
+  palletsCount Int?
+  cratesCount  Int?
+  weightKg     Float?
+
   qualityChecks QualityCheck[]
+
+  @@index([harvestTicketId])
+  @@index([fieldId])
 }
 
 model ShiftLog {
@@ -429,6 +530,12 @@ model QualityCheck {
   // this is a one-field-at-a-time link, not the full per-field crate breakdown.
   fieldId    String?
   field      Field?            @relation(fields: [fieldId], references: [id])
+  // Pre-Decap Inspection links here directly, by Harvest Ticket Serial Number,
+  // to record exactly which plot line the sample was drawn from -- independent
+  // of whether that plot line's station/valve happened to resolve to a Field
+  // record (fieldId above), since real harvest tickets don't always match.
+  harvestTicketPlotLineId String?
+  harvestTicketPlotLine   HarvestTicketPlotLine? @relation(fields: [harvestTicketPlotLineId], references: [id])
   checkpoint QualityCheckpoint
 
   // Both checkpoints end in an Acceptable/Unacceptable call + corrective action

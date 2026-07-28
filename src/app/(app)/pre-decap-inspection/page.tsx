@@ -14,7 +14,10 @@ export default async function PreDecapInspectionPage() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [todaysChecks, fields] = await Promise.all([
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+  const [todaysChecks, fields, harvestTickets] = await Promise.all([
     prisma.qualityCheck.findMany({
       where: { checkpoint: "PRE_DECAP", createdAt: { gte: startOfToday } },
       include: { field: true },
@@ -22,6 +25,12 @@ export default async function PreDecapInspectionPage() {
       take: 100,
     }),
     prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } }),
+    prisma.harvestTicket.findMany({
+      where: { createdAt: { gte: fourteenDaysAgo } },
+      include: { plotLines: { include: { field: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
   ]);
 
   const accepted = todaysChecks.filter((c) => c.decision === "ACCEPTED").length;
@@ -45,7 +54,7 @@ export default async function PreDecapInspectionPage() {
       </div>
 
       <div className="max-w-3xl">
-        <PreDecapForm fields={fields} />
+        <PreDecapForm fields={fields} harvestTickets={harvestTickets} />
       </div>
 
       <Card className="max-w-3xl overflow-x-auto p-0">

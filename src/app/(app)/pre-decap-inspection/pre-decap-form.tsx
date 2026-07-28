@@ -19,7 +19,27 @@ function Pct({ name, label }: { name: string; label: string }) {
 
 type FieldOption = { id: string; name: string };
 
-export function PreDecapForm({ fields }: { fields: FieldOption[] }) {
+type PlotLineOption = {
+  id: string;
+  stationNo: string | null;
+  plotValveGhNo: string | null;
+  varietyName: string | null;
+  field: { id: string; name: string } | null;
+};
+
+type HarvestTicketOption = {
+  id: string;
+  serialNumber: string;
+  plotLines: PlotLineOption[];
+};
+
+export function PreDecapForm({
+  fields,
+  harvestTickets,
+}: {
+  fields: FieldOption[];
+  harvestTickets: HarvestTicketOption[];
+}) {
   const [state, formAction, pending] = useActionState(createPreDecapCheckAction, undefined);
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
@@ -28,7 +48,7 @@ export function PreDecapForm({ fields }: { fields: FieldOption[] }) {
 
   return (
     <form action={formAction} className="space-y-4">
-      <SampleFields key={isSuccess ? state : "initial"} fields={fields} />
+      <SampleFields key={isSuccess ? state : "initial"} fields={fields} harvestTickets={harvestTickets} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       {decoded && <QualityLimitWarning violations={decoded.violations} />}
@@ -40,20 +60,61 @@ export function PreDecapForm({ fields }: { fields: FieldOption[] }) {
   );
 }
 
-function PlotInput({ fields }: { fields: FieldOption[] }) {
+function plotLineLabel(l: PlotLineOption) {
+  const parts = [l.stationNo, l.plotValveGhNo, l.varietyName].filter(Boolean);
+  const base = parts.length ? parts.join(" · ") : l.id;
+  return l.field ? base : `${base} (unmatched to a Field record)`;
+}
+
+function SerialPlotPicker({ tickets, fields }: { tickets: HarvestTicketOption[]; fields: FieldOption[] }) {
+  const [serial, setSerial] = useState("");
+  const matchedTicket = tickets.find((t) => t.serialNumber.trim().toLowerCase() === serial.trim().toLowerCase());
+
   return (
     <>
-      <Input name="fieldName" required list="plot-suggestions" placeholder="e.g. MAFA 4 · ST1 · A1" />
-      <datalist id="plot-suggestions">
-        {fields.map((f) => (
-          <option key={f.id} value={f.name} />
-        ))}
-      </datalist>
+      <FieldGroup label="Serial Number (Harvest Ticket)">
+        <Input
+          name="receiptNoteNo"
+          value={serial}
+          onChange={(e) => setSerial(e.target.value)}
+          list="ticket-serials"
+          placeholder="e.g. GEN03107-..."
+        />
+        <datalist id="ticket-serials">
+          {tickets.map((t) => (
+            <option key={t.id} value={t.serialNumber} />
+          ))}
+        </datalist>
+      </FieldGroup>
+
+      {matchedTicket ? (
+        <FieldGroup label="Plot Sampled">
+          <Select name="plotLineId" required defaultValue="">
+            <option value="" disabled>
+              Select the plot this sample came from
+            </option>
+            {matchedTicket.plotLines.map((l) => (
+              <option key={l.id} value={l.id}>
+                {plotLineLabel(l)}
+              </option>
+            ))}
+          </Select>
+        </FieldGroup>
+      ) : (
+        <FieldGroup label="Plot Number">
+          <Input name="fieldName" required list="plot-suggestions" placeholder="e.g. MAFA 4 · ST1 · A1" />
+          <datalist id="plot-suggestions">
+            {fields.map((f) => (
+              <option key={f.id} value={f.name} />
+            ))}
+          </datalist>
+        </FieldGroup>
+      )}
     </>
   );
 }
 
-function SampleFields({ fields }: { fields: FieldOption[] }) {
+function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harvestTickets: HarvestTicketOption[] }) {
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
 
   return (
@@ -61,17 +122,12 @@ function SampleFields({ fields }: { fields: FieldOption[] }) {
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">Delivery Identity</h2>
         <div className="grid grid-cols-4 gap-3">
-          <FieldGroup label="Serial Number (Receipt)">
-            <Input name="receiptNoteNo" />
-          </FieldGroup>
+          <SerialPlotPicker tickets={harvestTickets} fields={fields} />
           <FieldGroup label="Variety">
             <Input name="varietyName" />
           </FieldGroup>
           <FieldGroup label="Sample No.">
             <Input name="sampleNo" required />
-          </FieldGroup>
-          <FieldGroup label="Plot Number">
-            <PlotInput fields={fields} />
           </FieldGroup>
           <FieldGroup label="Crates Received">
             <Input name="numberOfBoxesReceived" type="number" step="1" min="0" />
