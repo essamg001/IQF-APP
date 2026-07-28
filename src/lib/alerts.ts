@@ -86,6 +86,38 @@ export async function raiseMicrobiologyRejectionAlert(params: {
 }
 
 /**
+ * Fired when a lot's two microbiology results disagree -- one lab Approved
+ * it, the other Failed it. We can't tell yet which lab is right, so every
+ * lot from the same shift goes on hold pending further testing, not just the
+ * one sampled lot. Idempotent: does nothing if the shift is already on hold,
+ * so re-running the check after the fact (or on a sibling lot's result)
+ * doesn't reset the hold timer or spam duplicate alerts.
+ */
+export async function raiseShiftOnHoldAlert(params: { shiftId: string; reason: string }) {
+  const shift = await prisma.shiftLog.findUnique({ where: { id: params.shiftId } });
+  if (!shift || shift.onHold) return;
+
+  await prisma.shiftLog.update({
+    where: { id: params.shiftId },
+    data: { onHold: true, holdReason: params.reason, holdSince: new Date() },
+  });
+
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "SHIFT_ON_HOLD",
+        relatedEntityType: "SHIFT_ON_HOLD",
+        relatedEntityId: params.shiftId,
+        targetRole: role,
+        message: params.reason,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Shift On Hold", params.reason)));
+  }
+}
+
+/**
  * Fired the moment any inspection checkpoint (Pre-Decap, Post-Decap, Arrival
  * at Factory, Post-Freeze) is logged with a value outside its own printed
  * tolerance. The point is to catch it immediately -- before that produce
@@ -207,7 +239,15 @@ async function checkLowStock() {
   for (const [key, needed] of neededByKey) {
     const [grade, format] = key.split(":") as ["A" | "B", "WHOLE" | "SLICED" | "DICED"];
     const available = await prisma.pallet.count({
-      where: { status: "IN_STORAGE", lot: { grade, format, microbiologyResult: { status: "APPROVED" } } },
+      where: {
+        status: "IN_STORAGE",
+        lot: {
+          grade,
+          format,
+          shift: { is: { onHold: false } },
+          microbiologyResults: { every: { status: "APPROVED" }, some: {} },
+        },
+      },
     });
     if (available >= needed) continue;
 
@@ -225,9 +265,13 @@ async function checkMicrobiologyPending() {
   });
 
   for (const m of pending) {
-    if (differenceInDays(new Date(), m.lot.createdAt) < MICRO_PENDING_DAYS_THRESHOLD) continue;
-    const message = `Lot ${m.lot.lotNumber} has been awaiting microbiology results for ${differenceInDays(new Date(), m.lot.createdAt)} day(s).`;
-    await upsertAlert("MICROBIOLOGY_PENDING", m.lotId, "QUALITY", message);
-    await upsertAlert("MICROBIOLOGY_PENDING", m.lotId, "PRODUCTION", message);
+    const days = differenceInDays(new Date(), m.lot.createdAt);
+    if (days < MICRO_PENDING_DAYS_THRESHOLD) continue;
+    const labLabel = m.labType === "IN_HOUSE" ? "In-House" : "External";
+    const message = `Lot ${m.lot.lotNumber} has been awaiting its ${labLabel} lab result for ${days} day(s).`;
+    // Keyed per result (not per lot) since a lot now has two independent
+    // results, each of which can be pending on its own schedule.
+    await upsertAlert("MICROBIOLOGY_PENDING", m.id, "QUALITY", message);
+    await upsertAlert("MICROBIOLOGY_PENDING", m.id, "PRODUCTION", message);
   }
 }

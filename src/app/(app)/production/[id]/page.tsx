@@ -22,12 +22,15 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
       shift: { include: { factory: true } },
       factory: true,
       field: true,
-      microbiologyResult: true,
+      microbiologyResults: { include: { testLines: true } },
       pallets: { include: { coldRoom: true, client: true }, orderBy: { palletNumber: "asc" } },
       qualityChecks: true,
     },
   });
   if (!lot) notFound();
+
+  const inHouseResult = lot.microbiologyResults.find((r) => r.labType === "IN_HOUSE");
+  const externalResult = lot.microbiologyResults.find((r) => r.labType === "EXTERNAL");
 
   // Fruit is mixed at the decap facility before being split across both
   // factories, so a lot's fruit isn't traceable to one exact field -- this is
@@ -77,6 +80,17 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </Card>
 
+      {lot.shift.onHold && (
+        <Card className="border-red-300 bg-red-50">
+          <h2 className="text-sm font-semibold text-red-800">Shift On Hold — Split Microbiology Result</h2>
+          <p className="mt-1 text-sm text-red-700">{lot.shift.holdReason}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            On hold since {lot.shift.holdSince ? format(lot.shift.holdSince, "dd MMM yyyy HH:mm") : "—"}. Every lot from
+            this shift is blocked from loading/sale until this is released from the Lab section.
+          </p>
+        </Card>
+      )}
+
       <Card>
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-900">Microbiology / Lab Clearance Approval</h2>
@@ -85,59 +99,15 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
           </LinkButton>
         </div>
         <p className="mt-1 text-xs text-slate-500">
-          Pallets cannot ship until this lot is approved. Dispatch, results, and the certificate file are managed
-          from the Lab section — this is a read-only summary.
+          Every lot is tested in both our in-house lab and an external lab. Pallets cannot ship until both come back
+          Approved — dispatch, results, and certificate files are managed from the Lab section; this is a read-only
+          summary.
         </p>
 
-        <div className="mt-4 flex items-center gap-2">
-          <Badge
-            color={
-              lot.microbiologyResult?.status === "APPROVED"
-                ? "green"
-                : lot.microbiologyResult?.status === "FAILED_MINOR"
-                  ? "amber"
-                  : lot.microbiologyResult?.status === "FAILED_SEVERE"
-                    ? "red"
-                    : lot.microbiologyResult?.status === "SENT_TO_LAB"
-                      ? "blue"
-                      : "slate"
-          }
-          >
-            {(lot.microbiologyResult?.status ?? "PENDING").replace(/_/g, " ")}
-          </Badge>
-          {lot.microbiologyResult?.certificateFileName && (
-            <a
-              href={`/api/files/certificates/${lot.microbiologyResult.certificateFileName}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-emerald-700 hover:underline"
-            >
-              View certificate
-            </a>
-          )}
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <MicroResultSummary label="In-House Lab" result={inHouseResult} />
+          <MicroResultSummary label="External Lab" result={externalResult} />
         </div>
-
-        {lot.microbiologyResult && (lot.microbiologyResult.certificateNumber || lot.microbiologyResult.labName || lot.microbiologyResult.sentDate) && (
-          <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-1 rounded-md bg-slate-50 p-3 text-xs">
-            <Row label="Sent to lab" value={lot.microbiologyResult.sentDate ? format(lot.microbiologyResult.sentDate, "dd MMM yyyy") : undefined} />
-            <Row label="Tracking ref" value={lot.microbiologyResult.trackingRef} />
-            <Row label="Certificate #" value={lot.microbiologyResult.certificateNumber} />
-            <Row label="Lab" value={lot.microbiologyResult.labName} />
-            <Row label="Method" value={lot.microbiologyResult.methodName} />
-            <Row label="Sample ID" value={lot.microbiologyResult.sampleId} />
-            <Row label="Protocol #" value={lot.microbiologyResult.protocolNumber} />
-            <Row label="Sampling bag serial" value={lot.microbiologyResult.samplingBagSerial} />
-            <Row label="Sampling place" value={lot.microbiologyResult.samplingPlace} />
-            <Row label="Analysis period" value={dateRange(lot.microbiologyResult.analysisStartDate, lot.microbiologyResult.analysisEndDate)} />
-            <Row label="Person in charge" value={lot.microbiologyResult.personInCharge} />
-            {lot.microbiologyResult.resultsSummary && (
-              <div className="col-span-3">
-                <dt className="text-slate-400">Results</dt>
-                <dd className="text-slate-700">{lot.microbiologyResult.resultsSummary}</dd>
-              </div>
-            )}
-          </dl>
-        )}
       </Card>
 
       <Card>
@@ -210,4 +180,103 @@ function dateRange(start?: Date | null, end?: Date | null) {
   const fmt = (d: Date) => format(d, "dd MMM yyyy");
   if (start && end) return `${fmt(start)} – ${fmt(end)}`;
   return fmt((start ?? end) as Date);
+}
+
+type MicroResult = {
+  status: string;
+  certificateFileName: string | null;
+  certificateNumber: string | null;
+  labName: string | null;
+  sentDate: Date | null;
+  trackingRef: string | null;
+  methodName: string | null;
+  sampleId: string | null;
+  protocolNumber: string | null;
+  samplingBagSerial: string | null;
+  samplingPlace: string | null;
+  sampleCode: string | null;
+  sampleType: string | null;
+  analysisStartDate: Date | null;
+  analysisEndDate: Date | null;
+  personInCharge: string | null;
+  resultsSummary: string | null;
+  recommendation: string | null;
+  testLines: { testName: string | null; result: string | null; unit: string | null; methodRef: string | null }[];
+} | undefined;
+
+function MicroResultSummary({ label, result }: { label: string; result: MicroResult }) {
+  const status = result?.status ?? "PENDING";
+  return (
+    <div className="rounded-md border border-slate-200 p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-800">{label}</p>
+        <Badge
+          color={
+            status === "APPROVED"
+              ? "green"
+              : status === "FAILED_MINOR"
+                ? "amber"
+                : status === "FAILED_SEVERE"
+                  ? "red"
+                  : status === "SENT_TO_LAB"
+                    ? "blue"
+                    : "slate"
+          }
+        >
+          {status.replace(/_/g, " ")}
+        </Badge>
+      </div>
+      {result?.certificateFileName && (
+        <a
+          href={`/api/files/certificates/${result.certificateFileName}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-block text-xs text-emerald-700 hover:underline"
+        >
+          View certificate
+        </a>
+      )}
+      {result && (result.certificateNumber || result.labName || result.sentDate || result.sampleCode) && (
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-slate-50 p-3 text-xs">
+          <Row label="Sent to lab" value={result.sentDate ? format(result.sentDate, "dd MMM yyyy") : undefined} />
+          <Row label="Tracking ref" value={result.trackingRef} />
+          <Row label="Certificate #" value={result.certificateNumber} />
+          <Row label="Sample Code" value={result.sampleCode} />
+          <Row label="Lab" value={result.labName} />
+          <Row label="Method" value={result.methodName} />
+          <Row label="Sample ID" value={result.sampleId} />
+          <Row label="Sample Type" value={result.sampleType} />
+          <Row label="Protocol #" value={result.protocolNumber} />
+          <Row label="Sampling bag serial" value={result.samplingBagSerial} />
+          <Row label="Sampling place" value={result.samplingPlace} />
+          <Row label="Analysis period" value={dateRange(result.analysisStartDate, result.analysisEndDate)} />
+          <Row label="Person in charge" value={result.personInCharge} />
+          {result.testLines.length > 0 && (
+            <div className="col-span-2">
+              <dt className="text-slate-400">Tests</dt>
+              <dd className="text-slate-700">
+                {result.testLines.map((t, i) => (
+                  <div key={i}>
+                    {t.testName}: {t.result ?? "—"} {t.unit ?? ""}
+                  </div>
+                ))}
+              </dd>
+            </div>
+          )}
+          {result.resultsSummary && (
+            <div className="col-span-2">
+              <dt className="text-slate-400">Results</dt>
+              <dd className="text-slate-700">{result.resultsSummary}</dd>
+            </div>
+          )}
+          {result.recommendation && (
+            <div className="col-span-2">
+              <dt className="text-slate-400">Recommendation</dt>
+              <dd className="text-slate-700">{result.recommendation}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+    </div>
+  );
 }

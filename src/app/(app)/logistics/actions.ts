@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { raiseMicrobiologyLoadAttemptAlert } from "@/lib/alerts";
+import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
 
 const containerSchema = z.object({
   orderId: z.string().min(1),
@@ -93,7 +94,7 @@ const MAX_LOTS_PER_CONTAINER = 2;
 async function palletWithRemaining(palletId: string) {
   const pallet = await prisma.pallet.findUniqueOrThrow({
     where: { id: palletId },
-    include: { lot: { include: { microbiologyResult: true } } },
+    include: { lot: { include: { microbiologyResults: true, shift: true } } },
   });
   const lines = await prisma.containerPalletLine.findMany({ where: { palletId } });
   const loaded = lines.reduce((s, l) => s + l.quantityTonnes, 0);
@@ -118,8 +119,8 @@ export async function addPalletLoadLineAction(
 
   const { pallet, remaining } = await palletWithRemaining(parsed.data.palletId);
 
-  const microStatus = pallet.lot.microbiologyResult?.status ?? "PENDING";
-  if (microStatus !== "APPROVED") {
+  const microStatus = combinedMicroStatus(pallet.lot.microbiologyResults, pallet.lot.shift.onHold);
+  if (!isMicroCleared(pallet.lot.microbiologyResults, pallet.lot.shift.onHold)) {
     const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
     await raiseMicrobiologyLoadAttemptAlert({
       palletId: pallet.id,
@@ -128,7 +129,8 @@ export async function addPalletLoadLineAction(
       containerNumber: container.containerNumber,
       microStatus,
     });
-    return `Blocked: Lot ${pallet.lot.lotNumber} has not passed microbiology approval (status: ${microStatus.replace("_", " ")}). Quality has been alerted.`;
+    const statusLabel = microStatus === "ON_HOLD" ? "shift on hold — split microbiology result" : microStatus.replace("_", " ");
+    return `Blocked: Lot ${pallet.lot.lotNumber} has not cleared microbiology (both labs required — status: ${statusLabel}). Quality has been alerted.`;
   }
 
   if (pallet.stickeringRequired && !pallet.stickeringCompletedAt) {

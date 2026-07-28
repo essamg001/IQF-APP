@@ -115,7 +115,12 @@ async function main() {
       fieldId: fieldA.id,
       grade: "A",
       format: "WHOLE",
-      microbiologyResult: { create: { status: "APPROVED", receivedDate: new Date("2026-06-17") } },
+      microbiologyResults: {
+        create: [
+          { labType: "IN_HOUSE", status: "APPROVED", receivedDate: new Date("2026-06-17") },
+          { labType: "EXTERNAL", status: "APPROVED", receivedDate: new Date("2026-06-17") },
+        ],
+      },
       qualityChecks: {
         create: [
           {

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { markWasteAction } from "../../production/actions";
+import { combinedMicroStatus } from "@/lib/microbiology";
 
 const STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -19,7 +20,7 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
   const pallet = await prisma.pallet.findUnique({
     where: { id: palletId },
     include: {
-      lot: { include: { field: true, factory: true, shift: true, microbiologyResult: true } },
+      lot: { include: { field: true, factory: true, shift: true, microbiologyResults: true } },
       coldRoom: true,
       client: true,
       order: true,
@@ -75,7 +76,7 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
             </div>
             <Row
               label="Microbiology"
-              value={(pallet.lot.microbiologyResult?.status ?? "PENDING").replace("_", " ")}
+              value={combinedMicroStatus(pallet.lot.microbiologyResults, pallet.lot.shift.onHold).replace("_", " ")}
             />
             <Row label="Client (allocated)" value={pallet.client?.name} />
           </dl>

@@ -17,6 +17,7 @@ const TYPE_LABEL = {
   MICROBIOLOGY_REJECTED: "Lab Rejection",
   QUALITY_LIMIT_EXCEEDED: "Quality Limit Exceeded",
   EARLY_WARNING: "Early Warning — Trend",
+  SHIFT_ON_HOLD: "Shift On Hold",
 } as const;
 
 export default async function AlertsPage() {

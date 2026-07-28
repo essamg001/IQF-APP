@@ -47,7 +47,7 @@ export async function suggestAllocation(params: {
   const eligiblePallets = await prisma.pallet.findMany({
     where: {
       status: "IN_STORAGE",
-      lot: { grade, format, microbiologyResult: { status: "APPROVED" } },
+      lot: { grade, format, shift: { is: { onHold: false } }, microbiologyResults: { every: { status: "APPROVED" }, some: {} } },
     },
     include: { lot: { include: { qualityChecks: true } } },
     orderBy: { createdAt: "asc" },

@@ -10,11 +10,17 @@ const FORMATS: Format[] = ["WHOLE", "SLICED", "DICED"];
 export default async function AvailableToSellPage() {
   const [readyPallets, pendingMicroPallets, pendingOrders] = await Promise.all([
     prisma.pallet.findMany({
-      where: { status: "IN_STORAGE", lot: { microbiologyResult: { status: "APPROVED" } } },
+      where: {
+        status: "IN_STORAGE",
+        lot: { shift: { is: { onHold: false } }, microbiologyResults: { every: { status: "APPROVED" }, some: {} } },
+      },
       select: { weightTonnes: true, lot: { select: { grade: true, format: true } } },
     }),
     prisma.pallet.findMany({
-      where: { status: "IN_STORAGE", lot: { microbiologyResult: { status: { not: "APPROVED" } } } },
+      where: {
+        status: "IN_STORAGE",
+        lot: { OR: [{ shift: { is: { onHold: true } } }, { microbiologyResults: { some: { status: { not: "APPROVED" } } } }] },
+      },
       select: { weightTonnes: true, lot: { select: { grade: true, format: true } } },
     }),
     prisma.order.findMany({

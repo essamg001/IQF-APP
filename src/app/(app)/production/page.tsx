@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
 import { FORMAT_LABEL } from "@/lib/format";
+import { combinedMicroStatus } from "@/lib/microbiology";
 
 const MICRO_COLOR = {
   PENDING: "amber",
@@ -12,6 +13,7 @@ const MICRO_COLOR = {
   APPROVED: "green",
   FAILED_MINOR: "amber",
   FAILED_SEVERE: "red",
+  ON_HOLD: "red",
 } as const;
 
 export default async function ProductionPage() {
@@ -20,7 +22,7 @@ export default async function ProductionPage() {
       shift: true,
       factory: true,
       field: true,
-      microbiologyResult: true,
+      microbiologyResults: true,
       _count: { select: { pallets: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -71,9 +73,10 @@ export default async function ProductionPage() {
                 <td className="px-4 py-2">{FORMAT_LABEL[lot.format]}</td>
                 <td className="px-4 py-2">{lot._count.pallets}</td>
                 <td className="px-4 py-2">
-                  <Badge color={MICRO_COLOR[lot.microbiologyResult?.status ?? "PENDING"]}>
-                    {(lot.microbiologyResult?.status ?? "PENDING").replace("_", " ")}
-                  </Badge>
+                  {(() => {
+                    const micro = combinedMicroStatus(lot.microbiologyResults, lot.shift.onHold);
+                    return <Badge color={MICRO_COLOR[micro]}>{micro.replace("_", " ")}</Badge>;
+                  })()}
                 </td>
               </tr>
             ))}

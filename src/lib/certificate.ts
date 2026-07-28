@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { parseBrixRange } from "@/lib/allocation";
+import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
 
 function avg(nums: number[]) {
   return nums.length ? nums.reduce((s, n) => s + n, 0) / nums.length : null;
@@ -57,7 +58,7 @@ async function fetchContainerForCertificate(containerId: string) {
           pallet: {
             include: {
               lot: {
-                include: { field: true, factory: true, shift: true, microbiologyResult: true, qualityChecks: true },
+                include: { field: true, factory: true, shift: true, microbiologyResults: true, qualityChecks: true },
               },
             },
           },
@@ -78,8 +79,10 @@ export function computeCertificateGate(container: ContainerForCertificate): Cert
     reasons.push("No pallets have been loaded into this container yet.");
   }
   for (const lot of distinctLots) {
-    if (lot.microbiologyResult?.status !== "APPROVED") {
-      reasons.push(`Lot ${lot.lotNumber}: lab clearance is ${(lot.microbiologyResult?.status ?? "PENDING").replace(/_/g, " ").toLowerCase()}, not approved.`);
+    if (!isMicroCleared(lot.microbiologyResults, lot.shift.onHold)) {
+      const status = combinedMicroStatus(lot.microbiologyResults, lot.shift.onHold);
+      const label = status === "ON_HOLD" ? "shift is on hold (split microbiology result)" : `lab clearance is ${status.replace(/_/g, " ").toLowerCase()}, not both approved`;
+      reasons.push(`Lot ${lot.lotNumber}: ${label}.`);
     }
   }
   if (!container.loadOutSignedAt) reasons.push("Load-out representative has not signed off.");
@@ -117,14 +120,14 @@ export async function computeContainerCertificateData(containerId: string): Prom
   const foreignOdor = checksForCert.find((c) => c.foreignOdor)?.foreignOdor ?? "NIL";
   const foreignTaste = checksForCert.find((c) => c.foreignTaste)?.foreignTaste ?? "NIL";
 
-  const allApproved = distinctLots.every((l) => l.microbiologyResult?.status === "APPROVED");
+  const allApproved = distinctLots.every((l) => isMicroCleared(l.microbiologyResults, l.shift.onHold));
   const microDate = distinctLots
-    .map((l) => l.microbiologyResult?.receivedDate)
+    .flatMap((l) => l.microbiologyResults.map((m) => m.receivedDate))
     .filter((d): d is Date => !!d)
     .sort((a, b) => b.getTime() - a.getTime())[0];
   const microCerts = distinctLots
-    .map((l) => l.microbiologyResult)
-    .filter((m): m is NonNullable<typeof m> => !!m?.certificateNumber)
+    .flatMap((l) => l.microbiologyResults)
+    .filter((m): m is typeof m & { certificateNumber: string } => !!m.certificateNumber)
     .map((m) => ({ certificateNumber: m.certificateNumber, labName: m.labName }));
 
   const spec = container.order.client.specs.find(

@@ -93,7 +93,7 @@ export async function createLotAction(_prevState: string | undefined, formData: 
       grade: parsed.data.grade,
       format: parsed.data.format,
       isEndOfDayGradeB: parsed.data.isEndOfDayGradeB,
-      microbiologyResult: { create: {} },
+      microbiologyResults: { create: [{ labType: "IN_HOUSE" }, { labType: "EXTERNAL" }] },
       pallets: {
         create: Array.from({ length: parsed.data.palletCount }, (_, i) => ({
           palletNumber: `${lotNumber}-P${i + 1}`,

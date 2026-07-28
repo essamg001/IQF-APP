@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import type { Grade, MicrobiologyStatus } from "@prisma/client";
+import type { Grade } from "@prisma/client";
+import { combinedMicroStatus, type CombinedMicroStatus } from "@/lib/microbiology";
 
 export type PalletQualitySnapshot = {
   grade: Grade;
-  microbiologyStatus: MicrobiologyStatus;
+  microbiologyStatus: CombinedMicroStatus;
   brix: number | null;
   mouldPct: number | null;
   internalQualityPct: number | null;
@@ -29,7 +30,7 @@ export async function getPalletQualitySnapshots(
   const [lots, palletChecks, lotChecks] = await Promise.all([
     prisma.productionLot.findMany({
       where: { id: { in: lotIds } },
-      include: { microbiologyResult: true },
+      include: { microbiologyResults: true, shift: true },
     }),
     prisma.qualityCheck.findMany({
       where: { palletId: { in: pallets.map((p) => p.id) }, checkpoint: "POST_PACKAGING" },
@@ -55,7 +56,7 @@ export async function getPalletQualitySnapshots(
   for (const p of pallets) {
     const lot = lotById.get(p.lotId);
     const grade = lot?.grade ?? "A";
-    const microbiologyStatus = lot?.microbiologyResult?.status ?? "PENDING";
+    const microbiologyStatus = lot ? combinedMicroStatus(lot.microbiologyResults, lot.shift.onHold) : "PENDING";
 
     const palletCheck = latestPalletCheck.get(p.id);
     if (palletCheck) {

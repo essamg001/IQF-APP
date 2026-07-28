@@ -74,6 +74,15 @@ enum MicrobiologyStatus {
   FAILED_SEVERE
 }
 
+// Every lot gets a sample tested in both -- neither is a substitute for the
+// other. A pallet only clears once both come back Approved; if they
+// disagree (one Approved, one Failed) the whole shift goes on hold pending
+// further testing, since we can't yet tell which lab is right.
+enum LabType {
+  IN_HOUSE
+  EXTERNAL
+}
+
 enum OrderStage {
   CONFIRMED
   IN_PRODUCTION
@@ -111,6 +120,7 @@ enum AlertType {
   MICROBIOLOGY_REJECTED
   QUALITY_LIMIT_EXCEEDED
   EARLY_WARNING
+  SHIFT_ON_HOLD
 }
 
 enum AlertStatus {
@@ -418,6 +428,17 @@ model ShiftLog {
   workerCount Int
   createdAt   DateTime  @default(now())
 
+  // Set when a lot from this shift gets a split microbiology result (one lab
+  // approves, the other fails) -- every lot from the same shift is held
+  // until further testing resolves the disagreement, since the contamination
+  // risk isn't known to be specific to just the one sampled lot.
+  onHold             Boolean   @default(false)
+  holdReason         String?
+  holdSince          DateTime?
+  holdResolvedAt     DateTime?
+  holdResolvedBy     String?
+  holdResolutionNote String?
+
   lots ProductionLot[]
 
   @@index([factoryId, date])
@@ -442,7 +463,7 @@ model ProductionLot {
 
   pallets            Pallet[]
   qualityChecks      QualityCheck[]
-  microbiologyResult MicrobiologyResult?
+  microbiologyResults MicrobiologyResult[]
 
   @@index([factoryId, grade])
 }
@@ -661,37 +682,60 @@ model QualityCheck {
   @@index([palletId])
 }
 
-// "Microbiology" here is used the way the factory uses it: whichever external
-// lab clearance is required before a lot can ship — in practice this can be a
-// residue/contaminant panel (e.g. chlorates & perchlorates) rather than a
-// literal pathogen test. One certificate gates one lot.
+// A sample from every lot/shift is tested in BOTH our in-house lab and an
+// external lab -- one row per (lot, labType), never a substitute for each
+// other. See raiseShiftOnHoldAlert in src/lib/alerts.ts for what happens
+// when the two disagree.
 model MicrobiologyResult {
   id           String             @id @default(cuid())
-  lotId        String             @unique
+  lotId        String
   lot          ProductionLot      @relation(fields: [lotId], references: [id])
+  labType      LabType
   status       MicrobiologyStatus @default(PENDING)
   receivedDate DateTime?
   notes        String?
 
   // Dispatch — when the sample was actually sent out to the lab, tracked
   // separately from the result so the lab rep can see what's in flight.
+  // Not applicable to the in-house lab, which tests on-site.
   sentDate     DateTime?
   sentByUserId String?
   sentBy       User?     @relation("MicrobiologySentBy", fields: [sentByUserId], references: [id])
   trackingRef  String?
 
-  // Fields transcribed from the lab's own test certificate.
+  // Fields transcribed from an external lab's own residue/contaminant
+  // certificate (e.g. chlorates & perchlorates), rather than a literal
+  // pathogen panel -- left blank for in-house results.
   certificateNumber String? // e.g. "Dokki-434301"
   labName           String? // e.g. "QCAP — Central Laboratory of Residue Analysis of Pesticides and Heavy Metals in Food"
   sampleId          String? // e.g. "Dokki-2026-170105"
   protocolNumber    String? // e.g. "MAFA 04- IQF UNIT (11) LOT-M41126146-1" — the lab's own reference, distinct from our lotNumber
   samplingBagSerial String? // the certificate's own "Lot Number" field is actually this, not our lot number — kept distinct to avoid confusion
   samplingPlace     String? // e.g. "M4 FARM" — free text, not forced to match a Field record exactly
-  analysisStartDate DateTime?
-  analysisEndDate   DateTime?
-  methodName        String? // e.g. "Chlorates & Perchlorates"
+  methodName        String? // e.g. "Chlorates & Perchlorates" -- single-panel external certs only; in-house uses testLines below
+
+  // Fields transcribed from the in-house lab's own certificate (QR MIC
+  // 13/100 "Microbiology Analysis Results") -- left blank for external
+  // results, which use the fields above instead.
+  sampleCode      String? // "Sample Code" -- distinct from sampleId (external) and our own lotNumber
+  clientName      String? // "Client" -- the requesting entity, not a sales client
+  clientAddress   String?
+  sampleType      String?
+  sampleData      String? // "Data of Sample" (بيانات العينة)
+  otherData       String? // "Other Data" (بيانات آخري)
+  reportDate      DateTime?
+  recommendation  String?
+  preparedBy      String? // Documents Section
+  reviewedBy      String? // Head Section Lab
+  approvedBy      String? // Labs Director
+
+  // Shared by both lab types.
+  analysisStartDate DateTime? // "Analysis Date" / "Sample Received on" period start
+  analysisEndDate   DateTime? // "Analysis ended in"
   personInCharge    String?
-  resultsSummary    String? // free text since the tested compounds/panel vary by certificate
+  resultsSummary    String? // free text catch-all; testLines below is the structured form
+
+  testLines MicrobiologyTestLine[]
 
   // The certificate file itself, stored on local disk outside public/ and
   // only ever served through an authenticated route — see src/lib/files.ts.
@@ -704,6 +748,24 @@ model MicrobiologyResult {
   correctiveAction       String? // what was done about it
 
   createdAt DateTime @default(now())
+
+  @@unique([lotId, labType])
+}
+
+// The in-house certificate's repeatable "Tests" table -- e.g. "Aerobic total
+// plate count 30°C" / "CFU/gm" / "ISO 4833 2013". `result` is free text since
+// a reading can be a count, "<10", or "Not Detected".
+model MicrobiologyTestLine {
+  id                   String             @id @default(cuid())
+  microbiologyResultId String
+  microbiologyResult   MicrobiologyResult @relation(fields: [microbiologyResultId], references: [id], onDelete: Cascade)
+
+  testName  String?
+  result    String?
+  unit      String?
+  methodRef String?
+
+  @@index([microbiologyResultId])
 }
 
 model Waste {
