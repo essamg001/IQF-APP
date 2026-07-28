@@ -124,8 +124,7 @@ export async function raiseQualityLimitAlert(params: {
  * readings are moving toward a limit, not just a single bad one. Doesn't
  * touch overrideStatus -- nothing has actually breached spec yet, so there's
  * nothing to block or sign off on, just a heads-up to go look at the field
- * before it becomes a real problem. Targeted at Quality/Production only
- * (not Owner) since it's advisory, not a production-blocking event.
+ * before it becomes a real problem.
  */
 export async function raiseFieldTrendAlert(params: {
   fieldId: string;
@@ -137,7 +136,7 @@ export async function raiseFieldTrendAlert(params: {
   const warningText = params.warnings.map(formatTrendWarning).join("; ");
   const message = `${params.checkpointLabel} — ${params.identifier}: quality trending toward its limit — ${warningText}.`;
 
-  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
     await upsertAlert("EARLY_WARNING", params.fieldId, role, message);
   }
 }
