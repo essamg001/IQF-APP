@@ -102,6 +102,8 @@ export async function raiseQualityLimitAlert(params: {
   const violationText = params.violations.map(formatViolation).join("; ");
   const message = `${params.checkpointLabel} — ${params.identifier}: out of spec — ${violationText}.`;
 
+  await prisma.qualityCheck.update({ where: { id: params.checkId }, data: { overrideStatus: "PENDING" } });
+
   for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
     await prisma.alert.create({
       data: {

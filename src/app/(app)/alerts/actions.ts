@@ -1,9 +1,63 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 export async function markAlertReadAction(alertId: string) {
   await prisma.alert.update({ where: { id: alertId }, data: { status: "READ" } });
   revalidatePath("/alerts");
+}
+
+async function resolveRelatedAlerts(checkId: string) {
+  await prisma.alert.updateMany({
+    where: { relatedEntityId: checkId, type: "QUALITY_LIMIT_EXCEEDED" },
+    data: { status: "READ" },
+  });
+}
+
+export async function rejectQualityCheckAction(checkId: string) {
+  const session = await auth();
+  await prisma.qualityCheck.update({
+    where: { id: checkId },
+    data: {
+      overrideStatus: "REJECTED",
+      overrideByName: session?.user.name ?? session?.user.email ?? "Unknown",
+      overrideAt: new Date(),
+    },
+  });
+  await resolveRelatedAlerts(checkId);
+  revalidatePath("/alerts");
+}
+
+const approveAtRiskSchema = z.object({
+  name: z.string().min(1, "Name is required."),
+  signature: z.string().min(1, "Signature is required."),
+  note: z.string().optional(),
+});
+
+export async function approveAtRiskAction(checkId: string, _prevState: string | undefined, formData: FormData) {
+  const parsed = approveAtRiskSchema.safeParse({
+    name: formData.get("name"),
+    signature: formData.get("signature"),
+    note: formData.get("note") || undefined,
+  });
+  if (!parsed.success) {
+    return parsed.error.issues[0]?.message ?? "Invalid input.";
+  }
+
+  await prisma.qualityCheck.update({
+    where: { id: checkId },
+    data: {
+      overrideStatus: "APPROVED_AT_RISK",
+      overrideByName: parsed.data.name,
+      overrideSignature: parsed.data.signature,
+      overrideNote: parsed.data.note,
+      overrideAt: new Date(),
+    },
+  });
+  await resolveRelatedAlerts(checkId);
+  revalidatePath("/alerts");
+  return "ok";
 }

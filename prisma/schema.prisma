@@ -128,6 +128,16 @@ enum QualityDecision {
   REJECTED
 }
 
+// The call a responsible person makes once a QualityCheck trips a
+// QUALITY_LIMIT_EXCEEDED alert -- separate from the inspector's own
+// ACCEPTED/REJECTED decision on the form, since this is a second, senior
+// review specifically of the out-of-spec reading itself.
+enum QualityOverrideStatus {
+  PENDING
+  REJECTED
+  APPROVED_AT_RISK
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -525,6 +535,15 @@ model QualityCheck {
   firmnessScore Float?
 
   notes String?
+
+  // Set only when this check trips a QUALITY_LIMIT_EXCEEDED alert -- the
+  // responsible person's call on whether to reject outright or sign off to
+  // proceed at their own risk, made from the Alerts page.
+  overrideStatus    QualityOverrideStatus?
+  overrideByName    String?
+  overrideSignature String?
+  overrideNote      String?
+  overrideAt        DateTime?
 
   inspectorId String?
   inspector   User? @relation(fields: [inspectorId], references: [id])
