@@ -5,21 +5,29 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
 export default async function QualityPage() {
+  // Both checkpoints are filled in automatically from their own dedicated
+  // fast-entry screens -- Raw Material Intake from Arrival Inspection at
+  // Factory, Post-Packaging/Final Product from Post-Freeze Inspection --
+  // rather than re-entered here. This page is a read-only rollup of both.
   const checks = await prisma.qualityCheck.findMany({
-    // Standalone arrival-inspection checks (no lot yet) live on their own
-    // dedicated page — this dashboard is lot-tied checks only.
-    where: { lotId: { not: null } },
+    where: { checkpoint: { in: ["RAW_MATERIAL", "POST_PACKAGING"] } },
     include: { lot: { include: { shift: { include: { factory: true } } } }, inspector: true },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
 
+  // Shift averages only make sense for Post-Packaging checks -- they're tied
+  // to a production lot (and therefore a shift/factory). Raw Material checks
+  // happen at the receiving dock before a lot exists, so they have no shift
+  // (a handful of older Raw Material rows created before this checkpoint was
+  // decoupled from lots still carry a lotId -- excluded explicitly here too).
+  const lotTiedChecks = checks.filter((c) => c.checkpoint === "POST_PACKAGING" && c.lot);
+
   const shiftGroups = new Map<
     string,
     { label: string; factory: string; brix: number[]; mould: number[]; skin: number[]; internal: number[] }
   >();
-  for (const c of checks) {
-    // Guaranteed non-null by the lotId-not-null filter above.
+  for (const c of lotTiedChecks) {
     const shift = c.lot!.shift;
     const key = shift.id;
     if (!shiftGroups.has(key)) {
@@ -45,13 +53,21 @@ export default async function QualityPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Quality Reports</h1>
-          <p className="mt-1 text-sm text-slate-500">Raw-material and post-packaging checks, tied to production lots.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Raw Material Intake and Post-Packaging/Final Product checks — filled in automatically from Arrival
+            Inspection at Factory and Post-Freeze Inspection as they&apos;re logged.
+          </p>
         </div>
-        <LinkButton href="/quality/new">Log Quality Check</LinkButton>
+        <div className="flex gap-2">
+          <LinkButton href="/arrival-inspection" variant="secondary">
+            Log Arrival Inspection
+          </LinkButton>
+          <LinkButton href="/post-freeze-inspection">Log Post-Freeze Inspection</LinkButton>
+        </div>
       </div>
 
       <Card className="overflow-x-auto p-0">
-        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Shift Averages</h2>
+        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Shift Averages (Post-Packaging)</h2>
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
@@ -77,7 +93,7 @@ export default async function QualityPage() {
             {shiftGroups.size === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                  No quality checks logged yet.
+                  No Post-Packaging checks logged yet.
                 </td>
               </tr>
             )}
@@ -105,9 +121,13 @@ export default async function QualityPage() {
             {checks.map((c) => (
               <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <a href={`/production/${c.lot!.id}`} className="text-emerald-700 hover:underline">
-                    {c.lot!.lotNumber}
-                  </a>
+                  {c.lot ? (
+                    <a href={`/production/${c.lot.id}`} className="text-emerald-700 hover:underline">
+                      {c.lot.lotNumber}
+                    </a>
+                  ) : (
+                    <span className="text-slate-500">{c.receiptNoteNo ?? c.sampleNo ?? "—"}</span>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   <Badge color={c.checkpoint === "RAW_MATERIAL" ? "blue" : "green"}>
