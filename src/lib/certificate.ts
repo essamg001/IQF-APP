@@ -18,7 +18,11 @@ export type CertificateData = {
   lotNumbers: string[];
   fieldNames: string[];
   factoryNames: string[];
-  productionDate: string | null;
+  // A range, not a single date -- a container's lots don't have to share a
+  // production day (see the max-lots-per-container policy), so picking just
+  // one lot's date would misstate the true production window on the cert.
+  productionDateStart: string | null;
+  productionDateEnd: string | null;
   palletCount: number;
   totalTonnes: number;
   isPostPackaging: boolean;
@@ -106,7 +110,7 @@ export async function computeContainerCertificateData(containerId: string): Prom
 
   const lots = new Map(container.palletLines.map((l) => [l.pallet.lot.id, l.pallet.lot]));
   const distinctLots = [...lots.values()];
-  const primaryLot = distinctLots[0];
+  const shiftDates = distinctLots.map((l) => l.shift.date).sort((a, b) => a.getTime() - b.getTime());
 
   const postChecks = distinctLots.flatMap((l) => l.qualityChecks.filter((q) => q.checkpoint === "POST_PACKAGING"));
   const checksForCert = postChecks.length
@@ -165,7 +169,8 @@ export async function computeContainerCertificateData(containerId: string): Prom
     lotNumbers: distinctLots.map((l) => l.lotNumber),
     fieldNames: [...new Set(distinctLots.map((l) => l.field.name))],
     factoryNames: [...new Set(distinctLots.map((l) => l.factory.name))],
-    productionDate: primaryLot ? primaryLot.shift.date.toISOString() : null,
+    productionDateStart: shiftDates[0] ? shiftDates[0].toISOString() : null,
+    productionDateEnd: shiftDates[shiftDates.length - 1] ? shiftDates[shiftDates.length - 1].toISOString() : null,
     palletCount: container.palletLines.length,
     totalTonnes,
     isPostPackaging: postChecks.length > 0,

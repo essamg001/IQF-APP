@@ -73,7 +73,13 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
   }
 
   const canApprove = session?.user && ["QUALITY", "OWNER"].includes(session.user.role);
-  const productionDate = data.productionDate ? new Date(data.productionDate) : null;
+  const productionDateStart = data.productionDateStart ? new Date(data.productionDateStart) : null;
+  const productionDateEnd = data.productionDateEnd ? new Date(data.productionDateEnd) : null;
+  const productionDateLabel = productionDateStart
+    ? productionDateEnd && productionDateEnd.getTime() !== productionDateStart.getTime()
+      ? `${format(productionDateStart, "dd MMM yyyy")} – ${format(productionDateEnd, "dd MMM yyyy")}`
+      : format(productionDateStart, "dd MMM yyyy")
+    : "—";
   const microDate = data.microDate ? new Date(data.microDate) : null;
 
   return (
@@ -231,9 +237,9 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
             <dd>{data.fieldNames.join(", ")}</dd>
           </dl>
           <dl className="ca-field">
-            <dt>Production Date</dt>
+            <dt>Production Date{productionDateEnd && productionDateStart && productionDateEnd.getTime() !== productionDateStart.getTime() ? " Range" : ""}</dt>
             <dd>
-              {productionDate ? format(productionDate, "dd MMM yyyy") : "—"} &middot; {data.factoryNames.join(", ")}
+              {productionDateLabel} &middot; {data.factoryNames.join(", ")}
             </dd>
             <dt>Quantity Shipped</dt>
             <dd>
