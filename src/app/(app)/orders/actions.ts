@@ -89,17 +89,38 @@ export async function allocatePalletsAction(orderId: string) {
 
 const STAGE_ORDER = ["CONFIRMED", "IN_PRODUCTION", "PACKED", "SHIPPED", "DELIVERED", "PAID"] as const;
 
-export async function advanceOrderStageAction(orderId: string) {
-  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+export async function advanceOrderStageAction(
+  orderId: string,
+  _prevState: string | undefined,
+  _formData: FormData
+) {
+  const order = await prisma.order.findUniqueOrThrow({
+    where: { id: orderId },
+    include: { pallets: { select: { status: true, palletNumber: true } } },
+  });
   const idx = STAGE_ORDER.indexOf(order.stage);
   const next = STAGE_ORDER[idx + 1];
   if (!next) return;
 
-  await prisma.order.update({ where: { id: orderId }, data: { stage: next } });
-
+  // Advancing to Shipped is a confirmation that shipping already happened
+  // correctly, not a command that ships things -- a pallet only ever becomes
+  // SHIPPED via addPalletLoadLineAction (logistics/actions.ts), which checks
+  // microbiology/shift-hold at the moment it's loaded. Refusing to advance
+  // until every allocated pallet is already SHIPPED means there's no second,
+  // ungated door to the same status.
   if (next === "SHIPPED") {
-    await prisma.pallet.updateMany({ where: { orderId }, data: { status: "SHIPPED" } });
+    if (order.pallets.length === 0) {
+      return "Cannot mark as Shipped: no pallets have been allocated to this order yet.";
+    }
+    const notYetShipped = order.pallets.filter((p) => p.status !== "SHIPPED");
+    if (notYetShipped.length > 0) {
+      const sample = notYetShipped.slice(0, 3).map((p) => p.palletNumber).join(", ");
+      const more = notYetShipped.length > 3 ? ` and ${notYetShipped.length - 3} more` : "";
+      return `Cannot mark as Shipped: ${notYetShipped.length} pallet(s) haven't been fully loaded into a container yet (${sample}${more}). Load them out in Logistics -- each one ships automatically once fully loaded and cleared.`;
+    }
   }
+
+  await prisma.order.update({ where: { id: orderId }, data: { stage: next } });
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");

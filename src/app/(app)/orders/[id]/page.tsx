@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { format } from "date-fns";
-import { allocatePalletsAction, advanceOrderStageAction, updateOrderValueAction } from "../actions";
+import { allocatePalletsAction, updateOrderValueAction } from "../actions";
+import { AdvanceStageButton } from "./advance-stage-button";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { FORMAT_LABEL } from "@/lib/format";
 
@@ -92,11 +93,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               </Button>
             </form>
           )}
-          {nextStage && (
-            <form action={advanceOrderStageAction.bind(null, order.id)}>
-              <Button type="submit">Advance to {STAGE_LABEL[nextStage]}</Button>
-            </form>
-          )}
+          {nextStage && <AdvanceStageButton orderId={order.id} label={STAGE_LABEL[nextStage]} />}
         </div>
       </div>
 
