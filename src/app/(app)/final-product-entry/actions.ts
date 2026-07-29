@@ -43,16 +43,17 @@ export async function createPackedPalletAction(_prevState: string | undefined, f
   const lot = await prisma.productionLot.findUnique({ where: { lotNumber: parsed.data.lotNumber.trim() } });
   if (!lot) return `Lot ${parsed.data.lotNumber} not found — check the number and try again.`;
 
-  // A pallet number is often already sampled at Post-Freeze Inspection before
-  // it reaches here -- Post-Freeze Inspection requires an existing pallet, so
-  // that number has to come from somewhere first (bulk-created when the lot
-  // itself was logged). This form completes that same pallet with its packing
-  // details rather than erroring on "already exists"; only a genuinely new
-  // pallet number falls through to creating a fresh row.
-  const existing = await prisma.pallet.findUnique({ where: { palletNumber: parsed.data.palletNumber } });
-  if (existing && existing.lotId !== lot.id) {
-    return `Pallet ${parsed.data.palletNumber} already exists under a different lot — check the number and try again.`;
-  }
+  // The pallet number is a physical asset ID, reused across many lots over
+  // its lifetime -- so "does this number already exist" is scoped to this
+  // lot specifically, not the number alone. It's usually already sampled at
+  // Post-Freeze Inspection (the first stage a pallet gets tied to a lot);
+  // this form completes that same record with packing details rather than
+  // creating a duplicate. A pallet number never before seen on this lot
+  // still falls through to creating a fresh row (e.g. Post-Freeze Inspection
+  // was skipped for it).
+  const existing = await prisma.pallet.findUnique({
+    where: { palletNumber_lotId: { palletNumber: parsed.data.palletNumber, lotId: lot.id } },
+  });
 
   const { lotNumber, packingDate, palletizationStart, palletizationEnd, parcelStatus, ...data } = parsed.data;
 

@@ -98,8 +98,18 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
   const lot = await prisma.productionLot.findUnique({ where: { lotNumber: parsed.data.lotNumber.trim() } });
   if (!lot) return `Lot ${parsed.data.lotNumber} not found — check the number and try again.`;
 
-  const pallet = await prisma.pallet.findUnique({ where: { palletNumber: parsed.data.palletNumber.trim() } });
-  if (!pallet) return `Pallet ${parsed.data.palletNumber} not found — check the number and try again.`;
+  // The physical pallet is a reusable asset (its number is branded on the
+  // base, not generated per lot), so it isn't pre-created anywhere -- this is
+  // the first stage that ties a real pallet to this lot's produce. Reuses the
+  // record if this exact pallet was already sampled for this lot (e.g. a
+  // second carton, or a correction); a completely different lot using the
+  // same physical number gets its own separate record, not this one.
+  const palletNumberTrimmed = parsed.data.palletNumber.trim();
+  const pallet = await prisma.pallet.upsert({
+    where: { palletNumber_lotId: { palletNumber: palletNumberTrimmed, lotId: lot.id } },
+    update: {},
+    create: { palletNumber: palletNumberTrimmed, lotId: lot.id },
+  });
   const palletId = pallet.id;
 
   const session = await auth();

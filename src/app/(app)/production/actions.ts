@@ -16,11 +16,6 @@ const lotSchema = z.object({
   grade: z.enum(["A", "B"]),
   format: z.enum(["WHOLE", "SLICED", "DICED"]),
   isEndOfDayGradeB: z.boolean(),
-  palletCount: z.coerce.number().int().positive().max(500),
-  coldRoomId: z.string().min(1),
-  cartonLogo: z.string().optional(),
-  cartonSize: z.string().optional(),
-  variety: z.string().optional(),
 });
 
 export async function createLotAction(_prevState: string | undefined, formData: FormData) {
@@ -33,11 +28,6 @@ export async function createLotAction(_prevState: string | undefined, formData: 
     grade: formData.get("grade"),
     format: formData.get("format"),
     isEndOfDayGradeB: formData.get("isEndOfDayGradeB") === "on",
-    palletCount: formData.get("palletCount"),
-    coldRoomId: formData.get("coldRoomId"),
-    cartonLogo: formData.get("cartonLogo") || undefined,
-    cartonSize: formData.get("cartonSize") || undefined,
-    variety: formData.get("variety") || undefined,
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
@@ -81,8 +71,6 @@ export async function createLotAction(_prevState: string | undefined, formData: 
     create: { name: fieldName },
   });
 
-  const { cartonLogo, cartonSize, variety } = parsed.data;
-
   await prisma.productionLot.create({
     data: {
       lotNumber,
@@ -94,20 +82,10 @@ export async function createLotAction(_prevState: string | undefined, formData: 
       format: parsed.data.format,
       isEndOfDayGradeB: parsed.data.isEndOfDayGradeB,
       microbiologyResults: { create: [{ labType: "IN_HOUSE" }, { labType: "EXTERNAL" }] },
-      pallets: {
-        create: Array.from({ length: parsed.data.palletCount }, (_, i) => ({
-          palletNumber: `${lotNumber}-P${i + 1}`,
-          coldRoomId: parsed.data.coldRoomId,
-          cartonLogo,
-          cartonSize,
-          variety,
-        })),
-      },
     },
   });
 
   revalidatePath("/production");
-  revalidatePath("/storage");
   redirect("/production");
 }
 

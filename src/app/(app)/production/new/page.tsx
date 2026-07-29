@@ -2,10 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { LotForm } from "./lot-form";
 
 export default async function NewLotPage() {
-  const [factories, fields, coldRooms, recentPostDecap] = await Promise.all([
+  const [factories, fields, recentPostDecap] = await Promise.all([
     prisma.factory.findMany({ orderBy: { name: "asc" } }),
     prisma.field.findMany({ orderBy: { name: "asc" } }),
-    prisma.coldRoom.findMany({ orderBy: { name: "asc" } }),
     prisma.qualityCheck.findMany({
       where: { checkpoint: "POST_DECAP", decision: "ACCEPTED", fieldId: { not: null } },
       include: { field: true },
@@ -27,7 +26,7 @@ export default async function NewLotPage() {
     <div>
       <h1 className="text-xl font-semibold text-slate-900">Log Production Lot</h1>
       <div className="mt-6 max-w-xl">
-        <LotForm factories={factories} fields={fields} coldRooms={coldRooms} recentFieldNames={recentFieldNames} />
+        <LotForm factories={factories} fields={fields} recentFieldNames={recentFieldNames} />
       </div>
     </div>
   );

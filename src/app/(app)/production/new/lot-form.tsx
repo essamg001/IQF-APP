@@ -6,7 +6,7 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { generateLotNumber } from "@/lib/lotNumber";
-import type { Factory, Field, ColdRoom } from "@prisma/client";
+import type { Factory, Field } from "@prisma/client";
 
 function parseLocalDateOnly(dateStr: string): Date | null {
   const parts = dateStr.split("-").map(Number);
@@ -19,12 +19,10 @@ function parseLocalDateOnly(dateStr: string): Date | null {
 export function LotForm({
   factories,
   fields,
-  coldRooms,
   recentFieldNames,
 }: {
   factories: Factory[];
   fields: Field[];
-  coldRooms: ColdRoom[];
   recentFieldNames: string[];
 }) {
   const [error, formAction, pending] = useActionState(createLotAction, undefined);
@@ -148,39 +146,15 @@ export function LotForm({
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" name="isEndOfDayGradeB" /> End-of-day Grade B run
         </label>
-        <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Number of pallets">
-            <Input name="palletCount" type="number" min="1" required />
-          </FieldGroup>
-          <FieldGroup label="Cold room">
-            <Select name="coldRoomId" required>
-              {coldRooms.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </FieldGroup>
-        </div>
 
-        <p className="text-xs font-medium text-slate-500">
-          Carton attributes (applied to all pallets generated from this lot)
+        <p className="text-xs text-slate-500">
+          Pallets aren&apos;t created here — each one is its own physical, reusable asset with a number branded on
+          the base. It gets tied to this lot at Post-Freeze Inspection, then completed at Final Product Entry.
         </p>
-        <div className="grid grid-cols-3 gap-3">
-          <FieldGroup label="Carton logo">
-            <Input name="cartonLogo" />
-          </FieldGroup>
-          <FieldGroup label="Carton size">
-            <Input name="cartonSize" />
-          </FieldGroup>
-          <FieldGroup label="Variety">
-            <Input name="variety" />
-          </FieldGroup>
-        </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Log lot & generate pallets"}
+          {pending ? "Saving…" : "Log lot"}
         </Button>
       </Card>
     </form>

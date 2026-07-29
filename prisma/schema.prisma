@@ -476,9 +476,14 @@ model ProductionLot {
 // pallet-generated at production time as a quicker fallback — see createLotAction).
 // loadingStart/loadingEnd (on ContainerPalletLine) are a separate, later moment:
 // when the pallet is loaded into a container for shipment.
+// The physical pallet base itself is a durable, reusable asset with its own
+// branded number -- it isn't created per lot, and the same number legitimately
+// comes back under a different lot once its previous cargo has shipped and it
+// re-enters rotation. So palletNumber alone is never unique; what's actually
+// unique is "this physical pallet, on this particular production run".
 model Pallet {
   id           String        @id @default(cuid())
-  palletNumber String        @unique
+  palletNumber String
   lotId        String
   lot          ProductionLot @relation(fields: [lotId], references: [id])
   coldRoomId   String?
@@ -526,6 +531,8 @@ model Pallet {
   loadLines     ContainerPalletLine[]
   slot          ColdRoomSlot?
 
+  @@unique([palletNumber, lotId])
+  @@index([palletNumber])
   @@index([status])
   @@index([coldRoomId])
 }
