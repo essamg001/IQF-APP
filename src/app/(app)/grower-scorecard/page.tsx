@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
-import { GrowerScorecardTable, type ScoreRow } from "./grower-scorecard-table";
+import { format, startOfWeek } from "date-fns";
+import { GrowerScorecardTable, type Period, type PeriodSection, type ScoreRow } from "./grower-scorecard-table";
+import type { Field } from "@prisma/client";
 
 const CHECK_SELECT = {
   fieldId: true,
@@ -87,33 +86,11 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string | null) {
   return map;
 }
 
-export default async function GrowerScorecardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ start?: string; end?: string }>;
-}) {
-  const { start: startParam, end: endParam } = await searchParams;
-
-  const end = endParam ? new Date(`${endParam}T23:59:59`) : new Date();
-  const start = startParam ? new Date(`${startParam}T00:00:00`) : new Date(end.getTime() - 90 * 24 * 60 * 60 * 1000);
-  const spanMs = end.getTime() - start.getTime();
-  const prevEnd = new Date(start.getTime() - 1);
-  const prevStart = new Date(start.getTime() - spanMs);
-
-  const fields = await prisma.field.findMany({ where: { farmName: { not: null }, variety: "MS1" } });
-  const fieldById = new Map(fields.map((f) => [f.id, f]));
-
-  const [checks, prevChecks] = await Promise.all([
-    prisma.qualityCheck.findMany({
-      where: { checkpoint: "PRE_DECAP", fieldId: { not: null }, createdAt: { gte: start, lte: end } },
-      select: CHECK_SELECT,
-    }),
-    prisma.qualityCheck.findMany({
-      where: { checkpoint: "PRE_DECAP", fieldId: { not: null }, createdAt: { gte: prevStart, lte: prevEnd } },
-      select: CHECK_SELECT,
-    }),
-  ]);
-
+// Builds one bucket's farm-rollup + per-field drill-down, e.g. everything
+// harvested on a single day -- multiple tractor-loads from the same field
+// on the same day share one fieldId, so they're already averaged together
+// here rather than shown as separate entries.
+function buildFarmFieldRows(checks: Check[], fieldById: Map<string, Field>, prevChecks: Check[]) {
   const byFarm = groupBy(checks, (c) => (c.fieldId ? fieldById.get(c.fieldId)?.farmName ?? null : null));
   const byField = groupBy(checks, (c) => c.fieldId);
   const prevByFarm = groupBy(prevChecks, (c) => (c.fieldId ? fieldById.get(c.fieldId)?.farmName ?? null : null));
@@ -129,7 +106,7 @@ export default async function GrowerScorecardPage({
     })
     .sort((a, b) => b.rejectionRate - a.rejectionRate);
 
-  const fieldRowsByFarm = new Map<string, ScoreRow[]>();
+  const fieldRowsByFarm: Record<string, ScoreRow[]> = {};
   for (const [fieldId, rows] of byField.entries()) {
     const field = fieldById.get(fieldId);
     if (!field?.farmName) continue;
@@ -137,40 +114,91 @@ export default async function GrowerScorecardPage({
     if (!row) continue;
     const prev = prevByField.get(fieldId);
     const prevRate = prev ? aggregate(prev, fieldId, field.name)?.rejectionRate ?? null : null;
-    const list = fieldRowsByFarm.get(field.farmName) ?? [];
+    const list = fieldRowsByFarm[field.farmName] ?? [];
     list.push({ ...row, prevRejectionRate: prevRate });
-    fieldRowsByFarm.set(field.farmName, list);
+    fieldRowsByFarm[field.farmName] = list;
   }
-  for (const list of fieldRowsByFarm.values()) list.sort((a, b) => b.rejectionRate - a.rejectionRate);
+  for (const list of Object.values(fieldRowsByFarm)) list.sort((a, b) => b.rejectionRate - a.rejectionRate);
 
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { farmRows, fieldRowsByFarm };
+}
+
+// Groups checks into time buckets (e.g. one per day), sorted most-recent
+// first. Trend for each bucket compares against the immediately preceding
+// bucket that actually has data, not a fixed calendar offset -- harvesting
+// happens daily so gaps should be rare, but this stays correct if one occurs.
+function bucketSections(
+  checks: Check[],
+  fieldById: Map<string, Field>,
+  keyFn: (d: Date) => string,
+  labelFn: (key: string) => string,
+  sortValueFn: (key: string) => number,
+  take: number
+): PeriodSection[] {
+  const byBucket = groupBy(checks, (c) => keyFn(c.createdAt));
+  const sortedKeys = [...byBucket.keys()].sort((a, b) => sortValueFn(b) - sortValueFn(a));
+  const shown = sortedKeys.slice(0, take);
+
+  return shown.map((key, i) => {
+    const bucketChecks = byBucket.get(key)!;
+    const prevKey = sortedKeys[i + 1];
+    const prevChecks = prevKey ? byBucket.get(prevKey)! : [];
+    const { farmRows, fieldRowsByFarm } = buildFarmFieldRows(bucketChecks, fieldById, prevChecks);
+    return { key, label: labelFn(key), farmRows, fieldRowsByFarm };
+  });
+}
+
+export default async function GrowerScorecardPage() {
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  const fields = await prisma.field.findMany({ where: { farmName: { not: null }, variety: "MS1" } });
+  const fieldById = new Map(fields.map((f) => [f.id, f]));
+
+  const checks = await prisma.qualityCheck.findMany({
+    where: { checkpoint: "PRE_DECAP", fieldId: { not: null }, createdAt: { gte: sixMonthsAgo } },
+    select: CHECK_SELECT,
+  });
+
+  const dataByPeriod: Record<Period, PeriodSection[]> = {
+    DAILY: bucketSections(
+      checks,
+      fieldById,
+      (d) => format(d, "yyyy-MM-dd"),
+      (key) => format(new Date(key), "dd MMM yyyy"),
+      (key) => new Date(key).getTime(),
+      14
+    ),
+    WEEKLY: bucketSections(
+      checks,
+      fieldById,
+      (d) => format(startOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+      (key) => `Week of ${format(new Date(key), "dd MMM yyyy")}`,
+      (key) => new Date(key).getTime(),
+      8
+    ),
+    MONTHLY: bucketSections(
+      checks,
+      fieldById,
+      (d) => format(d, "yyyy-MM"),
+      (key) => format(new Date(`${key}-01`), "MMM yyyy"),
+      (key) => new Date(`${key}-01`).getTime(),
+      6
+    ),
+  };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Harvest Report</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Pre-Decap Arrival quality rolled up per grower/farm, with each farm&apos;s individual plots underneath.
-          Trend compares against the same-length period immediately before this range. Set the range to a season to
-          use this as a season-end review.
+          Pre-Decap Arrival quality rolled up per grower/farm and day, with each farm&apos;s individual plots
+          underneath — multiple tractor-loads from the same field on the same day are averaged into one figure, not
+          shown separately. Trend compares each period to the one immediately before it.
         </p>
       </div>
 
-      <Card>
-        <form className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Start</label>
-            <Input name="start" type="date" defaultValue={fmt(start)} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">End</label>
-            <Input name="end" type="date" defaultValue={fmt(end)} />
-          </div>
-          <Button type="submit">Run</Button>
-        </form>
-      </Card>
-
-      <GrowerScorecardTable farmRows={farmRows} fieldRowsByFarm={Object.fromEntries(fieldRowsByFarm)} />
+      <GrowerScorecardTable dataByPeriod={dataByPeriod} />
     </div>
   );
 }
