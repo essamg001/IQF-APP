@@ -132,7 +132,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
 function PalletInput({ pallets }: { pallets: Pallet[] }) {
   return (
     <>
-      <Input name="palletNumber" list="pallet-suggestions" placeholder="e.g. M41126146-1-P1" />
+      <Input name="palletNumber" list="pallet-suggestions" required placeholder="e.g. M41126146-1-P1" />
       <datalist id="pallet-suggestions">
         {pallets.map((p) => (
           <option key={p.id} value={p.palletNumber} />
