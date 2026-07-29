@@ -67,7 +67,7 @@ const shiftWasteSchema = z.object({
   reason: z.string().min(1),
 });
 
-// Rejected fruit (below even Grade B) is pulled off the inspection belt
+// Reject fruit is pulled off the inspection belt
 // continuously through the shift, not weighed per rejection -- it's gathered
 // and weighed once, at the end of the shift. So this logs against the shift
 // as a whole, not any single QualityCheck or pallet (neither exists yet for

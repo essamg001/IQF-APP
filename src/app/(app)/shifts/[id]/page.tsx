@@ -43,7 +43,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
       </div>
 
       <Card>
-        <h2 className="text-sm font-semibold text-slate-900">Rejected Fruit — Composted (below Grade B)</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Reject Fruit — Composted</h2>
         <p className="mt-1 text-xs text-slate-500">
           Fruit pulled off the inspection belt through the shift is gathered and weighed once at the end, not
           per-check or per-pallet — log that end-of-shift weight here.
