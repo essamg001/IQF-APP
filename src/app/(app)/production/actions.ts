@@ -117,11 +117,19 @@ export async function markWasteAction(palletId: string, formData: FormData) {
   if (!reason) return;
 
   await prisma.$transaction(async (tx) => {
-    await tx.pallet.update({ where: { id: palletId }, data: { status: "WASTE" } });
+    // A wasted pallet can no longer fulfil whatever order it was allocated
+    // to -- releasing the allocation here (rather than leaving orderId/
+    // clientId set) is what makes the order's "remaining to allocate" count,
+    // Available to Sell's committed figure, and the allocated-pallets
+    // display all correctly reflect that this pallet no longer counts.
+    await tx.pallet.update({ where: { id: palletId }, data: { status: "WASTE", orderId: null, clientId: null } });
     await tx.waste.create({ data: { palletId, reason, quantity } });
   });
 
   revalidatePath("/storage");
   revalidatePath("/waste");
   revalidatePath(`/storage/${palletId}`);
+  revalidatePath("/orders");
+  revalidatePath("/available-to-sell");
+  revalidatePath("/load-out");
 }

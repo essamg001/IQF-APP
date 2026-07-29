@@ -41,15 +41,34 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     containerIds.length > 0
       ? await prisma.claim.findMany({
           where: { containers: { some: { containerId: { in: containerIds } } } },
-          include: { containers: { where: { containerId: { in: containerIds } } } },
+          include: {
+            containers: { where: { containerId: { in: containerIds } } },
+            _count: { select: { containers: true } },
+          },
         })
       : [];
 
+  // A claim can list several containers, each with its own claimAmount --
+  // summing only containers[0] (as this used to) silently dropped every
+  // other container's credit for a claim spanning more than one. Falling
+  // back to the claim's full valueUsd is only safe when every container the
+  // claim lists belongs to this order; otherwise that value may belong partly
+  // to another order too, and using it here would double-count it there.
   const netValue =
     order.valueUsd -
     relatedClaims
       .filter((c) => isCreditedClaim(c.status))
-      .reduce((s, c) => s + (c.containers[0]?.claimAmount ?? c.valueUsd), 0);
+      .reduce((sum, c) => {
+        const matchedTotal = c.containers.reduce((s, line) => s + (line.claimAmount ?? 0), 0);
+        const everyMatchedLineHasAmount = c.containers.length > 0 && c.containers.every((line) => line.claimAmount != null);
+        const claimIsFullyWithinThisOrder = c.containers.length === c._count.containers;
+        const share = everyMatchedLineHasAmount
+          ? matchedTotal
+          : claimIsFullyWithinThisOrder
+            ? c.valueUsd
+            : matchedTotal;
+        return sum + share;
+      }, 0);
 
   const nextStage = STAGE_ORDER[STAGE_ORDER.indexOf(order.stage) + 1];
 
