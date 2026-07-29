@@ -148,7 +148,7 @@ export default async function GrowerScorecardPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Grower Scorecard</h1>
+        <h1 className="text-xl font-semibold text-slate-900">Harvest Report</h1>
         <p className="mt-1 text-sm text-slate-500">
           Pre-Decap Arrival quality rolled up per grower/farm, with each farm&apos;s individual plots underneath.
           Trend compares against the same-length period immediately before this range. Set the range to a season to

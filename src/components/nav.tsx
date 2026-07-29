@@ -10,7 +10,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/fields", label: "Fields" },
   { href: "/field-quality", label: "Field Quality", roles: ["OWNER", "QUALITY"] },
   { href: "/traceability", label: "Traceability / Recall Lookup", roles: ["OWNER", "QUALITY"] },
-  { href: "/grower-scorecard", label: "Grower Scorecard", roles: ["OWNER", "QUALITY"] },
+  { href: "/grower-scorecard", label: "Harvest Report", roles: ["OWNER", "QUALITY"] },
   { href: "/clients", label: "Clients" },
   { href: "/orders", label: "Orders" },
   { href: "/active-orders", label: "Active Orders" },
