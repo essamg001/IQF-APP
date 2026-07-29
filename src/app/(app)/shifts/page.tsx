@@ -6,7 +6,7 @@ import { format } from "date-fns";
 
 export default async function ShiftsPage() {
   const shifts = await prisma.shiftLog.findMany({
-    include: { factory: true, _count: { select: { lots: true } } },
+    include: { factory: true, _count: { select: { lots: true } }, waste: { select: { quantity: true } } },
     orderBy: { date: "desc" },
     take: 100,
   });
@@ -33,14 +33,20 @@ export default async function ShiftsPage() {
               <th className="px-4 py-2 font-medium">Hours</th>
               <th className="px-4 py-2 font-medium">Workers</th>
               <th className="px-4 py-2 font-medium">Lots Produced</th>
+              <th className="px-4 py-2 font-medium">Reject Waste</th>
             </tr>
           </thead>
           <tbody>
             {shifts.map((s) => {
               const hours = (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000;
+              const rejectWasteKg = s.waste.reduce((sum, w) => sum + w.quantity, 0) * 1000;
               return (
                 <tr key={s.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-2">{format(s.date, "dd MMM yyyy")}</td>
+                  <td className="px-4 py-2">
+                    <a href={`/shifts/${s.id}`} className="text-emerald-700 hover:underline">
+                      {format(s.date, "dd MMM yyyy")}
+                    </a>
+                  </td>
                   <td className="px-4 py-2">{s.factory.name}</td>
                   <td className="px-4 py-2">
                     <Badge color={s.shiftType === "DAY" ? "amber" : "blue"}>
@@ -52,12 +58,21 @@ export default async function ShiftsPage() {
                   <td className="px-4 py-2">{hours.toFixed(1)}</td>
                   <td className="px-4 py-2">{s.workerCount}</td>
                   <td className="px-4 py-2">{s._count.lots}</td>
+                  <td className="px-4 py-2">
+                    {s.waste.length > 0 ? (
+                      `${rejectWasteKg.toFixed(0)} kg`
+                    ) : (
+                      <a href={`/shifts/${s.id}`} className="text-xs text-slate-400 hover:text-emerald-700 hover:underline">
+                        Log
+                      </a>
+                    )}
+                  </td>
                 </tr>
               );
             })}
             {shifts.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   No shifts logged yet.
                 </td>
               </tr>

@@ -67,8 +67,8 @@ enum ComplianceLevel {
 }
 
 enum MicrobiologyStatus {
-  PENDING       // not yet sent to the lab
-  SENT_TO_LAB   // sample dispatched, awaiting result
+  PENDING // not yet sent to the lab
+  SENT_TO_LAB // sample dispatched, awaiting result
   APPROVED
   FAILED_MINOR
   FAILED_SEVERE
@@ -155,32 +155,32 @@ enum QualityOverrideStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          Role
   // Historical/trend financials are restricted to Owner + whoever holds this flag,
   // not the whole Sales role — deliberately narrower than order-level pricing access.
-  isHeadOfSales Boolean @default(false)
-  station      Station?
-  createdAt    DateTime @default(now())
+  isHeadOfSales Boolean  @default(false)
+  station       Station?
+  createdAt     DateTime @default(now())
 
-  qualityChecks QualityCheck[]
+  qualityChecks           QualityCheck[]
   sentMicrobiologyResults MicrobiologyResult[] @relation("MicrobiologySentBy")
 }
 
 model Client {
-  id            String   @id @default(cuid())
-  name          String
-  country       String?
-  contactName   String?
-  contactEmail  String?
-  contactPhone  String?
-  paymentTerms  String?
-  incoterms     String?
-  currency      String   @default("USD")
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  country      String?
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  paymentTerms String?
+  incoterms    String?
+  currency     String   @default("USD")
+  createdAt    DateTime @default(now())
 
   // Groups sibling entities under one mother company for the historical
   // trends view (e.g. "Chaucer - Linyi"/"Chaucer - Shandong" both set this to
@@ -313,9 +313,9 @@ model Field {
 
   // Same boundary/centroid reprojected to WGS84 (lat/lng) for plotting on a
   // real basemap (see /fields) -- see scripts/reproject-fields.ts.
-  latitude        Float?
-  longitude       Float?
-  boundaryLatLng  Json? // one or more rings of [lat, lng] points
+  latitude       Float?
+  longitude      Float?
+  boundaryLatLng Json? // one or more rings of [lat, lng] points
 
   lots               ProductionLot[]
   qualityChecks      QualityCheck[]
@@ -346,47 +346,47 @@ model HarvestTicket {
   reworkReason    String?
 
   // Simple pass/fail checklist (left side of the form).
-  fruitConformityOk  Boolean?
-  fruitSafetyOk      Boolean?
-  cratesCleanlinessOk Boolean?
-  fieldCleanlinessOk  Boolean?
+  fruitConformityOk    Boolean?
+  fruitSafetyOk        Boolean?
+  cratesCleanlinessOk  Boolean?
+  fieldCleanlinessOk   Boolean?
   vehicleCleanlinessOk Boolean?
 
   // Yes/No presence checklist, each with its own corrective action if flagged.
-  petsPresent                     Boolean?
-  petsPresentAction               String?
-  animalProductionNearby          Boolean?
-  animalProductionNearbyAction    String?
-  wildDomesticAnimalActivity      Boolean?
+  petsPresent                      Boolean?
+  petsPresentAction                String?
+  animalProductionNearby           Boolean?
+  animalProductionNearbyAction     String?
+  wildDomesticAnimalActivity       Boolean?
   wildDomesticAnimalActivityAction String?
-  rodentDogActivity               Boolean?
-  rodentDogActivityAction         String?
+  rodentDogActivity                Boolean?
+  rodentDogActivityAction          String?
 
-  loadingSupervisor String?
-  loadingTime       DateTime?
-  transferredBy     String? // transport method/vehicle description
-  vehicleNo         String?
-  authorizedGrower  String? // farm name/code
-  cropName          String?
-  harvestTime       DateTime?
-  harvestSupervisor String?
-  harvestDate       DateTime?
+  loadingSupervisor   String?
+  loadingTime         DateTime?
+  transferredBy       String? // transport method/vehicle description
+  vehicleNo           String?
+  authorizedGrower    String? // farm name/code
+  cropName            String?
+  harvestTime         DateTime?
+  harvestSupervisor   String?
+  harvestDate         DateTime?
   ipmConfirmationDate DateTime? // from IPM03208
 
   // Packhouse/decap-facility receipt section -- completed on arrival.
-  receivedDate          DateTime?
-  receivedTime          DateTime?
-  deliveryNumber        String?
-  cratesReceived        Int?
-  palletsReceived       Int?
-  grossWeightKg         Float?
-  netWeightKg           Float?
+  receivedDate           DateTime?
+  receivedTime           DateTime?
+  deliveryNumber         String?
+  cratesReceived         Int?
+  palletsReceived        Int?
+  grossWeightKg          Float?
+  netWeightKg            Float?
   electronicWeightCardNo String?
-  productTempC          Float?
-  optimumTempC          Float?
-  coldTruckTempC        Float?
-  acceptedAtPackhouse   Boolean?
-  receivedByName        String?
+  productTempC           Float?
+  optimumTempC           Float?
+  coldTruckTempC         Float?
+  acceptedAtPackhouse    Boolean?
+  receivedByName         String?
 
   createdAt DateTime @default(now())
 
@@ -401,7 +401,7 @@ model HarvestTicketPlotLine {
   stationNo     String?
   plotValveGhNo String?
   fieldId       String?
-  field         Field? @relation(fields: [fieldId], references: [id])
+  field         Field?  @relation(fields: [fieldId], references: [id])
 
   varietyName  String?
   cycleNumber  String?
@@ -439,7 +439,8 @@ model ShiftLog {
   holdResolvedBy     String?
   holdResolutionNote String?
 
-  lots ProductionLot[]
+  lots  ProductionLot[]
+  waste Waste[]
 
   @@index([factoryId, date])
 }
@@ -447,22 +448,22 @@ model ShiftLog {
 // lotNumber is auto-generated: {farmCode}{factory.code}{YY}{DDD}-{shift digit}
 // e.g. M41126146-1 = farm M4, IQF 1 (code 11), 2026, day 146 (26 May), shift 1 (day).
 model ProductionLot {
-  id                  String   @id @default(cuid())
-  lotNumber           String   @unique
-  farmCode            String
-  shiftId             String
-  shift               ShiftLog @relation(fields: [shiftId], references: [id])
-  factoryId           String
-  factory             Factory  @relation(fields: [factoryId], references: [id])
-  fieldId             String
-  field               Field    @relation(fields: [fieldId], references: [id])
-  grade               Grade
-  format              Format
-  isEndOfDayGradeB    Boolean  @default(false)
-  createdAt           DateTime @default(now())
+  id               String   @id @default(cuid())
+  lotNumber        String   @unique
+  farmCode         String
+  shiftId          String
+  shift            ShiftLog @relation(fields: [shiftId], references: [id])
+  factoryId        String
+  factory          Factory  @relation(fields: [factoryId], references: [id])
+  fieldId          String
+  field            Field    @relation(fields: [fieldId], references: [id])
+  grade            Grade
+  format           Format
+  isEndOfDayGradeB Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
-  pallets            Pallet[]
-  qualityChecks      QualityCheck[]
+  pallets             Pallet[]
+  qualityChecks       QualityCheck[]
   microbiologyResults MicrobiologyResult[]
 
   @@index([factoryId, grade])
@@ -476,33 +477,33 @@ model ProductionLot {
 // loadingStart/loadingEnd (on ContainerPalletLine) are a separate, later moment:
 // when the pallet is loaded into a container for shipment.
 model Pallet {
-  id            String       @id @default(cuid())
-  palletNumber  String       @unique
-  lotId         String
-  lot           ProductionLot @relation(fields: [lotId], references: [id])
-  coldRoomId    String?
-  coldRoom      ColdRoom?    @relation(fields: [coldRoomId], references: [id])
-  weightTonnes  Float        @default(1.2)
-  status        PalletStatus @default(IN_STORAGE)
-  clientId      String?
-  client        Client?      @relation(fields: [clientId], references: [id])
-  orderId       String?
-  order         Order?       @relation(fields: [orderId], references: [id])
-  createdAt     DateTime     @default(now())
+  id           String        @id @default(cuid())
+  palletNumber String        @unique
+  lotId        String
+  lot          ProductionLot @relation(fields: [lotId], references: [id])
+  coldRoomId   String?
+  coldRoom     ColdRoom?     @relation(fields: [coldRoomId], references: [id])
+  weightTonnes Float         @default(1.2)
+  status       PalletStatus  @default(IN_STORAGE)
+  clientId     String?
+  client       Client?       @relation(fields: [clientId], references: [id])
+  orderId      String?
+  order        Order?        @relation(fields: [orderId], references: [id])
+  createdAt    DateTime      @default(now())
 
   cartonLogo String?
   cartonSize String?
   variety    String?
 
   // GEN03115 fields
-  clientSpecNote    String?   // اسم العميل — intended client, may be set before a formal Order exists
-  qualityGrade      Grade?    // standalone from client — defaults to the lot's grade but overridable per pallet at pack time
-  isMixedVariety    Boolean   @default(false)
-  fullPallet        Boolean   @default(true)
-  totalCartons      Int?
-  packingDate       DateTime?
-  packingLocation   String?
-  packingSupervisor String?
+  clientSpecNote     String? // اسم العميل — intended client, may be set before a formal Order exists
+  qualityGrade       Grade? // standalone from client — defaults to the lot's grade but overridable per pallet at pack time
+  isMixedVariety     Boolean   @default(false)
+  fullPallet         Boolean   @default(true)
+  totalCartons       Int?
+  packingDate        DateTime?
+  packingLocation    String?
+  packingSupervisor  String?
   palletizationStart DateTime?
   palletizationEnd   DateTime?
 
@@ -510,10 +511,10 @@ model Pallet {
   // checkpoint POST_PACKAGING) once a pallet number is entered here -- exact
   // pallet match preferred, falling back to the lot's latest lot-level
   // check. Still editable afterward in case the packer needs to correct it.
-  fruitDiameterUncalibrated      String?
-  fruitDiameterCalibratedSmall   String?
-  fruitDiameterCalibratedMedium  String?
-  fruitDiameterCalibratedLarge   String?
+  fruitDiameterUncalibrated     String?
+  fruitDiameterCalibratedSmall  String?
+  fruitDiameterCalibratedMedium String?
+  fruitDiameterCalibratedLarge  String?
 
   // Cartons packed without a confirmed client/sale go out blank and need a
   // client sticker applied at the load-out bay before they can go in the container.
@@ -538,27 +539,27 @@ model Pallet {
 // - POST_PACKAGING:  STR03111 / STR03116 "Inspection of Frozen Strawberries at End of Line" (Grade A / B)
 // Fields not relevant to a given checkpoint are simply left null.
 model QualityCheck {
-  id         String            @id @default(cuid())
+  id                      String                 @id @default(cuid())
   // Nullable: raw-material checks happen at the receiving dock before a
   // production lot exists, so they're logged standalone. Post-packaging
   // checks are still tied to the lot they came from (enforced in the action).
-  lotId      String?
-  lot        ProductionLot?    @relation(fields: [lotId], references: [id])
-  palletId   String?
-  pallet     Pallet?           @relation(fields: [palletId], references: [id])
+  lotId                   String?
+  lot                     ProductionLot?         @relation(fields: [lotId], references: [id])
+  palletId                String?
+  pallet                  Pallet?                @relation(fields: [palletId], references: [id])
   // The specific field plot this batch came from, for checks that can be
   // tied to one field (Pre-Decap Inspection and Post-Decap Quality). A single
   // delivery can carry fruit from multiple fields per the harvest ticket, so
   // this is a one-field-at-a-time link, not the full per-field crate breakdown.
-  fieldId    String?
-  field      Field?            @relation(fields: [fieldId], references: [id])
+  fieldId                 String?
+  field                   Field?                 @relation(fields: [fieldId], references: [id])
   // Pre-Decap Inspection links here directly, by Harvest Ticket Serial Number,
   // to record exactly which plot line the sample was drawn from -- independent
   // of whether that plot line's station/valve happened to resolve to a Field
   // record (fieldId above), since real harvest tickets don't always match.
   harvestTicketPlotLineId String?
   harvestTicketPlotLine   HarvestTicketPlotLine? @relation(fields: [harvestTicketPlotLineId], references: [id])
-  checkpoint QualityCheckpoint
+  checkpoint              QualityCheckpoint
 
   // Both checkpoints end in an Acceptable/Unacceptable call + corrective action
   // (the "notes" field below). appliesToWholeDelivery is RAW_MATERIAL only: a
@@ -571,14 +572,14 @@ model QualityCheck {
   shiftNumber     String?
 
   // Shared measurements
-  brix               Float
-  fruitColorPct      Float?
-  internalQualityPct Float?
-  acidityPh          Float?
-  productTemperatureC Float?
-  varietyName        String?
+  brix                 Float
+  fruitColorPct        Float?
+  internalQualityPct   Float?
+  acidityPh            Float?
+  productTemperatureC  Float?
+  varietyName          String?
   sampleCollectionTime DateTime?
-  sampleWeightKg     Float?
+  sampleWeightKg       Float?
 
   // Defect items shared across STR03107, STR03110, and STR03111/STR03116 (same
   // % unit, different limit per form — the limit is enforced in the UI, not the DB).
@@ -593,25 +594,25 @@ model QualityCheck {
   overmaturePct         Float?
 
   // STR03110 — raw material intake only (Arrival Inspection at Factory)
-  sampleNo               String?
-  rawMaterialSource      String?
-  farmCode               String?
-  decapPackHouse         String? // which decapping pack house this delivery is arriving from
-  decapQcApprover        String? // the QC number (QC1-QC51) who approved it to leave the decap facility -- required on Post-Decap Quality itself, optionally echoed here
-  transportVehicleNo     String?
-  receiptNoteNo          String?
-  numberOfBoxesReceived  Int?
-  crateWeightKg          Float?
-  sizeCaliber            String?
-  moldSignsPct           Float? // بوادر عفن — distinct from Mold itself (mouldPct)
-  capsuleRemainsPct      Float? // بقايا الكبسولة (STR03110 measures this as a %)
-  birdFoodPct            Float? // اكل طيور
-  seedClusteringPct      Float? // تجمع البذور
-  bruisesPct             Float? // كدمات
-  dryCavitiesPct         Float? // تجاويف جافة
-  overDecappingPct       Float? // تجهير جائر
-  sandDustPct            Float? // تربة/رمال
-  leafStemRemainsCount   Float? // بقايا اوراق / سيقان — limit is 1 piece/1kg
+  sampleNo                String?
+  rawMaterialSource       String?
+  farmCode                String?
+  decapPackHouse          String? // which decapping pack house this delivery is arriving from
+  decapQcApprover         String? // the QC number (QC1-QC51) who approved it to leave the decap facility -- required on Post-Decap Quality itself, optionally echoed here
+  transportVehicleNo      String?
+  receiptNoteNo           String?
+  numberOfBoxesReceived   Int?
+  crateWeightKg           Float?
+  sizeCaliber             String?
+  moldSignsPct            Float? // بوادر عفن — distinct from Mold itself (mouldPct)
+  capsuleRemainsPct       Float? // بقايا الكبسولة (STR03110 measures this as a %)
+  birdFoodPct             Float? // اكل طيور
+  seedClusteringPct       Float? // تجمع البذور
+  bruisesPct              Float? // كدمات
+  dryCavitiesPct          Float? // تجاويف جافة
+  overDecappingPct        Float? // تجهير جائر
+  sandDustPct             Float? // تربة/رمال
+  leafStemRemainsCount    Float? // بقايا اوراق / سيقان — limit is 1 piece/1kg
   brokenUncleanPalletsPct Float? // باليتات مكسورة او غير نظيفة
   unfumigatedPalletsPct   Float? // باليتات غير مبخرة
   brokenUncleanCratesPct  Float? // اطباق مكسورة او غير نظيفة
@@ -619,9 +620,9 @@ model QualityCheck {
   // Post-Decap Quality only (STR03107) -- checked right after decapping, the
   // greenlight for fruit to proceed from the decap facility to the factory.
   // Its defect checklist is otherwise identical to STR03110's (reused above).
-  processingLine       String?  // رقم السير
-  divertedTo           String?  // تم تحويل الشحنة الى -- where a nonconforming shipment was diverted (e.g. local market)
-  retrainingRequested  Boolean? // اعادة تدريب مجموعة التجهيز -- packing group re-training requested
+  processingLine      String? // رقم السير
+  divertedTo          String? // تم تحويل الشحنة الى -- where a nonconforming shipment was diverted (e.g. local market)
+  retrainingRequested Boolean? // اعادة تدريب مجموعة التجهيز -- packing group re-training requested
 
   // Pre-Decap Inspection only (STR03101) -- fruit arriving at the decap
   // facility from the field, before decapping. Cleaning/crates is a pass/fail
@@ -630,33 +631,33 @@ model QualityCheck {
   // notify (via GEN03108) if the delivery has defects.
   harvestSupervisor    String?
   cleaningGoodCratesOk Boolean? // نظافه وسلامه الصناديق
-  diameterUnder22mmPct Float?   // قطر اقل من 22مم
-  botrytisPct          Float?   // عفن ثمار (Botrytis specifically, distinct from mouldPct)
-  pestDiseasePct       Float?   // حشرات / امراض
-  wormEatenPct         Float?   // اكل دود
+  diameterUnder22mmPct Float? // قطر اقل من 22مم
+  botrytisPct          Float? // عفن ثمار (Botrytis specifically, distinct from mouldPct)
+  pestDiseasePct       Float? // حشرات / امراض
+  wormEatenPct         Float? // اكل دود
 
   // STR03111 / STR03116 — post-packaging only
-  clientName                     String?
-  operationDate                  DateTime?
-  expiryDate                     DateTime?
-  fullPallet                     Boolean?
-  cartonWeightKg                 Float?
-  packageClosureOk               Boolean?
-  dataLabelReviewOk              Boolean?
-  fruitDiameterUncalibrated      String?
-  fruitDiameterCalibratedSmall   String?
-  fruitDiameterCalibratedMedium  String?
-  fruitDiameterCalibratedLarge   String?
-  capsuleRemainsCount   Float? // بقايا الكبسولة — measured as pieces/10kg here, distinct unit from raw's capsuleRemainsPct
-  leafRemainsCount      Float? // رض الاوراق وبقايا اوراق — pieces/10kg
-  stemFragmentsCount    Float? // السيقان وشظايا الساق — pieces/10kg
-  cohesiveClustersPct   Float? // كتل متماسكة (2:3 قطع)
-  crushedBrokenFruitPct Float? // ثمار محطمة/مكسورة
-  dryBruisesPct         Float? // خبطات جافة
-  mechanicalFactorsPct  Float? // عوامل ميكانيكية
-  fungalInfectionPct    Float? // اصابة فطرية
-  insectInfestationPct  Float? // اصابة حشرية (distinct from insectsLarvaePct)
-  frozenProductWaitMinutes Float? // فترة انتظار المنتج المجمد
+  clientName                    String?
+  operationDate                 DateTime?
+  expiryDate                    DateTime?
+  fullPallet                    Boolean?
+  cartonWeightKg                Float?
+  packageClosureOk              Boolean?
+  dataLabelReviewOk             Boolean?
+  fruitDiameterUncalibrated     String?
+  fruitDiameterCalibratedSmall  String?
+  fruitDiameterCalibratedMedium String?
+  fruitDiameterCalibratedLarge  String?
+  capsuleRemainsCount           Float? // بقايا الكبسولة — measured as pieces/10kg here, distinct unit from raw's capsuleRemainsPct
+  leafRemainsCount              Float? // رض الاوراق وبقايا اوراق — pieces/10kg
+  stemFragmentsCount            Float? // السيقان وشظايا الساق — pieces/10kg
+  cohesiveClustersPct           Float? // كتل متماسكة (2:3 قطع)
+  crushedBrokenFruitPct         Float? // ثمار محطمة/مكسورة
+  dryBruisesPct                 Float? // خبطات جافة
+  mechanicalFactorsPct          Float? // عوامل ميكانيكية
+  fungalInfectionPct            Float? // اصابة فطرية
+  insectInfestationPct          Float? // اصابة حشرية (distinct from insectsLarvaePct)
+  frozenProductWaitMinutes      Float? // فترة انتظار المنتج المجمد
 
   // Legacy/general defect fields
   mouldPct      Float?
@@ -675,7 +676,7 @@ model QualityCheck {
   overrideAt        DateTime?
 
   inspectorId String?
-  inspector   User? @relation(fields: [inspectorId], references: [id])
+  inspector   User?    @relation(fields: [inspectorId], references: [id])
   createdAt   DateTime @default(now())
 
   @@index([lotId, checkpoint])
@@ -765,28 +766,35 @@ model MicrobiologyTestLine {
   microbiologyResultId String
   microbiologyResult   MicrobiologyResult @relation(fields: [microbiologyResultId], references: [id], onDelete: Cascade)
 
-  testName                String?
-  result                  String?
-  unit                    String?
-  measurementUncertainty  String? // external cert's "MU" column, e.g. "± 0.015"
-  methodRef               String?
+  testName               String?
+  result                 String?
+  unit                   String?
+  measurementUncertainty String? // external cert's "MU" column, e.g. "± 0.015"
+  methodRef              String?
 
   @@index([microbiologyResultId])
 }
 
 model Waste {
-  id        String   @id @default(cuid())
-  palletId  String
-  pallet    Pallet   @relation(fields: [palletId], references: [id])
-  quantity  Float
-  reason    String
-  date      DateTime @default(now())
+  id       String    @id @default(cuid())
+  // Exactly one of these is set, depending on where the waste happened.
+  // Finished pallets that spoil/fail in storage link to the pallet directly.
+  // Raw fruit rejected off the inspection belt (before any lot/pallet exists)
+  // never gets weighed piece-by-piece -- it's gathered and weighed once at
+  // the end of the shift, so it links to the shift as a whole instead.
+  palletId String?
+  pallet   Pallet?   @relation(fields: [palletId], references: [id])
+  shiftId  String?
+  shift    ShiftLog? @relation(fields: [shiftId], references: [id])
+  quantity Float
+  reason   String
+  date     DateTime  @default(now())
 }
 
 model Order {
   id              String     @id @default(cuid())
   orderNumber     String     @unique // our own internal reference, auto-generated
-  poNumber        String?    // the client's own purchase-order number, optional -- may not exist or arrive later
+  poNumber        String? // the client's own purchase-order number, optional -- may not exist or arrive later
   clientId        String
   client          Client     @relation(fields: [clientId], references: [id])
   grade           Grade
@@ -810,31 +818,31 @@ model Order {
 // and the pallet that's mid-way through when a container fills up gets its
 // remaining cartons carried into the next container (see ContainerPalletLine).
 model Container {
-  id                   String    @id @default(cuid())
-  orderId              String
-  order                Order     @relation(fields: [orderId], references: [id])
-  containerNumber      String    @unique
-  carrier              String?
-  departurePort        String?
-  destinationPort      String?
-  departureDate        DateTime?
-  expectedTransitDays  Int?
-  currentLocation      String?
-  trackingProvider     String?
-  trackingRef          String?
-  createdAt            DateTime  @default(now())
+  id                  String    @id @default(cuid())
+  orderId             String
+  order               Order     @relation(fields: [orderId], references: [id])
+  containerNumber     String    @unique
+  carrier             String?
+  departurePort       String?
+  destinationPort     String?
+  departureDate       DateTime?
+  expectedTransitDays Int?
+  currentLocation     String?
+  trackingProvider    String?
+  trackingRef         String?
+  createdAt           DateTime  @default(now())
 
   // Load-out manifest header (GEN03115): captured when pallets are loaded for shipment.
-  loadingDate     DateTime?
-  loadingLocation String?
+  loadingDate       DateTime?
+  loadingLocation   String?
   loadingSupervisor String?
-  loadType        LoadType?
+  loadType          LoadType?
 
   // Sign-off once loading is complete: one rep from the load-out team, one from quality.
-  loadOutRepName   String?
-  loadOutSignedAt  DateTime?
-  qualityRepName   String?
-  qualitySignedAt  DateTime?
+  loadOutRepName  String?
+  loadOutSignedAt DateTime?
+  qualityRepName  String?
+  qualitySignedAt DateTime?
 
   // The Certificate of Quality is gated on (lab clearance approved for every
   // lot in this container + both sign-offs above) and, once explicitly
@@ -845,7 +853,7 @@ model Container {
   certificateApprovedByName String?
   certificateSnapshot       Json?
 
-  claimLines ClaimContainerLine[]
+  claimLines  ClaimContainerLine[]
   palletLines ContainerPalletLine[]
 }
 
@@ -887,10 +895,10 @@ model Claim {
   status      ClaimStatus   @default(OPEN)
 
   // Weight deduction (if claim involves a weight discrepancy)
-  weightMagrabiTon        Float?
-  weightClientTon         Float?
-  weightDifferenceKg      Float?
-  weightDifferencePct     Float?
+  weightMagrabiTon    Float?
+  weightClientTon     Float?
+  weightDifferenceKg  Float?
+  weightDifferencePct Float?
 
   // Pricing / contract context
   clientPrice               Float?
@@ -912,12 +920,12 @@ model Claim {
   inspectionCompanyReport String?
 
   // Financial negotiation trail
-  amountRequestedFromClient Float?
-  amountAfterNegotiation    Float?
-  discountValue             Float?
+  amountRequestedFromClient  Float?
+  amountAfterNegotiation     Float?
+  discountValue              Float?
   amountRequestedForApproval Float?
   totalShipmentValue         Float?
-  discountPct                 Float?
+  discountPct                Float?
 
   otherNotes String?
 
@@ -930,7 +938,7 @@ model Claim {
   chairman           String?
 
   resolvedDate DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   containers ClaimContainerLine[]
 
@@ -939,26 +947,26 @@ model Claim {
 
 // One row per container listed in the claim's per-container table.
 model ClaimContainerLine {
-  id                   String    @id @default(cuid())
-  claimId              String
-  claim                Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
-  containerNumber      String
-  containerId          String?
-  container            Container? @relation(fields: [containerId], references: [id])
-  variety              String?
-  shippingLine         String?
-  cartonsPerContainer  Int?
-  netWeight            Float?
-  shipmentDate         DateTime?
-  arrivalDate          DateTime?
-  complaintDate        DateTime?
+  id                    String     @id @default(cuid())
+  claimId               String
+  claim                 Claim      @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  containerNumber       String
+  containerId           String?
+  container             Container? @relation(fields: [containerId], references: [id])
+  variety               String?
+  shippingLine          String?
+  cartonsPerContainer   Int?
+  netWeight             Float?
+  shipmentDate          DateTime?
+  arrivalDate           DateTime?
+  complaintDate         DateTime?
   sellingPricePerCarton Float?
-  shippingPrice        Float?
-  lostCartons          Int?
-  creditRequired       Float?
-  claimPct             Float?
-  claimAmount          Float?
-  totalSales           Float?
+  shippingPrice         Float?
+  lostCartons           Int?
+  creditRequired        Float?
+  claimPct              Float?
+  claimAmount           Float?
+  totalSales            Float?
 
   @@index([claimId])
   @@index([containerId])
@@ -974,13 +982,13 @@ enum QualityIssueStatus {
 // ClaimReason since the categories (quality/packaging/foreign material/
 // transport) are the same either way.
 model QualityIssue {
-  id          String             @id @default(cuid())
-  issueDate   DateTime           @default(now())
-  clientId    String?
-  client      Client?            @relation(fields: [clientId], references: [id])
-  variety     String?
-  reason      ClaimReason
-  status      QualityIssueStatus @default(OPEN)
+  id               String             @id @default(cuid())
+  issueDate        DateTime           @default(now())
+  clientId         String?
+  client           Client?            @relation(fields: [clientId], references: [id])
+  variety          String?
+  reason           ClaimReason
+  status           QualityIssueStatus @default(OPEN)
   // Order #, container #, or lot # this relates to, if known -- free text
   // since it may reference any of several entity types.
   relatedReference String?
@@ -994,14 +1002,14 @@ model QualityIssue {
 }
 
 model Alert {
-  id               String      @id @default(cuid())
-  type             AlertType
-  message          String
+  id                String      @id @default(cuid())
+  type              AlertType
+  message           String
   relatedEntityType String?
-  relatedEntityId  String?
-  targetRole       Role
-  status           AlertStatus @default(UNREAD)
-  createdAt        DateTime    @default(now())
+  relatedEntityId   String?
+  targetRole        Role
+  status            AlertStatus @default(UNREAD)
+  createdAt         DateTime    @default(now())
 
   @@index([targetRole, status])
 }

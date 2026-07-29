@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
+import { format } from "date-fns";
 import Link from "next/link";
 
 export default async function WastePage() {
   const waste = await prisma.waste.findMany({
-    include: { pallet: { include: { lot: true } } },
+    include: { pallet: { include: { lot: true } }, shift: { include: { factory: true } } },
     orderBy: { date: "desc" },
     take: 200,
   });
@@ -37,8 +38,7 @@ export default async function WastePage() {
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
               <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Pallet</th>
-              <th className="px-4 py-2 font-medium">Lot</th>
+              <th className="px-4 py-2 font-medium">Source</th>
               <th className="px-4 py-2 font-medium">Quantity (t)</th>
               <th className="px-4 py-2 font-medium">Reason</th>
             </tr>
@@ -48,18 +48,28 @@ export default async function WastePage() {
               <tr key={w.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">{w.date.toDateString()}</td>
                 <td className="px-4 py-2">
-                  <Link href={`/storage/${w.palletId}`} className="text-emerald-700 hover:underline">
-                    {w.pallet.palletNumber}
-                  </Link>
+                  {w.pallet ? (
+                    <>
+                      <Link href={`/storage/${w.palletId}`} className="text-emerald-700 hover:underline">
+                        {w.pallet.palletNumber}
+                      </Link>
+                      <span className="text-slate-500"> · Lot {w.pallet.lot.lotNumber}</span>
+                    </>
+                  ) : w.shift ? (
+                    <Link href={`/shifts/${w.shiftId}`} className="text-emerald-700 hover:underline">
+                      {w.shift.factory.name} · {format(w.shift.date, "dd MMM yyyy")} ({w.shift.shiftType === "DAY" ? "Day" : "Night"})
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
                 </td>
-                <td className="px-4 py-2">{w.pallet.lot.lotNumber}</td>
                 <td className="px-4 py-2">{w.quantity}</td>
                 <td className="px-4 py-2">{w.reason}</td>
               </tr>
             ))}
             {waste.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
                   No waste recorded.
                 </td>
               </tr>

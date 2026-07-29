@@ -61,3 +61,34 @@ export async function createShiftAction(_prevState: string | undefined, formData
   revalidatePath("/shifts");
   redirect("/shifts");
 }
+
+const shiftWasteSchema = z.object({
+  rejectedWeightKg: z.coerce.number().positive(),
+  reason: z.string().min(1),
+});
+
+// Rejected fruit (below even Grade B) is pulled off the inspection belt
+// continuously through the shift, not weighed per rejection -- it's gathered
+// and weighed once, at the end of the shift. So this logs against the shift
+// as a whole, not any single QualityCheck or pallet (neither exists yet for
+// raw material that never made it into a lot).
+export async function logShiftRejectWasteAction(shiftId: string, _prevState: string | undefined, formData: FormData) {
+  const parsed = shiftWasteSchema.safeParse({
+    rejectedWeightKg: formData.get("rejectedWeightKg"),
+    reason: formData.get("reason"),
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  await prisma.waste.create({
+    data: {
+      shiftId,
+      quantity: parsed.data.rejectedWeightKg / 1000,
+      reason: parsed.data.reason,
+    },
+  });
+
+  revalidatePath(`/shifts/${shiftId}`);
+  revalidatePath("/shifts");
+  revalidatePath("/waste");
+  return "ok";
+}
