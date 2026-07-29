@@ -16,9 +16,11 @@ export default async function FinalProductEntryPage() {
     prisma.coldRoom.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  // Post-freeze inspection's size/caliber data auto-fills onto a pallet here
-  // once its number is entered (exact pallet match preferred, else the lot's
-  // latest lot-level check) -- see packing-form.tsx.
+  // Post-Freeze Inspection's variety, client, full/partial call, and fruit
+  // diameter grading all auto-fill onto a pallet here once its number is
+  // entered (exact pallet match preferred, else the lot's latest lot-level
+  // check, for older data logged before a pallet was required) -- see
+  // packing-form.tsx.
   const postFreezeChecks = await prisma.qualityCheck.findMany({
     where: { checkpoint: "POST_PACKAGING", lotId: { in: lots.map((l) => l.id) } },
     orderBy: { createdAt: "desc" },

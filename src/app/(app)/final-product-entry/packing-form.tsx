@@ -112,9 +112,10 @@ function PalletFields({
   const [isMixedVariety, setIsMixedVariety] = useState(false);
   const [palletNumber, setPalletNumber] = useState("");
 
-  // Post-freeze inspection's size/caliber data auto-fills once the pallet
-  // number matches a check for this exact pallet; otherwise falls back to
-  // the lot's latest lot-level check (no specific pallet).
+  // Post-Freeze Inspection is the first stage that ties produce to this
+  // pallet number, so its variety, client, full/partial call, and fruit
+  // diameter grading all carry over here rather than being re-typed --
+  // matched once the pallet number matches that check's pallet exactly.
   const matchedCheck = useMemo(() => {
     const typed = palletNumber.trim().toLowerCase();
     if (typed) {
@@ -143,10 +144,15 @@ function PalletFields({
           <Input name="cartonSize" />
         </FieldGroup>
         <FieldGroup label="Variety">
-          <Input name="variety" />
+          <Input key={matchedCheck?.id ?? "none-variety"} name="variety" defaultValue={matchedCheck?.varietyName ?? ""} />
         </FieldGroup>
         <FieldGroup label="Client">
-          <Input name="clientSpecNote" placeholder="Client name, if known" />
+          <Input
+            key={matchedCheck?.id ?? "none-client"}
+            name="clientSpecNote"
+            placeholder="Client name, if known"
+            defaultValue={matchedCheck?.clientName ?? ""}
+          />
         </FieldGroup>
         <FieldGroup label="Quality Grade">
           <Select name="qualityGrade" defaultValue={lotGrade ?? ""}>
@@ -179,7 +185,11 @@ function PalletFields({
           </Select>
         </FieldGroup>
         <FieldGroup label="Parcels">
-          <Select name="parcelStatus" defaultValue="FULL">
+          <Select
+            key={matchedCheck?.id ?? "none-parcel"}
+            name="parcelStatus"
+            defaultValue={matchedCheck?.fullPallet === false ? "PARTIAL" : "FULL"}
+          >
             <option value="FULL">Full pallet</option>
             <option value="PARTIAL">Partial</option>
           </Select>
