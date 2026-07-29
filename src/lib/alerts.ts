@@ -153,6 +153,35 @@ export async function raiseQualityLimitAlert(params: {
 }
 
 /**
+ * Fired the moment someone signs off to let an out-of-spec check proceed at
+ * their own risk (rather than rejecting it outright) -- every such decision
+ * is its own compliance event, so this always creates a fresh alert rather
+ * than deduping like upsertAlert does.
+ */
+export async function raiseQualityOverrideAlert(params: {
+  checkId: string;
+  originalMessage: string;
+  approvedByName: string;
+  note?: string | null;
+}) {
+  const message = `RISK APPROVED — ${params.originalMessage} — signed off to proceed anyway by ${params.approvedByName}${params.note ? ` ("${params.note}")` : ""}.`;
+
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "QUALITY_OVERRIDE_APPROVED",
+        relatedEntityType: "QUALITY_OVERRIDE_APPROVED",
+        relatedEntityId: params.checkId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Quality Override Approved", message)));
+  }
+}
+
+/**
  * A softer, earlier signal than raiseQualityLimitAlert: a field's last 3
  * readings are moving toward a limit, not just a single bad one. Doesn't
  * touch overrideStatus -- nothing has actually breached spec yet, so there's

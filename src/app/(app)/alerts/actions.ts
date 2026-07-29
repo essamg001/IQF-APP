@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { raiseQualityOverrideAlert } from "@/lib/alerts";
 
 export async function markAlertReadAction(alertId: string) {
   await prisma.alert.update({ where: { id: alertId }, data: { status: "READ" } });
@@ -47,6 +48,10 @@ export async function approveAtRiskAction(checkId: string, _prevState: string | 
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
+  const originalAlert = await prisma.alert.findFirst({
+    where: { relatedEntityId: checkId, type: "QUALITY_LIMIT_EXCEEDED" },
+  });
+
   await prisma.qualityCheck.update({
     where: { id: checkId },
     data: {
@@ -58,6 +63,18 @@ export async function approveAtRiskAction(checkId: string, _prevState: string | 
     },
   });
   await resolveRelatedAlerts(checkId);
+
+  // Every manager/owner needs to know this decision was made, independent of
+  // whoever happened to be looking at this specific alert -- taking the risk
+  // on out-of-spec produce is exactly the kind of call that shouldn't stay
+  // known only to the person who made it.
+  await raiseQualityOverrideAlert({
+    checkId,
+    originalMessage: originalAlert?.message ?? "An out-of-spec quality check",
+    approvedByName: parsed.data.name,
+    note: parsed.data.note,
+  });
+
   revalidatePath("/alerts");
   return "ok";
 }

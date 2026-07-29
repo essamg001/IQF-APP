@@ -16,6 +16,7 @@ const TYPE_LABEL = {
   MICROBIOLOGY_LOAD_ATTEMPT: "Blocked Load Attempt",
   MICROBIOLOGY_REJECTED: "Lab Rejection",
   QUALITY_LIMIT_EXCEEDED: "Quality Limit Exceeded",
+  QUALITY_OVERRIDE_APPROVED: "Risk Approved",
   EARLY_WARNING: "Early Warning — Trend",
   SHIFT_ON_HOLD: "Shift On Hold",
 } as const;
