@@ -77,8 +77,12 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
       include: { field: true },
     });
     if (!plotLine) return "Selected plot could not be found — please re-select it.";
+    if (!plotLine.fieldId) {
+      const plotDesc = [plotLine.stationNo, plotLine.plotValveGhNo].filter(Boolean).join(" · ") || plotLine.id;
+      return `This plot line (${plotDesc}) never matched a Field record, so this check can't be tied to a field -- clear the Serial Number above and type the Plot Number directly instead.`;
+    }
     fieldId = plotLine.fieldId;
-    fieldLabel = plotLine.field?.name ?? ([plotLine.stationNo, plotLine.plotValveGhNo].filter(Boolean).join(" · ") || plotLine.id);
+    fieldLabel = plotLine.field!.name;
   } else {
     const field = await prisma.field.findUnique({ where: { name: parsed.data.fieldName!.trim() } });
     if (!field) return `Plot "${parsed.data.fieldName}" not found — check the name and try again.`;
