@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { canSeeHistoricalTrends } from "@/lib/roles";
+import { isCreditedClaim } from "@/lib/claims";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,7 @@ export default async function TrendsPage() {
       const claims = members.flatMap((c) => c.claims);
       const lifetimeValue = orders.reduce((s, o) => s + o.valueUsd, 0);
       const lifetimeClaims = claims
-        .filter((claim) => claim.status === "RESOLVED_CREDITED")
+        .filter((claim) => isCreditedClaim(claim.status))
         .reduce((s, claim) => s + claim.valueUsd, 0);
       const lifetimeNetValue = lifetimeValue - lifetimeClaims;
       const lifetimeVolume = orders.reduce((s, o) => s + o.quantityPallets, 0);

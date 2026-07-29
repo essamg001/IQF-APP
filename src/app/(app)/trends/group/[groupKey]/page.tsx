@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { canSeeHistoricalTrends } from "@/lib/roles";
+import { isCreditedClaim } from "@/lib/claims";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
@@ -25,7 +26,7 @@ export default async function ClientGroupTrendPage({ params }: { params: Promise
   const years = Array.from({ length: 5 }, (_, i) => thisYear - 4 + i);
 
   const orders = members.flatMap((c) => c.orders);
-  const creditedClaims = members.flatMap((c) => c.claims).filter((c) => c.status === "RESOLVED_CREDITED");
+  const creditedClaims = members.flatMap((c) => c.claims).filter((c) => isCreditedClaim(c.status));
 
   const grossByYear = years.map((year) =>
     orders.filter((o) => o.orderDate.getFullYear() === year).reduce((s, o) => s + o.valueUsd, 0)
@@ -50,7 +51,7 @@ export default async function ClientGroupTrendPage({ params }: { params: Promise
     .map((c) => {
       const cLifetimeValue = c.orders.reduce((s, o) => s + o.valueUsd, 0);
       const cLifetimeClaims = c.claims
-        .filter((claim) => claim.status === "RESOLVED_CREDITED")
+        .filter((claim) => isCreditedClaim(claim.status))
         .reduce((s, claim) => s + claim.valueUsd, 0);
       const cLifetimeNetValue = cLifetimeValue - cLifetimeClaims;
       const cLifetimeVolume = c.orders.reduce((s, o) => s + o.quantityPallets, 0);

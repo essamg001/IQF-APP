@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { canSeePricing } from "@/lib/roles";
+import { isCreditedClaim } from "@/lib/claims";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const netValue =
     order.valueUsd -
     relatedClaims
-      .filter((c) => c.status === "RESOLVED_CREDITED")
+      .filter((c) => isCreditedClaim(c.status))
       .reduce((s, c) => s + (c.containers[0]?.claimAmount ?? c.valueUsd), 0);
 
   const nextStage = STAGE_ORDER[STAGE_ORDER.indexOf(order.stage) + 1];
