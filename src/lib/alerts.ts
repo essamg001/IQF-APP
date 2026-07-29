@@ -4,6 +4,7 @@ import { differenceInDays } from "date-fns";
 import { sendEmail } from "@/lib/email";
 import { parseBrixRange } from "@/lib/allocation";
 import { formatViolation, formatTrendWarning, type LimitViolation, type TrendWarning } from "@/lib/qualityLimits";
+import { bothLabsApprovedFilter } from "@/lib/microbiology";
 
 const MICRO_PENDING_DAYS_THRESHOLD = 3;
 
@@ -168,8 +169,16 @@ export async function raiseFieldTrendAlert(params: {
   const warningText = params.warnings.map(formatTrendWarning).join("; ");
   const message = `${params.checkpointLabel} — ${params.identifier}: quality trending toward its limit — ${warningText}.`;
 
+  // Keyed by field + which metrics are currently trending, not just field --
+  // a field can trend on one metric (e.g. Brix) while a later check finds a
+  // completely different one (e.g. Botrytis) trending instead. Keying on
+  // fieldId alone would make upsertAlert's dedup treat the second as "already
+  // alerted" and silently keep showing the first, now-stale warning.
+  const metricsKey = [...params.warnings.map((w) => w.limit.field)].sort().join(",");
+  const relatedEntityId = `${params.fieldId}::${metricsKey}`;
+
   for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
-    await upsertAlert("EARLY_WARNING", params.fieldId, role, message);
+    await upsertAlert("EARLY_WARNING", relatedEntityId, role, message);
   }
 }
 
@@ -245,7 +254,7 @@ async function checkLowStock() {
           grade,
           format,
           shift: { is: { onHold: false } },
-          microbiologyResults: { every: { status: "APPROVED" }, some: {} },
+          ...bothLabsApprovedFilter,
         },
       },
     });

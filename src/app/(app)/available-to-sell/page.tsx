@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FORMAT_LABEL } from "@/lib/format";
 import type { Grade, Format } from "@prisma/client";
+import { bothLabsApprovedFilter, notBothLabsApprovedFilter } from "@/lib/microbiology";
 
 const GRADES: Grade[] = ["A", "B"];
 const FORMATS: Format[] = ["WHOLE", "SLICED", "DICED"];
@@ -12,14 +13,14 @@ export default async function AvailableToSellPage() {
     prisma.pallet.findMany({
       where: {
         status: "IN_STORAGE",
-        lot: { shift: { is: { onHold: false } }, microbiologyResults: { every: { status: "APPROVED" }, some: {} } },
+        lot: { shift: { is: { onHold: false } }, ...bothLabsApprovedFilter },
       },
       select: { weightTonnes: true, lot: { select: { grade: true, format: true } } },
     }),
     prisma.pallet.findMany({
       where: {
         status: "IN_STORAGE",
-        lot: { OR: [{ shift: { is: { onHold: true } } }, { microbiologyResults: { some: { status: { not: "APPROVED" } } } }] },
+        lot: { OR: [{ shift: { is: { onHold: true } } }, notBothLabsApprovedFilter] },
       },
       select: { weightTonnes: true, lot: { select: { grade: true, format: true } } },
     }),
