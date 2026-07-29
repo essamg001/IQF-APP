@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +8,11 @@ import Link from "next/link";
 import { format } from "date-fns";
 
 export default async function HarvestTicketsPage() {
+  const session = await auth();
+  if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
+    redirect("/");
+  }
+
   const tickets = await prisma.harvestTicket.findMany({
     include: { plotLines: true, _count: { select: { plotLines: true } } },
     orderBy: { createdAt: "desc" },

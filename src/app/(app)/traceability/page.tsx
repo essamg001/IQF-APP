@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/field";
@@ -20,6 +22,11 @@ export default async function TraceabilityPage({
 }: {
   searchParams: Promise<{ field?: string }>;
 }) {
+  const session = await auth();
+  if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
+    redirect("/");
+  }
+
   const { field: fieldName } = await searchParams;
 
   const fields = await prisma.field.findMany({

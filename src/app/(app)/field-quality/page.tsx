@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { FieldQualityTable, type FieldPeriodRow, type Period } from "./field-quality-table";
 
 const PERIODS: Period[] = ["DAILY", "WEEKLY", "MONTHLY"];
 const PERIOD_DAYS: Record<Period, number> = { DAILY: 1, WEEKLY: 7, MONTHLY: 30 };
 
 export default async function FieldQualityPage() {
+  const session = await auth();
+  if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
+    redirect("/");
+  }
+
   const fields = await prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } });
 
   const monthStart = new Date();

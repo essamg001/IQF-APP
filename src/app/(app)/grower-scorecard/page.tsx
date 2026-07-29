@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { format, startOfWeek } from "date-fns";
 import { GrowerScorecardTable, type Period, type PeriodSection, type ScoreRow } from "./grower-scorecard-table";
 import type { Field } from "@prisma/client";
@@ -149,6 +151,11 @@ function bucketSections(
 }
 
 export default async function GrowerScorecardPage() {
+  const session = await auth();
+  if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
+    redirect("/");
+  }
+
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 

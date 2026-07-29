@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ReceiptForm } from "./receipt-form";
@@ -56,6 +57,11 @@ function DetailRow({ label, value }: { label: string; value: string | number | n
 }
 
 export default async function HarvestTicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
+    redirect("/");
+  }
+
   const { id } = await params;
   const ticket = await prisma.harvestTicket.findUnique({
     where: { id },

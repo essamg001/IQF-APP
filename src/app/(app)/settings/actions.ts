@@ -1,10 +1,21 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSlotsForColdRoom } from "@/lib/coldStorage";
+
+// User management (create/delete/promote) is Owner-only on the page (see
+// settings/page.tsx's `isOwner` gate on the Users card) -- but a Server
+// Action is its own callable endpoint independent of what a page renders,
+// so the page-level gate alone doesn't stop a non-Owner from invoking these
+// directly. Re-checking here is what actually enforces it.
+async function requireOwner() {
+  const session = await auth();
+  return session?.user.role === "OWNER";
+}
 
 const factorySchema = z.object({
   name: z.string().min(1),
@@ -71,6 +82,8 @@ const userSchema = z.object({
 });
 
 export async function addUserAction(_prevState: string | undefined, formData: FormData) {
+  if (!(await requireOwner())) return "Only the Owner can add users.";
+
   const parsed = userSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -102,11 +115,13 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
 }
 
 export async function deleteUserAction(id: string) {
+  if (!(await requireOwner())) return;
   await prisma.user.delete({ where: { id } });
   revalidatePath("/settings");
 }
 
 export async function toggleHeadOfSalesAction(id: string) {
+  if (!(await requireOwner())) return;
   const user = await prisma.user.findUniqueOrThrow({ where: { id } });
   await prisma.user.update({ where: { id }, data: { isHeadOfSales: !user.isHeadOfSales } });
   revalidatePath("/settings");

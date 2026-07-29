@@ -1,6 +1,13 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { TicketForm } from "./ticket-form";
 
-export default function NewHarvestTicketPage() {
+export default async function NewHarvestTicketPage() {
+  const session = await auth();
+  if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
+    redirect("/");
+  }
+
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">New Harvest Ticket</h1>
