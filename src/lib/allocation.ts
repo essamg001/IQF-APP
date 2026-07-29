@@ -64,7 +64,7 @@ export async function suggestAllocation(params: {
     const checks = pallet.lot.qualityChecks;
     const avgBrix = checks.length ? checks.reduce((s, c) => s + c.brix, 0) / checks.length : null;
     const avgDefect = checks.length
-      ? checks.reduce((s, c) => s + c.mouldPct + c.skinDamagePct, 0) / checks.length
+      ? checks.reduce((s, c) => s + (c.mouldPct ?? 0) + (c.skinDamagePct ?? 0), 0) / checks.length
       : 0;
 
     let score = 0;

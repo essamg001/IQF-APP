@@ -112,8 +112,8 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
       sampleWeightKg: data.sampleWeightKg,
       productTemperatureC: data.productTemperatureC,
       brix: data.brix,
-      fruitColorPct: data.fruitColorPct ?? 0,
-      internalQualityPct: data.internalQualityPct ?? 0,
+      fruitColorPct: data.fruitColorPct,
+      internalQualityPct: data.internalQualityPct,
       cleaningGoodCratesOk: data.cleaningGoodCratesOk,
       overmaturePct: data.overmaturePct,
       diameterUnder22mmPct: data.diameterUnder22mmPct,
@@ -130,9 +130,6 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
     },
   });
 
-  // Checked against the parsed form values, not the saved row -- fields left
-  // blank get defaulted to 0 in the DB, which would otherwise misread as a
-  // genuine (and always-failing) 0% reading for min-style limits like Brix.
   const violations = checkQualityLimits("PRE_DECAP", { ...data, totalDefectsPct });
   await raiseQualityLimitAlert({
     checkId: created.id,

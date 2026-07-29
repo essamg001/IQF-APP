@@ -123,17 +123,17 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
       crateWeightKg: data.crateWeightKg,
       sizeCaliber: data.sizeCaliber,
       brix: data.brix,
-      fruitColorPct: data.fruitColorPct ?? 0,
-      internalQualityPct: data.internalQualityPct ?? 0,
+      fruitColorPct: data.fruitColorPct,
+      internalQualityPct: data.internalQualityPct,
       foreignOdor: data.foreignOdor,
       foreignTaste: data.foreignTaste,
       incompleteMaturityPct: data.incompleteMaturityPct,
       moldSignsPct: data.moldSignsPct,
-      mouldPct: data.mouldPct ?? 0,
+      mouldPct: data.mouldPct,
       capsuleRemainsPct: data.capsuleRemainsPct,
       birdFoodPct: data.birdFoodPct,
       overmaturePct: data.overmaturePct,
-      skinDamagePct: data.skinDamagePct ?? 0,
+      skinDamagePct: data.skinDamagePct,
       shapeDeformitiesPct: data.shapeDeformitiesPct,
       seedClusteringPct: data.seedClusteringPct,
       bruisesPct: data.bruisesPct,
@@ -155,9 +155,6 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
     },
   });
 
-  // Checked against the parsed form values, not the saved row -- fields left
-  // blank get defaulted to 0 in the DB, which would otherwise misread as a
-  // genuine (and always-failing) 0% reading for min-style limits like Brix.
   const violations = checkQualityLimits("POST_DECAP", { ...data, totalDefectsPct });
   await raiseQualityLimitAlert({
     checkId: created.id,

@@ -2,8 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { parseBrixRange } from "@/lib/allocation";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
 
-function avg(nums: number[]) {
-  return nums.length ? nums.reduce((s, n) => s + n, 0) / nums.length : null;
+function avg(nums: (number | null)[]) {
+  const vals = nums.filter((n): n is number => n !== null);
+  return vals.length ? vals.reduce((s, n) => s + n, 0) / vals.length : null;
 }
 
 export type CertificateData = {
@@ -118,11 +119,11 @@ export async function computeContainerCertificateData(containerId: string): Prom
     : distinctLots.flatMap((l) => l.qualityChecks.filter((q) => q.checkpoint === "RAW_MATERIAL"));
 
   const brix = avg(checksForCert.map((c) => c.brix));
-  const fruitColorPct = avg(checksForCert.filter((c) => c.fruitColorPct !== null).map((c) => c.fruitColorPct as number));
+  const fruitColorPct = avg(checksForCert.map((c) => c.fruitColorPct));
   const internalQualityPct = avg(checksForCert.map((c) => c.internalQualityPct));
   const mouldPct = avg(checksForCert.map((c) => c.mouldPct));
   const skinDamagePct = avg(checksForCert.map((c) => c.skinDamagePct));
-  const overmaturePct = avg(checksForCert.filter((c) => c.overmaturePct !== null).map((c) => c.overmaturePct as number));
+  const overmaturePct = avg(checksForCert.map((c) => c.overmaturePct));
   const productTemp = checksForCert.find((c) => c.productTemperatureC !== null)?.productTemperatureC ?? -18;
   const foreignOdor = checksForCert.find((c) => c.foreignOdor)?.foreignOdor ?? "NIL";
   const foreignTaste = checksForCert.find((c) => c.foreignTaste)?.foreignTaste ?? "NIL";

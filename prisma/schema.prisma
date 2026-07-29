@@ -572,8 +572,8 @@ model QualityCheck {
 
   // Shared measurements
   brix               Float
-  fruitColorPct      Float @default(0)
-  internalQualityPct Float @default(0)
+  fruitColorPct      Float?
+  internalQualityPct Float?
   acidityPh          Float?
   productTemperatureC Float?
   varietyName        String?
@@ -659,8 +659,8 @@ model QualityCheck {
   frozenProductWaitMinutes Float? // فترة انتظار المنتج المجمد
 
   // Legacy/general defect fields
-  mouldPct      Float @default(0)
-  skinDamagePct Float @default(0)
+  mouldPct      Float?
+  skinDamagePct Float?
   firmnessScore Float?
 
   notes String?

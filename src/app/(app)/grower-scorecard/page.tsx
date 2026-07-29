@@ -30,8 +30,8 @@ type Check = {
   createdAt: Date;
   decision: string | null;
   brix: number;
-  fruitColorPct: number;
-  internalQualityPct: number;
+  fruitColorPct: number | null;
+  internalQualityPct: number | null;
   cleaningGoodCratesOk: boolean | null;
   overmaturePct: number | null;
   diameterUnder22mmPct: number | null;

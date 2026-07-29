@@ -136,17 +136,17 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
       crateWeightKg: data.crateWeightKg,
       sizeCaliber: data.sizeCaliber,
       brix: data.brix ?? 0,
-      fruitColorPct: data.fruitColorPct ?? 0,
-      internalQualityPct: data.internalQualityPct ?? 0,
+      fruitColorPct: data.fruitColorPct,
+      internalQualityPct: data.internalQualityPct,
       foreignOdor: data.foreignOdor,
       foreignTaste: data.foreignTaste,
       incompleteMaturityPct: data.incompleteMaturityPct,
       moldSignsPct: data.moldSignsPct,
-      mouldPct: data.mouldPct ?? 0,
+      mouldPct: data.mouldPct,
       capsuleRemainsPct: data.capsuleRemainsPct,
       birdFoodPct: data.birdFoodPct,
       overmaturePct: data.overmaturePct,
-      skinDamagePct: data.skinDamagePct ?? 0,
+      skinDamagePct: data.skinDamagePct,
       shapeDeformitiesPct: data.shapeDeformitiesPct,
       seedClusteringPct: data.seedClusteringPct,
       bruisesPct: data.bruisesPct,
@@ -167,10 +167,7 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
   });
 
   // A whole-delivery rejection skips per-defect sampling entirely, so there's
-  // no measured values to check against a limit. Otherwise, checked against
-  // the parsed form values, not the saved row -- fields left blank get
-  // defaulted to 0 in the DB, which would otherwise misread as a genuine
-  // (and always-failing) 0% reading for min-style limits like Fruit Colour.
+  // no measured values to check against a limit.
   const violations = data.appliesToWholeDelivery
     ? []
     : checkQualityLimits("RAW_MATERIAL", { ...data, totalDefectsPct });
