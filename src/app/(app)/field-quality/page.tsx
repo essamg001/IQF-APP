@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { startOfWeek, startOfMonth } from "date-fns";
+import { egyptDateOnly, egyptDayStart } from "@/lib/timezone";
 import { FieldQualityTable, type FieldPeriodRow, type Period } from "./field-quality-table";
 
 const PERIODS: Period[] = ["DAILY", "WEEKLY", "MONTHLY"];
-const PERIOD_DAYS: Record<Period, number> = { DAILY: 1, WEEKLY: 7, MONTHLY: 30 };
 
 export default async function FieldQualityPage() {
   const session = await auth();
@@ -14,15 +15,21 @@ export default async function FieldQualityPage() {
 
   const fields = await prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } });
 
-  const monthStart = new Date();
-  monthStart.setHours(0, 0, 0, 0);
-  monthStart.setDate(monthStart.getDate() - (PERIOD_DAYS.MONTHLY - 1));
+  // Calendar buckets in Egypt local time -- "Daily" is today's calendar day,
+  // not a rolling last-24-hours window, so it lines up with Harvest Report's
+  // Daily bucket instead of drifting from it.
+  const todayEgypt = egyptDateOnly(new Date());
+  const periodStart: Record<Period, Date> = {
+    DAILY: todayEgypt,
+    WEEKLY: startOfWeek(todayEgypt, { weekStartsOn: 1 }),
+    MONTHLY: startOfMonth(todayEgypt),
+  };
 
   // Pre-Decap Arrivals only -- by Post-Decap Quality the fruit from multiple
   // fields has already been mixed at the decap facility, so averaging its
   // measurements against one field would be misleading.
   const checks = await prisma.qualityCheck.findMany({
-    where: { checkpoint: "PRE_DECAP", fieldId: { not: null }, createdAt: { gte: monthStart } },
+    where: { checkpoint: "PRE_DECAP", fieldId: { not: null }, createdAt: { gte: egyptDayStart(periodStart.MONTHLY) } },
     select: {
       fieldId: true,
       createdAt: true,
@@ -43,11 +50,10 @@ export default async function FieldQualityPage() {
     },
   });
 
-  const now = Date.now();
   const dataByPeriod: Record<Period, FieldPeriodRow[]> = { DAILY: [], WEEKLY: [], MONTHLY: [] };
 
   for (const period of PERIODS) {
-    const cutoff = now - PERIOD_DAYS[period] * 24 * 60 * 60 * 1000;
+    const cutoff = egyptDayStart(periodStart[period]).getTime();
     const inWindow = checks.filter((c) => c.createdAt.getTime() >= cutoff);
 
     const byField = new Map<string, typeof inWindow>();

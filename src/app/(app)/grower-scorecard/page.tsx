@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { format, startOfWeek } from "date-fns";
+import { egyptDateKey, egyptDateOnly, egyptMonthKey, formatYMD, parseDateKey } from "@/lib/timezone";
 import { GrowerScorecardTable, type Period, type PeriodSection, type ScoreRow } from "./grower-scorecard-table";
 import type { Field } from "@prisma/client";
 
@@ -171,25 +172,25 @@ export default async function GrowerScorecardPage() {
     DAILY: bucketSections(
       checks,
       fieldById,
-      (d) => format(d, "yyyy-MM-dd"),
-      (key) => format(new Date(key), "dd MMM yyyy"),
-      (key) => new Date(key).getTime(),
+      (d) => egyptDateKey(d),
+      (key) => format(parseDateKey(key), "dd MMM yyyy"),
+      (key) => parseDateKey(key).getTime(),
       14
     ),
     WEEKLY: bucketSections(
       checks,
       fieldById,
-      (d) => format(startOfWeek(d, { weekStartsOn: 1 }), "yyyy-MM-dd"),
-      (key) => `Week of ${format(new Date(key), "dd MMM yyyy")}`,
-      (key) => new Date(key).getTime(),
+      (d) => formatYMD(startOfWeek(egyptDateOnly(d), { weekStartsOn: 1 })),
+      (key) => `Week of ${format(parseDateKey(key), "dd MMM yyyy")}`,
+      (key) => parseDateKey(key).getTime(),
       8
     ),
     MONTHLY: bucketSections(
       checks,
       fieldById,
-      (d) => format(d, "yyyy-MM"),
-      (key) => format(new Date(`${key}-01`), "MMM yyyy"),
-      (key) => new Date(`${key}-01`).getTime(),
+      (d) => egyptMonthKey(d),
+      (key) => format(parseDateKey(key), "MMM yyyy"),
+      (key) => parseDateKey(key).getTime(),
       6
     ),
   };

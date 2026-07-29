@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { LinkButton } from "@/components/ui/button";
 import { limitsFor } from "@/lib/qualityLimits";
 import { format, startOfWeek } from "date-fns";
+import { egyptDateKey, egyptDateOnly, egyptMonthKey, formatYMD, parseDateKey } from "@/lib/timezone";
 import { QualityPeriodTable, type MetricDef, type Period, type PeriodRow } from "./quality-period-table";
 
 const RAW_MATERIAL_METRICS: MetricDef[] = [
@@ -66,25 +67,25 @@ function groupBy(rows: Check[], keyFn: (r: Check) => string) {
 }
 
 function byDay(rows: Check[], metrics: MetricDef[], take: number): PeriodRow[] {
-  const groups = groupBy(rows, (r) => format(r.createdAt, "yyyy-MM-dd"));
+  const groups = groupBy(rows, (r) => egyptDateKey(r.createdAt));
   return [...groups.entries()]
-    .map(([key, group]) => aggregate(group, metrics, key, format(group[0].createdAt, "dd MMM yyyy"), new Date(key).getTime()))
+    .map(([key, group]) => aggregate(group, metrics, key, format(parseDateKey(key), "dd MMM yyyy"), parseDateKey(key).getTime()))
     .sort((a, b) => b.sortValue - a.sortValue)
     .slice(0, take);
 }
 
 function byWeek(rows: Check[], metrics: MetricDef[], take: number): PeriodRow[] {
-  const groups = groupBy(rows, (r) => format(startOfWeek(r.createdAt, { weekStartsOn: 1 }), "yyyy-MM-dd"));
+  const groups = groupBy(rows, (r) => formatYMD(startOfWeek(egyptDateOnly(r.createdAt), { weekStartsOn: 1 })));
   return [...groups.entries()]
-    .map(([key, group]) => aggregate(group, metrics, key, `Week of ${format(new Date(key), "dd MMM yyyy")}`, new Date(key).getTime()))
+    .map(([key, group]) => aggregate(group, metrics, key, `Week of ${format(parseDateKey(key), "dd MMM yyyy")}`, parseDateKey(key).getTime()))
     .sort((a, b) => b.sortValue - a.sortValue)
     .slice(0, take);
 }
 
 function byMonth(rows: Check[], metrics: MetricDef[], take: number): PeriodRow[] {
-  const groups = groupBy(rows, (r) => format(r.createdAt, "yyyy-MM"));
+  const groups = groupBy(rows, (r) => egyptMonthKey(r.createdAt));
   return [...groups.entries()]
-    .map(([key, group]) => aggregate(group, metrics, key, format(group[0].createdAt, "MMM yyyy"), new Date(`${key}-01`).getTime()))
+    .map(([key, group]) => aggregate(group, metrics, key, format(parseDateKey(key), "MMM yyyy"), parseDateKey(key).getTime()))
     .sort((a, b) => b.sortValue - a.sortValue)
     .slice(0, take);
 }
@@ -111,14 +112,14 @@ export default async function QualityPage() {
   ]);
 
   const rawByShift = [
-    ...groupBy(rawChecks as Check[], (r) => `${format(r.createdAt, "yyyy-MM-dd")}::${r.shiftNumber ?? "unspecified"}`).entries(),
+    ...groupBy(rawChecks as Check[], (r) => `${egyptDateKey(r.createdAt)}::${r.shiftNumber ?? "unspecified"}`).entries(),
   ]
     .map(([key, group]) =>
       aggregate(
         group,
         RAW_MATERIAL_METRICS,
         key,
-        `${format(group[0].createdAt, "dd MMM yyyy")} — Shift ${group[0].shiftNumber ?? "—"}`,
+        `${format(egyptDateOnly(group[0].createdAt), "dd MMM yyyy")} — Shift ${group[0].shiftNumber ?? "—"}`,
         group[0].createdAt.getTime()
       )
     )
