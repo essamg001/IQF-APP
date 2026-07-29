@@ -15,7 +15,7 @@ export function LogRejectWasteForm({ shiftId }: { shiftId: string }) {
         <Input name="rejectedWeightKg" type="number" step="0.1" min="0.1" required className="w-36" />
       </FieldGroup>
       <FieldGroup label="Reason">
-        <Input name="reason" required defaultValue="Grade B / reject fruit removed on inspection belt — composted" className="w-80" />
+        <Input name="reason" required defaultValue="Below Grade B — removed on inspection belt, composted" className="w-80" />
       </FieldGroup>
       <Button type="submit" variant="secondary" disabled={pending}>
         {pending ? "Logging…" : "Log to compost"}
