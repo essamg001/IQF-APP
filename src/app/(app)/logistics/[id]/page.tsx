@@ -17,8 +17,6 @@ import {
   signQualityRepAction,
 } from "../actions";
 
-const MAX_LOTS_PER_CONTAINER = 2;
-
 const CAPACITY_TONNES: Record<"PALLETISED" | "UNPALLETISED", number> = {
   PALLETISED: 24,
   UNPALLETISED: 25,
@@ -51,18 +49,23 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
     remaining: p.weightTonnes - p.loadLines.reduce((s, l) => s + l.quantityTonnes, 0),
   }));
 
+  const distinctLotIds = new Set(container.palletLines.map((l) => l.pallet.lotId));
+
+  // No hard cap on lots per container -- early in the season daily production
+  // can be a fraction of a container's capacity, so filling one legitimately
+  // takes pallets from several days' lots. Instead, pallets from a lot already
+  // in this container are listed first, so whoever's loading naturally
+  // finishes off the lot(s) already in progress before a new one is pulled in,
+  // keeping the count as low as the day's production actually allows.
   const eligibleToAdd = withRemaining
     .filter((p) => p.remaining > 0.01 && !(p.stickeringRequired && !p.stickeringCompletedAt))
-    .map((p) => ({ id: p.id, palletNumber: p.palletNumber, remaining: p.remaining }));
+    .sort((a, b) => (distinctLotIds.has(a.lotId) ? 0 : 1) - (distinctLotIds.has(b.lotId) ? 0 : 1))
+    .map((p) => ({ id: p.id, palletNumber: p.palletNumber, remaining: p.remaining, lotNumber: p.lot.lotNumber }));
 
   const pendingPallets = withRemaining.filter((p) => p.remaining > 0.01);
 
   const totalLoadedThisContainer = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
   const capacity = container.loadType ? CAPACITY_TONNES[container.loadType] : null;
-
-  const distinctLotIds = new Set(container.palletLines.map((l) => l.pallet.lotId));
-  const isGradeB = container.palletLines.every((l) => l.pallet.lot.grade === "B");
-  const atLotLimit = !isGradeB && distinctLotIds.size >= MAX_LOTS_PER_CONTAINER;
 
   return (
     <div className="space-y-6">
@@ -134,9 +137,9 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             <Badge color={capacity && totalLoadedThisContainer >= capacity - 0.5 ? "green" : "slate"}>
               {totalLoadedThisContainer.toFixed(2)}t{capacity ? ` / ${capacity}t` : ""} loaded
             </Badge>
-            {!isGradeB && distinctLotIds.size > 0 && (
-              <Badge color={atLotLimit ? "amber" : "slate"}>
-                {distinctLotIds.size} / {MAX_LOTS_PER_CONTAINER} lots
+            {distinctLotIds.size > 0 && (
+              <Badge color={distinctLotIds.size > 1 ? "amber" : "slate"}>
+                {distinctLotIds.size} lot{distinctLotIds.size === 1 ? "" : "s"} used
               </Badge>
             )}
           </div>

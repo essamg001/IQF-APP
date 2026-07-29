@@ -89,7 +89,6 @@ export async function updateLoadingDetailsAction(containerId: string, formData: 
 }
 
 const ROUNDING_TOLERANCE_TONNES = 0.01;
-const MAX_LOTS_PER_CONTAINER = 2;
 
 async function palletWithRemaining(palletId: string) {
   const pallet = await prisma.pallet.findUniqueOrThrow({
@@ -138,19 +137,6 @@ export async function addPalletLoadLineAction(
   }
   if (parsed.data.quantityTonnes > remaining + ROUNDING_TOLERANCE_TONNES) {
     return `Only ${remaining.toFixed(2)}t remaining on this pallet.`;
-  }
-
-  // Grade A containers may only mix cartons from up to 2 lots. Grade B is exempt —
-  // daily 2nd-grade volume is small enough that a container legitimately needs many days' lots.
-  if (pallet.lot.grade !== "B") {
-    const existingLines = await prisma.containerPalletLine.findMany({
-      where: { containerId },
-      include: { pallet: { select: { lotId: true } } },
-    });
-    const existingLotIds = new Set(existingLines.map((l) => l.pallet.lotId));
-    if (!existingLotIds.has(pallet.lotId) && existingLotIds.size >= MAX_LOTS_PER_CONTAINER) {
-      return `This container already has ${MAX_LOTS_PER_CONTAINER} different lots — Grade A containers can't mix more than that.`;
-    }
   }
 
   await prisma.containerPalletLine.create({

@@ -5,7 +5,7 @@ import { addPalletLoadLineAction } from "../actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 
-type EligiblePallet = { id: string; palletNumber: string; remaining: number };
+type EligiblePallet = { id: string; palletNumber: string; remaining: number; lotNumber: string };
 
 export function AddLoadLineForm({ containerId, pallets }: { containerId: string; pallets: EligiblePallet[] }) {
   const boundAction = addPalletLoadLineAction.bind(null, containerId);
@@ -28,11 +28,11 @@ export function AddLoadLineForm({ containerId, pallets }: { containerId: string;
             const p = pallets.find((p) => p.id === e.target.value);
             setQuantity(p ? p.remaining.toFixed(2) : "");
           }}
-          className="w-64"
+          className="w-80"
         >
           {pallets.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.palletNumber} — {p.remaining.toFixed(2)}t remaining
+              {p.palletNumber} — {p.remaining.toFixed(2)}t remaining — Lot {p.lotNumber}
             </option>
           ))}
         </Select>
