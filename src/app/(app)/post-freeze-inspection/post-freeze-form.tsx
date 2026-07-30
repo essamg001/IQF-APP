@@ -81,7 +81,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
               ))}
             </datalist>
           </FieldGroup>
-          <FieldGroup label="Pallet number (optional — leave blank for a lot-level check)">
+          <FieldGroup label="Pallet number">
             <PalletInput key={isSuccess ? state : `${lotNumber}-initial`} pallets={pallets} />
           </FieldGroup>
           <FieldGroup label="Client">
