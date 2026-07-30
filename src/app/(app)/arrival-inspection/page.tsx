@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { ArrivalInspectionForm } from "./arrival-form";
 
 export default async function ArrivalInspectionPage() {
@@ -67,12 +68,14 @@ export default async function ArrivalInspectionPage() {
           </thead>
           <tbody>
             {todaysChecks.map((c) => (
-              <tr key={c.id} className="border-b border-slate-100 last:border-0">
+              <tr key={c.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2 text-slate-500">
                   {c.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </td>
                 <td className="px-4 py-2">
-                  {c.appliesToWholeDelivery ? <span className="text-slate-400">Whole delivery</span> : c.sampleNo ?? "—"}
+                  <Link href={`/quality-check/${c.id}`} className="text-emerald-700 hover:underline">
+                    {c.appliesToWholeDelivery ? "Whole delivery" : c.sampleNo ?? "—"}
+                  </Link>
                 </td>
                 <td className="px-4 py-2">{c.transportVehicleNo ?? "—"}</td>
                 <td className="px-4 py-2">{c.appliesToWholeDelivery ? "—" : c.brix}</td>
