@@ -834,6 +834,12 @@ model Container {
   carrier                        String?
   departurePort                  String?
   destinationPort                String?
+  // A port name alone doesn't make the country obvious, and doesn't say
+  // whether the port itself is the end of the line or just where this
+  // container transships onward (by another vessel, or overland) to reach
+  // its actual final country -- this makes that explicit instead of
+  // implied by the port name.
+  destinationCountry             String?
   departureDate                  DateTime?
   expectedTransitDays            Int?
   currentLocation                String?

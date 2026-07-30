@@ -7,6 +7,7 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PortInput } from "@/components/port-select";
 import { FORMAT_LABEL } from "@/lib/format";
+import { canSeePricing } from "@/lib/roles";
 import { AddLoadLineForm } from "./add-load-line-form";
 import { AddCostForm } from "./add-cost-form";
 import { AddTemperatureForm } from "./add-temperature-form";
@@ -51,6 +52,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   const { id } = await params;
   const session = await auth();
   const isLoadOutStation = session?.user.station === "LOAD_OUT";
+  const showPricing = canSeePricing(session?.user.role);
   const container = await prisma.container.findUnique({
     where: { id },
     include: {
@@ -119,10 +121,16 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             <h1 className="text-xl font-semibold text-slate-900">Container {container.containerNumber}</h1>
             <Badge color={container.order.grade === "A" ? "green" : "amber"}>Grade {container.order.grade}</Badge>
             <Badge color="slate">{FORMAT_LABEL[container.order.format]}</Badge>
+            {container.destinationCountry &&
+              container.order.client.country &&
+              container.destinationCountry.trim().toLowerCase() !== container.order.client.country.trim().toLowerCase() && (
+                <Badge color="amber">In transit to {container.destinationCountry} (client is in {container.order.client.country})</Badge>
+              )}
           </div>
           <p className="mt-1 text-sm text-slate-500">
             Order <a href={`/orders/${container.orderId}`} className="text-emerald-700 hover:underline">{container.order.orderNumber}</a> ·{" "}
             {container.order.client.name}
+            {container.destinationCountry && ` · Destination: ${container.destinationCountry}`}
           </p>
         </div>
         {!isLoadOutStation && (
@@ -161,6 +169,13 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                   <Input name="destinationPort" defaultValue={container.destinationPort ?? ""} />
                 </FieldGroup>
               </div>
+              <FieldGroup label="Destination country">
+                <Input
+                  name="destinationCountry"
+                  defaultValue={container.destinationCountry ?? ""}
+                  placeholder="e.g. Germany"
+                />
+              </FieldGroup>
               <div className="grid grid-cols-2 gap-3">
                 <FieldGroup label="Departure date">
                   <Input
@@ -207,38 +222,41 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
               </Button>
             </form>
 
-            <div className="mt-6 border-t border-slate-100 pt-4">
-              <h3 className="text-sm font-semibold text-slate-900">Container Value</h3>
-              <form action={updateContainerValueAction.bind(null, container.id)} className="mt-3 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <FieldGroup label="Price per kg (USD)">
-                    <Input name="pricePerKgUsd" type="number" step="0.001" min="0" defaultValue={container.pricePerKgUsd ?? ""} />
-                  </FieldGroup>
-                  <FieldGroup label="Price per carton (USD)">
-                    <Input
-                      name="pricePerCartonUsd"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      defaultValue={container.pricePerCartonUsd ?? ""}
-                    />
-                  </FieldGroup>
-                </div>
-                <Button type="submit" variant="secondary">
-                  Save
-                </Button>
-              </form>
-              <dl className="mt-3 space-y-1 text-sm">
-                <Row
-                  label={`By weight (${(totalLoadedThisContainer * 1000).toFixed(0)} kg)`}
-                  value={valueByWeightUsd != null ? `$${valueByWeightUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
-                />
-                <Row
-                  label={`By cartons (${totalCartonsThisContainer.toFixed(0)} ctn)`}
-                  value={valueByCartonUsd != null ? `$${valueByCartonUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
-                />
-              </dl>
-            </div>
+            {showPricing && (
+              <div className="mt-6 border-t border-slate-100 pt-4">
+                <h3 className="text-sm font-semibold text-slate-900">Container Value</h3>
+                <form action={updateContainerValueAction.bind(null, container.id)} className="mt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <FieldGroup label="Price per kg (USD)">
+                      <Input name="pricePerKgUsd" type="number" step="0.001" min="0" defaultValue={container.pricePerKgUsd ?? ""} />
+                    </FieldGroup>
+                    <FieldGroup label="Price per carton (USD)">
+                      <Input
+                        name="pricePerCartonUsd"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        defaultValue={container.pricePerCartonUsd ?? ""}
+                      />
+                    </FieldGroup>
+                  </div>
+                  <Button type="submit" variant="secondary">
+                    Save
+                  </Button>
+                </form>
+                <dl className="mt-3 space-y-1 text-sm">
+                  <Row
+                    label={`By weight (${(totalLoadedThisContainer * 1000).toFixed(0)} kg)`}
+                    value={valueByWeightUsd != null ? `$${valueByWeightUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
+                  />
+                  <Row
+                    label={`By cartons (${totalCartonsThisContainer.toFixed(0)} ctn)`}
+                    value={valueByCartonUsd != null ? `$${valueByCartonUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
+                  />
+                  <Row label="Payment terms" value={container.order.client.paymentTerms} />
+                </dl>
+              </div>
+            )}
           </Card>
         </div>
       )}

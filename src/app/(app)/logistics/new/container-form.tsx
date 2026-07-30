@@ -47,6 +47,9 @@ export function ContainerForm({
             <Input name="destinationPort" />
           </FieldGroup>
         </div>
+        <FieldGroup label="Destination country">
+          <Input name="destinationCountry" placeholder="e.g. Germany" />
+        </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Departure date">
             <Input name="departureDate" type="date" />
