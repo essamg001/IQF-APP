@@ -6,6 +6,7 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PortInput } from "@/components/port-select";
+import { CarrierInput } from "@/components/carrier-select";
 import { FORMAT_LABEL } from "@/lib/format";
 import type { Client, Order } from "@prisma/client";
 
@@ -37,7 +38,7 @@ export function ContainerForm({
           <Input name="containerNumber" required placeholder="e.g. MSKU1234567" />
         </FieldGroup>
         <FieldGroup label="Carrier">
-          <Input name="carrier" placeholder="e.g. Maersk, MSC, CMA CGM" />
+          <CarrierInput name="carrier" />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Departure port">

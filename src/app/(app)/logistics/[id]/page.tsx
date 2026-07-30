@@ -6,6 +6,7 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PortInput } from "@/components/port-select";
+import { CarrierInput } from "@/components/carrier-select";
 import { FORMAT_LABEL } from "@/lib/format";
 import { canSeePricing } from "@/lib/roles";
 import { AddLoadLineForm } from "./add-load-line-form";
@@ -147,7 +148,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             <form action={updateShipmentDetailsAction.bind(null, container.id)} className="mt-3 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <FieldGroup label="Carrier">
-                  <Input name="carrier" defaultValue={container.carrier ?? ""} placeholder="e.g. Maersk, MSC" />
+                  <CarrierInput name="carrier" defaultValue={container.carrier ?? ""} />
                 </FieldGroup>
                 <FieldGroup label="Booking number">
                   <Input name="bookingNumber" defaultValue={container.bookingNumber ?? ""} />
