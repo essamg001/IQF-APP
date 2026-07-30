@@ -5,6 +5,8 @@ import { createContainerAction } from "../actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PortInput } from "@/components/port-select";
+import { FORMAT_LABEL } from "@/lib/format";
 import type { Client, Order } from "@prisma/client";
 
 export function ContainerForm({
@@ -26,20 +28,20 @@ export function ContainerForm({
             </option>
             {orders.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.orderNumber} — {o.client.name}
+                {o.orderNumber} — {o.client.name} — Grade {o.grade}, {FORMAT_LABEL[o.format]}
               </option>
             ))}
           </Select>
         </FieldGroup>
         <FieldGroup label="Container number">
-          <Input name="containerNumber" required />
+          <Input name="containerNumber" required placeholder="e.g. MSKU1234567" />
         </FieldGroup>
         <FieldGroup label="Carrier">
           <Input name="carrier" placeholder="e.g. Maersk, MSC, CMA CGM" />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Departure port">
-            <Input name="departurePort" />
+            <PortInput name="departurePort" />
           </FieldGroup>
           <FieldGroup label="Destination port">
             <Input name="destinationPort" />
@@ -61,6 +63,10 @@ export function ContainerForm({
             <Input name="trackingRef" />
           </FieldGroup>
         </div>
+        <p className="text-xs text-slate-500">
+          Seal number and bill of lading number are usually only known once the carrier issues them after
+          departure — add those from the container&apos;s own page once you have them.
+        </p>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Create container"}

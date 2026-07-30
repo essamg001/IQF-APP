@@ -5,10 +5,16 @@ import { Card } from "@/components/ui/card";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PortInput } from "@/components/port-select";
+import { FORMAT_LABEL } from "@/lib/format";
 import { AddLoadLineForm } from "./add-load-line-form";
+import { AddCostForm } from "./add-cost-form";
 import {
   updateContainerLocationAction,
   updateLoadingDetailsAction,
+  updateShipmentDetailsAction,
+  updateContainerValueAction,
+  removeContainerCostAction,
   removePalletLoadLineAction,
   completeLoadLineAction,
   toggleStickeringRequiredAction,
@@ -20,6 +26,17 @@ import {
 const CAPACITY_TONNES: Record<"PALLETISED" | "UNPALLETISED", number> = {
   PALLETISED: 24,
   UNPALLETISED: 25,
+};
+
+const COST_CATEGORY_LABEL: Record<string, string> = {
+  DEMURRAGE: "Demurrage",
+  DETENTION: "Detention",
+  STORAGE: "Storage",
+  CUSTOMS_DELAY: "Customs Delay",
+  DOCUMENTATION: "Documentation",
+  INSPECTION: "Inspection",
+  REROUTING: "Rerouting",
+  OTHER: "Other",
 };
 
 export default async function ContainerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +51,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
         include: { pallet: { include: { lot: true } } },
         orderBy: { createdAt: "asc" },
       },
+      costs: { orderBy: { incurredAt: "desc" } },
     },
   });
   if (!container) notFound();
@@ -67,11 +85,32 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   const totalLoadedThisContainer = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
   const capacity = container.loadType ? CAPACITY_TONNES[container.loadType] : null;
 
+  // A pallet's cartons can be split across two containers when it fills one
+  // up mid-pallet, so a container's own carton count is prorated by however
+  // much of each pallet's weight actually went into it, not just summed
+  // whole -- otherwise a split pallet's cartons would be double-counted
+  // across both containers it touched.
+  const totalCartonsThisContainer = container.palletLines.reduce((sum, line) => {
+    if (!line.pallet.totalCartons || line.pallet.weightTonnes <= 0) return sum;
+    const fraction = Math.min(1, line.quantityTonnes / line.pallet.weightTonnes);
+    return sum + line.pallet.totalCartons * fraction;
+  }, 0);
+
+  const valueByWeightUsd = container.pricePerKgUsd != null ? container.pricePerKgUsd * totalLoadedThisContainer * 1000 : null;
+  const valueByCartonUsd =
+    container.pricePerCartonUsd != null ? container.pricePerCartonUsd * totalCartonsThisContainer : null;
+
+  const totalExtraCostsUsd = container.costs.reduce((s, c) => s + c.amountUsd, 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Container {container.containerNumber}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-slate-900">Container {container.containerNumber}</h1>
+            <Badge color={container.order.grade === "A" ? "green" : "amber"}>Grade {container.order.grade}</Badge>
+            <Badge color="slate">{FORMAT_LABEL[container.order.format]}</Badge>
+          </div>
           <p className="mt-1 text-sm text-slate-500">
             Order <a href={`/orders/${container.orderId}`} className="text-emerald-700 hover:underline">{container.order.orderNumber}</a> ·{" "}
             {container.order.client.name}
@@ -88,15 +127,50 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
         <div className="grid grid-cols-2 gap-4">
           <Card>
             <h2 className="text-sm font-semibold text-slate-900">Shipment Details</h2>
-            <dl className="mt-3 space-y-2 text-sm">
-              <Row label="Carrier" value={container.carrier} />
-              <Row label="Departure port" value={container.departurePort} />
-              <Row label="Destination port" value={container.destinationPort} />
-              <Row label="Departure date" value={container.departureDate?.toDateString()} />
-              <Row label="Expected transit" value={container.expectedTransitDays ? `${container.expectedTransitDays} days` : undefined} />
-              <Row label="Tracking provider" value={container.trackingProvider} />
-              <Row label="Tracking reference" value={container.trackingRef} />
-            </dl>
+            <form action={updateShipmentDetailsAction.bind(null, container.id)} className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <FieldGroup label="Carrier">
+                  <Input name="carrier" defaultValue={container.carrier ?? ""} placeholder="e.g. Maersk, MSC" />
+                </FieldGroup>
+                <FieldGroup label="Destination port">
+                  <Input name="destinationPort" defaultValue={container.destinationPort ?? ""} />
+                </FieldGroup>
+              </div>
+              <FieldGroup label="Departure port">
+                <PortInput name="departurePort" defaultValue={container.departurePort ?? ""} />
+              </FieldGroup>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldGroup label="Departure date">
+                  <Input
+                    name="departureDate"
+                    type="date"
+                    defaultValue={container.departureDate ? container.departureDate.toISOString().slice(0, 10) : ""}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Expected transit (days)">
+                  <Input name="expectedTransitDays" type="number" min="1" defaultValue={container.expectedTransitDays ?? ""} />
+                </FieldGroup>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldGroup label="Tracking provider">
+                  <Input name="trackingProvider" defaultValue={container.trackingProvider ?? ""} placeholder="e.g. ShipsGo" />
+                </FieldGroup>
+                <FieldGroup label="Tracking reference">
+                  <Input name="trackingRef" defaultValue={container.trackingRef ?? ""} />
+                </FieldGroup>
+              </div>
+              <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+                <FieldGroup label="Seal number">
+                  <Input name="sealNumber" defaultValue={container.sealNumber ?? ""} placeholder="e.g. SL1234567" />
+                </FieldGroup>
+                <FieldGroup label="Bill of lading number">
+                  <Input name="billOfLadingNumber" defaultValue={container.billOfLadingNumber ?? ""} />
+                </FieldGroup>
+              </div>
+              <Button type="submit" variant="secondary">
+                Save
+              </Button>
+            </form>
           </Card>
 
           <Card>
@@ -110,8 +184,81 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                 Update
               </Button>
             </form>
+
+            <div className="mt-6 border-t border-slate-100 pt-4">
+              <h3 className="text-sm font-semibold text-slate-900">Container Value</h3>
+              <form action={updateContainerValueAction.bind(null, container.id)} className="mt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <FieldGroup label="Price per kg (USD)">
+                    <Input name="pricePerKgUsd" type="number" step="0.001" min="0" defaultValue={container.pricePerKgUsd ?? ""} />
+                  </FieldGroup>
+                  <FieldGroup label="Price per carton (USD)">
+                    <Input
+                      name="pricePerCartonUsd"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      defaultValue={container.pricePerCartonUsd ?? ""}
+                    />
+                  </FieldGroup>
+                </div>
+                <Button type="submit" variant="secondary">
+                  Save
+                </Button>
+              </form>
+              <dl className="mt-3 space-y-1 text-sm">
+                <Row
+                  label={`By weight (${(totalLoadedThisContainer * 1000).toFixed(0)} kg)`}
+                  value={valueByWeightUsd != null ? `$${valueByWeightUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
+                />
+                <Row
+                  label={`By cartons (${totalCartonsThisContainer.toFixed(0)} ctn)`}
+                  value={valueByCartonUsd != null ? `$${valueByCartonUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
+                />
+              </dl>
+            </div>
           </Card>
         </div>
+      )}
+
+      {!isLoadOutStation && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Additional Logistics Costs</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Demurrage, detention, storage, a customs hold, a reroute — anything beyond the base freight rate.
+              </p>
+            </div>
+            {container.costs.length > 0 && (
+              <Badge color="amber">${totalExtraCostsUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} total</Badge>
+            )}
+          </div>
+
+          {container.costs.length > 0 && (
+            <ul className="mt-3 divide-y divide-slate-100 text-sm">
+              {container.costs.map((c) => (
+                <li key={c.id} className="flex items-center justify-between py-2">
+                  <div>
+                    <Badge color="slate">{COST_CATEGORY_LABEL[c.category]}</Badge>
+                    <span className="ml-2 text-slate-700">${c.amountUsd.toLocaleString()}</span>
+                    {c.description && <span className="ml-2 text-slate-500">{c.description}</span>}
+                    <span className="ml-2 text-xs text-slate-400">{c.incurredAt.toDateString()}</span>
+                  </div>
+                  <form action={removeContainerCostAction.bind(null, container.id, c.id)}>
+                    <button type="submit" className="text-xs text-red-600 hover:underline">
+                      Remove
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <AddCostForm containerId={container.id} />
+          </div>
+        </Card>
       )}
 
       <Card className="border-emerald-200 bg-emerald-50/40">

@@ -17,6 +17,8 @@ const containerSchema = z.object({
   expectedTransitDays: z.coerce.number().int().positive().optional(),
   trackingProvider: z.string().optional(),
   trackingRef: z.string().optional(),
+  sealNumber: z.string().optional(),
+  billOfLadingNumber: z.string().optional(),
 });
 
 export async function createContainerAction(_prevState: string | undefined, formData: FormData) {
@@ -30,17 +32,26 @@ export async function createContainerAction(_prevState: string | undefined, form
     expectedTransitDays: formData.get("expectedTransitDays") || undefined,
     trackingProvider: formData.get("trackingProvider") || undefined,
     trackingRef: formData.get("trackingRef") || undefined,
+    sealNumber: formData.get("sealNumber") || undefined,
+    billOfLadingNumber: formData.get("billOfLadingNumber") || undefined,
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  const existing = await prisma.container.findUnique({ where: { containerNumber: parsed.data.containerNumber } });
+  // Normalized so "msku1234567" and "MSKU1234567" aren't treated as two
+  // different containers, and so it always displays in the standard ISO 6346
+  // format used on the bill of lading, customs paperwork, and the carrier's
+  // own tracking site.
+  const containerNumber = parsed.data.containerNumber.trim().toUpperCase();
+
+  const existing = await prisma.container.findUnique({ where: { containerNumber } });
   if (existing) return "A container with this number already exists.";
 
   const container = await prisma.container.create({
     data: {
       ...parsed.data,
+      containerNumber,
       departureDate: parsed.data.departureDate ? new Date(parsed.data.departureDate) : undefined,
     },
   });
@@ -58,6 +69,90 @@ export async function updateContainerLocationAction(containerId: string, formDat
     currentLocation: formData.get("currentLocation") || undefined,
   });
   await prisma.container.update({ where: { id: containerId }, data: parsed });
+  revalidatePath(`/logistics/${containerId}`);
+  revalidatePath("/logistics");
+}
+
+const shipmentDetailsSchema = z.object({
+  carrier: z.string().optional(),
+  departurePort: z.string().optional(),
+  destinationPort: z.string().optional(),
+  departureDate: z.string().optional(),
+  expectedTransitDays: z.coerce.number().int().positive().optional(),
+  trackingProvider: z.string().optional(),
+  trackingRef: z.string().optional(),
+  sealNumber: z.string().optional(),
+  billOfLadingNumber: z.string().optional(),
+});
+
+// Seal number and bill of lading number in particular are usually only known
+// a few days after the vessel actually departs (the carrier issues the B/L
+// after the fact), so the whole shipment-details block needs to stay
+// editable well after the container record was first created, not just set
+// once at creation time.
+export async function updateShipmentDetailsAction(containerId: string, formData: FormData) {
+  const parsed = shipmentDetailsSchema.parse({
+    carrier: formData.get("carrier") || undefined,
+    departurePort: formData.get("departurePort") || undefined,
+    destinationPort: formData.get("destinationPort") || undefined,
+    departureDate: formData.get("departureDate") || undefined,
+    expectedTransitDays: formData.get("expectedTransitDays") || undefined,
+    trackingProvider: formData.get("trackingProvider") || undefined,
+    trackingRef: formData.get("trackingRef") || undefined,
+    sealNumber: formData.get("sealNumber") || undefined,
+    billOfLadingNumber: formData.get("billOfLadingNumber") || undefined,
+  });
+  const { departureDate, ...rest } = parsed;
+  await prisma.container.update({
+    where: { id: containerId },
+    data: { ...rest, departureDate: departureDate ? new Date(departureDate) : undefined },
+  });
+  revalidatePath(`/logistics/${containerId}`);
+  revalidatePath("/logistics");
+}
+
+const containerValueSchema = z.object({
+  pricePerKgUsd: z.coerce.number().nonnegative().optional(),
+  pricePerCartonUsd: z.coerce.number().nonnegative().optional(),
+});
+
+export async function updateContainerValueAction(containerId: string, formData: FormData) {
+  const parsed = containerValueSchema.parse({
+    pricePerKgUsd: formData.get("pricePerKgUsd") || undefined,
+    pricePerCartonUsd: formData.get("pricePerCartonUsd") || undefined,
+  });
+  await prisma.container.update({ where: { id: containerId }, data: parsed });
+  revalidatePath(`/logistics/${containerId}`);
+  revalidatePath("/logistics");
+}
+
+const containerCostSchema = z.object({
+  category: z.enum(["DEMURRAGE", "DETENTION", "STORAGE", "CUSTOMS_DELAY", "DOCUMENTATION", "INSPECTION", "REROUTING", "OTHER"]),
+  amountUsd: z.coerce.number().positive(),
+  description: z.string().optional(),
+  incurredAt: z.string().optional(),
+});
+
+export async function addContainerCostAction(containerId: string, _prevState: string | undefined, formData: FormData) {
+  const parsed = containerCostSchema.safeParse({
+    category: formData.get("category"),
+    amountUsd: formData.get("amountUsd"),
+    description: formData.get("description") || undefined,
+    incurredAt: formData.get("incurredAt") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const { incurredAt, ...data } = parsed.data;
+  await prisma.containerCost.create({
+    data: { ...data, containerId, incurredAt: incurredAt ? new Date(incurredAt) : undefined },
+  });
+  revalidatePath(`/logistics/${containerId}`);
+  revalidatePath("/logistics");
+  return "ok";
+}
+
+export async function removeContainerCostAction(containerId: string, costId: string) {
+  await prisma.containerCost.delete({ where: { id: costId } });
   revalidatePath(`/logistics/${containerId}`);
   revalidatePath("/logistics");
 }

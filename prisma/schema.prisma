@@ -838,6 +838,12 @@ model Container {
   currentLocation     String?
   trackingProvider    String?
   trackingRef         String?
+  // The tamper-evident seal locked on after loading, and the shipping
+  // line's own bill of lading number -- both are what a client, customs
+  // broker, or bank (for L/C terms) actually reference for this specific
+  // shipment, and what proves the container wasn't opened in transit.
+  sealNumber          String?
+  billOfLadingNumber  String?
   createdAt           DateTime  @default(now())
 
   // Load-out manifest header (GEN03115): captured when pallets are loaded for shipment.
@@ -861,8 +867,44 @@ model Container {
   certificateApprovedByName String?
   certificateSnapshot       Json?
 
+  // Order.valueUsd is one lump sum for the whole order, which can span
+  // several containers -- these let a specific container's own value be
+  // computed exactly (by weight or by carton count) once its rate is known,
+  // independent of however the rest of the order is priced.
+  pricePerKgUsd     Float?
+  pricePerCartonUsd Float?
+
   claimLines  ClaimContainerLine[]
   palletLines ContainerPalletLine[]
+  costs       ContainerCost[]
+}
+
+enum ContainerCostCategory {
+  DEMURRAGE
+  DETENTION
+  STORAGE
+  CUSTOMS_DELAY
+  DOCUMENTATION
+  INSPECTION
+  REROUTING
+  OTHER
+}
+
+// Any cost beyond the base freight/booking rate -- demurrage, detention,
+// storage, a customs hold, an unplanned reroute. Its own table (not a single
+// field) because a shipment can rack up more than one of these over its
+// transit, each on its own date, and each needs its own reason on record.
+model ContainerCost {
+  id          String                @id @default(cuid())
+  containerId String
+  container   Container             @relation(fields: [containerId], references: [id])
+  category    ContainerCostCategory
+  amountUsd   Float
+  description String?
+  incurredAt  DateTime              @default(now())
+  createdAt   DateTime              @default(now())
+
+  @@index([containerId])
 }
 
 // How much of a given pallet's tonnage went into a given container. Normally
