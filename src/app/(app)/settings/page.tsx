@@ -17,6 +17,7 @@ const STATION_LABELS: Record<Station, string> = {
 };
 import {
   addFactoryAction,
+  updateFactoryAccreditationAction,
   addColdRoomAction,
   addFieldAction,
   deleteFieldAction,
@@ -81,11 +82,31 @@ export default async function SettingsPage() {
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">Factories</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          CAPQ/NFSA accreditation is standing export eligibility for the packing house itself — produce from an
+          un-coded facility can&apos;t legally be exported.
+        </p>
         <ul className="mt-3 divide-y divide-slate-100">
           {factories.map((f) => (
-            <li key={f.id} className="flex justify-between py-2 text-sm">
-              <span>{f.name}</span>
-              <span className="text-slate-500">{f.capacityTonnesPerHour} t/hr</span>
+            <li key={f.id} className="py-2 text-sm">
+              <div className="flex justify-between">
+                <span>{f.name}</span>
+                <span className="text-slate-500">{f.capacityTonnesPerHour} t/hr</span>
+              </div>
+              <form
+                action={updateFactoryAccreditationAction.bind(null, f.id)}
+                className="mt-2 flex flex-wrap items-end gap-2"
+              >
+                <FieldGroup label="CAPQ export code">
+                  <Input name="capqExportCode" defaultValue={f.capqExportCode ?? ""} className="w-40 text-xs" />
+                </FieldGroup>
+                <FieldGroup label="NFSA accreditation code">
+                  <Input name="nfsaAccreditationCode" defaultValue={f.nfsaAccreditationCode ?? ""} className="w-40 text-xs" />
+                </FieldGroup>
+                <Button type="submit" variant="secondary" className="text-xs">
+                  Save
+                </Button>
+              </form>
             </li>
           ))}
         </ul>

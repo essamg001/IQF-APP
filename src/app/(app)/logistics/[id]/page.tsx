@@ -304,19 +304,40 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
       {!isLoadOutStation && (
         <div className="grid grid-cols-2 gap-4">
           <Card>
-            <h2 className="text-sm font-semibold text-slate-900">Export Documents</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">Export Documents</h2>
+              {!container.bolsaPermitNumber && (
+                <Badge color="red">Bolsa permit missing</Badge>
+              )}
+            </div>
             <p className="mt-1 text-xs text-slate-500">
-              What customs and the client&apos;s own import broker actually ask for — separate from the
-              factory&apos;s Certificate of Quality.
+              Egypt&apos;s fresh-produce export clearance chain (CAPQ/NFSA via Nafeza) — separate from the
+              factory&apos;s own Certificate of Quality.
             </p>
             <form action={updateExportDocumentsAction.bind(null, container.id)} className="mt-3 space-y-3">
+              <FieldGroup label="Nafeza inspection request reference">
+                <Input name="nafezaInspectionRequestRef" defaultValue={container.nafezaInspectionRequestRef ?? ""} />
+              </FieldGroup>
+              <FieldGroup label="Bolsa permit number (on-site sealing)">
+                <Input
+                  name="bolsaPermitNumber"
+                  defaultValue={container.bolsaPermitNumber ?? ""}
+                  className="border-amber-400 focus:border-amber-500 focus:ring-amber-500"
+                />
+              </FieldGroup>
+              <FieldGroup label="NFSA food export health certificate number">
+                <Input name="nfsaHealthCertNumber" defaultValue={container.nfsaHealthCertNumber ?? ""} />
+              </FieldGroup>
+              <FieldGroup label="Fumigation / treatment certificate number (ISPM 15)">
+                <Input name="fumigationCertNumber" defaultValue={container.fumigationCertNumber ?? ""} />
+              </FieldGroup>
               <FieldGroup label="Phytosanitary certificate number">
                 <Input name="phytosanitaryCertNumber" defaultValue={container.phytosanitaryCertNumber ?? ""} />
               </FieldGroup>
               <FieldGroup label="Certificate of origin number">
                 <Input name="certificateOfOriginNumber" defaultValue={container.certificateOfOriginNumber ?? ""} />
               </FieldGroup>
-              <FieldGroup label="Customs export declaration number">
+              <FieldGroup label="Customs export declaration number (Nafeza)">
                 <Input
                   name="customsExportDeclarationNumber"
                   defaultValue={container.customsExportDeclarationNumber ?? ""}

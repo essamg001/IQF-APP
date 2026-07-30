@@ -246,6 +246,11 @@ model Factory {
   capacityTonnesPerHour Float
   // The IQF unit code used in lot numbering, e.g. IQF 1 = "11", IQF 2 = "13".
   code                  String?
+  // Packing-house accreditation -- produce from an un-coded or unauthorized
+  // facility can't legally be exported, so this is the factory's own export
+  // eligibility, not paperwork for one particular shipment.
+  capqExportCode        String?
+  nfsaAccreditationCode String?
 
   shifts ShiftLog[]
   lots   ProductionLot[]
@@ -297,6 +302,11 @@ model Field {
   mapReference String?
 
   farmName        String? // e.g. "MAFA 4"
+  // Same farm-level accreditation, same code repeated across every field
+  // belonging to it -- matches how farmName itself is already denormalized
+  // per field row rather than needing a separate Farm entity.
+  capqFarmCode    String?
+  nfsaFarmCode    String?
   station         String? // irrigation station/block, e.g. "2"
   valve           String? // specific plot within the station, e.g. "1A"
   variety         String? // strawberry variety code, e.g. "MO", "ML52"
@@ -860,8 +870,18 @@ model Container {
   bookingNumber                  String?
   // Export paperwork, separate from the factory's own Certificate of
   // Quality -- these are what customs and the client's own import broker
-  // actually ask for.
+  // actually ask for. Mirrors Egypt's real fresh-produce export clearance
+  // chain: a Nafeza inspection request triggers CAPQ/NFSA to inspect and
+  // seal the reefer on-site under the "Bolsa" permit, samples get tested
+  // for the NFSA health certificate, wooden packaging gets its own
+  // fumigation certificate under ISPM 15, and only then does CAPQ issue
+  // the phytosanitary certificate and the shipment get its customs
+  // declaration filed on Nafeza.
+  nafezaInspectionRequestRef     String?
+  bolsaPermitNumber              String?
   phytosanitaryCertNumber        String?
+  nfsaHealthCertNumber           String?
+  fumigationCertNumber           String?
   certificateOfOriginNumber      String?
   customsExportDeclarationNumber String?
   // The reefer's target temperature for this shipment (IQF frozen product is

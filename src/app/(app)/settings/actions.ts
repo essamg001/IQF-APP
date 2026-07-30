@@ -44,6 +44,24 @@ export async function addFactoryAction(formData: FormData) {
   revalidatePath("/settings");
 }
 
+const factoryAccreditationSchema = z.object({
+  capqExportCode: z.string().optional(),
+  nfsaAccreditationCode: z.string().optional(),
+});
+
+// Produce from an un-coded or unauthorized packing house can't legally be
+// exported -- this is the factory's own standing export eligibility, not
+// paperwork for one particular shipment (see Container's per-shipment
+// export documents for that).
+export async function updateFactoryAccreditationAction(factoryId: string, formData: FormData) {
+  const parsed = factoryAccreditationSchema.parse({
+    capqExportCode: formData.get("capqExportCode") || undefined,
+    nfsaAccreditationCode: formData.get("nfsaAccreditationCode") || undefined,
+  });
+  await prisma.factory.update({ where: { id: factoryId }, data: parsed });
+  revalidatePath("/settings");
+}
+
 export async function addColdRoomAction(formData: FormData) {
   const parsed = coldRoomSchema.parse({
     name: formData.get("name"),

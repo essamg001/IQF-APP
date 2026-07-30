@@ -35,6 +35,7 @@ export default async function LogisticsPage({
             { order: { client: { name: { contains: query, mode: "insensitive" } } } },
             { sealNumber: { contains: query, mode: "insensitive" } },
             { billOfLadingNumber: { contains: query, mode: "insensitive" } },
+            { bolsaPermitNumber: { contains: query, mode: "insensitive" } },
           ],
         }
       : undefined,
@@ -93,6 +94,7 @@ export default async function LogisticsPage({
               <th className="px-4 py-2 font-medium">Current Location</th>
               <th className="px-4 py-2 font-medium">Load Type</th>
               <th className="px-4 py-2 font-medium">Load-Out</th>
+              <th className="px-4 py-2 font-medium">Bolsa Permit</th>
             </tr>
           </thead>
           <tbody>
@@ -144,12 +146,21 @@ export default async function LogisticsPage({
                       </Badge>
                     )}
                   </td>
+                  <td className="px-4 py-2">
+                    {c.bolsaPermitNumber ? (
+                      <Badge color="green">On file</Badge>
+                    ) : loadedTonnes > 0 ? (
+                      <Badge color="red">Missing</Badge>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               );
             })}
             {containers.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={11} className="px-4 py-8 text-center text-slate-400">
                   {query ? `No container matches "${query}".` : "No containers yet. Create one from an order's page."}
                 </td>
               </tr>

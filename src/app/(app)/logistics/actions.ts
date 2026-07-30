@@ -122,14 +122,22 @@ export async function updateShipmentDetailsAction(containerId: string, formData:
 }
 
 const exportDocumentsSchema = z.object({
+  nafezaInspectionRequestRef: z.string().optional(),
+  bolsaPermitNumber: z.string().optional(),
   phytosanitaryCertNumber: z.string().optional(),
+  nfsaHealthCertNumber: z.string().optional(),
+  fumigationCertNumber: z.string().optional(),
   certificateOfOriginNumber: z.string().optional(),
   customsExportDeclarationNumber: z.string().optional(),
 });
 
 export async function updateExportDocumentsAction(containerId: string, formData: FormData) {
   const parsed = exportDocumentsSchema.parse({
+    nafezaInspectionRequestRef: formData.get("nafezaInspectionRequestRef") || undefined,
+    bolsaPermitNumber: formData.get("bolsaPermitNumber") || undefined,
     phytosanitaryCertNumber: formData.get("phytosanitaryCertNumber") || undefined,
+    nfsaHealthCertNumber: formData.get("nfsaHealthCertNumber") || undefined,
+    fumigationCertNumber: formData.get("fumigationCertNumber") || undefined,
     certificateOfOriginNumber: formData.get("certificateOfOriginNumber") || undefined,
     customsExportDeclarationNumber: formData.get("customsExportDeclarationNumber") || undefined,
   });
