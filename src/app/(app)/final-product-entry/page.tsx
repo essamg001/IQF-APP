@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { PackingForm } from "./packing-form";
 
 export default async function FinalProductEntryPage() {
@@ -67,11 +68,15 @@ export default async function FinalProductEntryPage() {
           </thead>
           <tbody>
             {todaysPallets.map((p) => (
-              <tr key={p.id} className="border-b border-slate-100 last:border-0">
+              <tr key={p.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2 text-slate-500">
                   {p.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </td>
-                <td className="px-4 py-2">{p.palletNumber}</td>
+                <td className="px-4 py-2">
+                  <Link href={`/storage/${p.id}`} className="text-emerald-700 hover:underline">
+                    {p.palletNumber}
+                  </Link>
+                </td>
                 <td className="px-4 py-2">{p.lot.lotNumber}</td>
                 <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>
                 <td className="px-4 py-2">{p.totalCartons ?? "—"}</td>

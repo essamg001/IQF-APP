@@ -115,15 +115,36 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
       </div>
 
       <Card>
-        <h2 className="text-sm font-semibold text-slate-900">Carton Attributes</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Packing Details — Identification of Packed Pallets (GEN03115)</h2>
         <dl className="mt-3 grid grid-cols-4 gap-x-6 gap-y-2 text-sm">
+          <Row label="Packing date" value={pallet.packingDate?.toDateString()} />
+          <Row label="Packing location" value={pallet.packingLocation} />
+          <Row label="Supervisor" value={pallet.packingSupervisor} />
           <Row label="Carton logo" value={pallet.cartonLogo} />
           <Row label="Carton size" value={pallet.cartonSize} />
           <Row label="Variety" value={pallet.variety} />
+          <Row label="Client (spec note)" value={pallet.clientSpecNote} />
+          <Row label="Quality grade" value={pallet.qualityGrade ? `Grade ${pallet.qualityGrade}` : undefined} />
+          <Row label="Total cartons" value={pallet.totalCartons?.toString()} />
+          <Row label="Product" value={pallet.isMixedVariety ? "Mixed varieties" : "One variety"} />
+          <Row label="Parcels" value={pallet.fullPallet ? "Full pallet" : "Partial"} />
+          <Row label="Beginning of palletization" value={pallet.palletizationStart?.toLocaleString()} />
+          <Row label="End of palletization" value={pallet.palletizationEnd?.toLocaleString()} />
         </dl>
+
+        <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Fruit Diameter — from Post-Freeze Inspection
+        </h3>
+        <dl className="mt-2 grid grid-cols-4 gap-x-6 gap-y-2 text-sm">
+          <Row label="Uncalibrated" value={pallet.fruitDiameterUncalibrated} />
+          <Row label="Calibrated — small" value={pallet.fruitDiameterCalibratedSmall} />
+          <Row label="Calibrated — medium" value={pallet.fruitDiameterCalibratedMedium} />
+          <Row label="Calibrated — large" value={pallet.fruitDiameterCalibratedLarge} />
+        </dl>
+
         {pallet.loadLines.length > 0 && (
           <>
-            <h2 className="mt-4 text-sm font-semibold text-slate-900">Load-Out History (GEN03115)</h2>
+            <h2 className="mt-4 text-sm font-semibold text-slate-900">Load-Out History</h2>
             <p className="text-xs text-slate-500">
               {loadedTonnes.toFixed(2)}t of {pallet.weightTonnes}t loaded
               {remainingTonnes > 0.01 && ` — ${remainingTonnes.toFixed(2)}t remaining, to be loaded into a future container`}
