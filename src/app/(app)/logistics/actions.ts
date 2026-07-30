@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { raiseMicrobiologyLoadAttemptAlert } from "@/lib/alerts";
+import { raiseMicrobiologyLoadAttemptAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
 
 const containerSchema = z.object({
@@ -75,6 +75,9 @@ export async function updateContainerLocationAction(containerId: string, formDat
 
 const shipmentDetailsSchema = z.object({
   carrier: z.string().optional(),
+  vesselName: z.string().optional(),
+  voyageNumber: z.string().optional(),
+  bookingNumber: z.string().optional(),
   departurePort: z.string().optional(),
   destinationPort: z.string().optional(),
   departureDate: z.string().optional(),
@@ -93,6 +96,9 @@ const shipmentDetailsSchema = z.object({
 export async function updateShipmentDetailsAction(containerId: string, formData: FormData) {
   const parsed = shipmentDetailsSchema.parse({
     carrier: formData.get("carrier") || undefined,
+    vesselName: formData.get("vesselName") || undefined,
+    voyageNumber: formData.get("voyageNumber") || undefined,
+    bookingNumber: formData.get("bookingNumber") || undefined,
     departurePort: formData.get("departurePort") || undefined,
     destinationPort: formData.get("destinationPort") || undefined,
     departureDate: formData.get("departureDate") || undefined,
@@ -109,6 +115,77 @@ export async function updateShipmentDetailsAction(containerId: string, formData:
   });
   revalidatePath(`/logistics/${containerId}`);
   revalidatePath("/logistics");
+}
+
+const exportDocumentsSchema = z.object({
+  phytosanitaryCertNumber: z.string().optional(),
+  certificateOfOriginNumber: z.string().optional(),
+  customsExportDeclarationNumber: z.string().optional(),
+});
+
+export async function updateExportDocumentsAction(containerId: string, formData: FormData) {
+  const parsed = exportDocumentsSchema.parse({
+    phytosanitaryCertNumber: formData.get("phytosanitaryCertNumber") || undefined,
+    certificateOfOriginNumber: formData.get("certificateOfOriginNumber") || undefined,
+    customsExportDeclarationNumber: formData.get("customsExportDeclarationNumber") || undefined,
+  });
+  await prisma.container.update({ where: { id: containerId }, data: parsed });
+  revalidatePath(`/logistics/${containerId}`);
+}
+
+const reeferSetPointSchema = z.object({
+  reeferSetPointC: z.coerce.number().optional(),
+});
+
+export async function updateReeferSetPointAction(containerId: string, formData: FormData) {
+  const parsed = reeferSetPointSchema.parse({
+    reeferSetPointC: formData.get("reeferSetPointC") || undefined,
+  });
+  await prisma.container.update({ where: { id: containerId }, data: parsed });
+  revalidatePath(`/logistics/${containerId}`);
+}
+
+// A reading is compared against the container's own set-point at the time
+// it's logged, not stored as its own pass/fail flag -- so correcting the
+// set-point later doesn't retroactively change what counted as an excursion.
+const TEMPERATURE_EXCURSION_TOLERANCE_C = 2;
+
+const temperatureReadingSchema = z.object({
+  temperatureC: z.coerce.number(),
+  recordedAt: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export async function addTemperatureReadingAction(
+  containerId: string,
+  _prevState: string | undefined,
+  formData: FormData
+) {
+  const parsed = temperatureReadingSchema.safeParse({
+    temperatureC: formData.get("temperatureC"),
+    recordedAt: formData.get("recordedAt") || undefined,
+    notes: formData.get("notes") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  const { recordedAt, ...data } = parsed.data;
+
+  await prisma.containerTemperatureLog.create({
+    data: { ...data, containerId, recordedAt: recordedAt ? new Date(recordedAt) : undefined },
+  });
+
+  if (container.reeferSetPointC != null && Math.abs(data.temperatureC - container.reeferSetPointC) > TEMPERATURE_EXCURSION_TOLERANCE_C) {
+    await raiseTemperatureExcursionAlert({
+      containerId,
+      containerNumber: container.containerNumber,
+      temperatureC: data.temperatureC,
+      setPointC: container.reeferSetPointC,
+    });
+  }
+
+  revalidatePath(`/logistics/${containerId}`);
+  return "ok";
 }
 
 const containerValueSchema = z.object({

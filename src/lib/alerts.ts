@@ -252,12 +252,49 @@ async function checkContainerOverdue() {
 
   for (const c of containers) {
     if (!c.departureDate || !c.expectedTransitDays) continue;
-    if (differenceInDays(new Date(), c.departureDate) <= c.expectedTransitDays) continue;
+    const daysElapsed = differenceInDays(new Date(), c.departureDate);
 
-    const message = `Container ${c.containerNumber} (${c.order.client.name}) is overdue vs. its expected ${c.expectedTransitDays}-day transit.`;
-    await upsertAlert("CONTAINER_OVERDUE", c.id, "LOGISTICS", message);
-    await upsertAlert("CONTAINER_OVERDUE", c.id, "SALES", message);
-    await upsertAlert("CONTAINER_OVERDUE", c.id, "PRODUCTION", message);
+    if (daysElapsed > c.expectedTransitDays) {
+      const message = `Container ${c.containerNumber} (${c.order.client.name}) is overdue vs. its expected ${c.expectedTransitDays}-day transit.`;
+      await upsertAlert("CONTAINER_OVERDUE", c.id, "LOGISTICS", message);
+      await upsertAlert("CONTAINER_OVERDUE", c.id, "SALES", message);
+      await upsertAlert("CONTAINER_OVERDUE", c.id, "PRODUCTION", message);
+    } else if (daysElapsed >= c.expectedTransitDays * 0.8) {
+      // A real early warning -- fired while there's still time to act on a
+      // developing delay, not just a postmortem once the expected date has
+      // already passed (that's what CONTAINER_OVERDUE above is for).
+      const message = `Container ${c.containerNumber} (${c.order.client.name}) is at day ${daysElapsed} of its expected ${c.expectedTransitDays}-day transit -- approaching its expected arrival, worth checking on.`;
+      await upsertAlert("EARLY_WARNING", c.id, "LOGISTICS", message);
+      await upsertAlert("EARLY_WARNING", c.id, "SALES", message);
+    }
+  }
+}
+
+/**
+ * Fired the moment a logged temperature reading falls outside tolerance of
+ * the container's own reefer set-point -- every reading is its own event
+ * worth its own alert, not a static condition to dedupe against.
+ */
+export async function raiseTemperatureExcursionAlert(params: {
+  containerId: string;
+  containerNumber: string;
+  temperatureC: number;
+  setPointC: number;
+}) {
+  const message = `Container ${params.containerNumber}: reefer reading ${params.temperatureC}°C is off its ${params.setPointC}°C set-point -- possible temperature excursion in transit.`;
+
+  for (const role of ["LOGISTICS", "QUALITY", "OWNER"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "TEMPERATURE_EXCURSION",
+        relatedEntityType: "TEMPERATURE_EXCURSION",
+        relatedEntityId: params.containerId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Temperature Excursion", message)));
   }
 }
 

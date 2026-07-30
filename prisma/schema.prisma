@@ -122,6 +122,7 @@ enum AlertType {
   QUALITY_OVERRIDE_APPROVED
   EARLY_WARNING
   SHIFT_ON_HOLD
+  TEMPERATURE_EXCURSION
 }
 
 enum AlertStatus {
@@ -826,25 +827,44 @@ model Order {
 // and the pallet that's mid-way through when a container fills up gets its
 // remaining cartons carried into the next container (see ContainerPalletLine).
 model Container {
-  id                  String    @id @default(cuid())
-  orderId             String
-  order               Order     @relation(fields: [orderId], references: [id])
-  containerNumber     String    @unique
-  carrier             String?
-  departurePort       String?
-  destinationPort     String?
-  departureDate       DateTime?
-  expectedTransitDays Int?
-  currentLocation     String?
-  trackingProvider    String?
-  trackingRef         String?
+  id                             String    @id @default(cuid())
+  orderId                        String
+  order                          Order     @relation(fields: [orderId], references: [id])
+  containerNumber                String    @unique
+  carrier                        String?
+  departurePort                  String?
+  destinationPort                String?
+  departureDate                  DateTime?
+  expectedTransitDays            Int?
+  currentLocation                String?
+  trackingProvider               String?
+  trackingRef                    String?
   // The tamper-evident seal locked on after loading, and the shipping
   // line's own bill of lading number -- both are what a client, customs
   // broker, or bank (for L/C terms) actually reference for this specific
   // shipment, and what proves the container wasn't opened in transit.
-  sealNumber          String?
-  billOfLadingNumber  String?
-  createdAt           DateTime  @default(now())
+  sealNumber                     String?
+  billOfLadingNumber             String?
+  // Which vessel/voyage this container is actually on, and the carrier's own
+  // booking reference -- booking usually exists before the container number
+  // is even assigned, and vessel/voyage is what a tracking-provider
+  // integration would key off once one's wired up.
+  vesselName                     String?
+  voyageNumber                   String?
+  bookingNumber                  String?
+  // Export paperwork, separate from the factory's own Certificate of
+  // Quality -- these are what customs and the client's own import broker
+  // actually ask for.
+  phytosanitaryCertNumber        String?
+  certificateOfOriginNumber      String?
+  customsExportDeclarationNumber String?
+  // The reefer's target temperature for this shipment (IQF frozen product is
+  // normally -18°C) -- readings during transit get compared against this to
+  // catch an excursion, not stored as their own pass/fail flag, so a
+  // corrected set-point doesn't retroactively change what counted as a
+  // problem at the time.
+  reeferSetPointC                Float?
+  createdAt                      DateTime  @default(now())
 
   // Load-out manifest header (GEN03115): captured when pallets are loaded for shipment.
   loadingDate       DateTime?
@@ -874,9 +894,25 @@ model Container {
   pricePerKgUsd     Float?
   pricePerCartonUsd Float?
 
-  claimLines  ClaimContainerLine[]
-  palletLines ContainerPalletLine[]
-  costs       ContainerCost[]
+  claimLines      ClaimContainerLine[]
+  palletLines     ContainerPalletLine[]
+  costs           ContainerCost[]
+  temperatureLogs ContainerTemperatureLog[]
+}
+
+// One row per reading taken during transit -- there's no fixed schedule (a
+// forwarder might report every few hours, or only at port calls), so this is
+// a log, not a handful of fixed checkpoint fields.
+model ContainerTemperatureLog {
+  id           String    @id @default(cuid())
+  containerId  String
+  container    Container @relation(fields: [containerId], references: [id])
+  recordedAt   DateTime  @default(now())
+  temperatureC Float
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  @@index([containerId])
 }
 
 enum ContainerCostCategory {

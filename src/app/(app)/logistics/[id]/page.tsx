@@ -9,11 +9,14 @@ import { PortInput } from "@/components/port-select";
 import { FORMAT_LABEL } from "@/lib/format";
 import { AddLoadLineForm } from "./add-load-line-form";
 import { AddCostForm } from "./add-cost-form";
+import { AddTemperatureForm } from "./add-temperature-form";
 import {
   updateContainerLocationAction,
   updateLoadingDetailsAction,
   updateShipmentDetailsAction,
   updateContainerValueAction,
+  updateExportDocumentsAction,
+  updateReeferSetPointAction,
   removeContainerCostAction,
   removePalletLoadLineAction,
   completeLoadLineAction,
@@ -39,6 +42,11 @@ const COST_CATEGORY_LABEL: Record<string, string> = {
   OTHER: "Other",
 };
 
+// Matches the tolerance addTemperatureReadingAction uses to decide whether a
+// reading is worth alerting on -- kept in sync so a reading flagged here is
+// exactly the one that triggered (or would have triggered) an alert.
+const TEMPERATURE_EXCURSION_TOLERANCE_C = 2;
+
 export default async function ContainerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
@@ -52,6 +60,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
         orderBy: { createdAt: "asc" },
       },
       costs: { orderBy: { incurredAt: "desc" } },
+      temperatureLogs: { orderBy: { recordedAt: "desc" } },
     },
   });
   if (!container) notFound();
@@ -132,13 +141,26 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                 <FieldGroup label="Carrier">
                   <Input name="carrier" defaultValue={container.carrier ?? ""} placeholder="e.g. Maersk, MSC" />
                 </FieldGroup>
+                <FieldGroup label="Booking number">
+                  <Input name="bookingNumber" defaultValue={container.bookingNumber ?? ""} />
+                </FieldGroup>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldGroup label="Vessel name">
+                  <Input name="vesselName" defaultValue={container.vesselName ?? ""} />
+                </FieldGroup>
+                <FieldGroup label="Voyage number">
+                  <Input name="voyageNumber" defaultValue={container.voyageNumber ?? ""} />
+                </FieldGroup>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldGroup label="Departure port">
+                  <PortInput name="departurePort" defaultValue={container.departurePort ?? ""} />
+                </FieldGroup>
                 <FieldGroup label="Destination port">
                   <Input name="destinationPort" defaultValue={container.destinationPort ?? ""} />
                 </FieldGroup>
               </div>
-              <FieldGroup label="Departure port">
-                <PortInput name="departurePort" defaultValue={container.departurePort ?? ""} />
-              </FieldGroup>
               <div className="grid grid-cols-2 gap-3">
                 <FieldGroup label="Departure date">
                   <Input
@@ -259,6 +281,87 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             <AddCostForm containerId={container.id} />
           </div>
         </Card>
+      )}
+
+      {!isLoadOutStation && (
+        <div className="grid grid-cols-2 gap-4">
+          <Card>
+            <h2 className="text-sm font-semibold text-slate-900">Export Documents</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              What customs and the client&apos;s own import broker actually ask for — separate from the
+              factory&apos;s Certificate of Quality.
+            </p>
+            <form action={updateExportDocumentsAction.bind(null, container.id)} className="mt-3 space-y-3">
+              <FieldGroup label="Phytosanitary certificate number">
+                <Input name="phytosanitaryCertNumber" defaultValue={container.phytosanitaryCertNumber ?? ""} />
+              </FieldGroup>
+              <FieldGroup label="Certificate of origin number">
+                <Input name="certificateOfOriginNumber" defaultValue={container.certificateOfOriginNumber ?? ""} />
+              </FieldGroup>
+              <FieldGroup label="Customs export declaration number">
+                <Input
+                  name="customsExportDeclarationNumber"
+                  defaultValue={container.customsExportDeclarationNumber ?? ""}
+                />
+              </FieldGroup>
+              <Button type="submit" variant="secondary">
+                Save
+              </Button>
+            </form>
+          </Card>
+
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Reefer Temperature</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Readings during transit, compared against the set-point below — no fixed schedule, log
+                  whatever the forwarder reports.
+                </p>
+              </div>
+              {container.reeferSetPointC != null && <Badge color="blue">Set-point {container.reeferSetPointC}°C</Badge>}
+            </div>
+
+            <form action={updateReeferSetPointAction.bind(null, container.id)} className="mt-3 flex items-end gap-3">
+              <FieldGroup label="Set-point (°C)">
+                <Input
+                  name="reeferSetPointC"
+                  type="number"
+                  step="0.1"
+                  defaultValue={container.reeferSetPointC ?? ""}
+                  placeholder="e.g. -18"
+                  className="w-28"
+                />
+              </FieldGroup>
+              <Button type="submit" variant="secondary">
+                Save
+              </Button>
+            </form>
+
+            {container.temperatureLogs.length > 0 && (
+              <ul className="mt-3 max-h-56 divide-y divide-slate-100 overflow-y-auto text-sm">
+                {container.temperatureLogs.map((t) => {
+                  const isExcursion =
+                    container.reeferSetPointC != null &&
+                    Math.abs(t.temperatureC - container.reeferSetPointC) > TEMPERATURE_EXCURSION_TOLERANCE_C;
+                  return (
+                    <li key={t.id} className="flex items-center justify-between py-2">
+                      <div>
+                        <Badge color={isExcursion ? "red" : "slate"}>{t.temperatureC}°C</Badge>
+                        {t.notes && <span className="ml-2 text-slate-500">{t.notes}</span>}
+                      </div>
+                      <span className="text-xs text-slate-400">{t.recordedAt.toLocaleString()}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <AddTemperatureForm containerId={container.id} />
+            </div>
+          </Card>
+        </div>
       )}
 
       <Card className="border-emerald-200 bg-emerald-50/40">

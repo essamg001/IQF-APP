@@ -19,6 +19,7 @@ const TYPE_LABEL = {
   QUALITY_OVERRIDE_APPROVED: "Risk Approved",
   EARLY_WARNING: "Early Warning — Trend",
   SHIFT_ON_HOLD: "Shift On Hold",
+  TEMPERATURE_EXCURSION: "Temperature Excursion",
 } as const;
 
 export default async function AlertsPage() {
