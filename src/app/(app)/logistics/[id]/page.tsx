@@ -329,10 +329,10 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
               <FieldGroup label="NFSA food export health certificate number">
                 <Input name="nfsaHealthCertNumber" defaultValue={container.nfsaHealthCertNumber ?? ""} />
               </FieldGroup>
-              <FieldGroup label="Fumigation / treatment certificate number (ISPM 15)">
+              <FieldGroup label="Fumigation / treatment certificate number (ISPM 15, if required)">
                 <Input name="fumigationCertNumber" defaultValue={container.fumigationCertNumber ?? ""} />
               </FieldGroup>
-              <FieldGroup label="Phytosanitary certificate number">
+              <FieldGroup label="Phytosanitary certificate number (if required)">
                 <Input name="phytosanitaryCertNumber" defaultValue={container.phytosanitaryCertNumber ?? ""} />
               </FieldGroup>
               <FieldGroup label="Certificate of origin number">

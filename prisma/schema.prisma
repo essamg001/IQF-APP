@@ -873,10 +873,11 @@ model Container {
   // actually ask for. Mirrors Egypt's real fresh-produce export clearance
   // chain: a Nafeza inspection request triggers CAPQ/NFSA to inspect and
   // seal the reefer on-site under the "Bolsa" permit, samples get tested
-  // for the NFSA health certificate, wooden packaging gets its own
-  // fumigation certificate under ISPM 15, and only then does CAPQ issue
-  // the phytosanitary certificate and the shipment get its customs
-  // declaration filed on Nafeza.
+  // for the NFSA health certificate, and the shipment gets its customs
+  // declaration filed on Nafeza. Phytosanitary and fumigation certificates
+  // are situational, not universal -- fumigation only applies to wooden
+  // packaging (ISPM 15) and phytosanitary requirements vary by crop and
+  // destination market, so neither is required on every shipment.
   nafezaInspectionRequestRef     String?
   bolsaPermitNumber              String?
   phytosanitaryCertNumber        String?
