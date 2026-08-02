@@ -84,9 +84,6 @@ export default async function LabPage() {
                 <FieldGroup label="Lab Name">
                   <Input name="labName" className="w-64" />
                 </FieldGroup>
-                <FieldGroup label="Tracking Ref.">
-                  <Input name="trackingRef" className="w-48" />
-                </FieldGroup>
                 <FieldGroup label="Sent Date">
                   <Input name="sentDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
                 </FieldGroup>

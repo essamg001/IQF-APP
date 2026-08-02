@@ -188,7 +188,6 @@ type MicroResult = {
   certificateNumber: string | null;
   labName: string | null;
   sentDate: Date | null;
-  trackingRef: string | null;
   methodName: string | null;
   sampleId: string | null;
   protocolNumber: string | null;
@@ -252,7 +251,6 @@ function MicroResultSummary({ label, result }: { label: string; result: MicroRes
       {result && (result.certificateNumber || result.labName || result.sentDate || result.sampleCode) && (
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-slate-50 p-3 text-xs">
           <Row label="Sent to lab" value={result.sentDate ? format(result.sentDate, "dd MMM yyyy") : undefined} />
-          <Row label="Tracking ref" value={result.trackingRef} />
           <Row label="Certificate #" value={result.certificateNumber} />
           <Row label="Lab" value={result.labName} />
           <Row label="Client" value={result.clientName} />

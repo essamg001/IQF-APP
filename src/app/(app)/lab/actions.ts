@@ -11,7 +11,6 @@ import { z } from "zod";
 
 const sendSchema = z.object({
   labName: z.string().optional(),
-  trackingRef: z.string().optional(),
   sentDate: z.string().optional(),
 });
 
@@ -22,12 +21,21 @@ export async function markSentToLabAction(resultId: string, formData: FormData) 
   const parsed = sendSchema.parse(raw);
   const session = await auth();
 
+  // The tracking reference for a dispatched sample is just the lot number --
+  // every lot gets tested, so the lot number already is the unique
+  // identifier the physical sample should be labelled with, rather than a
+  // separately invented code that could drift from it.
+  const existing = await prisma.microbiologyResult.findUniqueOrThrow({
+    where: { id: resultId },
+    include: { lot: true },
+  });
+
   const updated = await prisma.microbiologyResult.update({
     where: { id: resultId },
     data: {
       status: "SENT_TO_LAB",
       labName: parsed.labName,
-      trackingRef: parsed.trackingRef,
+      trackingRef: existing.lot.lotNumber,
       sentDate: parseDateSafe(parsed.sentDate) ?? new Date(),
       sentByUserId: session?.user.id,
     },
