@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
 import { FORMAT_LABEL } from "@/lib/format";
-import { canSeePricing } from "@/lib/roles";
+import { canSeeContainerValue } from "@/lib/roles";
 import { AddLoadLineForm } from "./add-load-line-form";
 import { AddCostForm } from "./add-cost-form";
 import { AddTemperatureForm } from "./add-temperature-form";
@@ -53,7 +53,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   const { id } = await params;
   const session = await auth();
   const isLoadOutStation = session?.user.station === "LOAD_OUT";
-  const showPricing = canSeePricing(session?.user.role);
+  const showPricing = canSeeContainerValue(session?.user);
   const container = await prisma.container.findUnique({
     where: { id },
     include: {

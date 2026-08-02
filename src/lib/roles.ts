@@ -23,3 +23,15 @@ export function canSeeHistoricalTrends(user: { role: Role; isHeadOfSales: boolea
   if (!user) return false;
   return user.role === "OWNER" || user.isHeadOfSales;
 }
+
+/**
+ * Container value (price/kg, price/carton, computed shipment value, payment
+ * terms) in Logistics is more sensitive than general order-level pricing --
+ * whoever is physically running load-out shouldn't be able to see what a
+ * shipment is worth, so this is deliberately narrower than canSeePricing:
+ * Owner + Head of Sales/Export only, not the whole Sales role.
+ */
+export function canSeeContainerValue(user: { role: Role; isHeadOfSales: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfSales;
+}

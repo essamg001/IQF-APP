@@ -8,6 +8,7 @@ import { z } from "zod";
 import { raiseMicrobiologyLoadAttemptAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
 import { logActivity } from "@/lib/activityLog";
+import { canSeeContainerValue } from "@/lib/roles";
 
 const containerSchema = z.object({
   orderId: z.string().min(1),
@@ -227,6 +228,9 @@ const containerValueSchema = z.object({
 });
 
 export async function updateContainerValueAction(containerId: string, formData: FormData) {
+  const session = await auth();
+  if (!canSeeContainerValue(session?.user)) return;
+
   const parsed = containerValueSchema.parse({
     pricePerKgUsd: formData.get("pricePerKgUsd") || undefined,
     pricePerCartonUsd: formData.get("pricePerCartonUsd") || undefined,
