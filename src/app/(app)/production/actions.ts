@@ -1,10 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { generateLotNumber } from "@/lib/lotNumber";
 import { parseLocalDateOnly } from "@/lib/dates";
+import { logActivity } from "@/lib/activityLog";
 import { z } from "zod";
 
 const lotSchema = z.object({
@@ -102,6 +104,15 @@ export async function markWasteAction(palletId: string, formData: FormData) {
     // display all correctly reflect that this pallet no longer counts.
     await tx.pallet.update({ where: { id: palletId }, data: { status: "WASTE", orderId: null, clientId: null } });
     await tx.waste.create({ data: { palletId, reason, quantity } });
+  });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "PALLET_MARKED_WASTE",
+    entityType: "Pallet",
+    entityId: palletId,
+    detail: `${quantity}t — ${reason}`,
   });
 
   revalidatePath("/storage");

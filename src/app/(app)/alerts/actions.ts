@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { raiseQualityOverrideAlert } from "@/lib/alerts";
+import { logActivity } from "@/lib/activityLog";
 
 export async function markAlertReadAction(alertId: string) {
   await prisma.alert.update({ where: { id: alertId }, data: { status: "READ" } });
@@ -29,6 +30,12 @@ export async function rejectQualityCheckAction(checkId: string) {
     },
   });
   await resolveRelatedAlerts(checkId);
+  await logActivity({
+    actorId: session?.user.id,
+    action: "QUALITY_CHECK_REJECTED",
+    entityType: "QualityCheck",
+    entityId: checkId,
+  });
   revalidatePath("/alerts");
 }
 
@@ -73,6 +80,15 @@ export async function approveAtRiskAction(checkId: string, _prevState: string | 
     originalMessage: originalAlert?.message ?? "An out-of-spec quality check",
     approvedByName: parsed.data.name,
     note: parsed.data.note,
+  });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "QUALITY_OVERRIDE_APPROVED_AT_RISK",
+    entityType: "QualityCheck",
+    entityId: checkId,
+    detail: `Approved by ${parsed.data.name}${parsed.data.note ? ` — ${parsed.data.note}` : ""}`,
   });
 
   revalidatePath("/alerts");

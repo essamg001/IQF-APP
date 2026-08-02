@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { advanceClaimStatusAction } from "../actions";
+import { Input, FieldGroup } from "@/components/ui/field";
+import { advanceClaimStatusAction, addClaimAttachmentAction, removeClaimAttachmentAction } from "../actions";
 import { format } from "date-fns";
 
 const STATUS_ORDER = ["OPEN", "UNDER_REVIEW", "RESOLVED_CREDITED", "CLOSED"] as const;
@@ -23,7 +24,11 @@ export default async function ClaimDetailPage({ params }: { params: Promise<{ id
 
   const claim = await prisma.claim.findUnique({
     where: { id },
-    include: { client: true, containers: true },
+    include: {
+      client: true,
+      containers: true,
+      attachments: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } },
+    },
   });
   if (!claim) notFound();
 
@@ -161,6 +166,72 @@ export default async function ClaimDetailPage({ params }: { params: Promise<{ id
             {claim.otherNotes}
           </p>
         )}
+      </Card>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-slate-900">Evidence — Photos & Documents ({claim.attachments.length})</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Every file is stamped with who uploaded it and when, so the evidence trail is attributable.
+        </p>
+
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          {claim.attachments.map((a) => {
+            const isImage = /\.(jpe?g|png)$/i.test(a.fileName);
+            return (
+              <div key={a.id} className="rounded-md border border-slate-200 p-2">
+                <a
+                  href={`/api/files/claim-attachments/${a.fileName}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
+                >
+                  {isImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/files/claim-attachments/${a.fileName}`}
+                      alt={a.caption ?? a.originalName}
+                      className="h-32 w-full rounded object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-32 w-full items-center justify-center rounded bg-slate-50 text-sm text-emerald-700 hover:underline">
+                      View PDF
+                    </div>
+                  )}
+                </a>
+                {a.caption && <p className="mt-2 text-xs text-slate-700">{a.caption}</p>}
+                <p className="mt-1 text-xs text-slate-400">
+                  {a.uploadedBy?.name ?? "Unknown"} · {format(a.createdAt, "dd MMM yyyy HH:mm")}
+                </p>
+                <form action={removeClaimAttachmentAction.bind(null, claim.id, a.id)} className="mt-1">
+                  <button type="submit" className="text-xs text-red-600 hover:underline">
+                    Remove
+                  </button>
+                </form>
+              </div>
+            );
+          })}
+          {claim.attachments.length === 0 && (
+            <p className="col-span-3 py-2 text-sm text-slate-400">No evidence uploaded yet.</p>
+          )}
+        </div>
+
+        <form action={addClaimAttachmentAction.bind(null, claim.id)} className="mt-4 flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+          <FieldGroup label="Photo or document (JPEG, PNG, or PDF)">
+            <input
+              name="file"
+              type="file"
+              accept="image/jpeg,image/png,application/pdf"
+              required
+              className="block w-64 text-sm text-slate-700 file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-slate-50"
+            />
+          </FieldGroup>
+          <FieldGroup label="Caption (optional)">
+            <Input name="caption" className="w-56" placeholder="e.g. Mould on arrival, container 3" />
+          </FieldGroup>
+          <Button type="submit" variant="secondary">
+            Upload
+          </Button>
+        </form>
       </Card>
     </div>
   );

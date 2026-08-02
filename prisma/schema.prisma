@@ -168,8 +168,28 @@ model User {
   station       Station?
   createdAt     DateTime @default(now())
 
-  qualityChecks           QualityCheck[]
-  sentMicrobiologyResults MicrobiologyResult[] @relation("MicrobiologySentBy")
+  qualityChecks            QualityCheck[]
+  sentMicrobiologyResults  MicrobiologyResult[] @relation("MicrobiologySentBy")
+  uploadedClaimAttachments ClaimAttachment[]    @relation("ClaimAttachmentUploadedBy")
+  activityLogs             ActivityLog[]
+}
+
+// A generic "who did what, when" trail -- deliberately not tied to one entity
+// type, so any action worth being accountable for (a claim status change, a
+// quality override, a waste write-off, a user being added or removed) can log
+// to the same place instead of each module inventing its own actor field.
+model ActivityLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 model Client {
@@ -1053,9 +1073,26 @@ model Claim {
   resolvedDate DateTime?
   createdAt    DateTime  @default(now())
 
-  containers ClaimContainerLine[]
+  containers  ClaimContainerLine[]
+  attachments ClaimAttachment[]
 
   @@index([clientId])
+}
+
+// Photo/document evidence attached to a claim -- who uploaded each file is
+// recorded so the trail of who supplied what evidence is traceable later.
+model ClaimAttachment {
+  id               String   @id @default(cuid())
+  claimId          String
+  claim            Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  fileName         String
+  originalName     String
+  caption          String?
+  uploadedByUserId String?
+  uploadedBy       User?    @relation("ClaimAttachmentUploadedBy", fields: [uploadedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  @@index([claimId])
 }
 
 // One row per container listed in the claim's per-container table.

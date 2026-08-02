@@ -1,7 +1,9 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { suggestAllocation } from "@/lib/allocation";
+import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -50,13 +52,33 @@ export async function createOrderAction(_prevState: string | undefined, formData
     data: { ...rest, orderNumber, quantityPallets, valueUsd: 0, orderDate: new Date(rest.orderDate) },
   });
 
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "ORDER_CREATED",
+    entityType: "Order",
+    entityId: order.id,
+    detail: `${order.orderNumber} — Grade ${order.grade} ${order.format}, ${quantityTonnes}t`,
+  });
+
   revalidatePath("/orders");
   redirect(`/orders/${order.id}`);
 }
 
 export async function updateOrderValueAction(orderId: string, formData: FormData) {
   const valueUsd = z.coerce.number().nonnegative().parse(formData.get("valueUsd"));
+  const before = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
   await prisma.order.update({ where: { id: orderId }, data: { valueUsd } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "ORDER_VALUE_UPDATED",
+    entityType: "Order",
+    entityId: orderId,
+    detail: `$${before.valueUsd.toLocaleString()} → $${valueUsd.toLocaleString()}`,
+  });
+
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");
 }
@@ -82,6 +104,15 @@ export async function allocatePalletsAction(orderId: string) {
       })
     )
   );
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "ORDER_PALLETS_ALLOCATED",
+    entityType: "Order",
+    entityId: orderId,
+    detail: `${picks.length} pallet(s) allocated`,
+  });
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/storage");
@@ -121,6 +152,15 @@ export async function advanceOrderStageAction(
   }
 
   await prisma.order.update({ where: { id: orderId }, data: { stage: next } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "ORDER_STAGE_ADVANCED",
+    entityType: "Order",
+    entityId: orderId,
+    detail: `${order.stage} → ${next}`,
+  });
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");

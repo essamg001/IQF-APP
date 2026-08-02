@@ -1,11 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { raiseMicrobiologyLoadAttemptAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
+import { logActivity } from "@/lib/activityLog";
 
 const containerSchema = z.object({
   orderId: z.string().min(1),
@@ -71,6 +73,16 @@ export async function updateContainerLocationAction(containerId: string, formDat
     currentLocation: formData.get("currentLocation") || undefined,
   });
   await prisma.container.update({ where: { id: containerId }, data: parsed });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CONTAINER_LOCATION_UPDATED",
+    entityType: "Container",
+    entityId: containerId,
+    detail: parsed.currentLocation,
+  });
+
   revalidatePath(`/logistics/${containerId}`);
   revalidatePath("/logistics");
 }
@@ -117,6 +129,15 @@ export async function updateShipmentDetailsAction(containerId: string, formData:
     where: { id: containerId },
     data: { ...rest, departureDate: departureDate ? new Date(departureDate) : undefined },
   });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CONTAINER_SHIPMENT_DETAILS_UPDATED",
+    entityType: "Container",
+    entityId: containerId,
+  });
+
   revalidatePath(`/logistics/${containerId}`);
   revalidatePath("/logistics");
 }

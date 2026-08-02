@@ -1,6 +1,9 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { saveUploadedFile } from "@/lib/files";
+import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -120,6 +123,15 @@ export async function createClaimAction(_prevState: string | undefined, formData
     },
   });
 
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CLAIM_CREATED",
+    entityType: "Claim",
+    entityId: claim.id,
+    detail: `Filed claim (${parsed.data.reason}, ${parsed.data.severity}, $${parsed.data.valueUsd.toLocaleString()})`,
+  });
+
   revalidatePath("/claims");
   redirect(`/claims/${claim.id}`);
 }
@@ -137,6 +149,67 @@ export async function advanceClaimStatusAction(claimId: string) {
     data: { status: next, resolvedDate: next === "RESOLVED_CREDITED" ? new Date() : undefined },
   });
 
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CLAIM_STATUS_ADVANCED",
+    entityType: "Claim",
+    entityId: claimId,
+    detail: `${claim.status} → ${next}`,
+  });
+
   revalidatePath(`/claims/${claimId}`);
   revalidatePath("/claims");
+}
+
+const attachmentSchema = z.object({
+  caption: z.string().optional(),
+});
+
+export async function addClaimAttachmentAction(claimId: string, formData: FormData) {
+  const parsed = attachmentSchema.parse({
+    caption: formData.get("caption") || undefined,
+  });
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return;
+  }
+
+  const saved = await saveUploadedFile(file, "claim-attachments");
+  const session = await auth();
+
+  await prisma.claimAttachment.create({
+    data: {
+      claimId,
+      fileName: saved.fileName,
+      originalName: saved.originalName,
+      caption: parsed.caption,
+      uploadedByUserId: session?.user.id,
+    },
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CLAIM_ATTACHMENT_UPLOADED",
+    entityType: "Claim",
+    entityId: claimId,
+    detail: saved.originalName,
+  });
+
+  revalidatePath(`/claims/${claimId}`);
+}
+
+export async function removeClaimAttachmentAction(claimId: string, attachmentId: string) {
+  await prisma.claimAttachment.delete({ where: { id: attachmentId } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CLAIM_ATTACHMENT_REMOVED",
+    entityType: "Claim",
+    entityId: claimId,
+  });
+
+  revalidatePath(`/claims/${claimId}`);
 }

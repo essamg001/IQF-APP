@@ -33,6 +33,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/claims", label: "Claims" },
   { href: "/quality-issues", label: "Quality Issues" },
   { href: "/alerts", label: "Alerts" },
+  { href: "/activity-log", label: "Activity Log", roles: ["OWNER"] },
   { href: "/settings", label: "Setup" },
 ];
 

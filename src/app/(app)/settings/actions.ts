@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSlotsForColdRoom } from "@/lib/coldStorage";
+import { logActivity } from "@/lib/activityLog";
 
 // User management (create/delete/promote) is Owner-only on the page (see
 // settings/page.tsx's `isOwner` gate on the Users card) -- but a Server
@@ -118,7 +119,7 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
   if (existing) return "A user with this email already exists.";
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  await prisma.user.create({
+  const created = await prisma.user.create({
     data: {
       name: parsed.data.name,
       email: parsed.data.email,
@@ -129,12 +130,32 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
     },
   });
 
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "USER_ADDED",
+    entityType: "User",
+    entityId: created.id,
+    detail: `${created.name} (${created.email}) — ${created.role}`,
+  });
+
   revalidatePath("/settings");
 }
 
 export async function deleteUserAction(id: string) {
   if (!(await requireOwner())) return;
+  const user = await prisma.user.findUnique({ where: { id } });
   await prisma.user.delete({ where: { id } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "USER_DELETED",
+    entityType: "User",
+    entityId: id,
+    detail: user ? `${user.name} (${user.email})` : undefined,
+  });
+
   revalidatePath("/settings");
 }
 
@@ -142,5 +163,15 @@ export async function toggleHeadOfSalesAction(id: string) {
   if (!(await requireOwner())) return;
   const user = await prisma.user.findUniqueOrThrow({ where: { id } });
   await prisma.user.update({ where: { id }, data: { isHeadOfSales: !user.isHeadOfSales } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "USER_HEAD_OF_SALES_TOGGLED",
+    entityType: "User",
+    entityId: id,
+    detail: `${user.name} → ${!user.isHeadOfSales}`,
+  });
+
   revalidatePath("/settings");
 }
