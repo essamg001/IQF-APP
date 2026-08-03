@@ -143,7 +143,12 @@ function PalletFields({
           />
         </FieldGroup>
         <FieldGroup label="Carton Logo">
-          <Input name="cartonLogo" />
+          <Select name="cartonLogo" defaultValue="">
+            <option value="">—</option>
+            <option value="Wooden Box (1st Grade)">Wooden Box (1st Grade)</option>
+            <option value="Black (Europe 1st Grade)">Black (Europe 1st Grade)</option>
+            <option value="Plain Brown (2nd Grade)">Plain Brown (2nd Grade)</option>
+          </Select>
         </FieldGroup>
         <FieldGroup label="Size">
           <Input name="cartonSize" />
