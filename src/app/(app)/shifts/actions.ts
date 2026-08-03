@@ -1,9 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { canSeeCosting } from "@/lib/roles";
+import { logActivity } from "@/lib/activityLog";
 
 // Builds a Date from separate "YYYY-MM-DD" and "HH:MM"(:SS) strings using
 // numeric components rather than string concatenation -- a `<input
@@ -79,11 +82,16 @@ export async function logShiftRejectWasteAction(shiftId: string, _prevState: str
   });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
+  const session = await auth();
+  const valueUsdRaw = formData.get("valueUsd");
+  const valueUsd = canSeeCosting(session?.user) && valueUsdRaw ? Number(valueUsdRaw) : undefined;
+
   await prisma.waste.create({
     data: {
       shiftId,
       quantity: parsed.data.rejectedWeightKg / 1000,
       reason: parsed.data.reason,
+      valueUsd,
     },
   });
 
@@ -91,4 +99,34 @@ export async function logShiftRejectWasteAction(shiftId: string, _prevState: str
   revalidatePath("/shifts");
   revalidatePath("/waste");
   return "ok";
+}
+
+const shiftCostingSchema = z.object({
+  rawMaterialCostEgp: z.coerce.number().nonnegative().optional(),
+  laborHourlyRateEgpSnapshot: z.coerce.number().nonnegative().optional(),
+});
+
+// Costing is entered after the fact (once the day/week's numbers are known),
+// separate from the shift-creation form. canSeeCosting-gated server-side --
+// same reasoning as requireOwner() elsewhere: the page hides the form from
+// unauthorized roles, but a Server Action is its own callable endpoint.
+export async function updateShiftCostingAction(shiftId: string, formData: FormData) {
+  const session = await auth();
+  if (!canSeeCosting(session?.user)) return;
+
+  const parsed = shiftCostingSchema.parse({
+    rawMaterialCostEgp: formData.get("rawMaterialCostEgp") || undefined,
+    laborHourlyRateEgpSnapshot: formData.get("laborHourlyRateEgpSnapshot") || undefined,
+  });
+
+  await prisma.shiftLog.update({ where: { id: shiftId }, data: parsed });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "SHIFT_COSTING_UPDATED",
+    entityType: "ShiftLog",
+    entityId: shiftId,
+  });
+
+  revalidatePath(`/shifts/${shiftId}`);
 }

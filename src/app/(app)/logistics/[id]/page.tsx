@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
 import { FORMAT_LABEL } from "@/lib/format";
-import { canSeeContainerValue } from "@/lib/roles";
+import { canSeeContainerValue, canSeeCosting } from "@/lib/roles";
+import { getCompanySettings } from "@/lib/companySettings";
+import { shiftCostPerTonneEgp, computeContainerMargin } from "@/lib/costing";
 import { AddLoadLineForm } from "./add-load-line-form";
 import { AddCostForm } from "./add-cost-form";
 import { AddTemperatureForm } from "./add-temperature-form";
@@ -54,6 +56,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   const session = await auth();
   const isLoadOutStation = session?.user.station === "LOAD_OUT";
   const showPricing = canSeeContainerValue(session?.user);
+  const showCosting = canSeeCosting(session?.user);
   const container = await prisma.container.findUnique({
     where: { id },
     include: {
@@ -113,6 +116,57 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
     container.pricePerCartonUsd != null ? container.pricePerCartonUsd * totalCartonsThisContainer : null;
 
   const totalExtraCostsUsd = container.costs.reduce((s, c) => s + c.amountUsd, 0);
+
+  let margin = null as ReturnType<typeof computeContainerMargin> | null;
+  if (showCosting) {
+    const [companySettings, shifts, claimLines, orderLoadedAgg] = await Promise.all([
+      getCompanySettings(),
+      prisma.shiftLog.findMany({
+        where: { id: { in: [...new Set(container.palletLines.map((l) => l.pallet.lot.shiftId))] } },
+        include: { lots: { include: { pallets: { select: { weightTonnes: true } } } } },
+      }),
+      prisma.claimContainerLine.findMany({ where: { containerId: container.id } }),
+      prisma.containerPalletLine.aggregate({
+        where: { container: { orderId: container.orderId } },
+        _sum: { quantityTonnes: true },
+      }),
+    ]);
+
+    const costPerTonneEgpByShift = new Map(
+      shifts.map((s) => {
+        const totalTonnageThisShift = s.lots.reduce((sum, lot) => sum + lot.pallets.reduce((ps, p) => ps + p.weightTonnes, 0), 0);
+        return [s.id, shiftCostPerTonneEgp(s, totalTonnageThisShift)];
+      })
+    );
+
+    let rawMaterialAndLaborEgp: number | null = 0;
+    for (const line of container.palletLines) {
+      const rate = costPerTonneEgpByShift.get(line.pallet.lot.shiftId);
+      if (rate == null) {
+        rawMaterialAndLaborEgp = null;
+        break;
+      }
+      rawMaterialAndLaborEgp += rate * line.quantityTonnes;
+    }
+
+    const orderLoadedTonnage = orderLoadedAgg._sum.quantityTonnes ?? 0;
+    const revenueUsd =
+      valueByWeightUsd ??
+      valueByCartonUsd ??
+      (orderLoadedTonnage > 0 ? container.order.valueUsd * (totalLoadedThisContainer / orderLoadedTonnage) : null);
+
+    const claimsUsd = claimLines.reduce((s, c) => s + (c.claimAmount ?? 0), 0);
+    const packagingCostUsd = container.palletLines.reduce((s, l) => s + (l.pallet.packagingCostUsd ?? 0), 0);
+
+    margin = computeContainerMargin({
+      revenueUsd,
+      rawMaterialAndLaborEgp,
+      fxRateEgpPerUsd: companySettings.fxRateEgpPerUsd,
+      packagingCostUsd,
+      logisticsCostUsd: totalExtraCostsUsd,
+      claimsUsd,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -260,6 +314,42 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             )}
           </Card>
         </div>
+      )}
+
+      {!isLoadOutStation && showCosting && margin && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">Costing</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Raw material and labor are allocated from each pallet&apos;s shift (shift cost ÷ shift&apos;s total
+            output tonnage × this pallet&apos;s weight), not traced ticket-by-ticket.
+          </p>
+          <dl className="mt-3 space-y-1 text-sm">
+            <Row label="Revenue" value={margin.revenueUsd != null ? `$${margin.revenueUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined} />
+            <Row
+              label="Raw material + labor"
+              value={
+                margin.rawMaterialAndLaborEgp != null
+                  ? `${margin.rawMaterialAndLaborEgp.toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP${
+                      margin.rawMaterialAndLaborUsd != null
+                        ? ` ($${margin.rawMaterialAndLaborUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })})`
+                        : ""
+                    }`
+                  : "Not costed yet"
+              }
+            />
+            <Row label="Packaging" value={`$${margin.packagingCostUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+            <Row label="Logistics costs" value={`$${margin.logisticsCostUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+            <Row label="Claims" value={`$${margin.claimsUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+          </dl>
+          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+            <span className="text-sm font-semibold text-slate-900">Margin</span>
+            <span className={`text-sm font-semibold ${margin.marginUsd != null && margin.marginUsd < 0 ? "text-red-600" : "text-emerald-700"}`}>
+              {margin.marginUsd != null
+                ? `$${margin.marginUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                : "Incomplete — missing revenue or shift costing"}
+            </span>
+          </div>
+        </Card>
       )}
 
       {!isLoadOutStation && (

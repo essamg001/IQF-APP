@@ -16,6 +16,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/active-orders", label: "Active Orders" },
   { href: "/available-to-sell", label: "Available to Sell" },
   { href: "/trends", label: "Historical Trends", requiresHeadOfSales: true },
+  { href: "/costing", label: "Costing", requiresHeadOfSales: true },
   { href: "/harvest-tickets", label: "Harvest Tickets", roles: ["OWNER", "QUALITY"] },
   { href: "/pre-decap-inspection", label: "Decap: Pre-Decap Arrivals", roles: ["OWNER", "QUALITY"] },
   { href: "/post-decap-quality", label: "Decap: Post-Decap Quality", roles: ["OWNER", "QUALITY"] },

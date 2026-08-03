@@ -7,6 +7,8 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { generateSlotsForColdRoom } from "@/lib/coldStorage";
 import { logActivity } from "@/lib/activityLog";
+import { getCompanySettings } from "@/lib/companySettings";
+import { canSeeCosting } from "@/lib/roles";
 
 // User management (create/delete/promote) is Owner-only on the page (see
 // settings/page.tsx's `isOwner` gate on the Users card) -- but a Server
@@ -171,6 +173,37 @@ export async function toggleHeadOfSalesAction(id: string) {
     entityType: "User",
     entityId: id,
     detail: `${user.name} → ${!user.isHeadOfSales}`,
+  });
+
+  revalidatePath("/settings");
+}
+
+const costingRatesSchema = z.object({
+  fxRateEgpPerUsd: z.coerce.number().positive().optional(),
+  laborHourlyRateEgp: z.coerce.number().nonnegative().optional(),
+});
+
+// Same page-gate-plus-server-recheck reasoning as requireOwner() above --
+// canSeeCosting narrows this to Owner + Head of Sales/Export, matching every
+// other costing-related view in the app.
+export async function updateCostingRatesAction(formData: FormData) {
+  const session = await auth();
+  if (!canSeeCosting(session?.user)) return;
+
+  const parsed = costingRatesSchema.parse({
+    fxRateEgpPerUsd: formData.get("fxRateEgpPerUsd") || undefined,
+    laborHourlyRateEgp: formData.get("laborHourlyRateEgp") || undefined,
+  });
+
+  const settings = await getCompanySettings();
+  await prisma.companySettings.update({ where: { id: settings.id }, data: parsed });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "COSTING_RATES_UPDATED",
+    entityType: "CompanySettings",
+    entityId: settings.id,
+    detail: `FX ${parsed.fxRateEgpPerUsd ?? "—"} EGP/USD, wage ${parsed.laborHourlyRateEgp ?? "—"} EGP/hr`,
   });
 
   revalidatePath("/settings");

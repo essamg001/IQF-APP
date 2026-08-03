@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ROLE_LABELS } from "@/lib/roles";
+import { ROLE_LABELS, canSeeCosting } from "@/lib/roles";
+import { getCompanySettings } from "@/lib/companySettings";
 import type { Station } from "@prisma/client";
 
 const STATION_LABELS: Record<Station, string> = {
@@ -23,18 +24,21 @@ import {
   deleteFieldAction,
   deleteUserAction,
   toggleHeadOfSalesAction,
+  updateCostingRatesAction,
 } from "./actions";
 import { AddUserForm } from "./add-user-form";
 
 export default async function SettingsPage() {
   const session = await auth();
   const isOwner = session?.user.role === "OWNER";
+  const showCosting = canSeeCosting(session?.user);
 
-  const [factories, coldRooms, fields, users] = await Promise.all([
+  const [factories, coldRooms, fields, users, companySettings] = await Promise.all([
     prisma.factory.findMany({ orderBy: { name: "asc" } }),
     prisma.coldRoom.findMany({ orderBy: { name: "asc" } }),
     prisma.field.findMany({ orderBy: { name: "asc" } }),
     isOwner ? prisma.user.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
+    showCosting ? getCompanySettings() : Promise.resolve(null),
   ]);
 
   return (
@@ -77,6 +81,42 @@ export default async function SettingsPage() {
             {users.length === 0 && <li className="py-2 text-sm text-slate-400">No users yet.</li>}
           </ul>
           <AddUserForm />
+        </Card>
+      )}
+
+      {showCosting && companySettings && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">Costing Rates</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Used to convert EGP raw-material and labor costs into USD on the Costing page. Changing the wage rate
+            here only affects shifts costed from now on — each shift snapshots the rate in effect at the time, so
+            past margins don&apos;t retroactively change.
+          </p>
+          <form action={updateCostingRatesAction} className="mt-3 flex flex-wrap items-end gap-3">
+            <FieldGroup label="FX rate (EGP per USD)">
+              <Input
+                name="fxRateEgpPerUsd"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={companySettings.fxRateEgpPerUsd ?? ""}
+                className="w-40"
+              />
+            </FieldGroup>
+            <FieldGroup label="Labor wage rate (EGP/hour/worker)">
+              <Input
+                name="laborHourlyRateEgp"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={companySettings.laborHourlyRateEgp ?? ""}
+                className="w-56"
+              />
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              Save
+            </Button>
+          </form>
         </Card>
       )}
 

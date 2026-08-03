@@ -15,6 +15,7 @@ const ACTION_LABEL: Record<string, string> = {
   USER_ADDED: "Added user",
   USER_DELETED: "Removed user",
   USER_HEAD_OF_SALES_TOGGLED: "Changed Head of Sales flag",
+  COSTING_RATES_UPDATED: "Updated costing rates",
   CONTAINER_SHIPMENT_DETAILS_UPDATED: "Updated container shipment details",
   CONTAINER_LOCATION_UPDATED: "Updated container location",
   ORDER_CREATED: "Created order",

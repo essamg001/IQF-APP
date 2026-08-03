@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { generateLotNumber } from "@/lib/lotNumber";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { logActivity } from "@/lib/activityLog";
+import { canSeeCosting } from "@/lib/roles";
 import { z } from "zod";
 
 const lotSchema = z.object({
@@ -96,6 +97,10 @@ export async function markWasteAction(palletId: string, formData: FormData) {
   const quantity = Number(formData.get("quantity") ?? 1);
   if (!reason) return;
 
+  const session = await auth();
+  const valueUsdRaw = formData.get("valueUsd");
+  const valueUsd = canSeeCosting(session?.user) && valueUsdRaw ? Number(valueUsdRaw) : undefined;
+
   await prisma.$transaction(async (tx) => {
     // A wasted pallet can no longer fulfil whatever order it was allocated
     // to -- releasing the allocation here (rather than leaving orderId/
@@ -103,10 +108,9 @@ export async function markWasteAction(palletId: string, formData: FormData) {
     // Available to Sell's committed figure, and the allocated-pallets
     // display all correctly reflect that this pallet no longer counts.
     await tx.pallet.update({ where: { id: palletId }, data: { status: "WASTE", orderId: null, clientId: null } });
-    await tx.waste.create({ data: { palletId, reason, quantity } });
+    await tx.waste.create({ data: { palletId, reason, quantity, valueUsd } });
   });
 
-  const session = await auth();
   await logActivity({
     actorId: session?.user.id,
     action: "PALLET_MARKED_WASTE",

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { markWasteAction } from "../../production/actions";
 import { combinedMicroStatus } from "@/lib/microbiology";
+import { canSeeCosting } from "@/lib/roles";
 
 const STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -17,6 +19,8 @@ const STATUS_COLOR = {
 
 export default async function PalletDetailPage({ params }: { params: Promise<{ palletId: string }> }) {
   const { palletId } = await params;
+  const session = await auth();
+  const showCosting = canSeeCosting(session?.user);
   const pallet = await prisma.pallet.findUnique({
     where: { id: palletId },
     include: {
@@ -88,7 +92,10 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
             <ul className="mt-2 space-y-2 text-sm">
               {pallet.waste.map((w) => (
                 <li key={w.id} className="rounded-md border border-slate-200 p-2">
-                  <p className="font-medium text-slate-800">{w.quantity}t — {w.reason}</p>
+                  <p className="font-medium text-slate-800">
+                    {w.quantity}t — {w.reason}
+                    {showCosting && w.valueUsd != null && ` — $${w.valueUsd.toLocaleString()}`}
+                  </p>
                   <p className="text-xs text-slate-500">{w.date.toDateString()}</p>
                 </li>
               ))}
@@ -105,6 +112,11 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
                 <FieldGroup label="Quantity (tonnes)">
                   <Input name="quantity" type="number" step="0.1" defaultValue={pallet.weightTonnes} />
                 </FieldGroup>
+                {showCosting && (
+                  <FieldGroup label="Value (USD)">
+                    <Input name="valueUsd" type="number" step="0.01" min="0" />
+                  </FieldGroup>
+                )}
                 <Button type="submit" variant="danger">
                   Mark as waste
                 </Button>

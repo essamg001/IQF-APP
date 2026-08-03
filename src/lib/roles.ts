@@ -35,3 +35,13 @@ export function canSeeContainerValue(user: { role: Role; isHeadOfSales: boolean 
   if (!user) return false;
   return user.role === "OWNER" || user.isHeadOfSales;
 }
+
+/**
+ * Margin/costing figures (raw material, labor, packaging cost vs. revenue)
+ * are the most sensitive financial data in the app -- same narrow rule as
+ * container value and historical trends: Owner + Head of Sales/Export only.
+ */
+export function canSeeCosting(user: { role: Role; isHeadOfSales: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfSales;
+}

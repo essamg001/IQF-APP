@@ -471,10 +471,26 @@ model ShiftLog {
   holdResolvedBy     String?
   holdResolutionNote String?
 
+  // Costing -- entered after the fact (end of day/week), not at shift-creation
+  // time, so both are nullable. laborHourlyRateEgpSnapshot is the wage rate in
+  // effect when this shift's costing was confirmed (defaults from
+  // CompanySettings.laborHourlyRateEgp but stored per-shift so a later rate
+  // change doesn't retroactively alter this shift's already-computed margin).
+  rawMaterialCostEgp         Float?
+  laborHourlyRateEgpSnapshot Float?
+
   lots  ProductionLot[]
   waste Waste[]
 
   @@index([factoryId, date])
+}
+
+// Company-wide costing rates -- a singleton row (find-or-create on first
+// access), not per-factory, since FX and wages are set at the company level.
+model CompanySettings {
+  id                 String @id @default(cuid())
+  fxRateEgpPerUsd    Float?
+  laborHourlyRateEgp Float?
 }
 
 // lotNumber is auto-generated: {farmCode}{factory.code}{YY}{DDD}-{shift digit}
@@ -541,6 +557,9 @@ model Pallet {
   packingDate        DateTime?
   packingLocation    String?
   packingSupervisor  String?
+  // Carton + liner cost for this pallet -- a direct cost entered at packing
+  // time, not allocated like raw material/labor.
+  packagingCostUsd   Float?
   palletizationStart DateTime?
   palletizationEnd   DateTime?
 
@@ -828,6 +847,10 @@ model Waste {
   quantity Float
   reason   String
   date     DateTime  @default(now())
+  // Entered manually by whoever marks the write-off -- simpler and more
+  // reliable than trying to auto-derive it from upstream raw-material/labor
+  // cost, which would require tracing back through the shift/lot chain.
+  valueUsd Float?
 }
 
 model Order {
