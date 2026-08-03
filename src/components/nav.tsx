@@ -22,6 +22,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/post-decap-quality", label: "Decap: Post-Decap Quality", roles: ["OWNER", "QUALITY"] },
   { href: "/arrival-inspection", label: "Arrival Inspection at Factory", roles: ["OWNER", "QUALITY"] },
   { href: "/production", label: "Production" },
+  { href: "/daily-report", label: "Daily Report", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
   { href: "/post-freeze-inspection", label: "Post-Freeze Inspection", roles: ["OWNER", "QUALITY"] },
   { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
   { href: "/waste", label: "Waste" },

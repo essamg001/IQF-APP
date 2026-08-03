@@ -211,11 +211,12 @@ model Client {
   // part of that group too, without needing this field set on itself.
   groupName String?
 
-  specs         ClientSpec[]
-  orders        Order[]
-  pallets       Pallet[]
-  claims        Claim[]
-  qualityIssues QualityIssue[]
+  specs             ClientSpec[]
+  orders            Order[]
+  pallets           Pallet[]
+  claims            Claim[]
+  qualityIssues     QualityIssue[]
+  dailyPackingLines DailyPackingLine[]
 
   @@index([name])
   @@index([groupName])
@@ -274,6 +275,12 @@ model Factory {
 
   shifts ShiftLog[]
   lots   ProductionLot[]
+
+  dailyTemperatureLogs DailyTemperatureLog[]
+  dailyQuantityEntries DailyQuantityEntry[]
+  dailyPackingLines    DailyPackingLine[]
+  dailyDowntimeEvents  DailyDowntimeEvent[]
+  dailyLineEfficiency  DailyLineEfficiency[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -1185,4 +1192,141 @@ model Alert {
   createdAt         DateTime    @default(now())
 
   @@index([targetRole, status])
+}
+
+// Digitizes the factory's existing 4-part paper/Excel "Frozen Strawberry
+// Production Report" (one filed per day). Every figure here is manually
+// transcribed from the real form, not derived from other app data -- the
+// relationships between stages (first balance, raw incoming, rejects, etc.)
+// aren't reliably computable, and this report is itself the factory's own
+// manual daily reconciliation.
+
+// Hourly instrument reading -- append-only, one row per entry, mirroring
+// ContainerTemperatureLog exactly. `location` is matched in code (not the DB)
+// against a fixed list carrying each location's Limits/Instrument reference,
+// since that's fixed metadata, not something that varies per reading.
+model DailyTemperatureLog {
+  id         String   @id @default(cuid())
+  factoryId  String
+  factory    Factory  @relation(fields: [factoryId], references: [id])
+  location   String
+  recordedAt DateTime @default(now())
+  valueC     Float
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([factoryId, location, recordedAt])
+}
+
+// Section I) Quantities -- one row per plant/shift/variety/day. Both the
+// tonnage and % columns are transcribed as entered on the paper form.
+model DailyQuantityEntry {
+  id        String    @id @default(cuid())
+  factoryId String
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+  date      DateTime
+  shiftType ShiftType
+  variety   String
+
+  firstBalanceTon Float?
+
+  rawIncomingTon Float?
+  rawIncomingPct Float?
+
+  inletForOperationTon Float?
+  inletForOperationPct Float?
+
+  endBalanceTon Float?
+  endBalancePct Float?
+
+  firstClassWholeTon Float?
+  firstClassWholePct Float?
+
+  secondClassWholeTon Float?
+  secondClassWholePct Float?
+
+  rejectedBeforeTunnelTon Float?
+  rejectedBeforeTunnelPct Float?
+
+  rejectedAfterTunnelTon Float?
+  rejectedAfterTunnelPct Float?
+
+  totalPackedTon Float?
+  totalPackedPct Float?
+
+  // "الفاقد والمتمم الحسابي" -- lost / reconciliation difference, distinct
+  // from both rejection categories. Verified against the real report: Total
+  // Packed + Rejected(before) + Rejected(after) + Lost == Inlet for Operation.
+  lostTon Float?
+  lostPct Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([factoryId, date])
+}
+
+// Section II) Packing -- one row per package line. clientOther covers rows
+// that aren't a real sales client (e.g. lab/quality samples), matching the
+// SelectWithOther dropdown-with-free-text-fallback pattern used elsewhere.
+model DailyPackingLine {
+  id        String   @id @default(cuid())
+  date      DateTime
+  factoryId String?
+  factory   Factory? @relation(fields: [factoryId], references: [id])
+
+  packageType String
+  logo        String
+  weightKg    Float?
+  variety     String?
+
+  clientId    String?
+  client      Client? @relation(fields: [clientId], references: [id])
+  clientOther String?
+
+  firstClassQty   Int?
+  secondClassQty  Int?
+  totalPackageQty Int?
+  totalTon        Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+// Section IV) Downtime -- one row per stoppage event, per plant/shift/day.
+model DailyDowntimeEvent {
+  id        String    @id @default(cuid())
+  factoryId String
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+  date      DateTime
+  shiftType ShiftType
+  reason    String
+  fromTime  DateTime
+  toTime    DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([factoryId, date])
+}
+
+// Sections III/V) Line Power & Actual Line Efficiency summary -- one row per
+// plant/shift/day. Total Downtime and Actual Run Time are computed on
+// display from this row's uptime window plus the linked DailyDowntimeEvent
+// rows, not stored here.
+model DailyLineEfficiency {
+  id        String    @id @default(cuid())
+  factoryId String
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+  date      DateTime
+  shiftType ShiftType
+
+  uptimeFrom             DateTime?
+  uptimeTo               DateTime?
+  lineCapacityTonPerHour Float?
+  expectedQuantityTon    Float?
+  actualQuantityTon      Float?
+
+  createdAt DateTime @default(now())
+
+  @@unique([factoryId, date, shiftType])
 }
