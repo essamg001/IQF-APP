@@ -56,6 +56,9 @@ export function AddUserForm() {
       <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" name="isHeadOfSales" /> Head of Sales (sees historical/trend financials)
       </label>
+      <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" name="isHeadOfProduction" /> Head of Production (can sign off loading an out-of-spec pallet)
+      </label>
       <Button type="submit" variant="secondary" disabled={pending}>
         {pending ? "Adding…" : "Add user"}
       </Button>

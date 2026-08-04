@@ -12,12 +12,14 @@ declare module "next-auth" {
       email: string;
       role: Role;
       isHeadOfSales: boolean;
+      isHeadOfProduction: boolean;
       station: Station | null;
     };
   }
   interface User {
     role: Role;
     isHeadOfSales: boolean;
+    isHeadOfProduction: boolean;
     station: Station | null;
   }
 }
@@ -48,6 +50,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           role: user.role,
           isHeadOfSales: user.isHeadOfSales,
+          isHeadOfProduction: user.isHeadOfProduction,
           station: user.station,
         };
       },
@@ -59,6 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.role = user.role;
         token.isHeadOfSales = user.isHeadOfSales;
+        token.isHeadOfProduction = user.isHeadOfProduction;
         token.station = user.station;
       }
       return token;
@@ -68,6 +72,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
         session.user.isHeadOfSales = token.isHeadOfSales as boolean;
+        session.user.isHeadOfProduction = token.isHeadOfProduction as boolean;
         session.user.station = (token.station as Station | null) ?? null;
       }
       return session;

@@ -44,6 +44,29 @@ function PassPill({ pass }: { pass: boolean | null }) {
   );
 }
 
+function SpecStatusPill({ row }: { row: CertificateData["specComplianceRows"][number] }) {
+  if (!row.enforceable) {
+    return (
+      <span className="ca-pill" style={{ background: "#eceae2", color: "#7c8579" }}>
+        Manual review
+      </span>
+    );
+  }
+  if (row.violated && row.overridden) {
+    return (
+      <span className="ca-pill" style={{ background: "#fff3cd", color: "#7a5d00" }}>
+        Overridden
+      </span>
+    );
+  }
+  return <PassPill pass={!row.violated} />;
+}
+
+function formatSpecMeasured(row: CertificateData["specComplianceRows"][number]): string {
+  if (row.measuredValue == null) return "—";
+  return row.measuredUnit === "°Bx" ? `${row.measuredValue} °Bx` : `${row.measuredValue} ${row.measuredUnit}`;
+}
+
 function CfuPill({ cfuValue }: { cfuValue: number | null }) {
   if (cfuValue == null) {
     return (
@@ -350,6 +373,32 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
               <td className="spec spec-col">—</td>
               <td></td>
             </tr>
+          </tbody>
+        </table>
+
+        <div className="ca-section-label" style={{ marginTop: 22 }}>
+          Client Spec Compliance — {data.client.name}
+        </div>
+        <table className="ca-results">
+          <thead>
+            <tr>
+              <th style={{ width: "34%" }}>Parameter</th>
+              <th>Measured</th>
+              <th className="spec-col">Client Spec</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.specComplianceRows.map((row) => (
+              <tr key={row.key}>
+                <td className="param">{row.label}</td>
+                <td className="value">{formatSpecMeasured(row)}</td>
+                <td className="spec spec-col">{row.specLimitDisplay ?? row.specText ?? "—"}</td>
+                <td>
+                  <SpecStatusPill row={row} />
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
 

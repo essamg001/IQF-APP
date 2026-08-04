@@ -24,6 +24,7 @@ import {
   deleteFieldAction,
   deleteUserAction,
   toggleHeadOfSalesAction,
+  toggleHeadOfProductionAction,
   updateCostingRatesAction,
 } from "./actions";
 import { AddUserForm } from "./add-user-form";
@@ -67,6 +68,16 @@ export default async function SettingsPage() {
                       <form action={toggleHeadOfSalesAction.bind(null, u.id)}>
                         <button type="submit" className="text-xs text-slate-400 hover:text-slate-600 hover:underline">
                           Make head of sales?
+                        </button>
+                      </form>
+                    ))}
+                  {u.role === "PRODUCTION" &&
+                    (u.isHeadOfProduction ? (
+                      <Badge color="green">Head of Production</Badge>
+                    ) : (
+                      <form action={toggleHeadOfProductionAction.bind(null, u.id)}>
+                        <button type="submit" className="text-xs text-slate-400 hover:text-slate-600 hover:underline">
+                          Make head of production?
                         </button>
                       </form>
                     ))}

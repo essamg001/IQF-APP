@@ -99,6 +99,7 @@ const userSchema = z.object({
   role: z.enum(["OWNER", "SALES", "QUALITY", "PRODUCTION", "LOGISTICS"]),
   password: z.string().min(6),
   isHeadOfSales: z.boolean(),
+  isHeadOfProduction: z.boolean(),
   station: z.enum(["ARRIVAL_INSPECTION", "POST_FREEZE_INSPECTION", "LOAD_OUT", "FINAL_PRODUCT_ENTRY", "LAB"]).optional(),
 });
 
@@ -111,6 +112,7 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
     role: formData.get("role"),
     password: formData.get("password"),
     isHeadOfSales: formData.get("isHeadOfSales") === "on",
+    isHeadOfProduction: formData.get("isHeadOfProduction") === "on",
     station: formData.get("station") || undefined,
   });
   if (!parsed.success) {
@@ -127,6 +129,7 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
       email: parsed.data.email,
       role: parsed.data.role,
       isHeadOfSales: parsed.data.isHeadOfSales,
+      isHeadOfProduction: parsed.data.isHeadOfProduction,
       station: parsed.data.station,
       passwordHash,
     },
@@ -173,6 +176,23 @@ export async function toggleHeadOfSalesAction(id: string) {
     entityType: "User",
     entityId: id,
     detail: `${user.name} → ${!user.isHeadOfSales}`,
+  });
+
+  revalidatePath("/settings");
+}
+
+export async function toggleHeadOfProductionAction(id: string) {
+  if (!(await requireOwner())) return;
+  const user = await prisma.user.findUniqueOrThrow({ where: { id } });
+  await prisma.user.update({ where: { id }, data: { isHeadOfProduction: !user.isHeadOfProduction } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "USER_HEAD_OF_PRODUCTION_TOGGLED",
+    entityType: "User",
+    entityId: id,
+    detail: `${user.name} → ${!user.isHeadOfProduction}`,
   });
 
   revalidatePath("/settings");

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { Grade, Format } from "@prisma/client";
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
 import { combinedCfuValue, exceedsClientLimit } from "@/lib/cfuTier";
+import { evaluateSpecCompliance, violatedSpecRows } from "@/lib/specCompliance";
 
 /** Best-effort parse of free-text brix specs like "8-11%", "8% ± 2.5", "7 - 8.5", or "8.0". */
 export function parseBrixRange(text: string | null | undefined): { min: number; max: number } | null {
@@ -55,14 +56,36 @@ export async function suggestAllocation(params: {
     orderBy: { createdAt: "asc" },
   });
 
-  // A pallet can be lab-Approved (both labs signed off) and still carry a
-  // cfu/g reading too high for this specific client's spec -- exclude those
-  // up front so they never get suggested for an order they'd be rejected
-  // against (see src/lib/cfuTier.ts). A pallet with no cfu reading yet isn't
-  // excluded -- absence of data isn't evidence it exceeds the limit.
+  // The pallet's own POST_PACKAGING check, falling back to the lot's latest
+  // one -- same lookup already used by src/lib/palletQuality.ts, so a
+  // pallet-specific check always wins over a lot-level one when both exist.
+  const latestPostPackagingCheck = (palletId: string, lotId: string) => {
+    const forPallet = allEligiblePallets
+      .find((p) => p.id === palletId)
+      ?.lot.qualityChecks.filter((c) => c.checkpoint === "POST_PACKAGING" && c.palletId === palletId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    if (forPallet) return forPallet;
+    return allEligiblePallets
+      .find((p) => p.lotId === lotId)
+      ?.lot.qualityChecks.filter((c) => c.checkpoint === "POST_PACKAGING" && !c.palletId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  };
+
+  // A pallet can be lab-Approved (both labs signed off) and still fail this
+  // specific client's own spec -- cfu/g, brix, or a defect tolerance -- so
+  // exclude those up front rather than suggest a pallet that would just get
+  // blocked at load-out anyway (see src/lib/cfuTier.ts, src/lib/specCompliance.ts).
+  // A pallet with no reading at all isn't excluded -- absence of data isn't
+  // evidence it exceeds the limit.
   const eligiblePallets = allEligiblePallets.filter((p) => {
     const cfuValue = combinedCfuValue(p.lot.microbiologyResults);
-    return cfuValue == null || !exceedsClientLimit(cfuValue, spec?.maxCfuPerGram);
+    if (cfuValue != null && exceedsClientLimit(cfuValue, spec?.maxCfuPerGram)) return false;
+
+    const check = latestPostPackagingCheck(p.id, p.lotId);
+    const complianceRows = evaluateSpecCompliance(check ?? null, spec ?? null);
+    if (violatedSpecRows(complianceRows).length > 0) return false;
+
+    return true;
   });
 
   const brixRange = parseBrixRange(spec?.brix);

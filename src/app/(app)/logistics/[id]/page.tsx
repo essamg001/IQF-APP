@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
 import { FORMAT_LABEL } from "@/lib/format";
-import { canSeeContainerValue, canSeeCosting } from "@/lib/roles";
+import { canSeeContainerValue, canSeeCosting, canSignSpecException } from "@/lib/roles";
 import { getCompanySettings } from "@/lib/companySettings";
 import { shiftCostPerTonneEgp, computeContainerMargin } from "@/lib/costing";
 import { AddLoadLineForm } from "./add-load-line-form";
@@ -57,6 +57,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   const isLoadOutStation = session?.user.station === "LOAD_OUT";
   const showPricing = canSeeContainerValue(session?.user);
   const showCosting = canSeeCosting(session?.user);
+  const canSignOffSpecException = canSignSpecException(session?.user);
   const container = await prisma.container.findUnique({
     where: { id },
     include: {
@@ -603,7 +604,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
 
         <div className="mt-4 border-t border-slate-100 pt-4">
           <p className="mb-2 text-xs font-medium text-slate-500">Add to this container&apos;s manifest</p>
-          <AddLoadLineForm containerId={container.id} pallets={eligibleToAdd} />
+          <AddLoadLineForm containerId={container.id} pallets={eligibleToAdd} canSignOffSpecException={canSignOffSpecException} />
         </div>
       </Card>
 

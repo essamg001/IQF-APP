@@ -157,16 +157,20 @@ enum QualityOverrideStatus {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  name          String
-  email         String   @unique
-  passwordHash  String
-  role          Role
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               Role
   // Historical/trend financials are restricted to Owner + whoever holds this flag,
   // not the whole Sales role — deliberately narrower than order-level pricing access.
-  isHeadOfSales Boolean  @default(false)
-  station       Station?
-  createdAt     DateTime @default(now())
+  isHeadOfSales      Boolean  @default(false)
+  // Only the Owner or whoever holds this flag can sign off loading a pallet that
+  // fails a client's own spec (see SpecException) — the accountability the sign-off
+  // exists for only holds if the set of people who can grant it is narrow.
+  isHeadOfProduction Boolean  @default(false)
+  station            Station?
+  createdAt          DateTime @default(now())
 
   qualityChecks            QualityCheck[]
   sentMicrobiologyResults  MicrobiologyResult[] @relation("MicrobiologySentBy")
@@ -589,10 +593,11 @@ model Pallet {
   stickeringRequired    Boolean   @default(false)
   stickeringCompletedAt DateTime?
 
-  waste         Waste[]
-  qualityChecks QualityCheck[]
-  loadLines     ContainerPalletLine[]
-  slot          ColdRoomSlot?
+  waste          Waste[]
+  qualityChecks  QualityCheck[]
+  loadLines      ContainerPalletLine[]
+  slot           ColdRoomSlot?
+  specExceptions SpecException[]
 
   @@unique([palletNumber, lotId])
   @@index([palletNumber])
@@ -988,6 +993,36 @@ model Container {
   palletLines     ContainerPalletLine[]
   costs           ContainerCost[]
   temperatureLogs ContainerTemperatureLog[]
+  specExceptions  SpecException[]
+}
+
+// A named, signed record of a deliberate decision to load a pallet that fails
+// one of the destination client's own spec parameters (see
+// src/lib/specCompliance.ts) -- one row per (pallet, container, parameter),
+// since a single pallet can be signed off on more than one violated
+// parameter at once, and the same reading can pass one client's spec while
+// failing a stricter one, so this can't be a single flag on the QualityCheck
+// itself. Only ever created by overrideSpecExceptionAction, gated to the
+// Owner or whoever holds User.isHeadOfProduction -- the whole point is a
+// permanent, named trail the owner can hold that person accountable against.
+model SpecException {
+  id          String    @id @default(cuid())
+  palletId    String
+  pallet      Pallet    @relation(fields: [palletId], references: [id])
+  containerId String
+  container   Container @relation(fields: [containerId], references: [id])
+
+  parameter      String // ClientSpec field key, e.g. "calyx", "brix"
+  parameterLabel String // human label for display, e.g. "Calyx"
+  measuredValue  String // formatted reading at time of override, e.g. "3.2 pcs/10kg"
+  specLimit      String // the client's raw spec text, e.g. "2pcs/10kg"
+
+  approvedByName    String
+  approvedSignature String
+  note              String?
+  createdAt         DateTime @default(now())
+
+  @@index([palletId, containerId])
 }
 
 // One row per reading taken during transit -- there's no fixed schedule (a

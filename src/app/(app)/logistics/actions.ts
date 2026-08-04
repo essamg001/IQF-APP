@@ -5,11 +5,17 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { raiseMicrobiologyLoadAttemptAlert, raiseCfuLimitLoadAttemptAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
+import { raiseMicrobiologyLoadAttemptAlert, raiseCfuLimitLoadAttemptAlert, raiseSpecExceptionAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
 import { combinedCfuValue, exceedsClientLimit } from "@/lib/cfuTier";
+import {
+  evaluateSpecCompliance,
+  violatedSpecRows,
+  encodeSpecBlock,
+  type SpecComplianceRow,
+} from "@/lib/specCompliance";
 import { logActivity } from "@/lib/activityLog";
-import { canSeeContainerValue } from "@/lib/roles";
+import { canSeeContainerValue, canSignSpecException } from "@/lib/roles";
 
 const containerSchema = z.object({
   orderId: z.string().min(1),
@@ -303,11 +309,49 @@ const ROUNDING_TOLERANCE_TONNES = 0.01;
 async function palletWithRemaining(palletId: string) {
   const pallet = await prisma.pallet.findUniqueOrThrow({
     where: { id: palletId },
-    include: { lot: { include: { microbiologyResults: true, shift: true } } },
+    include: {
+      lot: { include: { microbiologyResults: true, shift: true, qualityChecks: true } },
+      qualityChecks: true,
+    },
   });
   const lines = await prisma.containerPalletLine.findMany({ where: { palletId } });
   const loaded = lines.reduce((s, l) => s + l.quantityTonnes, 0);
   return { pallet, remaining: pallet.weightTonnes - loaded };
+}
+
+/** The pallet's own POST_PACKAGING check, falling back to the lot's latest one -- same lookup as src/lib/palletQuality.ts. */
+function latestPostPackagingCheck(pallet: Awaited<ReturnType<typeof palletWithRemaining>>["pallet"]) {
+  const ownCheck = pallet.qualityChecks
+    .filter((c) => c.checkpoint === "POST_PACKAGING")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  if (ownCheck) return ownCheck;
+  return pallet.lot.qualityChecks
+    .filter((c) => c.checkpoint === "POST_PACKAGING" && !c.palletId)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+}
+
+function formatMeasured(row: SpecComplianceRow): string {
+  if (row.measuredValue == null) return "—";
+  return row.measuredUnit === "°Bx" ? `${row.measuredValue} °Bx` : `${row.measuredValue} ${row.measuredUnit}`;
+}
+
+async function createLoadLine(containerId: string, palletId: string, remaining: number, quantityTonnes: number) {
+  if (quantityTonnes > remaining + ROUNDING_TOLERANCE_TONNES) {
+    return `Only ${remaining.toFixed(2)}t remaining on this pallet.`;
+  }
+
+  await prisma.containerPalletLine.create({
+    data: { containerId, palletId, quantityTonnes, loadingStart: new Date() },
+  });
+
+  const stillRemaining = remaining - quantityTonnes;
+  if (stillRemaining <= ROUNDING_TOLERANCE_TONNES) {
+    await prisma.pallet.update({ where: { id: palletId }, data: { status: "SHIPPED" } });
+  }
+
+  revalidatePath(`/logistics/${containerId}`);
+  revalidatePath(`/storage/${palletId}`);
+  return "ok";
 }
 
 const addLoadLineSchema = z.object({
@@ -365,29 +409,136 @@ export async function addPalletLoadLineAction(
     return `Blocked: Lot ${pallet.lot.lotNumber} has a Total Plate Count of ${cfuValue.toLocaleString()} cfu/g, above ${container.order.client.name}'s spec limit of ${spec!.maxCfuPerGram!.toLocaleString()} cfu/g. This pallet would be rejected on arrival.`;
   }
 
+  // Brix and every defect tolerance the client's spec sheet actually states a
+  // parseable ceiling for (see src/lib/specCompliance.ts) -- same principle
+  // as the cfu/g check above, just covering every parameter, not just one.
+  // Existing SpecException rows mean someone already signed off on exactly
+  // this pallet/container/parameter, so those don't block again.
+  const check = latestPostPackagingCheck(pallet);
+  const violations = violatedSpecRows(evaluateSpecCompliance(check ?? null, spec ?? null));
+  if (violations.length > 0) {
+    const existingExceptions = await prisma.specException.findMany({
+      where: { palletId: pallet.id, containerId },
+    });
+    const unresolved = violations.filter((v) => !existingExceptions.some((e) => e.parameter === v.key));
+    if (unresolved.length > 0) {
+      await raiseSpecExceptionAlert({
+        stage: "attempt",
+        palletId: pallet.id,
+        palletNumber: pallet.palletNumber,
+        lotNumber: pallet.lot.lotNumber,
+        containerNumber: container.containerNumber,
+        clientName: container.order.client.name,
+        violations: unresolved.map((v) => `${v.label} ${formatMeasured(v)} (spec: ${v.specLimitDisplay ?? "—"})`),
+      });
+      return encodeSpecBlock({
+        palletId: pallet.id,
+        palletNumber: pallet.palletNumber,
+        lotNumber: pallet.lot.lotNumber,
+        containerId,
+        quantityTonnes: parsed.data.quantityTonnes,
+        clientName: container.order.client.name,
+        violations: unresolved.map((v) => ({
+          key: v.key,
+          label: v.label,
+          measuredDisplay: formatMeasured(v),
+          specLimitDisplay: v.specLimitDisplay ?? "—",
+        })),
+      });
+    }
+  }
+
   if (pallet.stickeringRequired && !pallet.stickeringCompletedAt) {
     return "This pallet needs stickering before it can be loaded.";
   }
-  if (parsed.data.quantityTonnes > remaining + ROUNDING_TOLERANCE_TONNES) {
-    return `Only ${remaining.toFixed(2)}t remaining on this pallet.`;
+
+  return createLoadLine(containerId, pallet.id, remaining, parsed.data.quantityTonnes);
+}
+
+const overrideSpecExceptionSchema = z.object({
+  palletId: z.string().min(1),
+  containerId: z.string().min(1),
+  quantityTonnes: z.coerce.number().positive(),
+  violationsJson: z.string().min(1),
+  name: z.string().min(1, "Your name is required."),
+  signature: z.string().min(1, "Signature is required."),
+  note: z.string().optional(),
+});
+
+/**
+ * Signs off loading a pallet that fails one or more of the destination
+ * client's spec parameters -- gated to the Owner or whoever holds
+ * User.isHeadOfProduction, so the accountability this exists for (see
+ * SpecException) actually means something. Writes one SpecException row per
+ * overridden parameter, then loads the pallet in the same step so the
+ * load-out worker doesn't have to re-submit.
+ */
+export async function overrideSpecExceptionAction(_prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canSignSpecException(session?.user)) {
+    return "Only the Owner or a Head of Production can sign off an out-of-spec load.";
   }
 
-  await prisma.containerPalletLine.create({
-    data: {
-      containerId,
-      palletId: parsed.data.palletId,
-      quantityTonnes: parsed.data.quantityTonnes,
-      loadingStart: new Date(),
-    },
+  const parsed = overrideSpecExceptionSchema.safeParse({
+    palletId: formData.get("palletId"),
+    containerId: formData.get("containerId"),
+    quantityTonnes: formData.get("quantityTonnes"),
+    violationsJson: formData.get("violationsJson"),
+    name: formData.get("name"),
+    signature: formData.get("signature"),
+    note: formData.get("note") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  let violations: { key: string; label: string; measuredDisplay: string; specLimitDisplay: string }[] = [];
+  try {
+    violations = JSON.parse(parsed.data.violationsJson);
+  } catch {
+    return "Could not read the violation details -- please retry the load.";
+  }
+  if (violations.length === 0) return "No violations to sign off.";
+
+  const { pallet, remaining } = await palletWithRemaining(parsed.data.palletId);
+  const container = await prisma.container.findUniqueOrThrow({
+    where: { id: parsed.data.containerId },
+    include: { order: { include: { client: true } } },
   });
 
-  const stillRemaining = remaining - parsed.data.quantityTonnes;
-  if (stillRemaining <= ROUNDING_TOLERANCE_TONNES) {
-    await prisma.pallet.update({ where: { id: pallet.id }, data: { status: "SHIPPED" } });
-  }
+  await prisma.specException.createMany({
+    data: violations.map((v) => ({
+      palletId: parsed.data.palletId,
+      containerId: parsed.data.containerId,
+      parameter: v.key,
+      parameterLabel: v.label,
+      measuredValue: v.measuredDisplay,
+      specLimit: v.specLimitDisplay,
+      approvedByName: parsed.data.name,
+      approvedSignature: parsed.data.signature,
+      note: parsed.data.note,
+    })),
+  });
 
-  revalidatePath(`/logistics/${containerId}`);
-  revalidatePath(`/storage/${pallet.id}`);
+  await raiseSpecExceptionAlert({
+    stage: "signed",
+    palletId: pallet.id,
+    palletNumber: pallet.palletNumber,
+    lotNumber: pallet.lot.lotNumber,
+    containerNumber: container.containerNumber,
+    clientName: container.order.client.name,
+    violations: violations.map((v) => `${v.label} ${v.measuredDisplay} (spec: ${v.specLimitDisplay})`),
+    approvedByName: parsed.data.name,
+    note: parsed.data.note,
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "SPEC_EXCEPTION_APPROVED",
+    entityType: "Pallet",
+    entityId: pallet.id,
+    detail: `${parsed.data.name} signed off loading ${pallet.palletNumber} into ${container.containerNumber} despite: ${violations.map((v) => v.label).join(", ")}${parsed.data.note ? ` — ${parsed.data.note}` : ""}`,
+  });
+
+  return createLoadLine(parsed.data.containerId, parsed.data.palletId, remaining, parsed.data.quantityTonnes);
 }
 
 export async function completeLoadLineAction(containerId: string, lineId: string) {

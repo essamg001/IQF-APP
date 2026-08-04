@@ -45,3 +45,15 @@ export function canSeeCosting(user: { role: Role; isHeadOfSales: boolean } | und
   if (!user) return false;
   return user.role === "OWNER" || user.isHeadOfSales;
 }
+
+/**
+ * Signing off loading a pallet that fails a client's own spec (see
+ * SpecException) is deliberately narrow -- Owner + whoever holds
+ * isHeadOfProduction only, never the whole Production role -- since the
+ * point of the sign-off is a permanent record the owner can hold one
+ * specific person accountable against.
+ */
+export function canSignSpecException(user: { role: Role; isHeadOfProduction: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfProduction;
+}

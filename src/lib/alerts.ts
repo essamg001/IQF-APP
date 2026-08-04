@@ -88,6 +88,58 @@ export async function raiseCfuLimitLoadAttemptAlert(params: {
 }
 
 /**
+ * Covers the full client-spec compliance gate (brix + defect tolerances, see
+ * src/lib/specCompliance.ts) -- not just cfu/g. Two distinct moments, both
+ * worth a broadcast: "attempt" fires when a load gets blocked (so someone
+ * with sign-off authority knows to come look), "signed" fires once someone
+ * actually overrides it (so everyone who needs to know a specific person
+ * took that risk finds out, independent of who happened to see the block).
+ */
+export async function raiseSpecExceptionAlert(
+  params:
+    | {
+        stage: "attempt";
+        palletId: string;
+        palletNumber: string;
+        lotNumber: string;
+        containerNumber: string;
+        clientName: string;
+        violations: string[];
+      }
+    | {
+        stage: "signed";
+        palletId: string;
+        palletNumber: string;
+        lotNumber: string;
+        containerNumber: string;
+        clientName: string;
+        violations: string[];
+        approvedByName: string;
+        note?: string | null;
+      }
+) {
+  const message =
+    params.stage === "attempt"
+      ? `Blocked: attempt to load pallet ${params.palletNumber} (Lot ${params.lotNumber}) into container ${params.containerNumber} — fails ${params.clientName}'s spec: ${params.violations.join("; ")}.`
+      : `SPEC EXCEPTION APPROVED — pallet ${params.palletNumber} (Lot ${params.lotNumber}) loaded into ${params.containerNumber} despite failing ${params.clientName}'s spec (${params.violations.join("; ")}) — signed off by ${params.approvedByName}${params.note ? ` ("${params.note}")` : ""}.`;
+  const subject = params.stage === "attempt" ? "IQF Alert: Blocked Load Attempt" : "IQF Alert: Spec Exception Approved";
+
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "MICROBIOLOGY_LOAD_ATTEMPT",
+        relatedEntityType: "MICROBIOLOGY_LOAD_ATTEMPT",
+        relatedEntityId: params.palletId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, subject, message)));
+  }
+}
+
+/**
  * Fired the moment a lab result is recorded as rejected, rather than waiting
  * for the periodic scan, so quality/production can act before that fruit
  * gets anywhere near a shipment.

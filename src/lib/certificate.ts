@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { parseBrixRange } from "@/lib/allocation";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
 import { combinedCfuValue } from "@/lib/cfuTier";
+import { evaluateSpecCompliance, violatedSpecRows, type SpecComplianceRow } from "@/lib/specCompliance";
 
 function avg(nums: (number | null)[]) {
   const vals = nums.filter((n): n is number => n !== null);
@@ -53,6 +54,11 @@ export type CertificateData = {
   microCertsByLab: { labType: "IN_HOUSE" | "EXTERNAL"; labName: string | null; certificateNumbers: string[] }[];
   qualityRepName: string | null;
   loadOutRepName: string | null;
+  // Every client-spec parameter (brix + defect tolerances, see
+  // src/lib/specCompliance.ts) averaged across this container's loaded
+  // pallets -- "overridden" means at least one pallet's violation of this
+  // specific parameter was signed off (SpecException) rather than passing outright.
+  specComplianceRows: (SpecComplianceRow & { overridden: boolean })[];
 };
 
 export type CertificateGate = {
@@ -69,6 +75,7 @@ async function fetchContainerForCertificate(containerId: string) {
         include: {
           pallet: {
             include: {
+              qualityChecks: true,
               lot: {
                 include: { field: true, factory: true, shift: true, microbiologyResults: true, qualityChecks: true },
               },
@@ -76,8 +83,20 @@ async function fetchContainerForCertificate(containerId: string) {
           },
         },
       },
+      specExceptions: true,
     },
   });
+}
+
+/** The pallet's own POST_PACKAGING check, falling back to its lot's latest one -- same lookup as src/lib/palletQuality.ts. */
+function latestPostPackagingCheckForPallet(pallet: ContainerForCertificate["palletLines"][number]["pallet"]) {
+  const own = pallet.qualityChecks
+    .filter((c) => c.checkpoint === "POST_PACKAGING")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  if (own) return own;
+  return pallet.lot.qualityChecks
+    .filter((c) => c.checkpoint === "POST_PACKAGING" && !c.palletId)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 }
 
 export type ContainerForCertificate = NonNullable<Awaited<ReturnType<typeof fetchContainerForCertificate>>>;
@@ -99,6 +118,27 @@ export function computeCertificateGate(container: ContainerForCertificate): Cert
   }
   if (!container.loadOutSignedAt) reasons.push("Load-out representative has not signed off.");
   if (!container.qualitySignedAt) reasons.push("Quality representative has not signed off.");
+
+  // Defensive check -- load-out itself is the primary gate against the
+  // client's own spec (see src/lib/specCompliance.ts, addPalletLoadLineAction),
+  // so this only ever fires if a spec limit was tightened or added after a
+  // pallet was already loaded. An existing SpecException means someone
+  // already signed off on exactly this pallet/parameter, so it doesn't block again.
+  const spec = container.order.client.specs.find(
+    (s) => s.grade === container.order.grade && s.format === container.order.format
+  );
+  for (const line of container.palletLines) {
+    const check = latestPostPackagingCheckForPallet(line.pallet);
+    const violations = violatedSpecRows(evaluateSpecCompliance(check ?? null, spec ?? null));
+    const unresolved = violations.filter(
+      (v) => !container.specExceptions.some((e) => e.palletId === line.pallet.id && e.parameter === v.key)
+    );
+    for (const v of unresolved) {
+      reasons.push(
+        `Pallet ${line.pallet.palletNumber}: ${v.label} fails ${container.order.client.name}'s spec (measured ${v.measuredValue}${v.measuredUnit === "°Bx" ? " °Bx" : ` ${v.measuredUnit}`}, spec ${v.specLimitDisplay ?? "—"}) and hasn't been signed off.`
+      );
+    }
+  }
 
   return { ready: reasons.length === 0, reasons };
 }
@@ -155,6 +195,33 @@ export async function computeContainerCertificateData(containerId: string): Prom
   const brixRange = parseBrixRange(spec?.brix);
   const brixPass = brixRange && brix !== null ? brix >= brixRange.min && brix <= brixRange.max : null;
 
+  // A container-wide averaged "check" (same checksForCert set already used
+  // above for brix etc.) fed into the same evaluator load-out uses per-pallet
+  // -- brix is guaranteed non-null here since QualityCheck.brix is required,
+  // so whenever there's at least one check, the average is real, not a
+  // placeholder. "Overridden" is container-wide (any pallet's SpecException
+  // for this parameter), matching this row's own container-wide average.
+  const pseudoCheck =
+    checksForCert.length > 0
+      ? {
+          brix: brix as number,
+          overmaturePct,
+          capsuleRemainsCount: avg(checksForCert.map((c) => c.capsuleRemainsCount)),
+          leafRemainsCount: avg(checksForCert.map((c) => c.leafRemainsCount)),
+          stemFragmentsCount: avg(checksForCert.map((c) => c.stemFragmentsCount)),
+          shapeDeformitiesPct: avg(checksForCert.map((c) => c.shapeDeformitiesPct)),
+          cohesiveClustersPct: avg(checksForCert.map((c) => c.cohesiveClustersPct)),
+          crushedBrokenFruitPct: avg(checksForCert.map((c) => c.crushedBrokenFruitPct)),
+          oxidationPct: avg(checksForCert.map((c) => c.oxidationPct)),
+          mechanicalFactorsPct: avg(checksForCert.map((c) => c.mechanicalFactorsPct)),
+          internalQualityPct,
+          insectInfestationPct: avg(checksForCert.map((c) => c.insectInfestationPct)),
+        }
+      : null;
+  const specComplianceRows: CertificateData["specComplianceRows"] = evaluateSpecCompliance(pseudoCheck, spec ?? null).map(
+    (row) => ({ ...row, overridden: container.specExceptions.some((e) => e.parameter === row.key) })
+  );
+
   const totalTonnes = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
   const variety = container.palletLines.find((l) => l.pallet.variety)?.pallet.variety ?? "—";
 
@@ -199,6 +266,7 @@ export async function computeContainerCertificateData(containerId: string): Prom
     microCertsByLab,
     qualityRepName: container.qualityRepName,
     loadOutRepName: container.loadOutRepName,
+    specComplianceRows,
   };
 
   return { container, gate, data };
