@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { parseBrixRange } from "@/lib/allocation";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
+import { combinedCfuValue } from "@/lib/cfuTier";
 
 function avg(nums: (number | null)[]) {
   const vals = nums.filter((n): n is number => n !== null);
@@ -43,6 +44,9 @@ export type CertificateData = {
   complianceLevels: string[];
   allApproved: boolean;
   microDate: string | null;
+  // Higher (worse) of every lot in this container's cfu/g readings -- a
+  // container is only as good as its worst-tested lot (see cfuTier.ts).
+  cfuValue: number | null;
   // Grouped by lab, not flattened -- a container's lots each carry an
   // in-house AND an external result, and mixing their certificate numbers
   // into one undifferentiated list would hide which lab said what.
@@ -191,6 +195,7 @@ export async function computeContainerCertificateData(containerId: string): Prom
     complianceLevels: [...new Set(checksForCert.map((c) => c.complianceLevel).filter((v): v is NonNullable<typeof v> => !!v))],
     allApproved,
     microDate: microDate ? microDate.toISOString() : null,
+    cfuValue: combinedCfuValue(allMicroResults),
     microCertsByLab,
     qualityRepName: container.qualityRepName,
     loadOutRepName: container.loadOutRepName,

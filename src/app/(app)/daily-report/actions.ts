@@ -202,3 +202,28 @@ export async function updateLineEfficiencyAction(_prevState: string | undefined,
   revalidatePath("/daily-report");
   return "ok";
 }
+
+const decapEfficiencySchema = z.object({
+  date: z.string().min(1),
+  weightOutKg: z.coerce.number().nonnegative().optional(),
+  calyxKg: z.coerce.number().nonnegative().optional(),
+});
+
+export async function updateDecapEfficiencyAction(_prevState: string | undefined, formData: FormData) {
+  const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
+  const parsed = decapEfficiencySchema.safeParse(raw);
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const { date, ...rest } = parsed.data;
+  const parsedDate = parseLocalDateOnly(date);
+  if (!parsedDate) return "That date couldn't be read.";
+
+  await prisma.decapDailyLog.upsert({
+    where: { date: parsedDate },
+    create: { date: parsedDate, ...rest },
+    update: rest,
+  });
+
+  revalidatePath("/daily-report");
+  return "ok";
+}

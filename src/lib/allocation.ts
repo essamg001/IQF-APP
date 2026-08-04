@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Grade, Format } from "@prisma/client";
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
+import { combinedCfuValue, exceedsClientLimit } from "@/lib/cfuTier";
 
 /** Best-effort parse of free-text brix specs like "8-11%", "8% ± 2.5", "7 - 8.5", or "8.0". */
 export function parseBrixRange(text: string | null | undefined): { min: number; max: number } | null {
@@ -45,13 +46,23 @@ export async function suggestAllocation(params: {
     where: { clientId, grade, format },
   });
 
-  const eligiblePallets = await prisma.pallet.findMany({
+  const allEligiblePallets = await prisma.pallet.findMany({
     where: {
       status: "IN_STORAGE",
       lot: { grade, format, shift: { is: { onHold: false } }, ...bothLabsApprovedFilter },
     },
-    include: { lot: { include: { qualityChecks: true } } },
+    include: { lot: { include: { qualityChecks: true, microbiologyResults: true } } },
     orderBy: { createdAt: "asc" },
+  });
+
+  // A pallet can be lab-Approved (both labs signed off) and still carry a
+  // cfu/g reading too high for this specific client's spec -- exclude those
+  // up front so they never get suggested for an order they'd be rejected
+  // against (see src/lib/cfuTier.ts). A pallet with no cfu reading yet isn't
+  // excluded -- absence of data isn't evidence it exceeds the limit.
+  const eligiblePallets = allEligiblePallets.filter((p) => {
+    const cfuValue = combinedCfuValue(p.lot.microbiologyResults);
+    return cfuValue == null || !exceedsClientLimit(cfuValue, spec?.maxCfuPerGram);
   });
 
   const brixRange = parseBrixRange(spec?.brix);

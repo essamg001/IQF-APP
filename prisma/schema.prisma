@@ -256,6 +256,11 @@ model ClientSpec {
   internalQuality  String?
   deadWorm         String?
 
+  // The client's own microbiology ceiling -- distinct clients tolerate
+  // different cfu/g levels, so a pallet within spec for one client can still
+  // be unacceptable for a stricter one (see src/lib/cfuTier.ts).
+  maxCfuPerGram Float?
+
   notes String?
 
   @@index([clientId])
@@ -794,6 +799,14 @@ model MicrobiologyResult {
   personInCharge    String?
   resultsSummary    String? // free text catch-all; testLines below is the structured form
 
+  // A dedicated structured field for this one specific test (Total/Aerobic
+  // Plate Count), distinct from the free-text testLines table below -- this
+  // is the only test result the app needs to parse into a number (for the
+  // cfu/g tier system), so it gets its own numeric column rather than trying
+  // to parse it back out of testLines[].result, which stays free text since
+  // a reading there can be a count, "<10", or "Not Detected".
+  totalPlateCountCfuG Float?
+
   testLines MicrobiologyTestLine[]
 
   // Older external residue/contaminant certificates (e.g. chlorates &
@@ -1329,4 +1342,18 @@ model DailyLineEfficiency {
   createdAt DateTime @default(now())
 
   @@unique([factoryId, date, shiftType])
+}
+
+// Decap has no dedicated Factory/ShiftLog entity of its own (it exists only
+// implicitly via the PRE_DECAP/POST_DECAP QualityCheckpoint values), so this
+// is a plain one-row-per-day log rather than something tied to a factory or
+// shift. Weight In is deliberately NOT stored here -- it's always computed
+// live from HarvestTicket.netWeightKg (already captured at the decap receipt
+// step), so there's no second copy of that number to drift out of sync.
+model DecapDailyLog {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  weightOutKg Float?
+  calyxKg     Float?
+  createdAt   DateTime @default(now())
 }

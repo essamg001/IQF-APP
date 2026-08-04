@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import type { Grade } from "@prisma/client";
 import { combinedMicroStatus, type CombinedMicroStatus } from "@/lib/microbiology";
+import { combinedCfuValue } from "@/lib/cfuTier";
 
 export type PalletQualitySnapshot = {
   grade: Grade;
   microbiologyStatus: CombinedMicroStatus;
+  /** Higher (worse) of the two labs' Total Plate Count readings, in cfu/g -- null if neither has reported one yet. */
+  cfuValue: number | null;
   brix: number | null;
   mouldPct: number | null;
   internalQualityPct: number | null;
@@ -57,12 +60,14 @@ export async function getPalletQualitySnapshots(
     const lot = lotById.get(p.lotId);
     const grade = lot?.grade ?? "A";
     const microbiologyStatus = lot ? combinedMicroStatus(lot.microbiologyResults, lot.shift.onHold) : "PENDING";
+    const cfuValue = lot ? combinedCfuValue(lot.microbiologyResults) : null;
 
     const palletCheck = latestPalletCheck.get(p.id);
     if (palletCheck) {
       result.set(p.id, {
         grade,
         microbiologyStatus,
+        cfuValue,
         brix: palletCheck.brix,
         mouldPct: palletCheck.mouldPct,
         internalQualityPct: palletCheck.internalQualityPct,
@@ -76,6 +81,7 @@ export async function getPalletQualitySnapshots(
       result.set(p.id, {
         grade,
         microbiologyStatus,
+        cfuValue,
         brix: lotCheck.brix,
         mouldPct: lotCheck.mouldPct,
         internalQualityPct: lotCheck.internalQualityPct,
@@ -84,7 +90,7 @@ export async function getPalletQualitySnapshots(
       continue;
     }
 
-    result.set(p.id, { grade, microbiologyStatus, brix: null, mouldPct: null, internalQualityPct: null, source: "none" });
+    result.set(p.id, { grade, microbiologyStatus, cfuValue, brix: null, mouldPct: null, internalQualityPct: null, source: "none" });
   }
 
   return result;

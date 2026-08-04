@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { deleteClientAction } from "../actions";
 import { DEFECT_FIELDS } from "@/lib/validation/client";
 import { AddSpecForm } from "./add-spec-form";
+import { CfuTierBadge } from "@/components/cfu-tier-badge";
 
 const FORMAT_LABEL = { WHOLE: "Whole", SLICED: "Sliced", DICED: "Diced" } as const;
 
@@ -83,6 +84,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                 <Row label="Brix" value={s.brix} />
                 <Row label="pH" value={s.ph} />
                 <Row label="Size/Caliber" value={s.sizeCaliber} />
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">Max Total Plate Count</dt>
+                  <dd className="text-right">
+                    <CfuTierBadge cfuValue={s.maxCfuPerGram ?? null} />
+                  </dd>
+                </div>
               </dl>
               {defects.length > 0 && (
                 <div className="mt-3">

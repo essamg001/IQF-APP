@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { auth } from "@/lib/auth";
 import { FORMAT_LABEL } from "@/lib/format";
 import { computeContainerCertificateData, type CertificateData } from "@/lib/certificate";
+import { cfuTierFor } from "@/lib/cfuTier";
 import { PrintButton } from "./print-button";
 import { ApproveForm } from "./approve-form";
 
@@ -39,6 +40,22 @@ function PassPill({ pass }: { pass: boolean | null }) {
   ) : (
     <span className="ca-pill" style={{ background: "#e3423014", color: "#c23a2b" }}>
       Review
+    </span>
+  );
+}
+
+function CfuPill({ cfuValue }: { cfuValue: number | null }) {
+  if (cfuValue == null) {
+    return (
+      <span className="ca-pill" style={{ background: "#eceae2", color: "#7c8579" }}>
+        —
+      </span>
+    );
+  }
+  const tier = cfuTierFor(cfuValue);
+  return (
+    <span className="ca-pill" style={{ background: tier.hex, color: tier.textHex }}>
+      {cfuValue.toLocaleString()} cfu/g
     </span>
   );
 }
@@ -324,6 +341,14 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
               <td>
                 <PassPill pass={data.productTemp <= -18} />
               </td>
+            </tr>
+            <tr>
+              <td className="param">Total Plate Count (microbiology)</td>
+              <td className="value">
+                <CfuPill cfuValue={data.cfuValue} />
+              </td>
+              <td className="spec spec-col">—</td>
+              <td></td>
             </tr>
           </tbody>
         </table>

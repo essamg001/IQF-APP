@@ -74,6 +74,16 @@ function SpecCard({
         <FieldGroup label="pH">
           <Input value={spec.ph ?? ""} onChange={(e) => set("ph", e.target.value)} placeholder="e.g. 3.2-3.6" />
         </FieldGroup>
+        <FieldGroup label="Max Total Plate Count (cfu/g)">
+          <Input
+            type="number"
+            step="1"
+            min="0"
+            value={spec.maxCfuPerGram ?? ""}
+            onChange={(e) => onChange({ ...spec, maxCfuPerGram: e.target.value === "" ? undefined : Number(e.target.value) })}
+            placeholder="e.g. 10000"
+          />
+        </FieldGroup>
       </div>
 
       <p className="mt-4 text-xs font-medium text-slate-500">

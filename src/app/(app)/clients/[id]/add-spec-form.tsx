@@ -40,6 +40,9 @@ export function AddSpecForm({ clientId }: { clientId: string }) {
         <FieldGroup label="pH">
           <Input name="ph" placeholder="e.g. 3.2-3.6" />
         </FieldGroup>
+        <FieldGroup label="Max Total Plate Count (cfu/g)">
+          <Input name="maxCfuPerGram" type="number" step="1" min="0" placeholder="e.g. 10000" />
+        </FieldGroup>
       </div>
 
       <p className="text-xs font-medium text-slate-500">

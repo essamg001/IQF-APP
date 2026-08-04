@@ -5,6 +5,7 @@ import { createPackedPalletAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CARTON_LOGO_OPTIONS } from "@/lib/cartonLogo";
 import type { ProductionLot, Field, ColdRoom, QualityCheck, Pallet } from "@prisma/client";
 
 type LotWithField = ProductionLot & { field: Field };
@@ -145,9 +146,11 @@ function PalletFields({
         <FieldGroup label="Carton Logo">
           <Select name="cartonLogo" defaultValue="">
             <option value="">—</option>
-            <option value="Wooden Box (1st Grade)">Wooden Box (1st Grade)</option>
-            <option value="Black (Europe 1st Grade)">Black (Europe 1st Grade)</option>
-            <option value="Plain Brown (2nd Grade)">Plain Brown (2nd Grade)</option>
+            {CARTON_LOGO_OPTIONS.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
           </Select>
         </FieldGroup>
         <FieldGroup label="Size">

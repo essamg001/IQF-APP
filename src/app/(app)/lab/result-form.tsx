@@ -4,6 +4,7 @@ import { useState } from "react";
 import { updateLabResultAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { CfuTierBadge } from "@/components/cfu-tier-badge";
 
 type TestLine = {
   testName?: string | null;
@@ -48,6 +49,7 @@ type ResultData = {
   rejectedQuantityTonnes: number | null;
   rejectionReason: string | null;
   correctiveAction: string | null;
+  totalPlateCountCfuG: number | null;
   testLines: TestLine[];
 } | null | undefined;
 
@@ -95,6 +97,7 @@ export function ResultForm({
   result: ResultData;
 }) {
   const [lines, setLines] = useState<TestLine[]>(result?.testLines?.length ? result.testLines : [{ ...EMPTY_LINE }]);
+  const [cfuValue, setCfuValue] = useState<number | null>(result?.totalPlateCountCfuG ?? null);
 
   return (
     <form action={updateLabResultAction.bind(null, resultId)} className="mt-3 space-y-3" encType="multipart/form-data">
@@ -106,6 +109,19 @@ export function ResultForm({
             <option value="FAILED_MINOR">Failed — Minor</option>
             <option value="FAILED_SEVERE">Failed — Severe</option>
           </Select>
+        </FieldGroup>
+        <FieldGroup label="Total Plate Count (cfu/g)">
+          <div className="flex items-center gap-2">
+            <Input
+              name="totalPlateCountCfuG"
+              type="number"
+              step="1"
+              min="0"
+              defaultValue={result?.totalPlateCountCfuG ?? ""}
+              onChange={(e) => setCfuValue(e.target.value === "" ? null : Number(e.target.value))}
+            />
+            <CfuTierBadge cfuValue={cfuValue} className="shrink-0" />
+          </div>
         </FieldGroup>
         <FieldGroup label="Person In Charge">
           <Input name="personInCharge" defaultValue={result?.personInCharge ?? ""} />

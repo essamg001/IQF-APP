@@ -9,6 +9,7 @@ import { QuantitiesSection } from "./quantities-section";
 import { PackingSection } from "./packing-section";
 import { EfficiencySection } from "./efficiency-section";
 import { TemperatureSection } from "./temperature-section";
+import { DecapEfficiencySection } from "./decap-efficiency-section";
 
 export default async function DailyReportPage({
   searchParams,
@@ -25,31 +26,45 @@ export default async function DailyReportPage({
   const dayStart = parseLocalDateOnly(dateStr) ?? new Date();
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-  const [factories, clients, quantityEntries, packingLines, downtimeEvents, efficiencyRows, temperatureLogs] =
-    await Promise.all([
-      prisma.factory.findMany({ orderBy: { code: "asc" } }),
-      prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.dailyQuantityEntry.findMany({
-        where: { date: { gte: dayStart, lt: dayEnd } },
-        include: { factory: true },
-        orderBy: [{ factory: { code: "asc" } }, { createdAt: "asc" }],
-      }),
-      prisma.dailyPackingLine.findMany({
-        where: { date: { gte: dayStart, lt: dayEnd } },
-        include: { factory: true, client: true },
-        orderBy: { createdAt: "asc" },
-      }),
-      prisma.dailyDowntimeEvent.findMany({
-        where: { date: { gte: dayStart, lt: dayEnd } },
-        orderBy: { fromTime: "asc" },
-      }),
-      prisma.dailyLineEfficiency.findMany({
-        where: { date: { gte: dayStart, lt: dayEnd } },
-      }),
-      prisma.dailyTemperatureLog.findMany({
-        where: { recordedAt: { gte: dayStart, lt: dayEnd } },
-      }),
-    ]);
+  const [
+    factories,
+    clients,
+    quantityEntries,
+    packingLines,
+    downtimeEvents,
+    efficiencyRows,
+    temperatureLogs,
+    decapLog,
+    decapWeightInAgg,
+  ] = await Promise.all([
+    prisma.factory.findMany({ orderBy: { code: "asc" } }),
+    prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.dailyQuantityEntry.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+      include: { factory: true },
+      orderBy: [{ factory: { code: "asc" } }, { createdAt: "asc" }],
+    }),
+    prisma.dailyPackingLine.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+      include: { factory: true, client: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.dailyDowntimeEvent.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+      orderBy: { fromTime: "asc" },
+    }),
+    prisma.dailyLineEfficiency.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+    }),
+    prisma.dailyTemperatureLog.findMany({
+      where: { recordedAt: { gte: dayStart, lt: dayEnd } },
+    }),
+    prisma.decapDailyLog.findUnique({ where: { date: dayStart } }),
+    prisma.harvestTicket.aggregate({
+      where: { receivedDate: { gte: dayStart, lt: dayEnd } },
+      _sum: { netWeightKg: true },
+    }),
+  ]);
 
   const factoriesForForms = factories.map((f) => ({ id: f.id, name: f.name, code: f.code }));
 
@@ -75,6 +90,13 @@ export default async function DailyReportPage({
       <QuantitiesSection date={dateStr} factories={factoriesForForms} entries={quantityEntries} />
 
       <PackingSection date={dateStr} factories={factoriesForForms} clients={clients} lines={packingLines} />
+
+      <DecapEfficiencySection
+        date={dateStr}
+        weightInKg={decapWeightInAgg._sum.netWeightKg ?? 0}
+        weightOutKg={decapLog?.weightOutKg ?? null}
+        calyxKg={decapLog?.calyxKg ?? null}
+      />
 
       {factories.map((f) => (
         <EfficiencySection

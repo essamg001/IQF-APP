@@ -7,6 +7,8 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { markWasteAction } from "../../production/actions";
 import { combinedMicroStatus } from "@/lib/microbiology";
+import { combinedCfuValue } from "@/lib/cfuTier";
+import { CfuTierBadge } from "@/components/cfu-tier-badge";
 import { canSeeCosting } from "@/lib/roles";
 
 const STATUS_COLOR = {
@@ -82,6 +84,12 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
               label="Microbiology"
               value={combinedMicroStatus(pallet.lot.microbiologyResults, pallet.lot.shift.onHold).replace("_", " ")}
             />
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">Total Plate Count</dt>
+              <dd className="text-right">
+                <CfuTierBadge cfuValue={combinedCfuValue(pallet.lot.microbiologyResults)} />
+              </dd>
+            </div>
             <Row label="Client (allocated)" value={pallet.client?.name} />
           </dl>
         </Card>

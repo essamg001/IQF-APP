@@ -47,6 +47,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
               insectDamage: s.insectDamage ?? undefined,
               internalQuality: s.internalQuality ?? undefined,
               deadWorm: s.deadWorm ?? undefined,
+              maxCfuPerGram: s.maxCfuPerGram ?? undefined,
               notes: s.notes ?? undefined,
             })),
           }}

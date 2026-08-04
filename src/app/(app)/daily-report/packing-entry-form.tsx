@@ -5,6 +5,8 @@ import { addPackingLineAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { ClientOrOtherSelect } from "./client-or-other-select";
+import { SelectWithOther } from "@/components/select-with-other";
+import { CARTON_LOGO_OPTIONS } from "@/lib/cartonLogo";
 
 export function PackingEntryForm({
   date,
@@ -38,7 +40,7 @@ export function PackingEntryForm({
         </Select>
       </FieldGroup>
       <FieldGroup label="Logo">
-        <Input name="logo" required placeholder="e.g. wood, brown, blue" className="w-32" />
+        <SelectWithOther name="logo" options={CARTON_LOGO_OPTIONS} otherPlaceholder="e.g. blue bag (samples)" />
       </FieldGroup>
       <FieldGroup label="Weight (kg)">
         <Input name="weightKg" type="number" step="0.1" className="w-20" />

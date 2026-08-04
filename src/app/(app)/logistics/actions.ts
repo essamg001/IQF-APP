@@ -5,8 +5,9 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { raiseMicrobiologyLoadAttemptAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
+import { raiseMicrobiologyLoadAttemptAlert, raiseCfuLimitLoadAttemptAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
+import { combinedCfuValue, exceedsClientLimit } from "@/lib/cfuTier";
 import { logActivity } from "@/lib/activityLog";
 import { canSeeContainerValue } from "@/lib/roles";
 
@@ -327,9 +328,13 @@ export async function addPalletLoadLineAction(
 
   const { pallet, remaining } = await palletWithRemaining(parsed.data.palletId);
 
+  const container = await prisma.container.findUniqueOrThrow({
+    where: { id: containerId },
+    include: { order: { include: { client: { include: { specs: true } } } } },
+  });
+
   const microStatus = combinedMicroStatus(pallet.lot.microbiologyResults, pallet.lot.shift.onHold);
   if (!isMicroCleared(pallet.lot.microbiologyResults, pallet.lot.shift.onHold)) {
-    const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
     await raiseMicrobiologyLoadAttemptAlert({
       palletId: pallet.id,
       palletNumber: pallet.palletNumber,
@@ -339,6 +344,25 @@ export async function addPalletLoadLineAction(
     });
     const statusLabel = microStatus === "ON_HOLD" ? "shift on hold — split microbiology result" : microStatus.replace("_", " ");
     return `Blocked: Lot ${pallet.lot.lotNumber} has not cleared microbiology (both labs required — status: ${statusLabel}). Quality has been alerted.`;
+  }
+
+  // Lab-Approved isn't the same as "fits this client" -- a pallet can pass
+  // the pass/fail gate above and still carry a cfu/g reading above this
+  // specific client's own spec ceiling (see src/lib/cfuTier.ts), which would
+  // make the shipment fully rejected on arrival rather than just discounted.
+  const spec = container.order.client.specs.find((s) => s.grade === pallet.lot.grade && s.format === pallet.lot.format);
+  const cfuValue = combinedCfuValue(pallet.lot.microbiologyResults);
+  if (cfuValue != null && exceedsClientLimit(cfuValue, spec?.maxCfuPerGram)) {
+    await raiseCfuLimitLoadAttemptAlert({
+      palletId: pallet.id,
+      palletNumber: pallet.palletNumber,
+      lotNumber: pallet.lot.lotNumber,
+      containerNumber: container.containerNumber,
+      clientName: container.order.client.name,
+      cfuValue,
+      maxCfuPerGram: spec!.maxCfuPerGram!,
+    });
+    return `Blocked: Lot ${pallet.lot.lotNumber} has a Total Plate Count of ${cfuValue.toLocaleString()} cfu/g, above ${container.order.client.name}'s spec limit of ${spec!.maxCfuPerGram!.toLocaleString()} cfu/g. This pallet would be rejected on arrival.`;
   }
 
   if (pallet.stickeringRequired && !pallet.stickeringCompletedAt) {

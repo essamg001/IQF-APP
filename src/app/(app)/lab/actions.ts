@@ -83,6 +83,8 @@ const resultSchema = z.object({
   rejectedQuantityTonnes: z.coerce.number().min(0).optional(),
   rejectionReason: z.string().optional(),
   correctiveAction: z.string().optional(),
+
+  totalPlateCountCfuG: z.coerce.number().min(0).optional(),
 });
 
 const testLineSchema = z.object({
@@ -100,6 +102,14 @@ export async function updateLabResultAction(resultId: string, formData: FormData
       .map(([k, v]) => [k, v === "" ? undefined : v])
   );
   const parsed = resultSchema.parse(raw);
+
+  // Above the graduated cfu/g tier system (see src/lib/cfuTier.ts) is an
+  // automatic hard reject regardless of what status was manually picked --
+  // this can't be silently overridden by choosing Approved despite an
+  // out-of-range reading.
+  const status =
+    parsed.totalPlateCountCfuG != null && parsed.totalPlateCountCfuG > 100_000 ? "FAILED_SEVERE" : parsed.status;
+
   const { analysisStartDate, analysisEndDate, reportDate, ...rest } = parsed;
 
   let rawLines: unknown = [];
@@ -122,7 +132,7 @@ export async function updateLabResultAction(resultId: string, formData: FormData
   if (!existing) return;
 
   const isNewRejection =
-    (parsed.status === "FAILED_MINOR" || parsed.status === "FAILED_SEVERE") &&
+    (status === "FAILED_MINOR" || status === "FAILED_SEVERE") &&
     existing.status !== "FAILED_MINOR" &&
     existing.status !== "FAILED_SEVERE";
 
@@ -131,6 +141,7 @@ export async function updateLabResultAction(resultId: string, formData: FormData
       where: { id: resultId },
       data: {
         ...rest,
+        status,
         ...fileFields,
         receivedDate: new Date(),
         analysisStartDate: parseDateSafe(analysisStartDate),
@@ -143,7 +154,7 @@ export async function updateLabResultAction(resultId: string, formData: FormData
       },
     });
 
-    if (parsed.status === "FAILED_SEVERE") {
+    if (status === "FAILED_SEVERE") {
       const pallets = await tx.pallet.findMany({
         where: { lotId: existing.lotId, status: { in: ["IN_STORAGE", "DISCOUNT_OFFERED"] } },
       });
@@ -157,7 +168,7 @@ export async function updateLabResultAction(resultId: string, formData: FormData
           },
         });
       }
-    } else if (parsed.status === "FAILED_MINOR") {
+    } else if (status === "FAILED_MINOR") {
       await tx.pallet.updateMany({
         where: { lotId: existing.lotId, status: "IN_STORAGE" },
         data: { status: "DISCOUNT_OFFERED" },
@@ -169,7 +180,7 @@ export async function updateLabResultAction(resultId: string, formData: FormData
     await raiseMicrobiologyRejectionAlert({
       lotId: existing.lotId,
       lotNumber: existing.lot.lotNumber,
-      severity: parsed.status as "FAILED_MINOR" | "FAILED_SEVERE",
+      severity: status as "FAILED_MINOR" | "FAILED_SEVERE",
       rejectedQuantityTonnes: parsed.rejectedQuantityTonnes ?? null,
       rejectionReason: parsed.rejectionReason ?? null,
     });

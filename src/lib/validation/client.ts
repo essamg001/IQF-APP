@@ -23,6 +23,7 @@ export const specSchema = z.object({
   insectDamage: z.string().optional(),
   internalQuality: z.string().optional(),
   deadWorm: z.string().optional(),
+  maxCfuPerGram: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 });
 

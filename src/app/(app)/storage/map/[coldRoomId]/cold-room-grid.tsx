@@ -6,6 +6,9 @@ import { Select, FieldGroup } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CfuTierBadge } from "@/components/cfu-tier-badge";
+import { CfuTierLegend } from "@/components/cfu-tier-legend";
+import { cfuTierFor } from "@/lib/cfuTier";
 
 type SlotPallet = {
   id: string;
@@ -17,6 +20,7 @@ type SlotPallet = {
   quality: {
     grade: string;
     microbiologyStatus: string;
+    cfuValue: number | null;
     brix: number | null;
     mouldPct: number | null;
     internalQualityPct: number | null;
@@ -27,12 +31,16 @@ type SlotPallet = {
 type Slot = { id: string; round: number; rack: string; level: number; pallet: SlotPallet | null };
 type UnassignedPallet = { id: string; palletNumber: string; lotNumber: string; fieldName: string };
 
+// Fallback coloring for pallets with no cfu/g reading yet -- once a reading
+// exists, the cfu tier ramp (see src/lib/cfuTier.ts) takes over instead, per
+// the owner's ask to have the storage map reflect the cfu tier colors.
 const STATUS_COLOR: Record<string, string> = {
   APPROVED: "bg-emerald-100 border-emerald-300 text-emerald-900 hover:bg-emerald-200",
   SENT_TO_LAB: "bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200",
   PENDING: "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100",
   FAILED_MINOR: "bg-red-100 border-red-300 text-red-900 hover:bg-red-200",
   FAILED_SEVERE: "bg-red-200 border-red-400 text-red-950 hover:bg-red-300",
+  ON_HOLD: "bg-red-100 border-red-400 text-red-900 hover:bg-red-200",
 };
 
 export function ColdRoomGrid({
@@ -95,6 +103,7 @@ export function ColdRoomGrid({
             <RowFragment key={level} level={level} racks={racks} round={round} slotByPosition={slotByPosition} selectedSlotId={selectedSlotId} onSelect={setSelectedSlotId} />
           ))}
         </div>
+        <CfuTierLegend className="mt-3 border-t border-slate-100 pt-2" />
       </Card>
 
       <div>
@@ -135,13 +144,25 @@ function RowFragment({
         const slot = slotByPosition.get(`${round}-${rack}-${level}`);
         if (!slot) return <div key={rack} />;
         const occupied = !!slot.pallet;
-        const colorClass = occupied
-          ? STATUS_COLOR[slot.pallet!.quality?.microbiologyStatus ?? "PENDING"] ?? STATUS_COLOR.PENDING
-          : "bg-slate-50 border-slate-200 text-slate-300 hover:bg-slate-100";
+        const cfuValue = slot.pallet?.quality?.cfuValue ?? null;
+        let colorClass: string;
+        if (!occupied) {
+          colorClass = "bg-slate-50 border-slate-200 text-slate-300 hover:bg-slate-100";
+        } else if (cfuValue != null) {
+          const tier = cfuTierFor(cfuValue);
+          colorClass = `${tier.bg} ${tier.text} border-black/10 hover:opacity-90`;
+        } else {
+          colorClass = STATUS_COLOR[slot.pallet!.quality?.microbiologyStatus ?? "PENDING"] ?? STATUS_COLOR.PENDING;
+        }
+        const title = occupied
+          ? `${slot.pallet!.palletNumber} — Lot ${slot.pallet!.lotNumber}${
+              cfuValue != null ? ` — ${cfuValue.toLocaleString()} cfu/g` : ""
+            }`
+          : `${rack}${level} — empty`;
         return (
           <button
             key={rack}
-            title={occupied ? `${slot.pallet!.palletNumber} — Lot ${slot.pallet!.lotNumber}` : `${rack}${level} — empty`}
+            title={title}
             onClick={() => onSelect(slot.id)}
             className={`h-8 truncate rounded border px-0.5 text-[10px] font-medium ${colorClass} ${
               selectedSlotId === slot.id ? "ring-2 ring-emerald-600" : ""
@@ -189,6 +210,12 @@ function SlotDetail({
               label="Lab clearance"
               value={slot.pallet.quality?.microbiologyStatus.replace(/_/g, " ") ?? "—"}
             />
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">Total Plate Count</dt>
+              <dd className="text-right">
+                <CfuTierBadge cfuValue={slot.pallet.quality?.cfuValue ?? null} />
+              </dd>
+            </div>
             <Row
               label="Brix"
               value={slot.pallet.quality?.brix != null ? String(slot.pallet.quality.brix) : "—"}

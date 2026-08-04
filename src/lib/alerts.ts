@@ -55,6 +55,39 @@ export async function raiseMicrobiologyLoadAttemptAlert(params: {
 }
 
 /**
+ * Same blocked-load-attempt alert type as raiseMicrobiologyLoadAttemptAlert,
+ * but for the distinct case where a pallet IS lab-Approved and still gets
+ * blocked -- its cfu/g reading is above this specific client's own spec
+ * ceiling (see src/lib/cfuTier.ts), so it would be fully rejected on arrival
+ * rather than just discounted.
+ */
+export async function raiseCfuLimitLoadAttemptAlert(params: {
+  palletId: string;
+  palletNumber: string;
+  lotNumber: string;
+  containerNumber: string;
+  clientName: string;
+  cfuValue: number;
+  maxCfuPerGram: number;
+}) {
+  const message = `Blocked: attempt to load pallet ${params.palletNumber} (Lot ${params.lotNumber}) into container ${params.containerNumber} — Total Plate Count ${params.cfuValue.toLocaleString()} cfu/g exceeds ${params.clientName}'s spec limit of ${params.maxCfuPerGram.toLocaleString()} cfu/g.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "MICROBIOLOGY_LOAD_ATTEMPT",
+        relatedEntityType: "MICROBIOLOGY_LOAD_ATTEMPT",
+        relatedEntityId: params.palletId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Blocked Load Attempt", message)));
+  }
+}
+
+/**
  * Fired the moment a lab result is recorded as rejected, rather than waiting
  * for the periodic scan, so quality/production can act before that fruit
  * gets anywhere near a shipment.

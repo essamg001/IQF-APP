@@ -3,6 +3,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import Link from "next/link";
+import { getPalletQualitySnapshots } from "@/lib/palletQuality";
+import { CfuTierBadge } from "@/components/cfu-tier-badge";
+import { CfuTierLegend } from "@/components/cfu-tier-legend";
 
 const STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -34,6 +37,7 @@ export default async function StoragePage({
   ]);
 
   const countMap = Object.fromEntries(counts.map((c) => [c.status, c._count]));
+  const qualityByPalletId = await getPalletQualitySnapshots(pallets.map((p) => ({ id: p.id, lotId: p.lotId })));
 
   return (
     <div>
@@ -87,6 +91,7 @@ export default async function StoragePage({
               <th className="px-4 py-2 font-medium">Cold Room</th>
               <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2 font-medium">Client</th>
+              <th className="px-4 py-2 font-medium">Total Plate Count</th>
             </tr>
           </thead>
           <tbody>
@@ -105,11 +110,14 @@ export default async function StoragePage({
                   <Badge color={STATUS_COLOR[p.status]}>{p.status.replace("_", " ")}</Badge>
                 </td>
                 <td className="px-4 py-2">{p.client?.name ?? "—"}</td>
+                <td className="px-4 py-2">
+                  <CfuTierBadge cfuValue={qualityByPalletId.get(p.id)?.cfuValue ?? null} />
+                </td>
               </tr>
             ))}
             {pallets.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   No pallets match this filter.
                 </td>
               </tr>
@@ -117,6 +125,7 @@ export default async function StoragePage({
           </tbody>
         </table>
       </Card>
+      <CfuTierLegend className="mt-3" />
     </div>
   );
 }

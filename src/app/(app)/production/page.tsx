@@ -6,6 +6,9 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { FORMAT_LABEL } from "@/lib/format";
 import { combinedMicroStatus } from "@/lib/microbiology";
+import { combinedCfuValue } from "@/lib/cfuTier";
+import { CfuTierBadge } from "@/components/cfu-tier-badge";
+import { CfuTierLegend } from "@/components/cfu-tier-legend";
 
 const MICRO_COLOR = {
   PENDING: "amber",
@@ -51,6 +54,7 @@ export default async function ProductionPage() {
               <th className="px-4 py-2 font-medium">Format</th>
               <th className="px-4 py-2 font-medium">Pallets</th>
               <th className="px-4 py-2 font-medium">Microbiology</th>
+              <th className="px-4 py-2 font-medium">Total Plate Count</th>
             </tr>
           </thead>
           <tbody>
@@ -78,11 +82,14 @@ export default async function ProductionPage() {
                     return <Badge color={MICRO_COLOR[micro]}>{micro.replace("_", " ")}</Badge>;
                   })()}
                 </td>
+                <td className="px-4 py-2">
+                  <CfuTierBadge cfuValue={combinedCfuValue(lot.microbiologyResults)} />
+                </td>
               </tr>
             ))}
             {lots.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   No production lots logged yet.
                 </td>
               </tr>
@@ -90,6 +97,7 @@ export default async function ProductionPage() {
           </tbody>
         </table>
       </Card>
+      <CfuTierLegend className="mt-3" />
     </div>
   );
 }
