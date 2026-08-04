@@ -21,6 +21,9 @@ const containerSchema = z.object({
   orderId: z.string().min(1),
   containerNumber: z.string().min(1),
   carrier: z.string().optional(),
+  vesselName: z.string().optional(),
+  voyageNumber: z.string().optional(),
+  bookingNumber: z.string().optional(),
   departurePort: z.string().optional(),
   destinationPort: z.string().optional(),
   destinationCountry: z.string().optional(),
@@ -30,13 +33,26 @@ const containerSchema = z.object({
   trackingRef: z.string().optional(),
   sealNumber: z.string().optional(),
   billOfLadingNumber: z.string().optional(),
+  loadType: z.enum(["PALLETISED", "UNPALLETISED"]).optional(),
+  // A checkbox, not a free-entry temperature -- IQF frozen product is
+  // essentially always -18°C, so this is a one-click confirmation rather
+  // than making every container creation retype the same number. A shipment
+  // that genuinely needs a different set-point still gets it via the
+  // container page's own Reefer Temperature field (unchanged, still a plain
+  // number so it can be overridden).
+  reeferConfirmed: z.boolean(),
 });
+
+const STANDARD_REEFER_SET_POINT_C = -18;
 
 export async function createContainerAction(_prevState: string | undefined, formData: FormData) {
   const parsed = containerSchema.safeParse({
     orderId: formData.get("orderId"),
     containerNumber: formData.get("containerNumber"),
     carrier: formData.get("carrier") || undefined,
+    vesselName: formData.get("vesselName") || undefined,
+    voyageNumber: formData.get("voyageNumber") || undefined,
+    bookingNumber: formData.get("bookingNumber") || undefined,
     departurePort: formData.get("departurePort") || undefined,
     destinationPort: formData.get("destinationPort") || undefined,
     destinationCountry: formData.get("destinationCountry") || undefined,
@@ -46,6 +62,8 @@ export async function createContainerAction(_prevState: string | undefined, form
     trackingRef: formData.get("trackingRef") || undefined,
     sealNumber: formData.get("sealNumber") || undefined,
     billOfLadingNumber: formData.get("billOfLadingNumber") || undefined,
+    loadType: formData.get("loadType") || undefined,
+    reeferConfirmed: formData.get("reeferConfirmed") === "on",
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
@@ -60,11 +78,13 @@ export async function createContainerAction(_prevState: string | undefined, form
   const existing = await prisma.container.findUnique({ where: { containerNumber } });
   if (existing) return "A container with this number already exists.";
 
+  const { reeferConfirmed, ...rest } = parsed.data;
   const container = await prisma.container.create({
     data: {
-      ...parsed.data,
+      ...rest,
       containerNumber,
       departureDate: parsed.data.departureDate ? new Date(parsed.data.departureDate) : undefined,
+      reeferSetPointC: reeferConfirmed ? STANDARD_REEFER_SET_POINT_C : undefined,
     },
   });
 

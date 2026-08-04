@@ -41,6 +41,26 @@ export function ContainerForm({
           <CarrierInput name="carrier" />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
+          <FieldGroup label="Load type">
+            <Select name="loadType" defaultValue="">
+              <option value="">Not yet decided</option>
+              <option value="PALLETISED">Palletised — pallet ships as-is (24t capacity)</option>
+              <option value="UNPALLETISED">Unpalletised — cartons stacked loose (25t capacity)</option>
+            </Select>
+          </FieldGroup>
+          <FieldGroup label="Booking number">
+            <Input name="bookingNumber" />
+          </FieldGroup>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <FieldGroup label="Vessel name">
+            <Input name="vesselName" />
+          </FieldGroup>
+          <FieldGroup label="Voyage number">
+            <Input name="voyageNumber" />
+          </FieldGroup>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Departure port">
             <PortInput name="departurePort" />
           </FieldGroup>
@@ -67,6 +87,10 @@ export function ContainerForm({
             <Input name="trackingRef" />
           </FieldGroup>
         </div>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="reeferConfirmed" defaultChecked />
+          Reefer set to −18°C (standard for IQF frozen product — uncheck if this shipment needs a different set-point)
+        </label>
         <p className="text-xs text-slate-500">
           Seal number and bill of lading number are usually only known once the carrier issues them after
           departure — add those from the container&apos;s own page once you have them.
