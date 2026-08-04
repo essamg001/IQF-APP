@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { parseDateSafe, parseLocalDateOnly } from "@/lib/dates";
+import { getTemperatureLocations } from "@/lib/dailyReportLocations";
 import { z } from "zod";
 
 function combineDateAndTime(dateStr: string, timeStr: string): Date | null {
@@ -16,32 +17,45 @@ function combineDateAndTime(dateStr: string, timeStr: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-const temperatureSchema = z.object({
+const temperatureBatchSchema = z.object({
   factoryId: z.string().min(1),
-  location: z.string().min(1),
-  valueC: z.coerce.number(),
+  factoryCode: z.string().optional(),
   recordedAt: z.string().optional(),
   notes: z.string().optional(),
 });
 
-export async function logTemperatureAction(_prevState: string | undefined, formData: FormData) {
-  const parsed = temperatureSchema.safeParse({
+// One small box per location (see log-temperature-form.tsx) posts here as a
+// single round -- every non-empty box becomes its own DailyTemperatureLog
+// row sharing the same recordedAt/notes, instead of requiring one form
+// submission per location.
+export async function logTemperatureBatchAction(_prevState: string | undefined, formData: FormData) {
+  const parsed = temperatureBatchSchema.safeParse({
     factoryId: formData.get("factoryId"),
-    location: formData.get("location"),
-    valueC: formData.get("valueC"),
+    factoryCode: formData.get("factoryCode") || undefined,
     recordedAt: formData.get("recordedAt") || undefined,
     notes: formData.get("notes") || undefined,
   });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
-  await prisma.dailyTemperatureLog.create({
-    data: {
+  const locations = getTemperatureLocations(parsed.data.factoryCode);
+  const recordedAt = parseDateSafe(parsed.data.recordedAt) ?? new Date();
+
+  const readings = locations
+    .map((loc) => ({ location: loc.name, raw: formData.get(loc.name) }))
+    .filter((r) => r.raw != null && String(r.raw).trim() !== "")
+    .map((r) => ({ location: r.location, valueC: Number(r.raw) }))
+    .filter((r) => !Number.isNaN(r.valueC));
+
+  if (readings.length === 0) return "Enter at least one reading.";
+
+  await prisma.dailyTemperatureLog.createMany({
+    data: readings.map((r) => ({
       factoryId: parsed.data.factoryId,
-      location: parsed.data.location,
-      valueC: parsed.data.valueC,
+      location: r.location,
+      valueC: r.valueC,
       notes: parsed.data.notes,
-      recordedAt: parseDateSafe(parsed.data.recordedAt) ?? new Date(),
-    },
+      recordedAt,
+    })),
   });
 
   revalidatePath("/daily-report");

@@ -34,7 +34,7 @@ export function TemperatureSection({
     <Card className="overflow-x-auto">
       <h3 className="text-sm font-semibold text-slate-900">{factoryName} — Temperature Log</h3>
       <div className="mt-3">
-        <LogTemperatureForm factoryId={factoryId} locations={locations} />
+        <LogTemperatureForm factoryId={factoryId} factoryCode={factoryCode} locations={locations} />
       </div>
 
       <table className="mt-4 w-full text-left text-xs">
