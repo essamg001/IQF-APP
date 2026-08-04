@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { auth } from "@/lib/auth";
 import { FORMAT_LABEL } from "@/lib/format";
 import { computeContainerCertificateData, type CertificateData } from "@/lib/certificate";
-import { cfuTierFor } from "@/lib/cfuTier";
 import { PrintButton } from "./print-button";
 import { ApproveForm } from "./approve-form";
 
@@ -22,65 +21,21 @@ function formatMicroCerts(groups: CertificateData["microCertsByLab"]): string {
   );
 }
 
-function PassPill({ pass }: { pass: boolean | null }) {
-  if (pass === null) {
-    return (
-      <span className="ca-pill" style={{ background: "#eceae2", color: "#7c8579" }}>
-        —
-      </span>
-    );
-  }
-  return pass ? (
-    <span className="ca-pill">
-      <svg viewBox="0 0 10 10" fill="none">
-        <path d="M2 5.2L4 7.2L8 2.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>{" "}
-      Pass
-    </span>
-  ) : (
-    <span className="ca-pill" style={{ background: "#e3423014", color: "#c23a2b" }}>
-      Review
-    </span>
-  );
-}
-
-function SpecStatusPill({ row }: { row: CertificateData["specComplianceRows"][number] }) {
-  if (!row.enforceable) {
-    return (
-      <span className="ca-pill" style={{ background: "#eceae2", color: "#7c8579" }}>
-        Manual review
-      </span>
-    );
-  }
-  if (row.violated && row.overridden) {
-    return (
-      <span className="ca-pill" style={{ background: "#fff3cd", color: "#7a5d00" }}>
-        Overridden
-      </span>
-    );
-  }
-  return <PassPill pass={!row.violated} />;
-}
-
+// The certificate is a uniform, plain document -- every shipment's copy has
+// the same columns and the same plain-ink styling, with no color-coded
+// verdict (Pass/Review/Overridden) that would make one certificate look
+// different from another depending on what happened internally. Any pallet
+// that failed a client's spec and got signed off (see SpecException) is
+// only ever shown here as its plain measured value, same as one that passed
+// outright -- the gate that actually blocks a genuinely unresolved
+// violation lives in src/lib/certificate.ts, not in how this renders.
 function formatSpecMeasured(row: CertificateData["specComplianceRows"][number]): string {
   if (row.measuredValue == null) return "—";
   return row.measuredUnit === "°Bx" ? `${row.measuredValue} °Bx` : `${row.measuredValue} ${row.measuredUnit}`;
 }
 
-function CfuPill({ cfuValue }: { cfuValue: number | null }) {
-  if (cfuValue == null) {
-    return (
-      <span className="ca-pill" style={{ background: "#eceae2", color: "#7c8579" }}>
-        —
-      </span>
-    );
-  }
-  const tier = cfuTierFor(cfuValue);
-  return (
-    <span className="ca-pill" style={{ background: tier.hex, color: tier.textHex }}>
-      {cfuValue.toLocaleString()} cfu/g
-    </span>
-  );
+function formatCfu(cfuValue: number | null): string {
+  return cfuValue == null ? "—" : `${cfuValue.toLocaleString()} cfu/g`;
 }
 
 export default async function ContainerCertificatePage({ params }: { params: Promise<{ id: string }> }) {
@@ -168,8 +123,6 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
         .ca-results td.param { color:var(--ink-soft); }
         .ca-results td.value { font-variant-numeric:tabular-nums; font-weight:600; white-space:nowrap; }
         .ca-results td.spec { color:var(--ink-faint); font-variant-numeric:tabular-nums; white-space:nowrap; }
-        .ca-pill { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:0.03em; padding:2px 8px; border-radius:20px; background:var(--good-soft); color:var(--good); }
-        .ca-pill svg { width:9px; height:9px; }
         .ca-lower { display:grid; grid-template-columns:1.1fr 0.9fr; gap:28px; margin-top:30px; align-items:start; }
         .ca-certs { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
         .ca-chip { font-size:10.5px; font-weight:600; letter-spacing:0.04em; padding:5px 10px; border:1px solid var(--line-strong); border-radius:2px; color:var(--ink-soft); background:rgba(255,255,255,0.4); }
@@ -295,7 +248,6 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
               <th style={{ width: "34%" }}>Parameter</th>
               <th>Result</th>
               <th className="spec-col">Client Spec</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -303,49 +255,31 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
               <td className="param">Brix (sugar content)</td>
               <td className="value">{data.brix !== null ? `${data.brix.toFixed(1)} °Bx` : "—"}</td>
               <td className="spec spec-col">{data.specBrix ?? "—"}</td>
-              <td>
-                <PassPill pass={data.brixPass} />
-              </td>
             </tr>
             <tr>
               <td className="param">Fruit colour (red to dark red)</td>
               <td className="value">{data.fruitColorPct !== null ? `${data.fruitColorPct.toFixed(0)}% of surface` : "—"}</td>
               <td className="spec spec-col">—</td>
-              <td>
-                <PassPill pass={null} />
-              </td>
             </tr>
             <tr>
               <td className="param">Internal quality</td>
               <td className="value">{fmtPct(data.internalQualityPct)}</td>
               <td className="spec spec-col">{data.specInternalQuality ?? "—"}</td>
-              <td>
-                <PassPill pass={null} />
-              </td>
             </tr>
             <tr>
               <td className="param">Mould</td>
               <td className="value">{fmtPct(data.mouldPct)}</td>
               <td className="spec spec-col">—</td>
-              <td>
-                <PassPill pass={null} />
-              </td>
             </tr>
             <tr>
               <td className="param">Skin damage</td>
               <td className="value">{fmtPct(data.skinDamagePct)}</td>
               <td className="spec spec-col">{data.specMechanicalDamage ?? "—"}</td>
-              <td>
-                <PassPill pass={null} />
-              </td>
             </tr>
             <tr>
               <td className="param">Overmature / soft texture</td>
               <td className="value">{fmtPct(data.overmaturePct)}</td>
               <td className="spec spec-col">—</td>
-              <td>
-                <PassPill pass={null} />
-              </td>
             </tr>
             <tr>
               <td className="param">Foreign odour / taste</td>
@@ -353,25 +287,16 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
                 {data.foreignOdor} / {data.foreignTaste}
               </td>
               <td className="spec spec-col">NIL</td>
-              <td>
-                <PassPill pass={data.foreignOdor === "NIL" && data.foreignTaste === "NIL"} />
-              </td>
             </tr>
             <tr>
               <td className="param">Product core temperature</td>
               <td className="value">{data.productTemp} °C</td>
               <td className="spec spec-col">−18 °C</td>
-              <td>
-                <PassPill pass={data.productTemp <= -18} />
-              </td>
             </tr>
             <tr>
               <td className="param">Total Plate Count (microbiology)</td>
-              <td className="value">
-                <CfuPill cfuValue={data.cfuValue} />
-              </td>
+              <td className="value">{formatCfu(data.cfuValue)}</td>
               <td className="spec spec-col">—</td>
-              <td></td>
             </tr>
           </tbody>
         </table>
@@ -385,7 +310,6 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
               <th style={{ width: "34%" }}>Parameter</th>
               <th>Measured</th>
               <th className="spec-col">Client Spec</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -394,9 +318,6 @@ export default async function ContainerCertificatePage({ params }: { params: Pro
                 <td className="param">{row.label}</td>
                 <td className="value">{formatSpecMeasured(row)}</td>
                 <td className="spec spec-col">{row.specLimitDisplay ?? row.specText ?? "—"}</td>
-                <td>
-                  <SpecStatusPill row={row} />
-                </td>
               </tr>
             ))}
           </tbody>

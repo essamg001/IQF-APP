@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { parseBrixRange } from "@/lib/allocation";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
 import { combinedCfuValue } from "@/lib/cfuTier";
 import { evaluateSpecCompliance, violatedSpecRows, type SpecComplianceRow } from "@/lib/specCompliance";
@@ -41,7 +40,6 @@ export type CertificateData = {
   specBrix: string | null;
   specInternalQuality: string | null;
   specMechanicalDamage: string | null;
-  brixPass: boolean | null;
   complianceLevels: string[];
   allApproved: boolean;
   microDate: string | null;
@@ -56,9 +54,12 @@ export type CertificateData = {
   loadOutRepName: string | null;
   // Every client-spec parameter (brix + defect tolerances, see
   // src/lib/specCompliance.ts) averaged across this container's loaded
-  // pallets -- "overridden" means at least one pallet's violation of this
-  // specific parameter was signed off (SpecException) rather than passing outright.
-  specComplianceRows: (SpecComplianceRow & { overridden: boolean })[];
+  // pallets. The certificate itself is a uniform, plain document -- it
+  // shows the same measured-vs-spec values every time, regardless of
+  // whether a given pallet's reading was a clean pass or a signed-off
+  // exception (see SpecException); that distinction is an internal
+  // accountability record, not something the document itself varies on.
+  specComplianceRows: SpecComplianceRow[];
 };
 
 export type CertificateGate = {
@@ -192,15 +193,12 @@ export async function computeContainerCertificateData(containerId: string): Prom
   const spec = container.order.client.specs.find(
     (s) => s.grade === container.order.grade && s.format === container.order.format
   );
-  const brixRange = parseBrixRange(spec?.brix);
-  const brixPass = brixRange && brix !== null ? brix >= brixRange.min && brix <= brixRange.max : null;
 
   // A container-wide averaged "check" (same checksForCert set already used
   // above for brix etc.) fed into the same evaluator load-out uses per-pallet
   // -- brix is guaranteed non-null here since QualityCheck.brix is required,
   // so whenever there's at least one check, the average is real, not a
-  // placeholder. "Overridden" is container-wide (any pallet's SpecException
-  // for this parameter), matching this row's own container-wide average.
+  // placeholder.
   const pseudoCheck =
     checksForCert.length > 0
       ? {
@@ -218,9 +216,7 @@ export async function computeContainerCertificateData(containerId: string): Prom
           insectInfestationPct: avg(checksForCert.map((c) => c.insectInfestationPct)),
         }
       : null;
-  const specComplianceRows: CertificateData["specComplianceRows"] = evaluateSpecCompliance(pseudoCheck, spec ?? null).map(
-    (row) => ({ ...row, overridden: container.specExceptions.some((e) => e.parameter === row.key) })
-  );
+  const specComplianceRows: CertificateData["specComplianceRows"] = evaluateSpecCompliance(pseudoCheck, spec ?? null);
 
   const totalTonnes = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
   const variety = container.palletLines.find((l) => l.pallet.variety)?.pallet.variety ?? "—";
@@ -258,7 +254,6 @@ export async function computeContainerCertificateData(containerId: string): Prom
     specBrix: spec?.brix ?? null,
     specInternalQuality: spec?.internalQuality ?? null,
     specMechanicalDamage: spec?.mechanicalDamage ?? null,
-    brixPass,
     complianceLevels: [...new Set(checksForCert.map((c) => c.complianceLevel).filter((v): v is NonNullable<typeof v> => !!v))],
     allApproved,
     microDate: microDate ? microDate.toISOString() : null,
