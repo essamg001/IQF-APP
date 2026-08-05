@@ -204,16 +204,23 @@ export async function computeContainerCertificateData(containerId: string): Prom
       ? {
           brix: brix as number,
           overmaturePct,
+          incompleteMaturityPct: avg(checksForCert.map((c) => c.incompleteMaturityPct)),
           capsuleRemainsCount: avg(checksForCert.map((c) => c.capsuleRemainsCount)),
           leafRemainsCount: avg(checksForCert.map((c) => c.leafRemainsCount)),
           stemFragmentsCount: avg(checksForCert.map((c) => c.stemFragmentsCount)),
           shapeDeformitiesPct: avg(checksForCert.map((c) => c.shapeDeformitiesPct)),
+          skinDamagePct,
           cohesiveClustersPct: avg(checksForCert.map((c) => c.cohesiveClustersPct)),
           crushedBrokenFruitPct: avg(checksForCert.map((c) => c.crushedBrokenFruitPct)),
+          dryBruisesPct: avg(checksForCert.map((c) => c.dryBruisesPct)),
           oxidationPct: avg(checksForCert.map((c) => c.oxidationPct)),
+          fungalInfectionPct: avg(checksForCert.map((c) => c.fungalInfectionPct)),
           mechanicalFactorsPct: avg(checksForCert.map((c) => c.mechanicalFactorsPct)),
-          internalQualityPct,
+          mouldPct,
           insectInfestationPct: avg(checksForCert.map((c) => c.insectInfestationPct)),
+          insectsLarvaePct: avg(checksForCert.map((c) => c.insectsLarvaePct)),
+          foreignBodiesPct: avg(checksForCert.map((c) => c.foreignBodiesPct)),
+          internalQualityPct,
         }
       : null;
   const specComplianceRows: CertificateData["specComplianceRows"] = evaluateSpecCompliance(pseudoCheck, spec ?? null);

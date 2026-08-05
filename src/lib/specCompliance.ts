@@ -35,16 +35,23 @@ export type SpecComplianceRow = {
 export type QualityCheckForSpec = {
   brix: number;
   overmaturePct: number | null;
+  incompleteMaturityPct: number | null;
   capsuleRemainsCount: number | null;
   leafRemainsCount: number | null;
   stemFragmentsCount: number | null;
   shapeDeformitiesPct: number | null;
+  skinDamagePct: number | null;
   cohesiveClustersPct: number | null;
   crushedBrokenFruitPct: number | null;
+  dryBruisesPct: number | null;
   oxidationPct: number | null;
+  fungalInfectionPct: number | null;
   mechanicalFactorsPct: number | null;
-  internalQualityPct: number | null;
+  mouldPct: number | null;
   insectInfestationPct: number | null;
+  insectsLarvaePct: number | null;
+  foreignBodiesPct: number | null;
+  internalQualityPct: number | null;
 };
 
 export type ClientSpecForSpec = {
@@ -57,45 +64,66 @@ export type ClientSpecForSpec = {
   misshapen: string | null;
   blemish: string | null;
   dryPump: string | null;
+  dryBruises: string | null;
   clumps: string | null;
   broken: string | null;
   oxidation: string | null;
+  fungalInfection: string | null;
   mechanicalDamage: string | null;
   rotten: string | null;
   insectDamage: string | null;
+  foreignBodies: string | null;
   internalQuality: string | null;
   deadWorm: string | null;
 };
 
 type CeilingField = {
-  key: keyof ClientSpecForSpec;
+  /** Row identity/label -- distinct from specKey since one client tolerance can be checked against more than one measured field (see insectDamage below). */
+  key: string;
   label: string;
+  specKey: keyof ClientSpecForSpec;
   measuredKey: keyof QualityCheckForSpec;
   unit: "%" | "pcs/10kg";
 };
 
 // Fields with no reliable post-packaging measurement to compare against --
-// still shown on the cert with their spec text, never enforced.
+// still shown on the cert with their spec text, never enforced. "Dry Pump"
+// is about fruit texture/dryness (no such field is ever measured at
+// post-packaging), and "Dead Worm" tolerances are near-universally
+// expressed as a count per 100kg/500g -- a different unit basis than the
+// only measured larvae field (a %), so there's no unit-safe comparison to make.
 const UNENFORCEABLE_FIELDS: { key: keyof ClientSpecForSpec; label: string }[] = [
-  { key: "unripe", label: "Unripe" },
-  { key: "blemish", label: "Blemish" },
   { key: "dryPump", label: "Dry Pump" },
-  { key: "rotten", label: "Rotten" },
   { key: "deadWorm", label: "Dead Worm" },
 ];
 
+// Every measured defect field the real Post-Freeze Inspection form (STR03111/
+// STR03116) captures gets compared here -- one row per measurement, even
+// when two measured fields share the same client tolerance (a client's spec
+// sheet gives one "insect damage" number, but the factory separately
+// measures Insects/Larvae and Insect Infestation at post-packaging, so both
+// get checked against it). Frozen Product Waiting Period is deliberately
+// excluded -- it's an internal process-time metric no client spec has ever
+// stated a tolerance for, not a fruit-quality attribute.
 const CEILING_FIELDS: CeilingField[] = [
-  { key: "overripe", label: "Over-ripe", measuredKey: "overmaturePct", unit: "%" },
-  { key: "calyx", label: "Calyx", measuredKey: "capsuleRemainsCount", unit: "pcs/10kg" },
-  { key: "leaves", label: "Leaves", measuredKey: "leafRemainsCount", unit: "pcs/10kg" },
-  { key: "stems", label: "Stems", measuredKey: "stemFragmentsCount", unit: "pcs/10kg" },
-  { key: "misshapen", label: "Misshapen", measuredKey: "shapeDeformitiesPct", unit: "%" },
-  { key: "clumps", label: "Clumps", measuredKey: "cohesiveClustersPct", unit: "%" },
-  { key: "broken", label: "Broken", measuredKey: "crushedBrokenFruitPct", unit: "%" },
-  { key: "oxidation", label: "Oxidation", measuredKey: "oxidationPct", unit: "%" },
-  { key: "mechanicalDamage", label: "Mechanical Damage", measuredKey: "mechanicalFactorsPct", unit: "%" },
-  { key: "insectDamage", label: "Insect Damage", measuredKey: "insectInfestationPct", unit: "%" },
-  { key: "internalQuality", label: "Internal Quality", measuredKey: "internalQualityPct", unit: "%" },
+  { key: "overripe", label: "Over-ripe", specKey: "overripe", measuredKey: "overmaturePct", unit: "%" },
+  { key: "unripe", label: "Unripe", specKey: "unripe", measuredKey: "incompleteMaturityPct", unit: "%" },
+  { key: "calyx", label: "Calyx", specKey: "calyx", measuredKey: "capsuleRemainsCount", unit: "pcs/10kg" },
+  { key: "leaves", label: "Leaves", specKey: "leaves", measuredKey: "leafRemainsCount", unit: "pcs/10kg" },
+  { key: "stems", label: "Stems", specKey: "stems", measuredKey: "stemFragmentsCount", unit: "pcs/10kg" },
+  { key: "misshapen", label: "Misshapen", specKey: "misshapen", measuredKey: "shapeDeformitiesPct", unit: "%" },
+  { key: "blemish", label: "Blemish", specKey: "blemish", measuredKey: "skinDamagePct", unit: "%" },
+  { key: "clumps", label: "Clumps", specKey: "clumps", measuredKey: "cohesiveClustersPct", unit: "%" },
+  { key: "broken", label: "Broken", specKey: "broken", measuredKey: "crushedBrokenFruitPct", unit: "%" },
+  { key: "dryBruises", label: "Dry Bruises", specKey: "dryBruises", measuredKey: "dryBruisesPct", unit: "%" },
+  { key: "oxidation", label: "Oxidation", specKey: "oxidation", measuredKey: "oxidationPct", unit: "%" },
+  { key: "fungalInfection", label: "Fungal Infection", specKey: "fungalInfection", measuredKey: "fungalInfectionPct", unit: "%" },
+  { key: "mechanicalDamage", label: "Mechanical Damage", specKey: "mechanicalDamage", measuredKey: "mechanicalFactorsPct", unit: "%" },
+  { key: "rotten", label: "Rotten", specKey: "rotten", measuredKey: "mouldPct", unit: "%" },
+  { key: "insectDamage", label: "Insect Infestation", specKey: "insectDamage", measuredKey: "insectInfestationPct", unit: "%" },
+  { key: "insectsLarvae", label: "Insects/Larvae", specKey: "insectDamage", measuredKey: "insectsLarvaePct", unit: "%" },
+  { key: "foreignBodies", label: "Foreign Bodies", specKey: "foreignBodies", measuredKey: "foreignBodiesPct", unit: "%" },
+  { key: "internalQuality", label: "Internal Quality", specKey: "internalQuality", measuredKey: "internalQualityPct", unit: "%" },
 ];
 
 /** Strict, whole-string percentage ceiling parser -- e.g. "2%", "5% max", "Max 5%", "<7% by weight". Never matches combined/banded/descriptive text. */
@@ -162,7 +190,7 @@ export function evaluateSpecCompliance(
   });
 
   for (const field of CEILING_FIELDS) {
-    const specText = spec?.[field.key] ?? null;
+    const specText = spec?.[field.specKey] ?? null;
     const measuredValue = check?.[field.measuredKey] ?? null;
     const ceiling = specText ? parseCeiling(specText, field.unit) : null;
     const enforceable = ceiling !== null && measuredValue !== null;

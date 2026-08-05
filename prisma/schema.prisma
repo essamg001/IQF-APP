@@ -259,6 +259,9 @@ model ClientSpec {
   insectDamage     String?
   internalQuality  String?
   deadWorm         String?
+  fungalInfection  String?
+  dryBruises       String?
+  foreignBodies    String?
 
   // The client's own microbiology ceiling -- distinct clients tolerate
   // different cfu/g levels, so a pallet within spec for one client can still

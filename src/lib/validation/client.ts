@@ -23,6 +23,9 @@ export const specSchema = z.object({
   insectDamage: z.string().optional(),
   internalQuality: z.string().optional(),
   deadWorm: z.string().optional(),
+  fungalInfection: z.string().optional(),
+  dryBruises: z.string().optional(),
+  foreignBodies: z.string().optional(),
   maxCfuPerGram: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 });
@@ -60,4 +63,7 @@ export const DEFECT_FIELDS = [
   { key: "insectDamage", label: "Insect Damage" },
   { key: "internalQuality", label: "Internal Quality" },
   { key: "deadWorm", label: "Dead Worm" },
+  { key: "fungalInfection", label: "Fungal Infection" },
+  { key: "dryBruises", label: "Dry Bruises" },
+  { key: "foreignBodies", label: "Foreign Bodies" },
 ] as const;
