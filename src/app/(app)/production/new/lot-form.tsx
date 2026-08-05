@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { createLotAction } from "../actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { generateLotNumber } from "@/lib/lotNumber";
 import type { Factory, Field } from "@prisma/client";
@@ -152,7 +152,19 @@ export function LotForm({
           the base. It gets tied to this lot at Post-Freeze Inspection, then completed at Final Product Entry.
         </p>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <div className="space-y-2">
+            <p className="text-sm text-red-600">{error}</p>
+            {error.startsWith("No shift logged") && (
+              <LinkButton
+                href={`/shifts/new?factoryId=${factoryId ?? ""}&shiftType=${shiftType ?? ""}&date=${date}`}
+                variant="secondary"
+              >
+                Log this shift now
+              </LinkButton>
+            )}
+          </div>
+        )}
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Log lot"}
         </Button>

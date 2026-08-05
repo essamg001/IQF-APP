@@ -7,14 +7,51 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { decodeActionResult } from "@/lib/qualityLimits";
+import { useDefectTotal } from "@/lib/useDefectTotal";
+import { cn } from "@/lib/cn";
 
 // The factory has 51 QC staff, each identified on paperwork as "QC1"..."QC51".
 const QC_NUMBERS = Array.from({ length: 51 }, (_, i) => `QC${i + 1}`);
 
-function Pct({ name, label }: { name: string; label: string }) {
+// Must match POST_DECAP's DEFECT_PCT_FIELDS in ./actions.ts exactly -- this is
+// only the client-side mirror driving the live running-total display.
+const DEFECT_FIELDS = [
+  "incompleteMaturityPct",
+  "moldSignsPct",
+  "mouldPct",
+  "capsuleRemainsPct",
+  "birdFoodPct",
+  "overmaturePct",
+  "skinDamagePct",
+  "shapeDeformitiesPct",
+  "seedClusteringPct",
+  "bruisesPct",
+  "dryCavitiesPct",
+  "overDecappingPct",
+  "oxidationPct",
+  "sandDustPct",
+  "insectsLarvaePct",
+  "foreignBodiesPct",
+  "brokenUncleanPalletsPct",
+  "unfumigatedPalletsPct",
+  "brokenUncleanCratesPct",
+] as const;
+const TOTAL_DEFECTS_LIMIT = 6;
+
+function Pct({
+  name,
+  label,
+  value,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
   return (
     <FieldGroup label={label}>
-      <Input name={name} type="number" step="0.1" min="0" max="100" />
+      <Input name={name} type="number" step="0.1" min="0" max="100" value={value} onChange={onChange} />
     </FieldGroup>
   );
 }
@@ -43,7 +80,7 @@ export function PostDecapForm({
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">Traceability (not on STR03107, kept for field tracing)</h2>
         <div className="grid grid-cols-3 gap-3">
-          <FieldGroup label="Receipt Note No.">
+          <FieldGroup label="Harvest Ticket Serial Number">
             <Input
               name="receiptNoteNo"
               value={receiptNoteNo}
@@ -51,7 +88,7 @@ export function PostDecapForm({
               placeholder="Same as the pre-decap arrival"
             />
           </FieldGroup>
-          <FieldGroup label="Field / Plot (auto-filled from Receipt Note, editable)">
+          <FieldGroup label="Field / Plot (auto-filled from Serial Number, editable)">
             <FieldNameInput key={matchedFieldName || "manual"} defaultValue={matchedFieldName} fields={fields} />
           </FieldGroup>
         </div>
@@ -89,6 +126,7 @@ function FieldNameInput({ defaultValue, fields }: { defaultValue: string; fields
 
 function SampleFields() {
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
+  const { total: defectTotal, bind } = useDefectTotal(DEFECT_FIELDS);
 
   return (
     <>
@@ -139,30 +177,32 @@ function SampleFields() {
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">Defects</h2>
         <div className="grid grid-cols-4 gap-3">
-          <Pct name="incompleteMaturityPct" label="Incomplete Maturity (limit ≤1%)" />
-          <Pct name="moldSignsPct" label="Mold Signs (limit ≤1%)" />
-          <Pct name="mouldPct" label="Mould (limit 0%)" />
-          <Pct name="capsuleRemainsPct" label="Capsule Remains (limit ≤2%)" />
-          <Pct name="birdFoodPct" label="Bird-Eaten (limit ≤2%)" />
-          <Pct name="overmaturePct" label="Over Maturity (limit ≤5%)" />
-          <Pct name="skinDamagePct" label="Shell Deformities (limit ≤2%)" />
-          <Pct name="shapeDeformitiesPct" label="Shape Deformities (limit ≤3%)" />
-          <Pct name="seedClusteringPct" label="Seed Clustering (limit ≤1%)" />
-          <Pct name="bruisesPct" label="Bruises (limit ≤1%)" />
-          <Pct name="dryCavitiesPct" label="Dry Cavities (limit ≤1%)" />
-          <Pct name="overDecappingPct" label="Over-Decapping (limit ≤1%)" />
-          <Pct name="oxidationPct" label="Oxidation (limit ≤4%)" />
-          <Pct name="sandDustPct" label="Sand / Light Soil (limit ≤1%)" />
-          <Pct name="insectsLarvaePct" label="Insects / Larvae (limit 0%)" />
-          <Pct name="foreignBodiesPct" label="Foreign Bodies (limit 0%)" />
+          <Pct name="incompleteMaturityPct" label="Incomplete Maturity (limit ≤1%)" {...bind("incompleteMaturityPct")} />
+          <Pct name="moldSignsPct" label="Mold Signs (limit ≤1%)" {...bind("moldSignsPct")} />
+          <Pct name="mouldPct" label="Mould (limit 0%)" {...bind("mouldPct")} />
+          <Pct name="capsuleRemainsPct" label="Capsule Remains (limit ≤2%)" {...bind("capsuleRemainsPct")} />
+          <Pct name="birdFoodPct" label="Bird-Eaten (limit ≤2%)" {...bind("birdFoodPct")} />
+          <Pct name="overmaturePct" label="Over Maturity (limit ≤5%)" {...bind("overmaturePct")} />
+          <Pct name="skinDamagePct" label="Shell Deformities (limit ≤2%)" {...bind("skinDamagePct")} />
+          <Pct name="shapeDeformitiesPct" label="Shape Deformities (limit ≤3%)" {...bind("shapeDeformitiesPct")} />
+          <Pct name="seedClusteringPct" label="Seed Clustering (limit ≤1%)" {...bind("seedClusteringPct")} />
+          <Pct name="bruisesPct" label="Bruises (limit ≤1%)" {...bind("bruisesPct")} />
+          <Pct name="dryCavitiesPct" label="Dry Cavities (limit ≤1%)" {...bind("dryCavitiesPct")} />
+          <Pct name="overDecappingPct" label="Over-Decapping (limit ≤1%)" {...bind("overDecappingPct")} />
+          <Pct name="oxidationPct" label="Oxidation (limit ≤4%)" {...bind("oxidationPct")} />
+          <Pct name="sandDustPct" label="Sand / Light Soil (limit ≤1%)" {...bind("sandDustPct")} />
+          <Pct name="insectsLarvaePct" label="Insects / Larvae (limit 0%)" {...bind("insectsLarvaePct")} />
+          <Pct name="foreignBodiesPct" label="Foreign Bodies (limit 0%)" {...bind("foreignBodiesPct")} />
           <FieldGroup label="Leaf/Stem Remains (limit 1 pc/1kg)">
             <Input name="leafStemRemainsCount" type="number" step="1" min="0" />
           </FieldGroup>
-          <Pct name="brokenUncleanPalletsPct" label="Broken/Unclean Pallets (limit 0%)" />
-          <Pct name="unfumigatedPalletsPct" label="Unfumigated Pallets (limit 0%)" />
-          <Pct name="brokenUncleanCratesPct" label="Broken/Unclean Trays (limit 0%)" />
+          <Pct name="brokenUncleanPalletsPct" label="Broken/Unclean Pallets (limit 0%)" {...bind("brokenUncleanPalletsPct")} />
+          <Pct name="unfumigatedPalletsPct" label="Unfumigated Pallets (limit 0%)" {...bind("unfumigatedPalletsPct")} />
+          <Pct name="brokenUncleanCratesPct" label="Broken/Unclean Trays (limit 0%)" {...bind("brokenUncleanCratesPct")} />
         </div>
-        <p className="text-xs text-slate-400">Total defects (limit 3-6%) is calculated automatically from the values above.</p>
+        <p className={cn("text-xs font-medium", defectTotal > TOTAL_DEFECTS_LIMIT ? "text-red-600" : "text-slate-400")}>
+          Running total: {defectTotal.toFixed(1)}% (limit ≤{TOTAL_DEFECTS_LIMIT}%)
+        </p>
       </Card>
 
       <Card className="space-y-4">

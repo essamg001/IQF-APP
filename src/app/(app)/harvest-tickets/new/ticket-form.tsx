@@ -94,7 +94,7 @@ export function TicketForm() {
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">Delivery Identity (GEN03107)</h2>
         <div className="grid grid-cols-4 gap-3">
-          <FieldGroup label="Serial Number">
+          <FieldGroup label="Harvest Ticket Serial Number">
             <Input name="serialNumber" required />
           </FieldGroup>
           <FieldGroup label="GGN">

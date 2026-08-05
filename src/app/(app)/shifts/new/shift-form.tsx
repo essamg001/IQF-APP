@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Factory } from "@prisma/client";
 
-export function ShiftForm({ factories }: { factories: Factory[] }) {
+export function ShiftForm({
+  factories,
+  initial,
+}: {
+  factories: Factory[];
+  initial?: { factoryId?: string; shiftType?: string; date?: string };
+}) {
   const [error, formAction, pending] = useActionState(createShiftAction, undefined);
 
   const options = useMemo(
@@ -23,7 +29,10 @@ export function ShiftForm({ factories }: { factories: Factory[] }) {
     [factories]
   );
 
-  const [selection, setSelection] = useState(options[0]?.value ?? "");
+  const prefilledValue = initial?.factoryId && initial?.shiftType ? `${initial.factoryId}::${initial.shiftType}` : undefined;
+  const [selection, setSelection] = useState(
+    (prefilledValue && options.some((o) => o.value === prefilledValue) ? prefilledValue : options[0]?.value) ?? ""
+  );
   const [factoryId, shiftType] = selection.split("::");
 
   return (
@@ -41,7 +50,7 @@ export function ShiftForm({ factories }: { factories: Factory[] }) {
           </Select>
         </FieldGroup>
         <FieldGroup label="Date">
-          <Input name="date" type="date" required />
+          <Input name="date" type="date" required defaultValue={initial?.date} />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Start time">

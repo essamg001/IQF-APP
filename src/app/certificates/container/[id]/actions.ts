@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { computeContainerCertificateData } from "@/lib/certificate";
+import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 
 export async function approveCertificateAction(
@@ -31,6 +32,14 @@ export async function approveCertificateAction(
       certificateApprovedByName: approverName,
       certificateSnapshot: JSON.parse(JSON.stringify(result.data)),
     },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    action: "CERTIFICATE_APPROVED",
+    entityType: "Container",
+    entityId: containerId,
+    detail: approverName,
   });
 
   revalidatePath(`/certificates/container/${containerId}`);

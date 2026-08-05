@@ -7,7 +7,30 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { decodeActionResult } from "@/lib/qualityLimits";
+import { useDefectTotal } from "@/lib/useDefectTotal";
+import { cn } from "@/lib/cn";
 import type { ProductionLot, Field, Pallet, Grade } from "@prisma/client";
+
+// Must match POST_PACKAGING's DEFECT_PCT_FIELDS in ./actions.ts exactly --
+// this is only the client-side mirror driving the live running-total display.
+const DEFECT_FIELDS = [
+  "overmaturePct",
+  "incompleteMaturityPct",
+  "shapeDeformitiesPct",
+  "skinDamagePct",
+  "cohesiveClustersPct",
+  "crushedBrokenFruitPct",
+  "dryBruisesPct",
+  "mechanicalFactorsPct",
+  "oxidationPct",
+  "fungalInfectionPct",
+  "insectsLarvaePct",
+  "insectInfestationPct",
+  "foreignBodiesPct",
+] as const;
+// Total-defects ceiling is grade-dependent (see src/lib/qualityLimits.ts
+// POST_PACKAGING_LIMITS) -- Grade A is held to a tighter tolerance than B.
+const TOTAL_DEFECTS_MAX: Record<Grade, number> = { A: 5, B: 10 };
 
 type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[] };
 
@@ -145,6 +168,8 @@ function PalletInput({ pallets }: { pallets: Pallet[] }) {
 function MeasurementFields({ grade }: { grade: Grade }) {
   const limits = useMemo(() => LIMITS[grade], [grade]);
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
+  const { total: defectTotal, bind } = useDefectTotal(DEFECT_FIELDS);
+  const totalDefectsMax = TOTAL_DEFECTS_MAX[grade];
 
   return (
     <>
@@ -213,8 +238,8 @@ function MeasurementFields({ grade }: { grade: Grade }) {
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">Defects</h2>
         <div className="grid grid-cols-4 gap-3">
-          <Pct name="overmaturePct" label="Overmature" limit={limits.overmature} />
-          <Pct name="incompleteMaturityPct" label="Incomplete Maturity" limit={limits.incompleteMaturity} />
+          <Pct name="overmaturePct" label="Overmature" limit={limits.overmature} {...bind("overmaturePct")} />
+          <Pct name="incompleteMaturityPct" label="Incomplete Maturity" limit={limits.incompleteMaturity} {...bind("incompleteMaturityPct")} />
           <FieldGroup label="Capsule Remains (limit 10 pieces/10kg)">
             <Input name="capsuleRemainsCount" type="number" step="0.1" min="0" />
           </FieldGroup>
@@ -224,22 +249,24 @@ function MeasurementFields({ grade }: { grade: Grade }) {
           <FieldGroup label="Stem Fragments (limit 1 piece/10kg)">
             <Input name="stemFragmentsCount" type="number" step="0.1" min="0" />
           </FieldGroup>
-          <Pct name="shapeDeformitiesPct" label="Shape Deformities" limit={limits.shapeDeformities} />
-          <Pct name="skinDamagePct" label="Skin Deformities" limit={limits.skinDeformities} />
-          <Pct name="cohesiveClustersPct" label="Cohesive Clusters (2-3 pcs)" limit={limits.cohesiveClusters} />
-          <Pct name="crushedBrokenFruitPct" label="Crushed/Broken Fruit" limit={limits.crushedBroken} />
-          <Pct name="dryBruisesPct" label="Dry Bruises" limit={limits.dryBruises} />
-          <Pct name="mechanicalFactorsPct" label="Mechanical Factors" limit={limits.mechanicalFactors} />
-          <Pct name="oxidationPct" label="Oxidation" limit={limits.oxidation} />
-          <Pct name="fungalInfectionPct" label="Fungal Infection" limit="0%" />
-          <Pct name="insectsLarvaePct" label="Insects/Larvae" limit="0%" />
-          <Pct name="insectInfestationPct" label="Insect Infestation" limit="0%" />
-          <Pct name="foreignBodiesPct" label="Foreign Bodies" limit="0%" />
+          <Pct name="shapeDeformitiesPct" label="Shape Deformities" limit={limits.shapeDeformities} {...bind("shapeDeformitiesPct")} />
+          <Pct name="skinDamagePct" label="Skin Deformities" limit={limits.skinDeformities} {...bind("skinDamagePct")} />
+          <Pct name="cohesiveClustersPct" label="Cohesive Clusters (2-3 pcs)" limit={limits.cohesiveClusters} {...bind("cohesiveClustersPct")} />
+          <Pct name="crushedBrokenFruitPct" label="Crushed/Broken Fruit" limit={limits.crushedBroken} {...bind("crushedBrokenFruitPct")} />
+          <Pct name="dryBruisesPct" label="Dry Bruises" limit={limits.dryBruises} {...bind("dryBruisesPct")} />
+          <Pct name="mechanicalFactorsPct" label="Mechanical Factors" limit={limits.mechanicalFactors} {...bind("mechanicalFactorsPct")} />
+          <Pct name="oxidationPct" label="Oxidation" limit={limits.oxidation} {...bind("oxidationPct")} />
+          <Pct name="fungalInfectionPct" label="Fungal Infection" limit="0%" {...bind("fungalInfectionPct")} />
+          <Pct name="insectsLarvaePct" label="Insects/Larvae" limit="0%" {...bind("insectsLarvaePct")} />
+          <Pct name="insectInfestationPct" label="Insect Infestation" limit="0%" {...bind("insectInfestationPct")} />
+          <Pct name="foreignBodiesPct" label="Foreign Bodies" limit="0%" {...bind("foreignBodiesPct")} />
           <FieldGroup label="Frozen Product Waiting Period (limit 10-30 min)">
             <Input name="frozenProductWaitMinutes" type="number" step="1" />
           </FieldGroup>
         </div>
-        <p className="text-xs text-slate-400">Total defects (limit {limits.totalDefects}) is calculated automatically from the values above.</p>
+        <p className={cn("text-xs font-medium", defectTotal > totalDefectsMax ? "text-red-600" : "text-slate-400")}>
+          Running total: {defectTotal.toFixed(1)}% (limit {limits.totalDefects})
+        </p>
       </Card>
 
       <Card className="space-y-4">
@@ -259,10 +286,22 @@ function MeasurementFields({ grade }: { grade: Grade }) {
   );
 }
 
-function Pct({ name, label, limit }: { name: string; label: string; limit: string }) {
+function Pct({
+  name,
+  label,
+  limit,
+  value,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  limit: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
   return (
     <FieldGroup label={`${label} (limit ${limit})`}>
-      <Input name={name} type="number" step="0.1" min="0" max="100" />
+      <Input name={name} type="number" step="0.1" min="0" max="100" value={value} onChange={onChange} />
     </FieldGroup>
   );
 }

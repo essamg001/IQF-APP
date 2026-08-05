@@ -6,6 +6,7 @@ import { saveUploadedFile } from "@/lib/files";
 import { parseDateSafe } from "@/lib/dates";
 import { raiseMicrobiologyRejectionAlert, raiseShiftOnHoldAlert } from "@/lib/alerts";
 import { isSplitResult } from "@/lib/microbiology";
+import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -39,6 +40,14 @@ export async function markSentToLabAction(resultId: string, formData: FormData) 
       sentDate: parseDateSafe(parsed.sentDate) ?? new Date(),
       sentByUserId: session?.user.id,
     },
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "LAB_DISPATCHED",
+    entityType: "MicrobiologyResult",
+    entityId: resultId,
+    detail: `${existing.labType === "IN_HOUSE" ? "In-House" : "External"} lab — Lot ${existing.lot.lotNumber}${parsed.labName ? ` to ${parsed.labName}` : ""}`,
   });
 
   revalidatePath("/lab");
@@ -131,6 +140,8 @@ export async function updateLabResultAction(resultId: string, formData: FormData
   const existing = await prisma.microbiologyResult.findUnique({ where: { id: resultId }, include: { lot: true } });
   if (!existing) return;
 
+  const session = await auth();
+
   const isNewRejection =
     (status === "FAILED_MINOR" || status === "FAILED_SEVERE") &&
     existing.status !== "FAILED_MINOR" &&
@@ -175,6 +186,16 @@ export async function updateLabResultAction(resultId: string, formData: FormData
       });
     }
   });
+
+  if (status === "APPROVED" || status === "FAILED_MINOR" || status === "FAILED_SEVERE") {
+    await logActivity({
+      actorId: session?.user.id,
+      action: "LAB_RESULT_RECORDED",
+      entityType: "MicrobiologyResult",
+      entityId: resultId,
+      detail: `${existing.labType === "IN_HOUSE" ? "In-House" : "External"} lab — Lot ${existing.lot.lotNumber}: ${status.replace(/_/g, " ")}${parsed.totalPlateCountCfuG != null ? ` (${parsed.totalPlateCountCfuG.toLocaleString()} cfu/g)` : ""}`,
+    });
+  }
 
   if (isNewRejection) {
     await raiseMicrobiologyRejectionAlert({

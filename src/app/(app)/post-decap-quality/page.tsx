@@ -53,7 +53,7 @@ export default async function PostDecapQualityPage() {
         <h1 className="text-xl font-semibold text-slate-900">Decap — Post-Decap Quality</h1>
         <p className="mt-1 text-sm text-slate-500">
           Final product strawberry inspection (STR03107) — the greenlight for fruit to leave the decap facility
-          for the factory. Enter the same Receipt Note No. as the matching pre-decap arrival to auto-fill the field.
+          for the factory. Enter the same Harvest Ticket Serial Number as the matching pre-decap arrival to auto-fill the field.
         </p>
       </div>
 

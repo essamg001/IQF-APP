@@ -609,6 +609,14 @@ export async function signLoadOutRepAction(containerId: string, formData: FormDa
     where: { id: containerId },
     data: { loadOutRepName: name, loadOutSignedAt: new Date() },
   });
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "LOAD_OUT_SIGNED",
+    entityType: "Container",
+    entityId: containerId,
+    detail: name,
+  });
   revalidatePath(`/logistics/${containerId}`);
 }
 
@@ -618,6 +626,14 @@ export async function signQualityRepAction(containerId: string, formData: FormDa
   await prisma.container.update({
     where: { id: containerId },
     data: { qualityRepName: name, qualitySignedAt: new Date() },
+  });
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "QUALITY_SIGNED",
+    entityType: "Container",
+    entityId: containerId,
+    detail: name,
   });
   revalidatePath(`/logistics/${containerId}`);
 }

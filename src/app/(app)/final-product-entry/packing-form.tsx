@@ -138,10 +138,18 @@ function PalletFields({
           <Input
             name="palletNumber"
             required
+            list="pending-pallet-suggestions"
             placeholder={lotNumber ? `${lotNumber}-P1` : undefined}
             value={palletNumber}
             onChange={(e) => setPalletNumber(e.target.value)}
           />
+          <datalist id="pending-pallet-suggestions">
+            {lotChecks
+              .filter((c) => c.pallet && c.pallet.totalCartons == null)
+              .map((c) => (
+                <option key={c.pallet!.id} value={c.pallet!.palletNumber} />
+              ))}
+          </datalist>
         </FieldGroup>
         <FieldGroup label="Carton Logo">
           <Select name="cartonLogo" defaultValue="">

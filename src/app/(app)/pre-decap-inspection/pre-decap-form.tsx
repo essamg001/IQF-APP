@@ -8,11 +8,38 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { decodeActionResult } from "@/lib/qualityLimits";
+import { useDefectTotal } from "@/lib/useDefectTotal";
+import { cn } from "@/lib/cn";
 
-function Pct({ name, label }: { name: string; label: string }) {
+// Must match PRE_DECAP's DEFECT_PCT_FIELDS in ./actions.ts exactly -- this is
+// only the client-side mirror driving the live running-total display.
+const DEFECT_FIELDS = [
+  "overmaturePct",
+  "diameterUnder22mmPct",
+  "botrytisPct",
+  "pestDiseasePct",
+  "wormEatenPct",
+  "bruisesPct",
+  "shapeDeformitiesPct",
+  "sandDustPct",
+  "foreignBodiesPct",
+] as const;
+const TOTAL_DEFECTS_LIMIT = 60;
+
+function Pct({
+  name,
+  label,
+  value,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
   return (
     <FieldGroup label={label}>
-      <Input name={name} type="number" step="0.1" min="0" max="100" />
+      <Input name={name} type="number" step="0.1" min="0" max="100" value={value} onChange={onChange} />
     </FieldGroup>
   );
 }
@@ -72,7 +99,7 @@ function SerialPlotPicker({ tickets, fields }: { tickets: HarvestTicketOption[];
 
   return (
     <>
-      <FieldGroup label="Serial Number (Harvest Ticket)">
+      <FieldGroup label="Harvest Ticket Serial Number">
         <Input
           name="receiptNoteNo"
           value={serial}
@@ -116,6 +143,7 @@ function SerialPlotPicker({ tickets, fields }: { tickets: HarvestTicketOption[];
 
 function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harvestTickets: HarvestTicketOption[] }) {
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
+  const { total: defectTotal, bind } = useDefectTotal(DEFECT_FIELDS);
 
   return (
     <>
@@ -167,17 +195,19 @@ function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harve
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">Defects</h2>
         <div className="grid grid-cols-4 gap-3">
-          <Pct name="overmaturePct" label="Over Maturity (limit ≤50%)" />
-          <Pct name="diameterUnder22mmPct" label="Diameter < 22mm (limit ≤10%)" />
-          <Pct name="botrytisPct" label="Botrytis (limit ≤10%)" />
-          <Pct name="pestDiseasePct" label="Pest / Diseases (limit ≤10%)" />
-          <Pct name="wormEatenPct" label="Worm-Eaten (limit ≤10%)" />
-          <Pct name="bruisesPct" label="Bruises (limit ≤20%)" />
-          <Pct name="shapeDeformitiesPct" label="Mishape (limit ≤50%)" />
-          <Pct name="sandDustPct" label="Sand (limit ≤15%)" />
-          <Pct name="foreignBodiesPct" label="Foreign Bodies (limit 0%)" />
+          <Pct name="overmaturePct" label="Over Maturity (limit ≤50%)" {...bind("overmaturePct")} />
+          <Pct name="diameterUnder22mmPct" label="Diameter < 22mm (limit ≤10%)" {...bind("diameterUnder22mmPct")} />
+          <Pct name="botrytisPct" label="Botrytis (limit ≤10%)" {...bind("botrytisPct")} />
+          <Pct name="pestDiseasePct" label="Pest / Diseases (limit ≤10%)" {...bind("pestDiseasePct")} />
+          <Pct name="wormEatenPct" label="Worm-Eaten (limit ≤10%)" {...bind("wormEatenPct")} />
+          <Pct name="bruisesPct" label="Bruises (limit ≤20%)" {...bind("bruisesPct")} />
+          <Pct name="shapeDeformitiesPct" label="Mishape (limit ≤50%)" {...bind("shapeDeformitiesPct")} />
+          <Pct name="sandDustPct" label="Sand (limit ≤15%)" {...bind("sandDustPct")} />
+          <Pct name="foreignBodiesPct" label="Foreign Bodies (limit 0%)" {...bind("foreignBodiesPct")} />
         </div>
-        <p className="text-xs text-slate-400">Total defects (limit ≤60%) is calculated automatically from the values above.</p>
+        <p className={cn("text-xs font-medium", defectTotal > TOTAL_DEFECTS_LIMIT ? "text-red-600" : "text-slate-400")}>
+          Running total: {defectTotal.toFixed(1)}% (limit ≤{TOTAL_DEFECTS_LIMIT}%)
+        </p>
       </Card>
 
       <Card className="space-y-4">
