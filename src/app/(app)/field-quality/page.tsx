@@ -1,11 +1,208 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { startOfWeek, startOfMonth } from "date-fns";
-import { egyptDateOnly, egyptDayStart } from "@/lib/timezone";
-import { FieldQualityTable, type FieldPeriodRow, type Period } from "./field-quality-table";
+import { format, startOfWeek } from "date-fns";
+import {
+  egyptDateKey,
+  egyptDateOnly,
+  egyptMonthKey,
+  egyptSeasonKey,
+  egyptSeasonLabel,
+  egyptSeasonStart,
+  formatYMD,
+  parseDateKey,
+} from "@/lib/timezone";
+import { FieldQualityTable, type Period, type PeriodSection, type FieldRow, type TicketCheck } from "./field-quality-table";
+import type { Field } from "@prisma/client";
 
-const PERIODS: Period[] = ["DAILY", "WEEKLY", "MONTHLY"];
+const CHECK_SELECT = {
+  id: true,
+  fieldId: true,
+  createdAt: true,
+  decision: true,
+  brix: true,
+  fruitColorPct: true,
+  internalQualityPct: true,
+  cleaningGoodCratesOk: true,
+  overmaturePct: true,
+  diameterUnder22mmPct: true,
+  botrytisPct: true,
+  pestDiseasePct: true,
+  wormEatenPct: true,
+  bruisesPct: true,
+  shapeDeformitiesPct: true,
+  sandDustPct: true,
+  foreignBodiesPct: true,
+  harvestTicketPlotLine: {
+    select: {
+      stationNo: true,
+      plotValveGhNo: true,
+      cutNo: true,
+      weightKg: true,
+      cratesCount: true,
+      harvestTicket: { select: { serialNumber: true, harvestDate: true } },
+    },
+  },
+} as const;
+
+type Check = {
+  id: string;
+  fieldId: string | null;
+  createdAt: Date;
+  decision: string | null;
+  brix: number;
+  fruitColorPct: number | null;
+  internalQualityPct: number | null;
+  cleaningGoodCratesOk: boolean | null;
+  overmaturePct: number | null;
+  diameterUnder22mmPct: number | null;
+  botrytisPct: number | null;
+  pestDiseasePct: number | null;
+  wormEatenPct: number | null;
+  bruisesPct: number | null;
+  shapeDeformitiesPct: number | null;
+  sandDustPct: number | null;
+  foreignBodiesPct: number | null;
+  harvestTicketPlotLine: {
+    stationNo: string | null;
+    plotValveGhNo: string | null;
+    cutNo: string | null;
+    weightKg: number | null;
+    cratesCount: number | null;
+    harvestTicket: { serialNumber: string; harvestDate: Date | null } | null;
+  } | null;
+};
+
+const SEASON_BUCKET_COUNT = 3;
+
+function aggregate(checks: Check[], key: string, label: string) {
+  if (checks.length === 0) return null;
+  const avg = (get: (c: Check) => number | null) => {
+    const vals = checks.map(get).filter((v): v is number => v != null);
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  const rejected = checks.filter((c) => c.decision === "REJECTED").length;
+  const crateChecks = checks.filter((c) => c.cleaningGoodCratesOk != null);
+  const cratesOkPct =
+    crateChecks.length > 0 ? (crateChecks.filter((c) => c.cleaningGoodCratesOk).length / crateChecks.length) * 100 : null;
+
+  return {
+    key,
+    label,
+    count: checks.length,
+    rejected,
+    rejectionRate: (rejected / checks.length) * 100,
+    brix: avg((c) => c.brix),
+    fruitColorPct: avg((c) => c.fruitColorPct),
+    internalQualityPct: avg((c) => c.internalQualityPct),
+    cratesOkPct,
+    overmaturePct: avg((c) => c.overmaturePct),
+    diameterUnder22mmPct: avg((c) => c.diameterUnder22mmPct),
+    botrytisPct: avg((c) => c.botrytisPct),
+    pestDiseasePct: avg((c) => c.pestDiseasePct),
+    wormEatenPct: avg((c) => c.wormEatenPct),
+    bruisesPct: avg((c) => c.bruisesPct),
+    shapeDeformitiesPct: avg((c) => c.shapeDeformitiesPct),
+    sandDustPct: avg((c) => c.sandDustPct),
+    foreignBodiesPct: avg((c) => c.foreignBodiesPct),
+  };
+}
+
+function groupBy<T>(items: T[], keyFn: (item: T) => string | null) {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const key = keyFn(item);
+    if (!key) continue;
+    const list = map.get(key) ?? [];
+    list.push(item);
+    map.set(key, list);
+  }
+  return map;
+}
+
+function toTicketCheck(c: Check): TicketCheck {
+  return {
+    id: c.id,
+    createdAt: c.createdAt,
+    decision: c.decision,
+    brix: c.brix,
+    fruitColorPct: c.fruitColorPct,
+    internalQualityPct: c.internalQualityPct,
+    cleaningGoodCratesOk: c.cleaningGoodCratesOk,
+    overmaturePct: c.overmaturePct,
+    diameterUnder22mmPct: c.diameterUnder22mmPct,
+    botrytisPct: c.botrytisPct,
+    pestDiseasePct: c.pestDiseasePct,
+    wormEatenPct: c.wormEatenPct,
+    bruisesPct: c.bruisesPct,
+    shapeDeformitiesPct: c.shapeDeformitiesPct,
+    sandDustPct: c.sandDustPct,
+    foreignBodiesPct: c.foreignBodiesPct,
+    ticket: c.harvestTicketPlotLine
+      ? {
+          serialNumber: c.harvestTicketPlotLine.harvestTicket?.serialNumber ?? null,
+          harvestDate: c.harvestTicketPlotLine.harvestTicket?.harvestDate ?? null,
+          stationNo: c.harvestTicketPlotLine.stationNo,
+          plotValveGhNo: c.harvestTicketPlotLine.plotValveGhNo,
+          cutNo: c.harvestTicketPlotLine.cutNo,
+          weightKg: c.harvestTicketPlotLine.weightKg,
+          cratesCount: c.harvestTicketPlotLine.cratesCount,
+        }
+      : null,
+  };
+}
+
+// Builds one bucket's flat per-field rollup (no farm layer -- every Field
+// belongs to the same single farm, so a grouping level above field would
+// always be exactly one row) plus, on each field row, the raw checks that fed
+// it, for the ticket-level drill-down.
+function buildFieldRows(checks: Check[], fieldById: Map<string, Field>, prevChecks: Check[]): FieldRow[] {
+  const byField = groupBy(checks, (c) => c.fieldId);
+  const prevByField = groupBy(prevChecks, (c) => c.fieldId);
+
+  return [...byField.entries()]
+    .map(([fieldId, rows]): FieldRow | null => {
+      const field = fieldById.get(fieldId);
+      if (!field) return null;
+      const agg = aggregate(rows, fieldId, field.name);
+      if (!agg) return null;
+      const prevRows = prevByField.get(fieldId);
+      const prevRate = prevRows ? aggregate(prevRows, fieldId, field.name)?.rejectionRate ?? null : null;
+      return {
+        ...agg,
+        prevRejectionRate: prevRate,
+        checks: rows
+          .slice()
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(toTicketCheck),
+      };
+    })
+    .filter((r): r is FieldRow => r !== null)
+    .sort((a, b) => b.rejectionRate - a.rejectionRate);
+}
+
+// Groups checks into time buckets, sorted most-recent first. Trend for each
+// bucket compares against the immediately preceding bucket that actually has
+// data, not a fixed calendar offset.
+function bucketSections(
+  checks: Check[],
+  fieldById: Map<string, Field>,
+  keyFn: (d: Date) => string,
+  labelFn: (key: string) => string,
+  sortValueFn: (key: string) => number,
+  take: number
+): PeriodSection[] {
+  const byBucket = groupBy(checks, (c) => keyFn(c.createdAt));
+  const sortedKeys = [...byBucket.keys()].sort((a, b) => sortValueFn(b) - sortValueFn(a));
+  const shown = sortedKeys.slice(0, take);
+
+  return shown.map((key, i) => {
+    const bucketChecks = byBucket.get(key)!;
+    const prevKey = sortedKeys[i + 1];
+    const prevChecks = prevKey ? byBucket.get(prevKey)! : [];
+    return { key, label: labelFn(key), rows: buildFieldRows(bucketChecks, fieldById, prevChecks) };
+  });
+}
 
 export default async function FieldQualityPage() {
   const session = await auth();
@@ -14,108 +211,64 @@ export default async function FieldQualityPage() {
   }
 
   const fields = await prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } });
+  const fieldById = new Map(fields.map((f) => [f.id, f]));
 
-  // Calendar buckets in Egypt local time -- "Daily" is today's calendar day,
-  // not a rolling last-24-hours window, so it lines up with Harvest Report's
-  // Daily bucket instead of drifting from it.
-  const todayEgypt = egyptDateOnly(new Date());
-  const periodStart: Record<Period, Date> = {
-    DAILY: todayEgypt,
-    WEEKLY: startOfWeek(todayEgypt, { weekStartsOn: 1 }),
-    MONTHLY: startOfMonth(todayEgypt),
+  const currentSeasonStartYear = Number(egyptSeasonKey(new Date()).split("-")[0]);
+  const queryCutoff = egyptSeasonStart(currentSeasonStartYear - (SEASON_BUCKET_COUNT - 1));
+
+  const checks = (await prisma.qualityCheck.findMany({
+    where: { checkpoint: "PRE_DECAP", fieldId: { not: null }, createdAt: { gte: queryCutoff } },
+    select: CHECK_SELECT,
+  })) as unknown as Check[];
+
+  const dataByPeriod: Record<Period, PeriodSection[]> = {
+    DAILY: bucketSections(
+      checks,
+      fieldById,
+      (d) => egyptDateKey(d),
+      (key) => format(parseDateKey(key), "dd MMM yyyy"),
+      (key) => parseDateKey(key).getTime(),
+      14
+    ),
+    WEEKLY: bucketSections(
+      checks,
+      fieldById,
+      (d) => formatYMD(startOfWeek(egyptDateOnly(d), { weekStartsOn: 1 })),
+      (key) => `Week of ${format(parseDateKey(key), "dd MMM yyyy")}`,
+      (key) => parseDateKey(key).getTime(),
+      8
+    ),
+    MONTHLY: bucketSections(
+      checks,
+      fieldById,
+      (d) => egyptMonthKey(d),
+      (key) => format(parseDateKey(key), "MMM yyyy"),
+      (key) => parseDateKey(key).getTime(),
+      6
+    ),
+    SEASON: bucketSections(
+      checks,
+      fieldById,
+      (d) => egyptSeasonKey(d),
+      (key) => egyptSeasonLabel(key),
+      (key) => Number(key.split("-")[0]),
+      SEASON_BUCKET_COUNT
+    ),
   };
 
-  // Pre-Decap Arrivals only -- by Post-Decap Quality the fruit from multiple
-  // fields has already been mixed at the decap facility, so averaging its
-  // measurements against one field would be misleading.
-  const checks = await prisma.qualityCheck.findMany({
-    where: { checkpoint: "PRE_DECAP", fieldId: { not: null }, createdAt: { gte: egyptDayStart(periodStart.MONTHLY) } },
-    select: {
-      fieldId: true,
-      createdAt: true,
-      decision: true,
-      brix: true,
-      fruitColorPct: true,
-      internalQualityPct: true,
-      cleaningGoodCratesOk: true,
-      overmaturePct: true,
-      diameterUnder22mmPct: true,
-      botrytisPct: true,
-      pestDiseasePct: true,
-      wormEatenPct: true,
-      bruisesPct: true,
-      shapeDeformitiesPct: true,
-      sandDustPct: true,
-      foreignBodiesPct: true,
-    },
-  });
-
-  const dataByPeriod: Record<Period, FieldPeriodRow[]> = { DAILY: [], WEEKLY: [], MONTHLY: [] };
-
-  for (const period of PERIODS) {
-    const cutoff = egyptDayStart(periodStart[period]).getTime();
-    const inWindow = checks.filter((c) => c.createdAt.getTime() >= cutoff);
-
-    const byField = new Map<string, typeof inWindow>();
-    for (const c of inWindow) {
-      if (!c.fieldId) continue;
-      const list = byField.get(c.fieldId) ?? [];
-      list.push(c);
-      byField.set(c.fieldId, list);
-    }
-
-    dataByPeriod[period] = fields
-      .map((f) => {
-        const rows = byField.get(f.id) ?? [];
-        if (rows.length === 0) return null;
-        const avg = (get: (r: (typeof rows)[number]) => number | null) => {
-          const vals = rows.map(get).filter((v): v is number => v != null);
-          return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-        };
-        const rejected = rows.filter((r) => r.decision === "REJECTED").length;
-        const crateChecks = rows.filter((r) => r.cleaningGoodCratesOk != null);
-        const cratesOkPct =
-          crateChecks.length > 0
-            ? (crateChecks.filter((r) => r.cleaningGoodCratesOk).length / crateChecks.length) * 100
-            : null;
-
-        return {
-          fieldId: f.id,
-          fieldName: f.name,
-          count: rows.length,
-          rejected,
-          brix: avg((r) => r.brix),
-          fruitColorPct: avg((r) => r.fruitColorPct),
-          internalQualityPct: avg((r) => r.internalQualityPct),
-          cratesOkPct,
-          overmaturePct: avg((r) => r.overmaturePct),
-          diameterUnder22mmPct: avg((r) => r.diameterUnder22mmPct),
-          botrytisPct: avg((r) => r.botrytisPct),
-          pestDiseasePct: avg((r) => r.pestDiseasePct),
-          wormEatenPct: avg((r) => r.wormEatenPct),
-          bruisesPct: avg((r) => r.bruisesPct),
-          shapeDeformitiesPct: avg((r) => r.shapeDeformitiesPct),
-          sandDustPct: avg((r) => r.sandDustPct),
-          foreignBodiesPct: avg((r) => r.foreignBodiesPct),
-        } satisfies FieldPeriodRow;
-      })
-      .filter((r): r is FieldPeriodRow => r !== null)
-      .sort((a, b) => b.rejected / b.count - a.rejected / a.count);
-  }
-
   return (
-    <div>
+    <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Field Quality</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Every quality band from Pre-Decap Arrivals, rolled up per field — the last checkpoint before fruit from
-          multiple fields gets mixed at the decap facility. Fields with the worst rejection rate sort to the top.
+          Pre-Decap Arrival quality rolled up per field/plot — the last checkpoint before fruit from multiple fields
+          gets mixed at the decap facility. Trend compares each period to the one immediately before it; a season
+          runs Nov 1 – Jun 30. Expand a field row to see every individual inspection behind it, cross-referenced to
+          the harvest ticket it came from where one was recorded.
         </p>
       </div>
 
-      <div className="mt-6">
-        <FieldQualityTable dataByPeriod={dataByPeriod} />
-      </div>
+      <FieldQualityTable dataByPeriod={dataByPeriod} />
     </div>
   );
 }

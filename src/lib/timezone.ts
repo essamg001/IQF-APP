@@ -81,3 +81,35 @@ export function parseDateKey(key: string): Date {
   const [year, month, day] = key.split("-").map(Number);
   return new Date(year, month - 1, day ?? 1);
 }
+
+/**
+ * Which strawberry season an Egypt-local date falls in. A season is a fixed
+ * calendar range, Nov 1 - Jun 30 (spanning two calendar years), matching how
+ * this factory's growers actually plan a harvest -- not a rolling 12 months.
+ * The quiet Jul-Oct gap (no harvest happens then) is folded into the
+ * *upcoming* season rather than the one that just closed on Jun 30: a check
+ * logged in that gap is about what's coming next, not a revision to a season
+ * that's already closed out.
+ *
+ * Returns "YYYY-YY", e.g. "2025-26" for the season that starts Nov 1 2025 and
+ * ends Jun 30 2026.
+ */
+export function egyptSeasonKey(date: Date): string {
+  const { year, month } = egyptParts(date);
+  const startYear = month >= 7 ? year : year - 1;
+  return `${startYear}-${String((startYear + 1) % 100).padStart(2, "0")}`;
+}
+
+/** Human label for a season key, e.g. "2025-26" -> "2025/26 Season (Nov 2025 - Jun 2026)". */
+export function egyptSeasonLabel(key: string): string {
+  const startYear = Number(key.split("-")[0]);
+  return `${startYear}/${String((startYear + 1) % 100).padStart(2, "0")} Season (Nov ${startYear} - Jun ${startYear + 1})`;
+}
+
+/**
+ * Real instant (UTC) at which a season starting in `startYear` begins (Nov 1,
+ * Egypt local time). Feed the result straight into a Prisma `createdAt: { gte }`.
+ */
+export function egyptSeasonStart(startYear: number): Date {
+  return egyptDayStart(new Date(startYear, 10, 1)); // month 10 = November (0-indexed)
+}
