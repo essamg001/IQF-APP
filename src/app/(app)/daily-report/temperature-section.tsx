@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { LogTemperatureForm } from "./log-temperature-form";
-import { getTemperatureLocations } from "@/lib/dailyReportLocations";
+import { getTemperatureLocations, isTemperatureOutOfLimit } from "@/lib/dailyReportLocations";
+import { cn } from "@/lib/cn";
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
 
@@ -56,11 +57,18 @@ export function TemperatureSection({
               <td className="whitespace-nowrap px-2 py-1.5 font-medium text-slate-800">{loc.name}</td>
               <td className="whitespace-nowrap px-2 py-1.5 text-slate-500">{loc.limits}</td>
               <td className="whitespace-nowrap px-2 py-1.5 text-slate-500">{loc.instrument}</td>
-              {HOURS.map((h) => (
-                <td key={h} className="px-2 py-1.5 text-slate-700">
-                  {valueByLocationHour.get(`${loc.name}__${h}`) ?? "—"}
-                </td>
-              ))}
+              {HOURS.map((h) => {
+                const value = valueByLocationHour.get(`${loc.name}__${h}`);
+                const outOfLimit = value != null && isTemperatureOutOfLimit(value, loc.limits);
+                return (
+                  <td
+                    key={h}
+                    className={cn("px-2 py-1.5", outOfLimit ? "font-semibold text-red-600" : "text-slate-700")}
+                  >
+                    {value ?? "—"}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

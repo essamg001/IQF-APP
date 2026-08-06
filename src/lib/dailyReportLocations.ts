@@ -51,3 +51,36 @@ export function getTemperatureLocations(factoryCode: string | null | undefined):
 export function limitsAndInstrumentFor(factoryCode: string | null | undefined, location: string): TemperatureLocation | undefined {
   return getTemperatureLocations(factoryCode).find((l) => l.name === location);
 }
+
+type TemperatureLimit = { kind: "range"; min: number; max: number } | { kind: "ceiling"; max: number };
+
+/**
+ * Parses a location's free-text "limits" display string into a structured
+ * range or ceiling check -- returns null for "NA"/"counter" (no numeric
+ * limit to enforce) or anything else that doesn't match one of the three
+ * shapes actually used above ("A : B °C" range, "< N °C" explicit ceiling,
+ * or a bare possibly-negative number treated as a ceiling -- e.g. a freezer's
+ * "- 40 °C" means the reading must not be warmer than -40). Never guesses,
+ * same philosophy as parseBrixRange/parsePercentCeiling elsewhere.
+ */
+export function parseTemperatureLimit(limits: string): TemperatureLimit | null {
+  const t = limits.trim();
+
+  let m = t.match(/^(-?\d+(?:\.\d+)?)\s*:\s*(-?\d+(?:\.\d+)?)\s*°?C?$/);
+  if (m) return { kind: "range", min: Number(m[1]), max: Number(m[2]) };
+
+  m = t.match(/^<\s*(-?\d+(?:\.\d+)?)\s*°?C?$/);
+  if (m) return { kind: "ceiling", max: Number(m[1]) };
+
+  m = t.match(/^(-)?\s*(\d+(?:\.\d+)?)\s*°?C?$/);
+  if (m) return { kind: "ceiling", max: Number(m[2]) * (m[1] ? -1 : 1) };
+
+  return null;
+}
+
+/** True if a reading falls outside its location's limit -- always false when the limit doesn't parse (NA/counter). */
+export function isTemperatureOutOfLimit(valueC: number, limits: string): boolean {
+  const limit = parseTemperatureLimit(limits);
+  if (!limit) return false;
+  return limit.kind === "range" ? valueC < limit.min || valueC > limit.max : valueC > limit.max;
+}
