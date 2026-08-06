@@ -7,34 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
-import { decodeActionResult } from "@/lib/qualityLimits";
+import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
+import { DECAP_SHARED_DEFECT_FIELDS } from "@/lib/defectFields";
 import { cn } from "@/lib/cn";
 
-// Must match RAW_MATERIAL's DEFECT_PCT_FIELDS in ./actions.ts exactly -- this
-// is only the client-side mirror driving the live running-total display.
-const DEFECT_FIELDS = [
-  "incompleteMaturityPct",
-  "moldSignsPct",
-  "mouldPct",
-  "capsuleRemainsPct",
-  "birdFoodPct",
-  "overmaturePct",
-  "skinDamagePct",
-  "shapeDeformitiesPct",
-  "seedClusteringPct",
-  "bruisesPct",
-  "dryCavitiesPct",
-  "overDecappingPct",
-  "oxidationPct",
-  "sandDustPct",
-  "insectsLarvaePct",
-  "foreignBodiesPct",
-  "brokenUncleanPalletsPct",
-  "unfumigatedPalletsPct",
-  "brokenUncleanCratesPct",
-] as const;
-const TOTAL_DEFECTS_LIMIT = 5;
+const TOTAL_DEFECTS_LIMIT = limitsFor("RAW_MATERIAL").find((r) => r.field === "totalDefectsPct")!.max!;
 
 function Pct({
   name,
@@ -157,7 +135,7 @@ export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCh
 function SampleFields() {
   const [wholeDelivery, setWholeDelivery] = useState(false);
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
-  const { total: defectTotal, bind } = useDefectTotal(DEFECT_FIELDS);
+  const { total: defectTotal, bind } = useDefectTotal(DECAP_SHARED_DEFECT_FIELDS);
 
   return (
     <>

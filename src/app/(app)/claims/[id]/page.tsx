@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { advanceClaimStatusAction, addClaimAttachmentAction, removeClaimAttachmentAction } from "../actions";
 import { format } from "date-fns";
@@ -203,9 +204,9 @@ export default async function ClaimDetailPage({ params }: { params: Promise<{ id
                   {a.uploadedBy?.name ?? "Unknown"} · {format(a.createdAt, "dd MMM yyyy HH:mm")}
                 </p>
                 <form action={removeClaimAttachmentAction.bind(null, claim.id, a.id)} className="mt-1">
-                  <button type="submit" className="text-xs text-red-600 hover:underline">
+                  <ConfirmSubmitButton confirmMessage="Remove this evidence file? This cannot be undone.">
                     Remove
-                  </button>
+                  </ConfirmSubmitButton>
                 </form>
               </div>
             );

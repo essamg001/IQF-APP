@@ -6,31 +6,11 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
-import { decodeActionResult } from "@/lib/qualityLimits";
+import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
+import { POST_PACKAGING_DEFECT_FIELDS } from "@/lib/defectFields";
 import { cn } from "@/lib/cn";
 import type { ProductionLot, Field, Pallet, Grade } from "@prisma/client";
-
-// Must match POST_PACKAGING's DEFECT_PCT_FIELDS in ./actions.ts exactly --
-// this is only the client-side mirror driving the live running-total display.
-const DEFECT_FIELDS = [
-  "overmaturePct",
-  "incompleteMaturityPct",
-  "shapeDeformitiesPct",
-  "skinDamagePct",
-  "cohesiveClustersPct",
-  "crushedBrokenFruitPct",
-  "dryBruisesPct",
-  "mechanicalFactorsPct",
-  "oxidationPct",
-  "fungalInfectionPct",
-  "insectsLarvaePct",
-  "insectInfestationPct",
-  "foreignBodiesPct",
-] as const;
-// Total-defects ceiling is grade-dependent (see src/lib/qualityLimits.ts
-// POST_PACKAGING_LIMITS) -- Grade A is held to a tighter tolerance than B.
-const TOTAL_DEFECTS_MAX: Record<Grade, number> = { A: 5, B: 10 };
 
 type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[] };
 
@@ -168,8 +148,8 @@ function PalletInput({ pallets }: { pallets: Pallet[] }) {
 function MeasurementFields({ grade }: { grade: Grade }) {
   const limits = useMemo(() => LIMITS[grade], [grade]);
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
-  const { total: defectTotal, bind } = useDefectTotal(DEFECT_FIELDS);
-  const totalDefectsMax = TOTAL_DEFECTS_MAX[grade];
+  const { total: defectTotal, bind } = useDefectTotal(POST_PACKAGING_DEFECT_FIELDS);
+  const totalDefectsMax = limitsFor("POST_PACKAGING", grade).find((r) => r.field === "totalDefectsPct")!.max!;
 
   return (
     <>

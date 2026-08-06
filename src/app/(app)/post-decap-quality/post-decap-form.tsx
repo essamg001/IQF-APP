@@ -6,37 +6,15 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
-import { decodeActionResult } from "@/lib/qualityLimits";
+import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
+import { DECAP_SHARED_DEFECT_FIELDS } from "@/lib/defectFields";
 import { cn } from "@/lib/cn";
 
 // The factory has 51 QC staff, each identified on paperwork as "QC1"..."QC51".
 const QC_NUMBERS = Array.from({ length: 51 }, (_, i) => `QC${i + 1}`);
 
-// Must match POST_DECAP's DEFECT_PCT_FIELDS in ./actions.ts exactly -- this is
-// only the client-side mirror driving the live running-total display.
-const DEFECT_FIELDS = [
-  "incompleteMaturityPct",
-  "moldSignsPct",
-  "mouldPct",
-  "capsuleRemainsPct",
-  "birdFoodPct",
-  "overmaturePct",
-  "skinDamagePct",
-  "shapeDeformitiesPct",
-  "seedClusteringPct",
-  "bruisesPct",
-  "dryCavitiesPct",
-  "overDecappingPct",
-  "oxidationPct",
-  "sandDustPct",
-  "insectsLarvaePct",
-  "foreignBodiesPct",
-  "brokenUncleanPalletsPct",
-  "unfumigatedPalletsPct",
-  "brokenUncleanCratesPct",
-] as const;
-const TOTAL_DEFECTS_LIMIT = 6;
+const TOTAL_DEFECTS_LIMIT = limitsFor("POST_DECAP").find((r) => r.field === "totalDefectsPct")!.max!;
 
 function Pct({
   name,
@@ -126,7 +104,7 @@ function FieldNameInput({ defaultValue, fields }: { defaultValue: string; fields
 
 function SampleFields() {
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
-  const { total: defectTotal, bind } = useDefectTotal(DEFECT_FIELDS);
+  const { total: defectTotal, bind } = useDefectTotal(DECAP_SHARED_DEFECT_FIELDS);
 
   return (
     <>

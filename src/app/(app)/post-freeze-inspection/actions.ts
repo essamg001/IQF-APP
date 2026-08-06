@@ -7,6 +7,7 @@ import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
 import { checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
 import { raiseQualityLimitAlert } from "@/lib/alerts";
+import { POST_PACKAGING_DEFECT_FIELDS } from "@/lib/defectFields";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
@@ -65,21 +66,6 @@ const postFreezeSchema = z.object({
   notes: z.string().optional(),
 });
 
-const DEFECT_PCT_FIELDS = [
-  "overmaturePct",
-  "incompleteMaturityPct",
-  "shapeDeformitiesPct",
-  "skinDamagePct",
-  "cohesiveClustersPct",
-  "crushedBrokenFruitPct",
-  "dryBruisesPct",
-  "mechanicalFactorsPct",
-  "oxidationPct",
-  "fungalInfectionPct",
-  "insectsLarvaePct",
-  "insectInfestationPct",
-  "foreignBodiesPct",
-] as const;
 
 export async function createPostFreezeCheckAction(_prevState: string | undefined, formData: FormData) {
   const raw = Object.fromEntries(
@@ -115,7 +101,7 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
   const session = await auth();
   const { lotNumber, palletNumber, operationDate, expiryDate, sampleCollectionTime, ...data } = parsed.data;
 
-  const totalDefectsPct = DEFECT_PCT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
+  const totalDefectsPct = POST_PACKAGING_DEFECT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
 
   const created = await prisma.qualityCheck.create({
     data: {

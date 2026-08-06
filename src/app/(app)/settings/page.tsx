@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { ROLE_LABELS, canSeeCosting } from "@/lib/roles";
 import { getCompanySettings } from "@/lib/companySettings";
@@ -83,7 +84,9 @@ export default async function SettingsPage() {
                     ))}
                   {u.id !== session?.user.id && (
                     <form action={deleteUserAction.bind(null, u.id)}>
-                      <button className="text-xs text-red-600 hover:underline">Remove</button>
+                      <ConfirmSubmitButton confirmMessage={`Remove ${u.name}'s login? They will no longer be able to sign in.`}>
+                        Remove
+                      </ConfirmSubmitButton>
                     </form>
                   )}
                 </span>
@@ -225,7 +228,7 @@ export default async function SettingsPage() {
             <li key={f.id} className="flex items-center justify-between py-2 text-sm">
               <span>{f.name}</span>
               <form action={deleteFieldAction.bind(null, f.id)}>
-                <button className="text-xs text-red-600 hover:underline">Remove</button>
+                <ConfirmSubmitButton confirmMessage={`Remove field "${f.name}"?`}>Remove</ConfirmSubmitButton>
               </form>
             </li>
           ))}

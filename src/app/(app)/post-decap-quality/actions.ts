@@ -7,6 +7,8 @@ import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
 import { checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
 import { raiseQualityLimitAlert } from "@/lib/alerts";
+import { DECAP_SHARED_DEFECT_FIELDS } from "@/lib/defectFields";
+import { egyptDayStart } from "@/lib/timezone";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
@@ -60,27 +62,6 @@ const postDecapCheckSchema = z.object({
   notes: z.string().optional(),
 });
 
-const DEFECT_PCT_FIELDS = [
-  "incompleteMaturityPct",
-  "moldSignsPct",
-  "mouldPct",
-  "capsuleRemainsPct",
-  "birdFoodPct",
-  "overmaturePct",
-  "skinDamagePct",
-  "shapeDeformitiesPct",
-  "seedClusteringPct",
-  "bruisesPct",
-  "dryCavitiesPct",
-  "overDecappingPct",
-  "oxidationPct",
-  "sandDustPct",
-  "insectsLarvaePct",
-  "foreignBodiesPct",
-  "brokenUncleanPalletsPct",
-  "unfumigatedPalletsPct",
-  "brokenUncleanCratesPct",
-] as const;
 
 export async function createPostDecapCheckAction(_prevState: string | undefined, formData: FormData) {
   const raw = Object.fromEntries(
@@ -104,7 +85,19 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
   const session = await auth();
   const { fieldName, sampleCollectionTime, notes, ...data } = parsed.data;
 
-  const totalDefectsPct = DEFECT_PCT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
+  const totalDefectsPct = DECAP_SHARED_DEFECT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
+
+  // Catches the paper-form error mode of relabeling and re-entering the same
+  // physical sample twice -- scoped to today only, since sample numbering
+  // legitimately restarts day to day.
+  const todayStart = egyptDayStart(new Date());
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const duplicate = await prisma.qualityCheck.findFirst({
+    where: { checkpoint: "POST_DECAP", sampleNo: data.sampleNo, createdAt: { gte: todayStart, lt: tomorrowStart } },
+  });
+  if (duplicate) {
+    return `Sample No. "${data.sampleNo}" was already logged today for Post-Decap Quality — check for a duplicate entry.`;
+  }
 
   const created = await prisma.qualityCheck.create({
     data: {

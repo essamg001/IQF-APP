@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { DowntimeEntryForm } from "./downtime-entry-form";
 import { EfficiencyForm } from "./efficiency-form";
 import { removeDowntimeEventAction } from "./actions";
@@ -77,9 +78,12 @@ function ShiftBlock({
                   {e.fromTime.toTimeString().slice(0, 5)}–{e.toTime.toTimeString().slice(0, 5)} · {e.reason}
                 </span>
                 <form action={removeDowntimeEventAction.bind(null, e.id)}>
-                  <button type="submit" className="text-red-600 hover:underline">
+                  <ConfirmSubmitButton
+                    confirmMessage={`Remove this downtime event (${e.reason})?`}
+                    className="text-red-600 hover:underline"
+                  >
                     Remove
-                  </button>
+                  </ConfirmSubmitButton>
                 </form>
               </li>
             ))}

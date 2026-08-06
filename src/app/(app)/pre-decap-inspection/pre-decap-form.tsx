@@ -7,24 +7,12 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
-import { decodeActionResult } from "@/lib/qualityLimits";
+import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
+import { PRE_DECAP_DEFECT_FIELDS } from "@/lib/defectFields";
 import { cn } from "@/lib/cn";
 
-// Must match PRE_DECAP's DEFECT_PCT_FIELDS in ./actions.ts exactly -- this is
-// only the client-side mirror driving the live running-total display.
-const DEFECT_FIELDS = [
-  "overmaturePct",
-  "diameterUnder22mmPct",
-  "botrytisPct",
-  "pestDiseasePct",
-  "wormEatenPct",
-  "bruisesPct",
-  "shapeDeformitiesPct",
-  "sandDustPct",
-  "foreignBodiesPct",
-] as const;
-const TOTAL_DEFECTS_LIMIT = 60;
+const TOTAL_DEFECTS_LIMIT = limitsFor("PRE_DECAP").find((r) => r.field === "totalDefectsPct")!.max!;
 
 function Pct({
   name,
@@ -143,7 +131,7 @@ function SerialPlotPicker({ tickets, fields }: { tickets: HarvestTicketOption[];
 
 function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harvestTickets: HarvestTicketOption[] }) {
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
-  const { total: defectTotal, bind } = useDefectTotal(DEFECT_FIELDS);
+  const { total: defectTotal, bind } = useDefectTotal(PRE_DECAP_DEFECT_FIELDS);
 
   return (
     <>

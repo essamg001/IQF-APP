@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
@@ -378,9 +379,11 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                     <span className="ml-2 text-xs text-slate-400">{c.incurredAt.toDateString()}</span>
                   </div>
                   <form action={removeContainerCostAction.bind(null, container.id, c.id)}>
-                    <button type="submit" className="text-xs text-red-600 hover:underline">
+                    <ConfirmSubmitButton
+                      confirmMessage={`Remove this $${c.amountUsd.toLocaleString()} ${COST_CATEGORY_LABEL[c.category]} cost entry?`}
+                    >
                       Remove
-                    </button>
+                    </ConfirmSubmitButton>
                   </form>
                 </li>
               ))}
@@ -668,9 +671,11 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                   </td>
                   <td className="px-4 py-2">
                     <form action={removePalletLoadLineAction.bind(null, container.id, line.id)}>
-                      <button type="submit" className="text-xs text-red-600 hover:underline">
+                      <ConfirmSubmitButton
+                        confirmMessage={`Remove pallet ${line.pallet.palletNumber} from this container's load-out manifest? This is the shipment's permanent traceability record.`}
+                      >
                         Remove
-                      </button>
+                      </ConfirmSubmitButton>
                     </form>
                   </td>
                 </tr>
