@@ -36,12 +36,14 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/orders", label: "Orders" },
   { href: "/active-orders", label: "Active Orders" },
   { href: "/available-to-sell", label: "Available to Sell" },
-  { href: "/trends", label: "Historical Trends", requiresHeadOfSales: true },
-  { href: "/costing", label: "Costing", requiresHeadOfSales: true },
 
   // Shipping
   { href: "/load-out", label: "Load Out" },
   { href: "/logistics", label: "Logistics" },
+
+  // Sales reporting
+  { href: "/trends", label: "Historical Trends", requiresHeadOfSales: true },
+  { href: "/costing", label: "Costing", requiresHeadOfSales: true },
 
   // Quality oversight & post-shipment issues
   { href: "/quality", label: "Quality" },
