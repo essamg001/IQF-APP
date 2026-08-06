@@ -6,33 +6,50 @@ import { cn } from "@/lib/cn";
 import type { Role, Station } from "@prisma/client";
 
 const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSales?: boolean }[] = [
+  // Overview
   { href: "/", label: "Dashboard" },
+
+  // Reference data
   { href: "/fields", label: "Fields" },
-  { href: "/field-quality", label: "Field Quality", roles: ["OWNER", "QUALITY"] },
-  { href: "/traceability", label: "Traceability / Recall Lookup", roles: ["OWNER", "QUALITY"] },
   { href: "/clients", label: "Clients" },
+
+  // Field & Decap stage
+  { href: "/harvest-tickets", label: "Harvest Tickets", roles: ["OWNER", "QUALITY"] },
+  { href: "/pre-decap-inspection", label: "Decap: Pre-Decap Arrivals", roles: ["OWNER", "QUALITY"] },
+  { href: "/post-decap-quality", label: "Decap: Post-Decap Quality", roles: ["OWNER", "QUALITY"] },
+  { href: "/field-quality", label: "Field Quality", roles: ["OWNER", "QUALITY"] },
+
+  // Factory: intake -> freeze -> pack
+  { href: "/shifts", label: "Hours Worked" },
+  { href: "/arrival-inspection", label: "Arrival Inspection at Factory", roles: ["OWNER", "QUALITY"] },
+  { href: "/production", label: "Production" },
+  { href: "/post-freeze-inspection", label: "Post-Freeze Inspection", roles: ["OWNER", "QUALITY"] },
+  { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
+  { href: "/waste", label: "Waste" },
+  { href: "/daily-report", label: "Daily Report", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+
+  // Storage & Lab (gates before a pallet can ship)
+  { href: "/storage", label: "Storage" },
+  { href: "/lab", label: "Lab", roles: ["OWNER", "QUALITY"] },
+
+  // Sales
   { href: "/orders", label: "Orders" },
   { href: "/active-orders", label: "Active Orders" },
   { href: "/available-to-sell", label: "Available to Sell" },
   { href: "/trends", label: "Historical Trends", requiresHeadOfSales: true },
   { href: "/costing", label: "Costing", requiresHeadOfSales: true },
-  { href: "/harvest-tickets", label: "Harvest Tickets", roles: ["OWNER", "QUALITY"] },
-  { href: "/pre-decap-inspection", label: "Decap: Pre-Decap Arrivals", roles: ["OWNER", "QUALITY"] },
-  { href: "/post-decap-quality", label: "Decap: Post-Decap Quality", roles: ["OWNER", "QUALITY"] },
-  { href: "/arrival-inspection", label: "Arrival Inspection at Factory", roles: ["OWNER", "QUALITY"] },
-  { href: "/production", label: "Production" },
-  { href: "/daily-report", label: "Daily Report", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/post-freeze-inspection", label: "Post-Freeze Inspection", roles: ["OWNER", "QUALITY"] },
-  { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
-  { href: "/waste", label: "Waste" },
-  { href: "/storage", label: "Storage" },
-  { href: "/shifts", label: "Hours Worked" },
-  { href: "/quality", label: "Quality" },
-  { href: "/lab", label: "Lab", roles: ["OWNER", "QUALITY"] },
+
+  // Shipping
   { href: "/load-out", label: "Load Out" },
   { href: "/logistics", label: "Logistics" },
-  { href: "/claims", label: "Claims" },
+
+  // Quality oversight & post-shipment issues
+  { href: "/quality", label: "Quality" },
   { href: "/quality-issues", label: "Quality Issues" },
+  { href: "/traceability", label: "Traceability / Recall Lookup", roles: ["OWNER", "QUALITY"] },
+  { href: "/claims", label: "Claims" },
+
+  // System
   { href: "/alerts", label: "Alerts" },
   { href: "/activity-log", label: "Activity Log", roles: ["OWNER"] },
   { href: "/settings", label: "Setup" },
