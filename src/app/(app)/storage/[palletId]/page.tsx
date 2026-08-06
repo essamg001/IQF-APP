@@ -10,6 +10,7 @@ import { combinedMicroStatus } from "@/lib/microbiology";
 import { combinedCfuValue } from "@/lib/cfuTier";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
 import { canSeeCosting } from "@/lib/roles";
+import { buildRackOrder, nextAvailableSlot, dominantProductType, suggestColdRoom } from "@/lib/coldStorage";
 
 const STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -42,6 +43,58 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
   const remainingTonnes = pallet.weightTonnes - loadedTonnes;
 
   const FORMAT_LABEL = { WHOLE: "Whole", SLICED: "Sliced", DICED: "Diced" } as const;
+
+  // Only worth computing a placement suggestion when the pallet hasn't been
+  // shelved yet -- once it has a slot, this section is moot.
+  let placementSuggestion:
+    | { roomId: string; roomName: string; round: number; rack: string; level: number; reason: string }
+    | null = null;
+  if (!pallet.slot) {
+    const rooms = await prisma.coldRoom.findMany({
+      select: {
+        id: true,
+        name: true,
+        capacityPallets: true,
+        rackCount: true,
+        slots: {
+          select: {
+            id: true,
+            round: true,
+            rack: true,
+            level: true,
+            palletId: true,
+            pallet: { select: { lot: { select: { grade: true, format: true } } } },
+          },
+        },
+      },
+    });
+    const roomsForSuggestion = rooms.map((r) => ({
+      id: r.id,
+      name: r.name,
+      capacityPallets: r.capacityPallets,
+      rackCount: r.rackCount,
+      slotPositions: r.slots.map((s) => ({ id: s.id, round: s.round, rack: s.rack, level: s.level, palletId: s.palletId })),
+      occupiedCount: r.slots.filter((s) => s.palletId).length,
+      pallets: r.slots.filter((s) => s.pallet).map((s) => ({ grade: s.pallet!.lot.grade, format: s.pallet!.lot.format })),
+    }));
+
+    const palletType = { grade: pallet.lot.grade, format: pallet.lot.format };
+    // Already assigned to a room, just no slot yet -- suggest within that room only.
+    const targetRoomId = pallet.coldRoomId ?? suggestColdRoom(roomsForSuggestion, palletType);
+    const targetRoom = roomsForSuggestion.find((r) => r.id === targetRoomId);
+    if (targetRoom) {
+      const slot = nextAvailableSlot(targetRoom.slotPositions, buildRackOrder(targetRoom.rackCount));
+      if (slot) {
+        const dominant = dominantProductType(targetRoom.pallets);
+        const reason = pallet.coldRoomId
+          ? "next open slot in this room"
+          : dominant && dominant.grade === palletType.grade && dominant.format === palletType.format
+            ? `matches Grade ${dominant.grade} ${FORMAT_LABEL[dominant.format as keyof typeof FORMAT_LABEL]} already stored there`
+            : "least full room with space";
+        placementSuggestion = { roomId: targetRoom.id, roomName: targetRoom.name, round: slot.round, rack: slot.rack, level: slot.level, reason };
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -80,6 +133,18 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
                 )}
               </dd>
             </div>
+            {placementSuggestion && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-slate-500">Suggested placement</dt>
+                <dd className="text-right text-slate-800">
+                  <a href={`/storage/map/${placementSuggestion.roomId}`} className="text-emerald-700 hover:underline">
+                    {placementSuggestion.roomName} — Round {placementSuggestion.round} · Rack {placementSuggestion.rack} · Level{" "}
+                    {placementSuggestion.level}
+                  </a>
+                  <p className="text-xs text-slate-400">{placementSuggestion.reason}</p>
+                </dd>
+              </div>
+            )}
             <Row
               label="Microbiology"
               value={combinedMicroStatus(pallet.lot.microbiologyResults, pallet.lot.shift.onHold).replace("_", " ")}

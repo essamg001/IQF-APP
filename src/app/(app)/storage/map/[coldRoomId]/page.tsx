@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getPalletQualitySnapshots } from "@/lib/palletQuality";
+import { buildRackOrder, nextAvailableSlot } from "@/lib/coldStorage";
 import { ColdRoomGrid } from "./cold-room-grid";
 
 export default async function ColdRoomMapPage({ params }: { params: Promise<{ coldRoomId: string }> }) {
@@ -22,13 +23,21 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
     prisma.pallet.findMany({
       where: { slot: null, status: { notIn: ["SHIPPED", "WASTE"] } },
       include: { lot: { include: { field: true } } },
-      orderBy: { palletNumber: "asc" },
+      // Oldest not-yet-shelved pallet first -- matches the physical routine
+      // of shelving pallets roughly in the order they come off the line.
+      orderBy: { createdAt: "asc" },
       take: 300,
     }),
   ]);
 
   const occupiedPallets = slots.filter((s) => s.pallet).map((s) => s.pallet!);
   const qualityByPalletId = await getPalletQualitySnapshots(occupiedPallets.map((p) => ({ id: p.id, lotId: p.lotId })));
+
+  const rackOrder = buildRackOrder(coldRoom.rackCount);
+  const suggestedSlot = nextAvailableSlot(
+    slots.map((s) => ({ id: s.id, round: s.round, rack: s.rack, level: s.level, palletId: s.palletId })),
+    rackOrder
+  );
 
   const slotsForClient = slots.map((s) => ({
     id: s.id,
@@ -64,6 +73,7 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
         rackCount={coldRoom.rackCount}
         levelCount={coldRoom.levelCount}
         slots={slotsForClient}
+        suggestedSlotId={suggestedSlot?.id ?? null}
         unassignedPallets={unassignedPallets.map((p) => ({
           id: p.id,
           palletNumber: p.palletNumber,

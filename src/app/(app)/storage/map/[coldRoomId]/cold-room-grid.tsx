@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
 import { CfuTierLegend } from "@/components/cfu-tier-legend";
 import { cfuTierFor } from "@/lib/cfuTier";
+import { rackLetter } from "@/lib/coldStorage";
 
 type SlotPallet = {
   id: string;
@@ -48,6 +49,7 @@ export function ColdRoomGrid({
   rackCount,
   levelCount,
   slots,
+  suggestedSlotId,
   unassignedPallets,
 }: {
   coldRoomId: string;
@@ -55,9 +57,11 @@ export function ColdRoomGrid({
   rackCount: number;
   levelCount: number;
   slots: Slot[];
+  suggestedSlotId: string | null;
   unassignedPallets: UnassignedPallet[];
 }) {
-  const [round, setRound] = useState(1);
+  const suggestedSlot = useMemo(() => slots.find((s) => s.id === suggestedSlotId) ?? null, [slots, suggestedSlotId]);
+  const [round, setRound] = useState(suggestedSlot?.round ?? 1);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
 
   const racks = useMemo(() => Array.from({ length: rackCount }, (_, i) => rackLetter(i)), [rackCount]);
@@ -74,6 +78,23 @@ export function ColdRoomGrid({
   return (
     <div className="mt-4 grid grid-cols-[1fr_320px] gap-4">
       <Card className="overflow-x-auto p-3">
+        {suggestedSlot && (
+          <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <span>
+              <strong>Suggested next slot:</strong> Round {suggestedSlot.round} · Rack {suggestedSlot.rack} · Level{" "}
+              {suggestedSlot.level}
+            </span>
+            <button
+              onClick={() => {
+                setRound(suggestedSlot.round);
+                setSelectedSlotId(suggestedSlot.id);
+              }}
+              className="shrink-0 rounded-md bg-amber-600 px-2 py-1 font-medium text-white hover:bg-amber-700"
+            >
+              Jump to it
+            </button>
+          </div>
+        )}
         {rounds > 1 && (
           <div className="mb-3 flex gap-1">
             {Array.from({ length: rounds }, (_, i) => i + 1).map((r) => (
@@ -100,7 +121,16 @@ export function ColdRoomGrid({
             </div>
           ))}
           {levels.map((level) => (
-            <RowFragment key={level} level={level} racks={racks} round={round} slotByPosition={slotByPosition} selectedSlotId={selectedSlotId} onSelect={setSelectedSlotId} />
+            <RowFragment
+              key={level}
+              level={level}
+              racks={racks}
+              round={round}
+              slotByPosition={slotByPosition}
+              selectedSlotId={selectedSlotId}
+              suggestedSlotId={suggestedSlotId}
+              onSelect={setSelectedSlotId}
+            />
           ))}
         </div>
         <CfuTierLegend className="mt-3 border-t border-slate-100 pt-2" />
@@ -128,6 +158,7 @@ function RowFragment({
   round,
   slotByPosition,
   selectedSlotId,
+  suggestedSlotId,
   onSelect,
 }: {
   level: number;
@@ -135,6 +166,7 @@ function RowFragment({
   round: number;
   slotByPosition: Map<string, Slot>;
   selectedSlotId: string | null;
+  suggestedSlotId: string | null;
   onSelect: (id: string) => void;
 }) {
   return (
@@ -154,21 +186,24 @@ function RowFragment({
         } else {
           colorClass = STATUS_COLOR[slot.pallet!.quality?.microbiologyStatus ?? "PENDING"] ?? STATUS_COLOR.PENDING;
         }
+        const isSuggested = !occupied && slot.id === suggestedSlotId;
         const title = occupied
           ? `${slot.pallet!.palletNumber} — Lot ${slot.pallet!.lotNumber}${
               cfuValue != null ? ` — ${cfuValue.toLocaleString()} cfu/g` : ""
             }`
-          : `${rack}${level} — empty`;
+          : isSuggested
+            ? `${rack}${level} — empty (suggested next slot)`
+            : `${rack}${level} — empty`;
         return (
           <button
             key={rack}
             title={title}
             onClick={() => onSelect(slot.id)}
             className={`h-8 truncate rounded border px-0.5 text-[10px] font-medium ${colorClass} ${
-              selectedSlotId === slot.id ? "ring-2 ring-emerald-600" : ""
+              selectedSlotId === slot.id ? "ring-2 ring-emerald-600" : isSuggested ? "ring-2 ring-amber-500" : ""
             }`}
           >
-            {occupied ? slot.pallet!.palletNumber.slice(-6) : "+"}
+            {occupied ? slot.pallet!.palletNumber.slice(-6) : isSuggested ? "★" : "+"}
           </button>
         );
       })}
@@ -280,14 +315,4 @@ function Row({ label, value }: { label: string; value: string }) {
       <dd className="text-right text-slate-800">{value}</dd>
     </div>
   );
-}
-
-function rackLetter(index: number) {
-  let n = index;
-  let s = "";
-  do {
-    s = String.fromCharCode(65 + (n % 26)) + s;
-    n = Math.floor(n / 26) - 1;
-  } while (n >= 0);
-  return s;
 }
