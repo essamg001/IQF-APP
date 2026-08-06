@@ -20,13 +20,13 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/field-quality", label: "Field Quality", roles: ["OWNER", "QUALITY"] },
 
   // Factory: intake -> freeze -> pack
-  { href: "/shifts", label: "Hours Worked" },
   { href: "/arrival-inspection", label: "Arrival Inspection at Factory", roles: ["OWNER", "QUALITY"] },
   { href: "/production", label: "Production" },
   { href: "/post-freeze-inspection", label: "Post-Freeze Inspection", roles: ["OWNER", "QUALITY"] },
   { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
   { href: "/waste", label: "Waste" },
   { href: "/daily-report", label: "Daily Report", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+  { href: "/shifts", label: "Hours Worked" },
 
   // Storage & Lab (gates before a pallet can ship)
   { href: "/storage", label: "Storage" },
