@@ -1,9 +1,15 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { clientSchema, specSchema } from "@/lib/validation/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+
+async function requireOwner() {
+  const session = await auth();
+  return session?.user.role === "OWNER";
+}
 
 function parseClientForm(formData: FormData) {
   const specsRaw = formData.get("specsJson");
@@ -63,6 +69,7 @@ export async function updateClientAction(id: string, _prevState: string | undefi
 }
 
 export async function deleteClientAction(id: string) {
+  if (!(await requireOwner())) return;
   await prisma.client.delete({ where: { id } });
   revalidatePath("/clients");
   redirect("/clients");
