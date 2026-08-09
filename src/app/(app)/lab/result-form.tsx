@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { updateLabResultAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -98,9 +98,11 @@ export function ResultForm({
 }) {
   const [lines, setLines] = useState<TestLine[]>(result?.testLines?.length ? result.testLines : [{ ...EMPTY_LINE }]);
   const [cfuValue, setCfuValue] = useState<number | null>(result?.totalPlateCountCfuG ?? null);
+  const [state, formAction, pending] = useActionState(updateLabResultAction.bind(null, resultId), undefined);
+  const errorMessage = state && state !== "ok" ? state : undefined;
 
   return (
-    <form action={updateLabResultAction.bind(null, resultId)} className="mt-3 space-y-3" encType="multipart/form-data">
+    <form action={formAction} className="mt-3 space-y-3">
       <div className="grid grid-cols-4 gap-3">
         <FieldGroup label="Status">
           <Select name="status" defaultValue={result?.status ?? "SENT_TO_LAB"}>
@@ -280,9 +282,13 @@ export function ResultForm({
       </div>
       <FieldGroup label={result?.certificateFileOriginalName ? `Certificate File (currently: ${result.certificateFileOriginalName})` : "Certificate File (PDF, JPG, or PNG)"}>
         <input type="file" name="certificateFile" accept="application/pdf,image/jpeg,image/png" className="block text-sm" />
+        <p className="mt-1 text-xs text-slate-400">
+          Required, along with Certificate Number and Sample Code, before this result can be saved as Approved or Failed.
+        </p>
       </FieldGroup>
-      <Button type="submit" variant="secondary">
-        Save result
+      {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      <Button type="submit" variant="secondary" disabled={pending}>
+        {pending ? "Saving…" : "Save result"}
       </Button>
     </form>
   );

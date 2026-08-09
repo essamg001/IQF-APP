@@ -105,7 +105,13 @@ const testLineSchema = z.object({
   methodRef: z.string().optional(),
 });
 
-export async function updateLabResultAction(resultId: string, formData: FormData) {
+const FINAL_STATUSES = ["APPROVED", "FAILED_MINOR", "FAILED_SEVERE"] as const;
+
+export async function updateLabResultAction(
+  resultId: string,
+  _prevState: string | undefined,
+  formData: FormData
+) {
   const raw = Object.fromEntries(
     Array.from(formData.entries())
       .filter(([k]) => k !== "certificateFile" && k !== "testLinesJson")
@@ -122,6 +128,37 @@ export async function updateLabResultAction(resultId: string, formData: FormData
       ? "FAILED_SEVERE"
       : parsed.status;
 
+  const existing = await prisma.microbiologyResult.findUnique({ where: { id: resultId }, include: { lot: true } });
+  if (!existing) return;
+
+  const file = formData.get("certificateFile");
+  const hasNewFile = file instanceof File && file.size > 0;
+
+  // A result can't be recorded as Approved/Failed with nothing to back it up
+  // -- this is exactly the gap that let results sit "Approved" with no data
+  // and no certificate on file.
+  if ((FINAL_STATUSES as readonly string[]).includes(status)) {
+    if (!hasNewFile && !existing.certificateFileName) {
+      return "A certificate file must be attached before this result can be recorded as Approved or Failed.";
+    }
+    if (!parsed.certificateNumber?.trim()) {
+      return "Certificate/lab result number is required before this result can be recorded as Approved or Failed.";
+    }
+    if (!parsed.sampleCode?.trim()) {
+      return "Sample code is required before this result can be recorded as Approved or Failed.";
+    }
+    // The same lab-issued certificate number showing up on a different lot's
+    // result is the clearest sign of a mixed-up or reused attachment -- catch
+    // it here rather than trusting the file was the right one for this lot.
+    const duplicate = await prisma.microbiologyResult.findFirst({
+      where: { id: { not: resultId }, certificateNumber: { equals: parsed.certificateNumber.trim(), mode: "insensitive" } },
+      include: { lot: true },
+    });
+    if (duplicate) {
+      return `Certificate number "${parsed.certificateNumber}" is already recorded against Lot ${duplicate.lot.lotNumber} -- a lab result shouldn't be reused across different lots. Check this is the right certificate for Lot ${existing.lot.lotNumber}.`;
+    }
+  }
+
   const { analysisStartDate, analysisEndDate, reportDate, ...rest } = parsed;
 
   let rawLines: unknown = [];
@@ -133,15 +170,11 @@ export async function updateLabResultAction(resultId: string, formData: FormData
   }
   const testLines = z.array(testLineSchema).parse(rawLines).filter((l) => l.testName || l.result);
 
-  const file = formData.get("certificateFile");
   let fileFields: { certificateFileName?: string; certificateFileOriginalName?: string } = {};
-  if (file instanceof File && file.size > 0) {
+  if (hasNewFile) {
     const saved = await saveUploadedFile(file, "certificates");
     fileFields = { certificateFileName: saved.fileName, certificateFileOriginalName: saved.originalName };
   }
-
-  const existing = await prisma.microbiologyResult.findUnique({ where: { id: resultId }, include: { lot: true } });
-  if (!existing) return;
 
   const session = await auth();
 
@@ -230,6 +263,7 @@ export async function updateLabResultAction(resultId: string, formData: FormData
   revalidatePath("/storage");
   revalidatePath("/waste");
   revalidatePath("/alerts");
+  return "ok";
 }
 
 const resolveHoldSchema = z.object({
