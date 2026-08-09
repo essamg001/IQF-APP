@@ -1,11 +1,16 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { canSeeHistoricalTrends } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
 const EXPECTED_HEADER = ["orderNumber", "clientName", "grade", "format", "quantityPallets", "valueUsd", "orderDate"];
 
 export async function importHistoricalOrdersAction(_prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canSeeHistoricalTrends(session?.user)) return "Not authorized.";
+
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return "Please choose a CSV file.";
