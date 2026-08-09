@@ -591,9 +591,12 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                   <div className="flex items-center gap-2">
                     <Badge color="amber">Stickering pending</Badge>
                     <form action={markStickeringCompleteAction.bind(null, container.id, p.id)}>
-                      <Button type="submit" variant="secondary" className="text-xs">
+                      <ConfirmSubmitButton
+                        confirmMessage={`Confirm ${p.palletNumber} has physically had client stickers applied? It becomes eligible to load once confirmed.`}
+                        className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                      >
                         Mark stickered
-                      </Button>
+                      </ConfirmSubmitButton>
                     </form>
                   </div>
                 )}
