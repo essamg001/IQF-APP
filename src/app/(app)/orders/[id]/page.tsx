@@ -6,8 +6,9 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { format } from "date-fns";
-import { allocatePalletsAction, updateOrderValueAction } from "../actions";
+import { allocatePalletsAction, updateOrderQuantityAction, updateOrderValueAction } from "../actions";
 import { AdvanceStageButton } from "./advance-stage-button";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { FORMAT_LABEL } from "@/lib/format";
@@ -88,9 +89,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div className="flex gap-2">
           {order.pallets.length < order.quantityPallets && (
             <form action={allocatePalletsAction.bind(null, order.id)}>
-              <Button type="submit" variant="secondary">
+              <ConfirmSubmitButton
+                confirmMessage={`Allocate up to ${order.quantityPallets - order.pallets.length} pallet(s) (~${((order.quantityPallets - order.pallets.length) * 1.2).toFixed(1)}t) to ${order.orderNumber}? Allocated pallets aren't easily un-allocated.`}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+              >
                 Allocate pallets
-              </Button>
+              </ConfirmSubmitButton>
             </form>
           )}
           {nextStage && <AdvanceStageButton orderId={order.id} label={STAGE_LABEL[nextStage]} />}
@@ -108,6 +112,26 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             {showPricing && <Row label="Gross value" value={`$${order.valueUsd.toLocaleString()}`} />}
             {showPricing && <Row label="Net value (after claims)" value={`$${netValue.toLocaleString()}`} />}
           </dl>
+          {order.pallets.length === 0 && (
+            <form
+              action={updateOrderQuantityAction.bind(null, order.id)}
+              className="mt-3 flex items-end gap-2 border-t border-slate-100 pt-3"
+            >
+              <FieldGroup label="Correct quantity (tonnes)">
+                <Input
+                  name="quantityTonnes"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  defaultValue={order.quantityPallets * 1.2}
+                  className="w-40"
+                />
+              </FieldGroup>
+              <Button type="submit" variant="secondary">
+                Save
+              </Button>
+            </form>
+          )}
           {showPricing && (
             <form action={updateOrderValueAction.bind(null, order.id)} className="mt-3 flex items-end gap-2 border-t border-slate-100 pt-3">
               <FieldGroup label={order.valueUsd > 0 ? "Update value (USD)" : "Set value (USD)"}>
@@ -153,7 +177,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div className="flex items-center justify-between px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-900">Allocated Pallets</h2>
           <LinkButton
-            href={`/claims/new?clientId=${order.clientId}${order.containers[0] ? `&containerNumber=${order.containers[0].containerNumber}` : ""}`}
+            // Only prefill a container when there's exactly one on this order --
+            // defaulting to containers[0] on a multi-container order would
+            // silently attach the claim to the wrong shipment.
+            href={`/claims/new?clientId=${order.clientId}${order.containers.length === 1 ? `&containerNumber=${order.containers[0].containerNumber}` : ""}`}
             variant="secondary"
           >
             File Claim

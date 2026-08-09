@@ -65,6 +65,32 @@ export async function createOrderAction(_prevState: string | undefined, formData
   redirect(`/orders/${order.id}`);
 }
 
+export async function updateOrderQuantityAction(orderId: string, formData: FormData) {
+  const quantityTonnes = z.coerce.number().positive().parse(formData.get("quantityTonnes"));
+
+  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId }, include: { _count: { select: { pallets: true } } } });
+  // Once any pallet has been allocated, "Allocate pallets" has already used
+  // the old target to pick real inventory -- changing it after the fact
+  // would desync the order from what's actually been committed to it.
+  if (order._count.pallets > 0) return;
+
+  const quantityPallets = Math.max(1, Math.round(quantityTonnes / PALLET_WEIGHT_TONNES));
+
+  await prisma.order.update({ where: { id: orderId }, data: { quantityPallets } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "ORDER_QUANTITY_UPDATED",
+    entityType: "Order",
+    entityId: orderId,
+    detail: `${order.quantityPallets} → ${quantityPallets} pallets`,
+  });
+
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/orders");
+}
+
 export async function updateOrderValueAction(orderId: string, formData: FormData) {
   const valueUsd = z.coerce.number().nonnegative().parse(formData.get("valueUsd"));
   const before = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
