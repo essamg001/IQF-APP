@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { toggleQualityIssueStatusAction, updateCorrectiveActionAction } from "../actions";
 import { format } from "date-fns";
@@ -12,9 +13,22 @@ export default async function QualityIssueDetailPage({ params }: { params: Promi
 
   const issue = await prisma.qualityIssue.findUnique({
     where: { id },
-    include: { client: true },
+    include: {
+      client: true,
+      relatedOrder: true,
+      relatedContainer: true,
+      relatedLot: true,
+    },
   });
   if (!issue) notFound();
+
+  const resolvedReference = issue.relatedOrder
+    ? { href: `/orders/${issue.relatedOrder.id}`, label: `Order ${issue.relatedOrder.orderNumber}` }
+    : issue.relatedContainer
+      ? { href: `/logistics/${issue.relatedContainer.id}`, label: `Container ${issue.relatedContainer.containerNumber}` }
+      : issue.relatedLot
+        ? { href: `/production/${issue.relatedLot.id}`, label: `Lot ${issue.relatedLot.lotNumber}` }
+        : null;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -32,14 +46,38 @@ export default async function QualityIssueDetailPage({ params }: { params: Promi
           </p>
         </div>
         <form action={toggleQualityIssueStatusAction.bind(null, issue.id)}>
-          <Button type="submit" variant={issue.status === "OPEN" ? "primary" : "secondary"}>
+          <ConfirmSubmitButton
+            confirmMessage={
+              issue.status === "OPEN"
+                ? "Mark this quality issue as resolved?"
+                : "Reopen this quality issue?"
+            }
+            className={
+              issue.status === "OPEN"
+                ? "inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-800"
+                : "inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+            }
+          >
             {issue.status === "OPEN" ? "Mark Resolved" : "Reopen"}
-          </Button>
+          </ConfirmSubmitButton>
         </form>
       </div>
 
       <Card className="space-y-3">
-        <Row label="Related Reference" value={issue.relatedReference} />
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-2 last:border-0">
+          <dt className="text-sm text-slate-500">Related Reference</dt>
+          <dd className="text-right text-sm font-medium">
+            {resolvedReference ? (
+              <a href={resolvedReference.href} className="text-emerald-700 hover:underline">
+                {issue.relatedReference} → {resolvedReference.label}
+              </a>
+            ) : issue.relatedReference ? (
+              <span className="text-red-600">{issue.relatedReference} (not found — check for a typo)</span>
+            ) : (
+              <span className="text-slate-800">—</span>
+            )}
+          </dd>
+        </div>
         <Row label="What Happened" value={issue.issueDetails} />
       </Card>
 

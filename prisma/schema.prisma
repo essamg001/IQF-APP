@@ -532,6 +532,7 @@ model ProductionLot {
   pallets             Pallet[]
   qualityChecks       QualityCheck[]
   microbiologyResults MicrobiologyResult[]
+  qualityIssues       QualityIssue[]
 
   @@index([factoryId, grade])
 }
@@ -899,8 +900,9 @@ model Order {
   isHistorical    Boolean    @default(false)
   createdAt       DateTime   @default(now())
 
-  pallets    Pallet[]
-  containers Container[]
+  pallets       Pallet[]
+  containers    Container[]
+  qualityIssues QualityIssue[]
 
   @@index([clientId])
 }
@@ -999,6 +1001,7 @@ model Container {
   costs           ContainerCost[]
   temperatureLogs ContainerTemperatureLog[]
   specExceptions  SpecException[]
+  qualityIssues   QualityIssue[]
 }
 
 // A named, signed record of a deliberate decision to load a pallet that fails
@@ -1222,9 +1225,18 @@ model QualityIssue {
   variety          String?
   reason           ClaimReason
   status           QualityIssueStatus @default(OPEN)
-  // Order #, container #, or lot # this relates to, if known -- free text
-  // since it may reference any of several entity types.
-  relatedReference String?
+  // Order #, container #, or lot # this relates to, if known -- kept as raw
+  // text since it may reference any of several entity types, but resolved at
+  // creation time against whichever table's number matches (at most one of
+  // the three below, since order/container/lot numbers don't overlap) so a
+  // typo is visible rather than silently unlinked.
+  relatedReference   String?
+  relatedOrderId     String?
+  relatedOrder       Order?         @relation(fields: [relatedOrderId], references: [id])
+  relatedContainerId String?
+  relatedContainer   Container?     @relation(fields: [relatedContainerId], references: [id])
+  relatedLotId       String?
+  relatedLot         ProductionLot? @relation(fields: [relatedLotId], references: [id])
 
   issueDetails     String?
   correctiveAction String?
@@ -1232,6 +1244,9 @@ model QualityIssue {
   createdAt DateTime @default(now())
 
   @@index([clientId])
+  @@index([relatedOrderId])
+  @@index([relatedContainerId])
+  @@index([relatedLotId])
 }
 
 model Alert {

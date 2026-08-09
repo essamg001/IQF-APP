@@ -25,6 +25,24 @@ export async function createQualityIssueAction(_prevState: string | undefined, f
   }
   const { data } = parsed;
 
+  // Order/container/lot numbers don't overlap, so at most one of these ever
+  // matches -- resolving here means a typo'd reference is visible on the
+  // detail page instead of silently sitting as an unlinked string forever.
+  const reference = data.relatedReference?.trim();
+  let relatedOrderId: string | undefined;
+  let relatedContainerId: string | undefined;
+  let relatedLotId: string | undefined;
+  if (reference) {
+    const [order, container, lot] = await Promise.all([
+      prisma.order.findUnique({ where: { orderNumber: reference } }),
+      prisma.container.findUnique({ where: { containerNumber: reference } }),
+      prisma.productionLot.findUnique({ where: { lotNumber: reference } }),
+    ]);
+    relatedOrderId = order?.id;
+    relatedContainerId = container?.id;
+    relatedLotId = lot?.id;
+  }
+
   const created = await prisma.qualityIssue.create({
     data: {
       clientId: data.clientId || undefined,
@@ -32,6 +50,9 @@ export async function createQualityIssueAction(_prevState: string | undefined, f
       variety: data.variety,
       reason: data.reason,
       relatedReference: data.relatedReference,
+      relatedOrderId,
+      relatedContainerId,
+      relatedLotId,
       issueDetails: data.issueDetails,
       correctiveAction: data.correctiveAction,
     },
