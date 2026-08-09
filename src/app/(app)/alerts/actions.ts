@@ -8,7 +8,17 @@ import { raiseQualityOverrideAlert } from "@/lib/alerts";
 import { logActivity } from "@/lib/activityLog";
 
 export async function markAlertReadAction(alertId: string) {
-  await prisma.alert.update({ where: { id: alertId }, data: { status: "READ" } });
+  const session = await auth();
+  const alert = await prisma.alert.update({ where: { id: alertId }, data: { status: "READ" } });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "ALERT_MARKED_READ",
+    entityType: "Alert",
+    entityId: alertId,
+    detail: `${alert.type.replace(/_/g, " ")}: ${alert.message}`,
+  });
+
   revalidatePath("/alerts");
 }
 
