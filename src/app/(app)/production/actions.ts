@@ -66,13 +66,13 @@ export async function createLotAction(_prevState: string | undefined, formData: 
 
   // Field entry is free text (not a fixed list) -- match an existing field by
   // name or create one on the fly, so production isn't blocked on someone
-  // pre-registering the field in Settings first.
+  // pre-registering the field in Settings first. Matching case-insensitively
+  // (rather than the exact-match upsert this used to be) means a casing typo
+  // like "Mafa 4" vs the real "MAFA 4" reuses the real field instead of
+  // silently forking off a duplicate that fragments its defect-rate history.
   const fieldName = parsed.data.fieldName.trim();
-  const field = await prisma.field.upsert({
-    where: { name: fieldName },
-    update: {},
-    create: { name: fieldName },
-  });
+  const existingField = await prisma.field.findFirst({ where: { name: { equals: fieldName, mode: "insensitive" } } });
+  const field = existingField ?? (await prisma.field.create({ data: { name: fieldName } }));
 
   await prisma.productionLot.create({
     data: {

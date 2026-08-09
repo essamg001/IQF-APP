@@ -104,6 +104,13 @@ export function LotForm({
               <option key={f.id} value={f.name} />
             ))}
           </datalist>
+          {fieldName.trim() &&
+            !fields.some((f) => f.name.toLowerCase() === fieldName.trim().toLowerCase()) && (
+              <p className="mt-1 text-xs font-medium text-amber-600">
+                No existing field matches "{fieldName.trim()}" — this will create a new field. Check for a typo
+                against an existing name if this field should already exist.
+              </p>
+            )}
           {recentFieldNames.length > 0 && (
             <p className="mt-1 text-xs text-slate-500">
               Auto-filled from the most recent Post-Decap Quality check — change if this lot draws from a
