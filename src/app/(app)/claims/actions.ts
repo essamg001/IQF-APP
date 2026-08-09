@@ -138,11 +138,22 @@ export async function createClaimAction(_prevState: string | undefined, formData
 
 const STATUS_ORDER = ["OPEN", "UNDER_REVIEW", "RESOLVED_CREDITED", "CLOSED"] as const;
 
-export async function advanceClaimStatusAction(claimId: string) {
+export async function advanceClaimStatusAction(
+  claimId: string,
+  _prevState: string | undefined,
+  _formData: FormData
+) {
   const claim = await prisma.claim.findUniqueOrThrow({ where: { id: claimId } });
   const idx = STATUS_ORDER.indexOf(claim.status);
   const next = STATUS_ORDER[idx + 1];
   if (!next) return;
+
+  // The negotiated settlement figure is what "credited" actually means here --
+  // advancing past it without that number recorded would leave a resolved
+  // claim with no financial record of what was actually agreed.
+  if (next === "RESOLVED_CREDITED" && claim.amountAfterNegotiation == null) {
+    return "Record the negotiated settlement (\"Amount after negotiation\") before marking this claim Resolved/Credited.";
+  }
 
   await prisma.claim.update({
     where: { id: claimId },

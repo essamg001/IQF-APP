@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input, FieldGroup } from "@/components/ui/field";
-import { advanceClaimStatusAction, addClaimAttachmentAction, removeClaimAttachmentAction } from "../actions";
+import { addClaimAttachmentAction, removeClaimAttachmentAction } from "../actions";
+import { AdvanceStatusButton } from "./advance-status-button";
 import { format } from "date-fns";
 
 const STATUS_ORDER = ["OPEN", "UNDER_REVIEW", "RESOLVED_CREDITED", "CLOSED"] as const;
@@ -51,11 +52,7 @@ export default async function ClaimDetailPage({ params }: { params: Promise<{ id
             {claim.variety ? ` · ${claim.variety}` : ""}
           </p>
         </div>
-        {nextStatus && (
-          <form action={advanceClaimStatusAction.bind(null, claim.id)}>
-            <Button type="submit">Advance to {STATUS_LABEL[nextStatus]}</Button>
-          </form>
-        )}
+        {nextStatus && <AdvanceStatusButton claimId={claim.id} label={STATUS_LABEL[nextStatus]} />}
       </div>
 
       {showPricing && (
