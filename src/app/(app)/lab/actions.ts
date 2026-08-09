@@ -6,6 +6,7 @@ import { saveUploadedFile } from "@/lib/files";
 import { parseDateSafe } from "@/lib/dates";
 import { raiseMicrobiologyRejectionAlert, raiseShiftOnHoldAlert } from "@/lib/alerts";
 import { isSplitResult } from "@/lib/microbiology";
+import { CFU_REJECT_TIER } from "@/lib/cfuTier";
 import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -117,7 +118,9 @@ export async function updateLabResultAction(resultId: string, formData: FormData
   // this can't be silently overridden by choosing Approved despite an
   // out-of-range reading.
   const status =
-    parsed.totalPlateCountCfuG != null && parsed.totalPlateCountCfuG > 100_000 ? "FAILED_SEVERE" : parsed.status;
+    parsed.totalPlateCountCfuG != null && parsed.totalPlateCountCfuG >= CFU_REJECT_TIER.min
+      ? "FAILED_SEVERE"
+      : parsed.status;
 
   const { analysisStartDate, analysisEndDate, reportDate, ...rest } = parsed;
 
