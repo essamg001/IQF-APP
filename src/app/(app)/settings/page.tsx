@@ -67,9 +67,12 @@ export default async function SettingsPage() {
                       <Badge color="green">Head of Sales</Badge>
                     ) : (
                       <form action={toggleHeadOfSalesAction.bind(null, u.id)}>
-                        <button type="submit" className="text-xs text-slate-400 hover:text-slate-600 hover:underline">
+                        <ConfirmSubmitButton
+                          confirmMessage={`Make ${u.name} Head of Sales? This grants pricing/margin visibility and other sales-lead permissions.`}
+                          className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                        >
                           Make head of sales?
-                        </button>
+                        </ConfirmSubmitButton>
                       </form>
                     ))}
                   {u.role === "PRODUCTION" &&
@@ -77,9 +80,12 @@ export default async function SettingsPage() {
                       <Badge color="green">Head of Production</Badge>
                     ) : (
                       <form action={toggleHeadOfProductionAction.bind(null, u.id)}>
-                        <button type="submit" className="text-xs text-slate-400 hover:text-slate-600 hover:underline">
+                        <ConfirmSubmitButton
+                          confirmMessage={`Make ${u.name} Head of Production? This grants authority to sign off out-of-spec loads.`}
+                          className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                        >
                           Make head of production?
-                        </button>
+                        </ConfirmSubmitButton>
                       </form>
                     ))}
                   {u.id !== session?.user.id && (
