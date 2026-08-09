@@ -710,14 +710,19 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                   {container.loadOutSignedAt?.toLocaleString()}
                 </span>
               </p>
+            ) : container.palletLines.length === 0 ? (
+              <p className="text-xs text-slate-400">Add at least one pallet to the manifest before signing off.</p>
             ) : (
               <form action={signLoadOutRepAction.bind(null, container.id)} className="flex items-end gap-2">
                 <FieldGroup label="Name">
                   <Input name="loadOutRepName" required className="w-48" />
                 </FieldGroup>
-                <Button type="submit" variant="secondary">
+                <ConfirmSubmitButton
+                  confirmMessage="Sign off as the Load-Out Team representative for this container? This can't be undone and is required before the Certificate of Quality can be issued."
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                >
                   Sign off
-                </Button>
+                </ConfirmSubmitButton>
               </form>
             )}
           </div>
@@ -730,14 +735,19 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                   {container.qualitySignedAt?.toLocaleString()}
                 </span>
               </p>
+            ) : container.palletLines.length === 0 ? (
+              <p className="text-xs text-slate-400">Add at least one pallet to the manifest before signing off.</p>
             ) : (
               <form action={signQualityRepAction.bind(null, container.id)} className="flex items-end gap-2">
                 <FieldGroup label="Name">
                   <Input name="qualityRepName" required className="w-48" />
                 </FieldGroup>
-                <Button type="submit" variant="secondary">
+                <ConfirmSubmitButton
+                  confirmMessage="Sign off as the Quality Department representative for this container? This can't be undone and is required before the Certificate of Quality can be issued."
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                >
                   Sign off
-                </Button>
+                </ConfirmSubmitButton>
               </form>
             )}
           </div>

@@ -625,6 +625,11 @@ export async function markStickeringCompleteAction(containerId: string, palletId
 export async function signLoadOutRepAction(containerId: string, formData: FormData) {
   const name = String(formData.get("loadOutRepName") ?? "").trim();
   if (!name) return;
+  // Belt-and-suspenders alongside the UI hiding this form when the manifest
+  // is empty -- guards the race where the last pallet line is removed in
+  // another tab between page load and this submit.
+  const lineCount = await prisma.containerPalletLine.count({ where: { containerId } });
+  if (lineCount === 0) return;
   await prisma.container.update({
     where: { id: containerId },
     data: { loadOutRepName: name, loadOutSignedAt: new Date() },
@@ -643,6 +648,8 @@ export async function signLoadOutRepAction(containerId: string, formData: FormDa
 export async function signQualityRepAction(containerId: string, formData: FormData) {
   const name = String(formData.get("qualityRepName") ?? "").trim();
   if (!name) return;
+  const lineCount = await prisma.containerPalletLine.count({ where: { containerId } });
+  if (lineCount === 0) return;
   await prisma.container.update({
     where: { id: containerId },
     data: { qualityRepName: name, qualitySignedAt: new Date() },
