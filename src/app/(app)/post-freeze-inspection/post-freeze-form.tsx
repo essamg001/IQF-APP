@@ -10,9 +10,10 @@ import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
 import { POST_PACKAGING_DEFECT_FIELDS } from "@/lib/defectFields";
 import { cn } from "@/lib/cn";
-import type { ProductionLot, Field, Pallet, Grade } from "@prisma/client";
+import { format } from "date-fns";
+import type { ProductionLot, Field, Pallet, ShiftLog, Grade } from "@prisma/client";
 
-type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[] };
+type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[]; shift: ShiftLog };
 
 // STR03111 (Grade A) vs STR03116 (Grade B) — same items, different tolerances.
 const LIMITS: Record<Grade, Record<string, string>> = {
@@ -83,6 +84,14 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
                 <option key={l.id} value={l.lotNumber} />
               ))}
             </datalist>
+            {lotNumber.trim() &&
+              (selectedLot ? (
+                <p className="mt-1 text-xs font-medium text-emerald-700">
+                  ✓ {selectedLot.field.name} — Grade {selectedLot.grade} — produced {format(selectedLot.shift.date, "d MMM yyyy")}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs font-medium text-red-600">No matching lot found — check the number.</p>
+              ))}
           </FieldGroup>
           <FieldGroup label="Pallet number">
             <PalletInput key={isSuccess ? state : `${lotNumber}-initial`} pallets={pallets} />

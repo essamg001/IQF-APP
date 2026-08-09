@@ -15,7 +15,7 @@ export default async function PostFreezeInspectionPage() {
   const lots = await prisma.productionLot.findMany({
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: { field: true, pallets: true },
+    include: { field: true, pallets: true, shift: true },
   });
 
   const startOfToday = new Date();
