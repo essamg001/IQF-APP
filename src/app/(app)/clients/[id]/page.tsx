@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { deleteClientAction } from "../actions";
 import { DEFECT_FIELDS } from "@/lib/validation/client";
+import { canManageClients } from "@/lib/roles";
 import { AddSpecForm } from "./add-spec-form";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
 
@@ -13,12 +15,18 @@ const FORMAT_LABEL = { WHOLE: "Whole", SLICED: "Sliced", DICED: "Diced" } as con
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = await prisma.client.findUnique({
-    where: { id },
-    include: { specs: true },
-  });
+  const [session, client] = await Promise.all([
+    auth(),
+    prisma.client.findUnique({
+      where: { id },
+      include: { specs: true },
+    }),
+  ]);
 
   if (!client) notFound();
+
+  const canManage = canManageClients(session?.user.role);
+  const isOwner = session?.user.role === "OWNER";
 
   return (
     <div>
@@ -28,17 +36,21 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           <p className="mt-1 text-sm text-slate-500">{client.country ?? "No country on file"}</p>
         </div>
         <div className="flex gap-2">
-          <LinkButton href={`/clients/${client.id}/edit`} variant="secondary">
-            Edit
-          </LinkButton>
-          <form action={deleteClientAction.bind(null, client.id)}>
-            <ConfirmSubmitButton
-              confirmMessage={`Delete client "${client.name}"? This also deletes all ${client.specs.length} of its specs.`}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
-            >
-              Delete
-            </ConfirmSubmitButton>
-          </form>
+          {canManage && (
+            <LinkButton href={`/clients/${client.id}/edit`} variant="secondary">
+              Edit
+            </LinkButton>
+          )}
+          {isOwner && (
+            <form action={deleteClientAction.bind(null, client.id)}>
+              <ConfirmSubmitButton
+                confirmMessage={`Delete client "${client.name}"? This also deletes all ${client.specs.length} of its specs.`}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+              >
+                Delete
+              </ConfirmSubmitButton>
+            </form>
+          )}
         </div>
       </div>
 
@@ -60,14 +72,16 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-900">Specifications ({client.specs.length})</h2>
         </div>
-        <Card>
-          <details>
-            <summary className="cursor-pointer text-sm font-medium text-slate-800">+ Add specification</summary>
-            <div className="mt-4">
-              <AddSpecForm clientId={client.id} />
-            </div>
-          </details>
-        </Card>
+        {canManage && (
+          <Card>
+            <details>
+              <summary className="cursor-pointer text-sm font-medium text-slate-800">+ Add specification</summary>
+              <div className="mt-4">
+                <AddSpecForm clientId={client.id} />
+              </div>
+            </details>
+          </Card>
+        )}
         {client.specs.length === 0 && (
           <Card>
             <p className="text-sm text-slate-400">No specs on file.</p>

@@ -57,3 +57,12 @@ export function canSignSpecException(user: { role: Role; isHeadOfProduction: boo
   if (!user) return false;
   return user.role === "OWNER" || user.isHeadOfProduction;
 }
+
+/**
+ * Client records carry commercial terms and specs (including the CFU limit
+ * that hard-gates allocation/load-out) -- Sales owns these relationships, so
+ * access matches canSeePricing rather than being open to every role.
+ */
+export function canManageClients(role: Role | undefined | null) {
+  return !!role && ROLES_WITH_PRICING_ACCESS.includes(role);
+}

@@ -1,14 +1,20 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { canManageClients } from "@/lib/roles";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 export default async function ClientsPage() {
-  const clients = await prisma.client.findMany({
-    include: { specs: true },
-    orderBy: { name: "asc" },
-  });
+  const [session, clients] = await Promise.all([
+    auth(),
+    prisma.client.findMany({
+      include: { specs: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+  const canManage = canManageClients(session?.user.role);
 
   return (
     <div>
@@ -17,7 +23,7 @@ export default async function ClientsPage() {
           <h1 className="text-xl font-semibold text-slate-900">Clients</h1>
           <p className="mt-1 text-sm text-slate-500">{clients.length} client(s) on file.</p>
         </div>
-        <LinkButton href="/clients/new">New Client</LinkButton>
+        {canManage && <LinkButton href="/clients/new">New Client</LinkButton>}
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

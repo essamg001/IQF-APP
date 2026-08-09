@@ -1,12 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { canManageClients } from "@/lib/roles";
+import { notFound, redirect } from "next/navigation";
 import { ClientForm } from "../../client-form";
 import { updateClientAction } from "../../actions";
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = await prisma.client.findUnique({ where: { id }, include: { specs: true } });
+  const [session, client] = await Promise.all([
+    auth(),
+    prisma.client.findUnique({ where: { id }, include: { specs: true } }),
+  ]);
   if (!client) notFound();
+  if (!canManageClients(session?.user.role)) redirect(`/clients/${id}`);
 
   return (
     <div>

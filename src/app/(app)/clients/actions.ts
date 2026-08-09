@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { clientSchema, specSchema } from "@/lib/validation/client";
+import { canManageClients } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -34,6 +35,9 @@ function parseClientForm(formData: FormData) {
 }
 
 export async function createClientAction(_prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canManageClients(session?.user.role)) return "You don't have permission to manage clients.";
+
   const parsed = parseClientForm(formData);
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
@@ -49,6 +53,9 @@ export async function createClientAction(_prevState: string | undefined, formDat
 }
 
 export async function updateClientAction(id: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canManageClients(session?.user.role)) return "You don't have permission to manage clients.";
+
   const parsed = parseClientForm(formData);
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
@@ -76,6 +83,9 @@ export async function deleteClientAction(id: string) {
 }
 
 export async function addClientSpecAction(clientId: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canManageClients(session?.user.role)) return "You don't have permission to manage clients.";
+
   const raw = Object.fromEntries(
     Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v])
   );
