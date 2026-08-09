@@ -15,15 +15,35 @@ export default async function ArrivalInspectionPage() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const todaysChecks = await prisma.qualityCheck.findMany({
-    where: {
-      checkpoint: "RAW_MATERIAL",
-      lotId: null,
-      createdAt: { gte: startOfToday },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+  const [todaysChecks, harvestTickets] = await Promise.all([
+    prisma.qualityCheck.findMany({
+      where: {
+        checkpoint: "RAW_MATERIAL",
+        lotId: null,
+        createdAt: { gte: startOfToday },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    // So the delivery's own Harvest Ticket data (vehicle, farm, variety) can
+    // be cross-checked/auto-filled instead of re-typed by hand with nothing
+    // to catch a typo against the wrong ticket.
+    prisma.harvestTicket.findMany({
+      where: { createdAt: { gte: fourteenDaysAgo } },
+      select: {
+        id: true,
+        serialNumber: true,
+        vehicleNo: true,
+        authorizedGrower: true,
+        plotLines: { select: { varietyName: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+  ]);
 
   const accepted = todaysChecks.filter((c) => c.decision === "ACCEPTED").length;
   const rejected = todaysChecks.filter((c) => c.decision === "REJECTED").length;
@@ -50,6 +70,7 @@ export default async function ArrivalInspectionPage() {
             receiptNoteNo: c.receiptNoteNo,
             appliesToWholeDelivery: c.appliesToWholeDelivery,
           }))}
+          harvestTickets={harvestTickets}
         />
       </div>
 

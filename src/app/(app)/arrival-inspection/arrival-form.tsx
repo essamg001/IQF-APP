@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { createArrivalCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -35,8 +35,21 @@ function Pct({
 }
 
 type TodaysCheck = { receiptNoteNo: string | null; appliesToWholeDelivery: boolean };
+type HarvestTicketOption = {
+  id: string;
+  serialNumber: string;
+  vehicleNo: string | null;
+  authorizedGrower: string | null;
+  plotLines: { varietyName: string | null }[];
+};
 
-export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCheck[] }) {
+export function ArrivalInspectionForm({
+  todaysChecks,
+  harvestTickets,
+}: {
+  todaysChecks: TodaysCheck[];
+  harvestTickets: HarvestTicketOption[];
+}) {
   const [state, formAction, pending] = useActionState(createArrivalCheckAction, undefined);
 
   // Shift/delivery header fields carry over between consecutive samples from
@@ -50,6 +63,25 @@ export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCh
   const [receiptNoteNo, setReceiptNoteNo] = useState("");
   const [varietyName, setVarietyName] = useState("");
   const [palletsReceived, setPalletsReceived] = useState("");
+
+  const matchedTicket = useMemo(() => {
+    const typed = receiptNoteNo.trim().toLowerCase();
+    if (!typed) return undefined;
+    return harvestTickets.find((t) => t.serialNumber.toLowerCase() === typed);
+  }, [harvestTickets, receiptNoteNo]);
+
+  // Auto-fills once per matched ticket (not on every keystroke) and only into
+  // fields still blank, so it doesn't fight the "carries over between
+  // consecutive samples" behavior these same fields already have.
+  const lastAutoFilledTicketId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!matchedTicket || lastAutoFilledTicketId.current === matchedTicket.id) return;
+    lastAutoFilledTicketId.current = matchedTicket.id;
+    const ticketVarieties = [...new Set(matchedTicket.plotLines.map((l) => l.varietyName).filter(Boolean))];
+    setVehicleNo((v) => v || matchedTicket.vehicleNo || v);
+    setFarmCode((v) => v || matchedTicket.authorizedGrower || v);
+    if (ticketVarieties.length === 1) setVarietyName((v) => v || ticketVarieties[0]!);
+  }, [matchedTicket]);
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
@@ -94,7 +126,25 @@ export function ArrivalInspectionForm({ todaysChecks }: { todaysChecks: TodaysCh
             <Input name="transportVehicleNo" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} />
           </FieldGroup>
           <FieldGroup label="Harvest Ticket Serial Number">
-            <Input name="receiptNoteNo" value={receiptNoteNo} onChange={(e) => setReceiptNoteNo(e.target.value)} />
+            <Input
+              name="receiptNoteNo"
+              list="harvest-ticket-suggestions"
+              value={receiptNoteNo}
+              onChange={(e) => setReceiptNoteNo(e.target.value)}
+            />
+            <datalist id="harvest-ticket-suggestions">
+              {harvestTickets.map((t) => (
+                <option key={t.id} value={t.serialNumber} />
+              ))}
+            </datalist>
+            {receiptNoteNo.trim() &&
+              (matchedTicket ? (
+                <p className="mt-1 text-xs font-medium text-emerald-700">
+                  ✓ Vehicle {matchedTicket.vehicleNo ?? "—"} · Farm {matchedTicket.authorizedGrower ?? "—"}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs font-medium text-red-600">No matching harvest ticket found.</p>
+              ))}
           </FieldGroup>
           <FieldGroup label="Variety">
             <Input name="varietyName" value={varietyName} onChange={(e) => setVarietyName(e.target.value)} />
