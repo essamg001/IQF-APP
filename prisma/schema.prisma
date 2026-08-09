@@ -711,8 +711,12 @@ model QualityCheck {
   cleaningGoodCratesOk Boolean? // نظافه وسلامه الصناديق
   diameterUnder22mmPct Float? // قطر اقل من 22مم
   botrytisPct          Float? // عفن ثمار (Botrytis specifically, distinct from mouldPct)
+  earlyBotrytisPct     Float? // بوادر عفن ثمار مبكرة -- early-warning signs, tighter limit than full Botrytis -- limit ≤1%
   pestDiseasePct       Float? // حشرات / امراض
+  insectDamagePct      Float? // ضرر حشري -- limit ≤5%
   wormEatenPct         Float? // اكل دود
+  birdTracesPct        Float? // آثار طيور -- limit ≤5%
+  leavesStalksPct      Float? // اوراق او سيقان -- limit ≤5%
 
   // STR03111 / STR03116 — post-packaging only
   clientName                    String?

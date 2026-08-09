@@ -186,8 +186,12 @@ function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harve
           <Pct name="overmaturePct" label="Over Maturity (limit ≤50%)" {...bind("overmaturePct")} />
           <Pct name="diameterUnder22mmPct" label="Diameter < 22mm (limit ≤10%)" {...bind("diameterUnder22mmPct")} />
           <Pct name="botrytisPct" label="Botrytis (limit ≤10%)" {...bind("botrytisPct")} />
+          <Pct name="earlyBotrytisPct" label="Early Botrytis (limit ≤1%)" {...bind("earlyBotrytisPct")} />
           <Pct name="pestDiseasePct" label="Pest / Diseases (limit ≤10%)" {...bind("pestDiseasePct")} />
+          <Pct name="insectDamagePct" label="Insect Damage (limit ≤5%)" {...bind("insectDamagePct")} />
           <Pct name="wormEatenPct" label="Worm-Eaten (limit ≤10%)" {...bind("wormEatenPct")} />
+          <Pct name="birdTracesPct" label="Bird Traces (limit ≤5%)" {...bind("birdTracesPct")} />
+          <Pct name="leavesStalksPct" label="Leaves/Stalks (limit ≤5%)" {...bind("leavesStalksPct")} />
           <Pct name="bruisesPct" label="Bruises (limit ≤20%)" {...bind("bruisesPct")} />
           <Pct name="shapeDeformitiesPct" label="Mishape (limit ≤50%)" {...bind("shapeDeformitiesPct")} />
           <Pct name="sandDustPct" label="Sand (limit ≤15%)" {...bind("sandDustPct")} />
