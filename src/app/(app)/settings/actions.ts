@@ -39,6 +39,8 @@ const fieldSchema = z.object({
 });
 
 export async function addFactoryAction(formData: FormData) {
+  if (!(await requireOwner())) return;
+
   const parsed = factorySchema.parse({
     name: formData.get("name"),
     capacityTonnesPerHour: formData.get("capacityTonnesPerHour"),
@@ -57,6 +59,8 @@ const factoryAccreditationSchema = z.object({
 // paperwork for one particular shipment (see Container's per-shipment
 // export documents for that).
 export async function updateFactoryAccreditationAction(factoryId: string, formData: FormData) {
+  if (!(await requireOwner())) return;
+
   const parsed = factoryAccreditationSchema.parse({
     capqExportCode: formData.get("capqExportCode") || undefined,
     nfsaAccreditationCode: formData.get("nfsaAccreditationCode") || undefined,
@@ -66,6 +70,8 @@ export async function updateFactoryAccreditationAction(factoryId: string, formDa
 }
 
 export async function addColdRoomAction(formData: FormData) {
+  if (!(await requireOwner())) return;
+
   const parsed = coldRoomSchema.parse({
     name: formData.get("name"),
     rounds: formData.get("rounds"),
@@ -80,6 +86,8 @@ export async function addColdRoomAction(formData: FormData) {
 }
 
 export async function addFieldAction(formData: FormData) {
+  if (!(await requireOwner())) return;
+
   const parsed = fieldSchema.parse({
     name: formData.get("name"),
     mapReference: formData.get("mapReference") || undefined,
@@ -89,6 +97,7 @@ export async function addFieldAction(formData: FormData) {
 }
 
 export async function deleteFieldAction(id: string) {
+  if (!(await requireOwner())) return;
   await prisma.field.delete({ where: { id } });
   revalidatePath("/settings");
 }

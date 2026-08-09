@@ -140,118 +140,124 @@ export default async function SettingsPage() {
         </Card>
       )}
 
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-900">Factories</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          CAPQ/NFSA accreditation is standing export eligibility for the packing house itself — produce from an
-          un-coded facility can&apos;t legally be exported.
-        </p>
-        <ul className="mt-3 divide-y divide-slate-100">
-          {factories.map((f) => (
-            <li key={f.id} className="py-2 text-sm">
-              <div className="flex justify-between">
+      {isOwner && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">Factories</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            CAPQ/NFSA accreditation is standing export eligibility for the packing house itself — produce from an
+            un-coded facility can&apos;t legally be exported.
+          </p>
+          <ul className="mt-3 divide-y divide-slate-100">
+            {factories.map((f) => (
+              <li key={f.id} className="py-2 text-sm">
+                <div className="flex justify-between">
+                  <span>{f.name}</span>
+                  <span className="text-slate-500">{f.capacityTonnesPerHour} t/hr</span>
+                </div>
+                <form
+                  action={updateFactoryAccreditationAction.bind(null, f.id)}
+                  className="mt-2 flex flex-wrap items-end gap-2"
+                >
+                  <FieldGroup label="CAPQ export code">
+                    <Input name="capqExportCode" defaultValue={f.capqExportCode ?? ""} className="w-40 text-xs" />
+                  </FieldGroup>
+                  <FieldGroup label="NFSA accreditation code">
+                    <Input name="nfsaAccreditationCode" defaultValue={f.nfsaAccreditationCode ?? ""} className="w-40 text-xs" />
+                  </FieldGroup>
+                  <Button type="submit" variant="secondary" className="text-xs">
+                    Save
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+          <form action={addFactoryAction} className="mt-4 flex items-end gap-3">
+            <FieldGroup label="Name">
+              <Input name="name" required className="w-56" />
+            </FieldGroup>
+            <FieldGroup label="Capacity (t/hr)">
+              <Input name="capacityTonnesPerHour" type="number" step="0.1" required className="w-32" />
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              Add
+            </Button>
+          </form>
+        </Card>
+      )}
+
+      {isOwner && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">Cold Rooms</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Capacity is derived from the room&apos;s physical layout (rounds × racks × levels), matching the storage
+            map exactly — see the <Link href="/storage/map" className="text-emerald-700 hover:underline">Storage Map</Link> to
+            view or assign individual slots.
+          </p>
+          <ul className="mt-3 divide-y divide-slate-100">
+            {coldRooms.map((c) => (
+              <li key={c.id} className="flex items-center justify-between py-2 text-sm">
+                <span className="flex items-center gap-2">
+                  {c.name}
+                  <Badge color={c.isNew ? "green" : "slate"}>{c.isNew ? "New" : "Old"}</Badge>
+                </span>
+                <span className="text-slate-500">
+                  {c.capacityPallets} pallets ({c.rounds} round{c.rounds === 1 ? "" : "s"} × {c.rackCount} rack
+                  {c.rackCount === 1 ? "" : "s"} × {c.levelCount} level{c.levelCount === 1 ? "" : "s"})
+                </span>
+              </li>
+            ))}
+          </ul>
+          <form action={addColdRoomAction} className="mt-4 flex flex-wrap items-end gap-3">
+            <FieldGroup label="Name">
+              <Input name="name" required placeholder="Cold Store 6" className="w-40" />
+            </FieldGroup>
+            <FieldGroup label="Rounds">
+              <Input name="rounds" type="number" min="1" required defaultValue={2} className="w-20" />
+            </FieldGroup>
+            <FieldGroup label="Racks">
+              <Input name="rackCount" type="number" min="1" required defaultValue={11} className="w-20" />
+            </FieldGroup>
+            <FieldGroup label="Levels">
+              <Input name="levelCount" type="number" min="1" required defaultValue={14} className="w-20" />
+            </FieldGroup>
+            <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" name="isNew" /> New room
+            </label>
+            <Button type="submit" variant="secondary">
+              Add
+            </Button>
+          </form>
+        </Card>
+      )}
+
+      {isOwner && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">Fields</h2>
+          <p className="text-xs text-slate-500">Used to trace pallets back to the source field for farm-to-pallet traceability.</p>
+          <ul className="mt-3 divide-y divide-slate-100">
+            {fields.map((f) => (
+              <li key={f.id} className="flex items-center justify-between py-2 text-sm">
                 <span>{f.name}</span>
-                <span className="text-slate-500">{f.capacityTonnesPerHour} t/hr</span>
-              </div>
-              <form
-                action={updateFactoryAccreditationAction.bind(null, f.id)}
-                className="mt-2 flex flex-wrap items-end gap-2"
-              >
-                <FieldGroup label="CAPQ export code">
-                  <Input name="capqExportCode" defaultValue={f.capqExportCode ?? ""} className="w-40 text-xs" />
-                </FieldGroup>
-                <FieldGroup label="NFSA accreditation code">
-                  <Input name="nfsaAccreditationCode" defaultValue={f.nfsaAccreditationCode ?? ""} className="w-40 text-xs" />
-                </FieldGroup>
-                <Button type="submit" variant="secondary" className="text-xs">
-                  Save
-                </Button>
-              </form>
-            </li>
-          ))}
-        </ul>
-        <form action={addFactoryAction} className="mt-4 flex items-end gap-3">
-          <FieldGroup label="Name">
-            <Input name="name" required className="w-56" />
-          </FieldGroup>
-          <FieldGroup label="Capacity (t/hr)">
-            <Input name="capacityTonnesPerHour" type="number" step="0.1" required className="w-32" />
-          </FieldGroup>
-          <Button type="submit" variant="secondary">
-            Add
-          </Button>
-        </form>
-      </Card>
-
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-900">Cold Rooms</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Capacity is derived from the room&apos;s physical layout (rounds × racks × levels), matching the storage
-          map exactly — see the <Link href="/storage/map" className="text-emerald-700 hover:underline">Storage Map</Link> to
-          view or assign individual slots.
-        </p>
-        <ul className="mt-3 divide-y divide-slate-100">
-          {coldRooms.map((c) => (
-            <li key={c.id} className="flex items-center justify-between py-2 text-sm">
-              <span className="flex items-center gap-2">
-                {c.name}
-                <Badge color={c.isNew ? "green" : "slate"}>{c.isNew ? "New" : "Old"}</Badge>
-              </span>
-              <span className="text-slate-500">
-                {c.capacityPallets} pallets ({c.rounds} round{c.rounds === 1 ? "" : "s"} × {c.rackCount} rack
-                {c.rackCount === 1 ? "" : "s"} × {c.levelCount} level{c.levelCount === 1 ? "" : "s"})
-              </span>
-            </li>
-          ))}
-        </ul>
-        <form action={addColdRoomAction} className="mt-4 flex flex-wrap items-end gap-3">
-          <FieldGroup label="Name">
-            <Input name="name" required placeholder="Cold Store 6" className="w-40" />
-          </FieldGroup>
-          <FieldGroup label="Rounds">
-            <Input name="rounds" type="number" min="1" required defaultValue={2} className="w-20" />
-          </FieldGroup>
-          <FieldGroup label="Racks">
-            <Input name="rackCount" type="number" min="1" required defaultValue={11} className="w-20" />
-          </FieldGroup>
-          <FieldGroup label="Levels">
-            <Input name="levelCount" type="number" min="1" required defaultValue={14} className="w-20" />
-          </FieldGroup>
-          <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" name="isNew" /> New room
-          </label>
-          <Button type="submit" variant="secondary">
-            Add
-          </Button>
-        </form>
-      </Card>
-
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-900">Fields</h2>
-        <p className="text-xs text-slate-500">Used to trace pallets back to the source field for farm-to-pallet traceability.</p>
-        <ul className="mt-3 divide-y divide-slate-100">
-          {fields.map((f) => (
-            <li key={f.id} className="flex items-center justify-between py-2 text-sm">
-              <span>{f.name}</span>
-              <form action={deleteFieldAction.bind(null, f.id)}>
-                <ConfirmSubmitButton confirmMessage={`Remove field "${f.name}"?`}>Remove</ConfirmSubmitButton>
-              </form>
-            </li>
-          ))}
-          {fields.length === 0 && <li className="py-2 text-sm text-slate-400">No fields yet.</li>}
-        </ul>
-        <form action={addFieldAction} className="mt-4 flex items-end gap-3">
-          <FieldGroup label="Field name">
-            <Input name="name" required className="w-56" />
-          </FieldGroup>
-          <FieldGroup label="Map reference (optional)">
-            <Input name="mapReference" className="w-64" />
-          </FieldGroup>
-          <Button type="submit" variant="secondary">
-            Add
-          </Button>
-        </form>
-      </Card>
+                <form action={deleteFieldAction.bind(null, f.id)}>
+                  <ConfirmSubmitButton confirmMessage={`Remove field "${f.name}"?`}>Remove</ConfirmSubmitButton>
+                </form>
+              </li>
+            ))}
+            {fields.length === 0 && <li className="py-2 text-sm text-slate-400">No fields yet.</li>}
+          </ul>
+          <form action={addFieldAction} className="mt-4 flex items-end gap-3">
+            <FieldGroup label="Field name">
+              <Input name="name" required className="w-56" />
+            </FieldGroup>
+            <FieldGroup label="Map reference (optional)">
+              <Input name="mapReference" className="w-64" />
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              Add
+            </Button>
+          </form>
+        </Card>
+      )}
     </div>
   );
 }
