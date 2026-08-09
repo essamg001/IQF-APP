@@ -229,44 +229,12 @@ function PalletFields({
       </div>
 
       <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-        <p className="mb-2 text-xs font-semibold text-slate-600">
-          Fruit Diameter — from post-freeze inspection
-          {matchedCheck && (
-            <span className="ml-1 font-normal text-slate-400">
-              ({matchedCheck.palletId ? "this pallet" : "lot-level check"}, auto-filled — editable)
-            </span>
-          )}
-        </p>
-        <FruitDiameterFields key={matchedCheck?.id ?? "none"} matchedCheck={matchedCheck} />
+        <p className="mb-2 text-xs font-semibold text-slate-600">Fruit Diameter</p>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="fruitDiameterCalibrated" className="h-4 w-4 rounded border-slate-300" />
+          Calibrated (unchecked = Uncalibrated)
+        </label>
       </div>
     </Card>
-  );
-}
-
-// Uncontrolled + keyed to matchedCheck.id: remounts (re-applying the
-// auto-filled defaultValue) only when the matched check itself changes, not
-// on every keystroke -- so a manual edit sticks until a different check matches.
-function FruitDiameterFields({ matchedCheck }: { matchedCheck: PostFreezeCheck | null }) {
-  return (
-    <div className="grid grid-cols-4 gap-3">
-      <FieldGroup label="Uncalibrated">
-        <Input name="fruitDiameterUncalibrated" defaultValue={matchedCheck?.fruitDiameterUncalibrated ?? ""} />
-      </FieldGroup>
-      <FieldGroup label="Calibrated — Small (Class II)">
-        <Input name="fruitDiameterCalibratedSmall" defaultValue={matchedCheck?.fruitDiameterCalibratedSmall ?? ""} />
-      </FieldGroup>
-      <FieldGroup label="Calibrated — Medium">
-        <Input
-          name="fruitDiameterCalibratedMedium"
-          defaultValue={matchedCheck?.fruitDiameterCalibratedMedium ?? ""}
-        />
-      </FieldGroup>
-      <FieldGroup label="Calibrated — Large">
-        <Input
-          name="fruitDiameterCalibratedLarge"
-          defaultValue={matchedCheck?.fruitDiameterCalibratedLarge ?? ""}
-        />
-      </FieldGroup>
-    </div>
   );
 }

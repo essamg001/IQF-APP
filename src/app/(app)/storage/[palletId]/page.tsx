@@ -215,16 +215,16 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
           <Row label="Parcels" value={pallet.fullPallet ? "Full pallet" : "Partial"} />
           <Row label="Beginning of palletization" value={pallet.palletizationStart?.toLocaleString()} />
           <Row label="End of palletization" value={pallet.palletizationEnd?.toLocaleString()} />
-        </dl>
-
-        <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Fruit Diameter — from Post-Freeze Inspection
-        </h3>
-        <dl className="mt-2 grid grid-cols-4 gap-x-6 gap-y-2 text-sm">
-          <Row label="Uncalibrated" value={pallet.fruitDiameterUncalibrated} />
-          <Row label="Calibrated — small" value={pallet.fruitDiameterCalibratedSmall} />
-          <Row label="Calibrated — medium" value={pallet.fruitDiameterCalibratedMedium} />
-          <Row label="Calibrated — large" value={pallet.fruitDiameterCalibratedLarge} />
+          <Row
+            label="Fruit diameter"
+            value={
+              pallet.fruitDiameterCalibrated == null
+                ? undefined
+                : pallet.fruitDiameterCalibrated
+                  ? "Calibrated"
+                  : "Uncalibrated"
+            }
+          />
         </dl>
 
         {pallet.loadLines.length > 0 && (

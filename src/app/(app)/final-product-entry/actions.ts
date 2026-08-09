@@ -24,10 +24,7 @@ const packedPalletSchema = z.object({
   packingSupervisor: z.string().optional(),
   palletizationStart: z.string().optional(),
   palletizationEnd: z.string().optional(),
-  fruitDiameterUncalibrated: z.string().optional(),
-  fruitDiameterCalibratedSmall: z.string().optional(),
-  fruitDiameterCalibratedMedium: z.string().optional(),
-  fruitDiameterCalibratedLarge: z.string().optional(),
+  fruitDiameterCalibrated: z.boolean(),
   packagingCostUsd: z.coerce.number().nonnegative().optional(),
 });
 
@@ -38,6 +35,7 @@ export async function createPackedPalletAction(_prevState: string | undefined, f
   const parsed = packedPalletSchema.safeParse({
     ...raw,
     isMixedVariety: formData.get("isMixedVariety") === "on",
+    fruitDiameterCalibrated: formData.get("fruitDiameterCalibrated") === "on",
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
