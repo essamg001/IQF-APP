@@ -290,6 +290,15 @@ export async function resolveShiftHoldAction(shiftId: string, _prevState: string
     data: { status: "READ" },
   });
 
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "SHIFT_HOLD_RESOLVED",
+    entityType: "ShiftLog",
+    entityId: shiftId,
+    detail: `Resolved by ${parsed.data.resolvedBy} — ${parsed.data.resolutionNote}`,
+  });
+
   revalidatePath("/lab");
   revalidatePath("/alerts");
   revalidatePath("/production");
