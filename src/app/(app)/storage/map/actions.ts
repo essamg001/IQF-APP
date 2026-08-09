@@ -36,7 +36,12 @@ export async function unassignSlotAction(slotId: string) {
   const slot = await prisma.coldRoomSlot.findUniqueOrThrow({ where: { id: slotId } });
   if (!slot.palletId) return;
 
-  await prisma.coldRoomSlot.update({ where: { id: slotId }, data: { palletId: null } });
+  await prisma.$transaction([
+    prisma.coldRoomSlot.update({ where: { id: slotId }, data: { palletId: null } }),
+    // Otherwise the pallet keeps pointing at a cold room it no longer has a
+    // physical position in (e.g. the pallet detail page's "Cold room" row).
+    prisma.pallet.update({ where: { id: slot.palletId }, data: { coldRoomId: null } }),
+  ]);
 
   revalidatePath(`/storage/map/${slot.coldRoomId}`);
   revalidatePath("/storage/map");

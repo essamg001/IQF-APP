@@ -355,7 +355,13 @@ function formatMeasured(row: SpecComplianceRow): string {
   return row.measuredUnit === "°Bx" ? `${row.measuredValue} °Bx` : `${row.measuredValue} ${row.measuredUnit}`;
 }
 
-async function createLoadLine(containerId: string, palletId: string, remaining: number, quantityTonnes: number) {
+async function createLoadLine(
+  containerId: string,
+  palletId: string,
+  remaining: number,
+  quantityTonnes: number,
+  coldRoomId: string | null
+) {
   if (quantityTonnes > remaining + ROUNDING_TOLERANCE_TONNES) {
     return `Only ${remaining.toFixed(2)}t remaining on this pallet.`;
   }
@@ -366,7 +372,15 @@ async function createLoadLine(containerId: string, palletId: string, remaining: 
 
   const stillRemaining = remaining - quantityTonnes;
   if (stillRemaining <= ROUNDING_TOLERANCE_TONNES) {
-    await prisma.pallet.update({ where: { id: palletId }, data: { status: "SHIPPED" } });
+    // Fully loaded -- the pallet has physically left the cold room, so free
+    // its slot (and cold room pointer) in the same write so the physical
+    // position immediately shows as available for a new pallet.
+    await prisma.$transaction([
+      prisma.pallet.update({ where: { id: palletId }, data: { status: "SHIPPED", coldRoomId: null } }),
+      prisma.coldRoomSlot.updateMany({ where: { palletId }, data: { palletId: null } }),
+    ]);
+    revalidatePath("/storage/map");
+    if (coldRoomId) revalidatePath(`/storage/map/${coldRoomId}`);
   }
 
   revalidatePath(`/logistics/${containerId}`);
@@ -472,7 +486,7 @@ export async function addPalletLoadLineAction(
     return "This pallet needs stickering before it can be loaded.";
   }
 
-  return createLoadLine(containerId, pallet.id, remaining, parsed.data.quantityTonnes);
+  return createLoadLine(containerId, pallet.id, remaining, parsed.data.quantityTonnes, pallet.coldRoomId);
 }
 
 const overrideSpecExceptionSchema = z.object({
@@ -558,7 +572,13 @@ export async function overrideSpecExceptionAction(_prevState: string | undefined
     detail: `${parsed.data.name} signed off loading ${pallet.palletNumber} into ${container.containerNumber} despite: ${violations.map((v) => v.label).join(", ")}${parsed.data.note ? ` — ${parsed.data.note}` : ""}`,
   });
 
-  return createLoadLine(parsed.data.containerId, parsed.data.palletId, remaining, parsed.data.quantityTonnes);
+  return createLoadLine(
+    parsed.data.containerId,
+    parsed.data.palletId,
+    remaining,
+    parsed.data.quantityTonnes,
+    pallet.coldRoomId
+  );
 }
 
 export async function completeLoadLineAction(containerId: string, lineId: string) {
