@@ -24,18 +24,10 @@ export const LABOUR_DEPARTMENT_LABEL: Record<LabourDepartment, string> = {
   CLEANING: "Cleaning",
 };
 
-export const LABOUR_ROLES: LabourRoleType[] = ["SUPERVISOR", "FORKLIFT_DRIVER", "DAILY_WORKER"];
-
-export const LABOUR_ROLE_LABEL: Record<LabourRoleType, string> = {
-  SUPERVISOR: "Supervisors",
-  FORKLIFT_DRIVER: "Forklift Drivers",
-  DAILY_WORKER: "Daily Workers",
-};
-
 // Which roles are actually staffed in each department -- e.g. Cleaning never
 // gets a Forklift Driver row, so that combination is never shown as an input
-// or accepted by updateLabourEntryAction. Confirmed against the real factory
-// layout, not guessed per-role defaults.
+// or accepted by updateDepartmentLabourEntryAction. Confirmed against the
+// real factory layout, not guessed per-role defaults.
 export const LABOUR_ROLE_MATRIX: Record<LabourDepartment, LabourRoleType[]> = {
   INTAKE: ["SUPERVISOR", "FORKLIFT_DRIVER", "DAILY_WORKER"],
   INFEED: ["SUPERVISOR", "DAILY_WORKER"],
@@ -47,10 +39,6 @@ export const LABOUR_ROLE_MATRIX: Record<LabourDepartment, LabourRoleType[]> = {
   LOAD_OUT: ["SUPERVISOR", "FORKLIFT_DRIVER", "DAILY_WORKER"],
   CLEANING: ["SUPERVISOR", "DAILY_WORKER"],
 };
-
-export function isValidLabourCombo(department: LabourDepartment, role: LabourRoleType): boolean {
-  return LABOUR_ROLE_MATRIX[department]?.includes(role) ?? false;
-}
 
 // Supervisors are recorded by name (who's actually responsible for this
 // department this shift) -- every other role is recorded by headcount.

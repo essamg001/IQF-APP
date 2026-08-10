@@ -35,7 +35,7 @@ export function LabourSection({
             <span className="text-xs text-slate-400">{totalHeadcount(dayEntries)} on shift</span>
           </div>
           <LabourTable entries={dayEntries} />
-          <LabourEntryForm factoryId={factoryId} date={date} shiftType="DAY" />
+          <LabourEntryForm factoryId={factoryId} date={date} shiftType="DAY" entries={dayEntries} />
         </div>
         <div className="rounded-md border border-slate-200 p-3">
           <div className="mb-2 flex items-center justify-between">
@@ -43,7 +43,7 @@ export function LabourSection({
             <span className="text-xs text-slate-400">{totalHeadcount(nightEntries)} on shift</span>
           </div>
           <LabourTable entries={nightEntries} />
-          <LabourEntryForm factoryId={factoryId} date={date} shiftType="NIGHT" />
+          <LabourEntryForm factoryId={factoryId} date={date} shiftType="NIGHT" entries={nightEntries} />
         </div>
       </div>
     </Card>
