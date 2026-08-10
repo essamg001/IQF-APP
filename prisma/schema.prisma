@@ -178,8 +178,8 @@ model User {
   activityLogs             ActivityLog[]
   loadOutSignedContainers  Container[]          @relation("ContainerLoadOutRep")
   qualitySignedContainers  Container[]          @relation("ContainerQualityRep")
-  loadLineConfirmedContainers Container[]       @relation("ContainerLoadLineConfirmedBy")
   uploadedContainerLoadPhotos ContainerLoadPhoto[] @relation("ContainerLoadPhotoUploadedBy")
+  containerChecklistConfirmations ContainerChecklistConfirmation[]
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -1018,17 +1018,12 @@ model Container {
   manifestReopenedAt     DateTime?
   manifestReopenedReason String?
 
-  // Pre-departure checklist, required before either sign-off above: a
-  // physical visual check that cartons/pallets didn't exceed the
-  // container's marked load line ("red line") -- tracked separately from
-  // the sign-offs themselves since it's a distinct fact someone is
-  // attesting to, not just "loading is done." Cleared on reopen (see
-  // reopenContainerManifestAction) since a corrected manifest changes what
-  // was actually loaded, making the old confirmation stale.
-  loadLineConfirmedAt       DateTime?
-  loadLineConfirmedByName   String?
-  loadLineConfirmedByUserId String?
-  loadLineConfirmedByUser   User?     @relation("ContainerLoadLineConfirmedBy", fields: [loadLineConfirmedByUserId], references: [id])
+  // Pre-departure checklist, required before either sign-off above -- each
+  // row is one manual physical confirmation (see src/lib/logistics.ts for
+  // the current item list: load line, stickering, cold chain, pre-load
+  // inspection). A generic keyed table rather than one field pair per item
+  // so adding another checklist item is a config change, not a migration.
+  checklistConfirmations ContainerChecklistConfirmation[]
 
   // Photo(s) of the loaded container, taken before the doors are shut --
   // required by the checklist, not optional documentation. Not cleared on
@@ -1235,6 +1230,26 @@ model ContainerLoadPhoto {
   uploadedBy       User?     @relation("ContainerLoadPhotoUploadedBy", fields: [uploadedByUserId], references: [id])
   createdAt        DateTime  @default(now())
 
+  @@index([containerId])
+}
+
+// One row per manual pre-departure checklist item a person has physically
+// confirmed for a container (see CONTAINER_CHECKLIST_ITEMS in
+// src/lib/logistics.ts for the current key list) -- a generic keyed table
+// instead of a field pair per item so the checklist can grow without a
+// schema migration each time. confirmedByUserId ties it to who was actually
+// logged in, the same accountability reasoning as the sign-offs above.
+model ContainerChecklistConfirmation {
+  id                String    @id @default(cuid())
+  containerId       String
+  container         Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  itemKey           String
+  confirmedAt       DateTime  @default(now())
+  confirmedByName   String
+  confirmedByUserId String?
+  confirmedByUser   User?     @relation(fields: [confirmedByUserId], references: [id])
+
+  @@unique([containerId, itemKey])
   @@index([containerId])
 }
 

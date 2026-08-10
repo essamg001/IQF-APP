@@ -14,13 +14,19 @@ import { getCompanySettings } from "@/lib/companySettings";
 import { shiftCostPerTonneEgp, computeContainerMargin } from "@/lib/costing";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
-import { CAPACITY_TONNES, isManifestLocked, computeContainerChecklist, isChecklistComplete } from "@/lib/logistics";
+import {
+  CAPACITY_TONNES,
+  isManifestLocked,
+  computeContainerChecklist,
+  isChecklistComplete,
+  CONTAINER_CHECKLIST_ITEMS,
+} from "@/lib/logistics";
 import { AddLoadLineForm } from "./add-load-line-form";
 import { AddCostForm } from "./add-cost-form";
 import { AddTemperatureForm } from "./add-temperature-form";
 import { SignOffForm } from "./sign-off-form";
 import { ReopenManifestForm } from "./reopen-manifest-form";
-import { ConfirmLoadLineForm } from "./confirm-load-line-form";
+import { ChecklistItemConfirmForm } from "./checklist-item-confirm-form";
 import {
   updateContainerLocationAction,
   updateLoadingDetailsAction,
@@ -36,7 +42,7 @@ import {
   signLoadOutRepAction,
   signQualityRepAction,
   reopenContainerManifestAction,
-  confirmLoadLineAction,
+  confirmChecklistItemAction,
   addContainerLoadPhotoAction,
   removeContainerLoadPhotoAction,
 } from "../actions";
@@ -75,6 +81,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
       costs: { orderBy: { incurredAt: "desc" } },
       temperatureLogs: { orderBy: { recordedAt: "desc" } },
       loadPhotos: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } },
+      checklistConfirmations: true,
     },
   });
   if (!container) notFound();
@@ -744,19 +751,29 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
           ))}
         </ul>
 
-        <div className="mt-4 border-t border-slate-100 pt-4">
-          <p className="mb-1 text-xs font-medium text-slate-500">Load Line (Red Line) Confirmation</p>
-          {container.loadLineConfirmedAt ? (
-            <p className="text-sm text-slate-800">
-              Confirmed by {container.loadLineConfirmedByName}
-              <span className="ml-2 text-xs text-slate-500">{container.loadLineConfirmedAt.toLocaleString()}</span>
-            </p>
-          ) : container.palletLines.length === 0 ? (
-            <p className="text-xs text-slate-400">Add at least one pallet to the manifest before confirming this.</p>
-          ) : (
-            <ConfirmLoadLineForm action={confirmLoadLineAction.bind(null, container.id)} />
-          )}
-        </div>
+        {CONTAINER_CHECKLIST_ITEMS.map((item) => {
+          const confirmation = container.checklistConfirmations.find((c) => c.itemKey === item.key);
+          const isDone = checklist.find((c) => c.key === item.key)?.done ?? false;
+          return (
+            <div key={item.key} className="mt-4 border-t border-slate-100 pt-4">
+              <p className="mb-1 text-xs font-medium text-slate-500">{item.label}</p>
+              {isDone && confirmation ? (
+                <p className="text-sm text-slate-800">
+                  Confirmed by {confirmation.confirmedByName}
+                  <span className="ml-2 text-xs text-slate-500">{confirmation.confirmedAt.toLocaleString()}</span>
+                </p>
+              ) : container.palletLines.length === 0 ? (
+                <p className="text-xs text-slate-400">Add at least one pallet to the manifest before confirming this.</p>
+              ) : (
+                <ChecklistItemConfirmForm
+                  action={confirmChecklistItemAction.bind(null, container.id, item.key)}
+                  confirmMessage={item.confirmMessage}
+                  buttonLabel={item.buttonLabel}
+                />
+              )}
+            </div>
+          );
+        })}
 
         <div className="mt-4 border-t border-slate-100 pt-4">
           <p className="mb-1 text-xs font-medium text-slate-500">

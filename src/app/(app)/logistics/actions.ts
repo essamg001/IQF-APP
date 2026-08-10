@@ -23,6 +23,8 @@ import {
   MANIFEST_LOCKED_MESSAGE,
   computeContainerChecklist,
   isChecklistComplete,
+  CONTAINER_CHECKLIST_ITEMS,
+  isValidChecklistItemKey,
 } from "@/lib/logistics";
 import { saveUploadedFile } from "@/lib/files";
 
@@ -669,7 +671,10 @@ export async function markStickeringCompleteAction(containerId: string, palletId
 async function incompleteChecklistMessage(containerId: string): Promise<string | null> {
   const container = await prisma.container.findUniqueOrThrow({
     where: { id: containerId },
-    include: { loadPhotos: { select: { createdAt: true } } },
+    include: {
+      loadPhotos: { select: { createdAt: true } },
+      checklistConfirmations: { select: { itemKey: true, confirmedAt: true } },
+    },
   });
   if (isChecklistComplete(container)) return null;
   const missing = computeContainerChecklist(container)
@@ -772,15 +777,17 @@ export async function reopenContainerManifestAction(containerId: string, _prevSt
       qualityRepName: null,
       qualityRepUserId: null,
       qualitySignedAt: null,
-      // The red-line confirmation was made against whatever was loaded
-      // before this correction -- stale once the manifest can change again.
-      loadLineConfirmedAt: null,
-      loadLineConfirmedByName: null,
-      loadLineConfirmedByUserId: null,
       manifestReopenedAt: new Date(),
       manifestReopenedReason: parsed.data.reason,
     },
   });
+
+  // Confirmations of the *final loaded state* (stickering, cold chain, load
+  // line) were made against whatever was loaded before this correction --
+  // stale once the manifest can change again. The pre-load container
+  // inspection isn't cleared: the empty container itself wasn't touched.
+  const resetKeys = CONTAINER_CHECKLIST_ITEMS.filter((i) => i.resetOnReopen).map((i) => i.key);
+  await prisma.containerChecklistConfirmation.deleteMany({ where: { containerId, itemKey: { in: resetKeys } } });
 
   const session = await auth();
   await logActivity({
@@ -795,31 +802,43 @@ export async function reopenContainerManifestAction(containerId: string, _prevSt
   return "ok";
 }
 
-// A physical visual check, not something the system can verify itself --
-// tied to the logged-in user's identity the same way the sign-offs are, so
-// there's a real accountable record of who actually looked.
-export async function confirmLoadLineAction(containerId: string, _prevState: string | undefined, _formData: FormData) {
+// Each of these is a physical fact a person has to actually go check --
+// nothing the system can verify itself -- tied to the logged-in user's
+// identity the same way the sign-offs are, so there's a real accountable
+// record of who confirmed what. One generic action for every item in
+// CONTAINER_CHECKLIST_ITEMS instead of one bespoke action per item.
+export async function confirmChecklistItemAction(
+  containerId: string,
+  itemKey: string,
+  _prevState: string | undefined,
+  _formData: FormData
+) {
+  if (!isValidChecklistItemKey(itemKey)) return "Unknown checklist item.";
+
   const session = await auth();
   if (!session?.user) return "You must be logged in to confirm this.";
 
   const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
   if (isManifestLocked(container)) return MANIFEST_LOCKED_MESSAGE;
-  if (container.loadLineConfirmedAt) return "ok";
+
+  const existing = await prisma.containerChecklistConfirmation.findUnique({
+    where: { containerId_itemKey: { containerId, itemKey } },
+  });
+  if (existing) return "ok";
 
   const lineCount = await prisma.containerPalletLine.count({ where: { containerId } });
   if (lineCount === 0) return "Add at least one pallet to the manifest before confirming this.";
 
   const name = session.user.name || session.user.email;
-  await prisma.container.update({
-    where: { id: containerId },
-    data: { loadLineConfirmedAt: new Date(), loadLineConfirmedByName: name, loadLineConfirmedByUserId: session.user.id },
+  await prisma.containerChecklistConfirmation.create({
+    data: { containerId, itemKey, confirmedByName: name, confirmedByUserId: session.user.id },
   });
   await logActivity({
     actorId: session.user.id,
-    action: "CONTAINER_LOAD_LINE_CONFIRMED",
+    action: "CONTAINER_CHECKLIST_ITEM_CONFIRMED",
     entityType: "Container",
     entityId: containerId,
-    detail: name,
+    detail: `${itemKey}: ${name}`,
   });
   revalidatePath(`/logistics/${containerId}`);
   return "ok";
