@@ -302,6 +302,7 @@ model Factory {
   dailyPackingLines    DailyPackingLine[]
   dailyDowntimeEvents  DailyDowntimeEvent[]
   dailyLineEfficiency  DailyLineEfficiency[]
+  dailyLabourEntries   DailyLabourEntry[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -1485,6 +1486,55 @@ model DailyLineEfficiency {
   createdAt DateTime @default(now())
 
   @@unique([factoryId, date, shiftType])
+}
+
+// Which physical (or, for Operations Efficiency, coordinating) part of the
+// factory a labour headcount entry belongs to -- see LABOUR_ROLE_MATRIX in
+// src/lib/labour.ts for which LabourRoleType values are valid per department.
+enum LabourDepartment {
+  INTAKE
+  INFEED
+  PROCESSING
+  OPERATIONS_EFFICIENCY
+  QUALITY_CONTROL
+  MAINTENANCE_ENGINEERING
+  PACKAGING
+  LOAD_OUT
+  CLEANING
+}
+
+enum LabourRoleType {
+  SUPERVISOR
+  FORKLIFT_DRIVER
+  DAILY_WORKER
+}
+
+// Headcount distribution across the factory, per shift/day -- one row per
+// department+role combo actually staffed. Only combos listed in
+// LABOUR_ROLE_MATRIX are ever written (e.g. Cleaning never gets a Forklift
+// Driver row), so absence of a row means "not applicable here", not
+// "zero and unrecorded".
+//
+// SUPERVISOR rows are named, not counted -- the point is knowing who was
+// actually responsible for a given department on a given shift, not how
+// many. FORKLIFT_DRIVER/DAILY_WORKER rows are counted, not named. Exactly
+// one of headcount/supervisorName is ever set, matching which of the two a
+// row's role actually calls for.
+model DailyLabourEntry {
+  id             String           @id @default(cuid())
+  factoryId      String
+  factory        Factory          @relation(fields: [factoryId], references: [id])
+  date           DateTime
+  shiftType      ShiftType
+  department     LabourDepartment
+  role           LabourRoleType
+  headcount      Int?
+  supervisorName String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([factoryId, date, shiftType, department, role])
+  @@index([factoryId, date])
 }
 
 // Decap has no dedicated Factory/ShiftLog entity of its own (it exists only

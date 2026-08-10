@@ -10,6 +10,7 @@ import { PackingSection } from "./packing-section";
 import { EfficiencySection } from "./efficiency-section";
 import { TemperatureSection } from "./temperature-section";
 import { DecapEfficiencySection } from "./decap-efficiency-section";
+import { LabourSection } from "./labour-section";
 
 export default async function DailyReportPage({
   searchParams,
@@ -36,6 +37,7 @@ export default async function DailyReportPage({
     temperatureLogs,
     decapLog,
     decapWeightInAgg,
+    labourEntries,
   ] = await Promise.all([
     prisma.factory.findMany({ orderBy: { code: "asc" } }),
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -63,6 +65,9 @@ export default async function DailyReportPage({
     prisma.harvestTicket.aggregate({
       where: { receivedDate: { gte: dayStart, lt: dayEnd } },
       _sum: { netWeightKg: true },
+    }),
+    prisma.dailyLabourEntry.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
     }),
   ]);
 
@@ -109,6 +114,16 @@ export default async function DailyReportPage({
             DAY: efficiencyRows.find((e) => e.factoryId === f.id && e.shiftType === "DAY") ?? null,
             NIGHT: efficiencyRows.find((e) => e.factoryId === f.id && e.shiftType === "NIGHT") ?? null,
           }}
+        />
+      ))}
+
+      {factories.map((f) => (
+        <LabourSection
+          key={f.id}
+          factoryId={f.id}
+          factoryName={`${f.name}${f.code ? ` (${f.code})` : ""}`}
+          date={dateStr}
+          entries={labourEntries.filter((e) => e.factoryId === f.id)}
         />
       ))}
 
