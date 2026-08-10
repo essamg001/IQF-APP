@@ -10,6 +10,8 @@ import { CfuTierBadge } from "@/components/cfu-tier-badge";
 import { CfuTierLegend } from "@/components/cfu-tier-legend";
 import { cfuTierFor } from "@/lib/cfuTier";
 import { rackLetter } from "@/lib/coldStorage";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 
 type SlotPallet = {
   id: string;
@@ -27,10 +29,11 @@ type SlotPallet = {
     internalQualityPct: number | null;
     source: "pallet" | "lot" | "none";
   } | null;
+  isTestData: boolean;
 };
 
 type Slot = { id: string; round: number; rack: string; level: number; pallet: SlotPallet | null };
-type UnassignedPallet = { id: string; palletNumber: string; lotNumber: string; fieldName: string };
+type UnassignedPallet = { id: string; palletNumber: string; lotNumber: string; fieldName: string; isTestData: boolean };
 
 // Fallback coloring for pallets with no cfu/g reading yet -- once a reading
 // exists, the cfu tier ramp (see src/lib/cfuTier.ts) takes over instead, per
@@ -190,7 +193,7 @@ function RowFragment({
         const title = occupied
           ? `${slot.pallet!.palletNumber} — Lot ${slot.pallet!.lotNumber}${
               cfuValue != null ? ` — ${cfuValue.toLocaleString()} cfu/g` : ""
-            }`
+            }${slot.pallet!.isTestData ? " — TEST DATA" : ""}`
           : isSuggested
             ? `${rack}${level} — empty (suggested next slot)`
             : `${rack}${level} — empty`;
@@ -235,9 +238,22 @@ function SlotDetail({
 
       {slot.pallet ? (
         <>
+          {slot.pallet.isTestData && (
+            <div className="flex items-center gap-1.5">
+              <TestDataBadge />
+            </div>
+          )}
           <dl className="space-y-1 text-sm">
-            <Row label="Pallet #" value={slot.pallet.palletNumber} />
-            <Row label="Lot" value={slot.pallet.lotNumber} />
+            <Row
+              label="Pallet #"
+              value={slot.pallet.palletNumber}
+              className={slot.pallet.isTestData ? TEST_DATA_TEXT_CLASS : undefined}
+            />
+            <Row
+              label="Lot"
+              value={slot.pallet.lotNumber}
+              className={slot.pallet.isTestData ? TEST_DATA_TEXT_CLASS : undefined}
+            />
             <Row label="Field" value={slot.pallet.fieldName} />
             <Row label="Client" value={slot.pallet.clientName ?? "—"} />
             <Row label="Grade" value={slot.pallet.quality ? `Grade ${slot.pallet.quality.grade}` : "—"} />
@@ -290,7 +306,7 @@ function SlotDetail({
               </option>
               {unassignedPallets.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.palletNumber} — Lot {p.lotNumber} ({p.fieldName})
+                  {p.palletNumber} — Lot {p.lotNumber} ({p.fieldName}){p.isTestData ? " — TEST DATA" : ""}
                 </option>
               ))}
             </Select>
@@ -308,11 +324,11 @@ function SlotDetail({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right text-slate-800">{value}</dd>
+      <dd className={cn("text-right text-slate-800", className)}>{value}</dd>
     </div>
   );
 }

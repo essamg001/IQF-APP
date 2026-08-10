@@ -9,6 +9,8 @@ import { combinedMicroStatus } from "@/lib/microbiology";
 import { combinedCfuValue } from "@/lib/cfuTier";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
 import { CfuTierLegend } from "@/components/cfu-tier-legend";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 
 const MICRO_COLOR = {
   PENDING: "amber",
@@ -61,11 +63,20 @@ export default async function ProductionPage() {
             {lots.map((lot) => (
               <tr key={lot.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <Link href={`/production/${lot.id}`} className="font-medium text-emerald-700 hover:underline">
+                  <Link
+                    href={`/production/${lot.id}`}
+                    className={cn("font-medium text-emerald-700 hover:underline", lot.isTestData && TEST_DATA_TEXT_CLASS)}
+                  >
                     {lot.lotNumber}
                   </Link>
                   {lot.isEndOfDayGradeB && (
                     <span className="ml-2 text-xs text-slate-400">(end-of-day)</span>
+                  )}
+                  {lot.isTestData && (
+                    <>
+                      {" "}
+                      <TestDataBadge />
+                    </>
                   )}
                 </td>
                 <td className="px-4 py-2">{format(lot.shift.date, "dd MMM yyyy")}</td>

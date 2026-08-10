@@ -12,6 +12,8 @@ import { allocatePalletsAction, updateOrderQuantityAction, updateOrderValueActio
 import { AdvanceStageButton } from "./advance-stage-button";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { FORMAT_LABEL } from "@/lib/format";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 
 const STAGE_ORDER = ["CONFIRMED", "IN_PRODUCTION", "PACKED", "SHIPPED", "DELIVERED", "PAID"] as const;
 const STAGE_LABEL: Record<(typeof STAGE_ORDER)[number], string> = {
@@ -202,11 +204,20 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               return (
                 <tr key={p.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-4 py-2">
-                    <a href={`/storage/${p.id}`} className="text-emerald-700 hover:underline">
+                    <a
+                      href={`/storage/${p.id}`}
+                      className={cn("text-emerald-700 hover:underline", p.isTestData && TEST_DATA_TEXT_CLASS)}
+                    >
                       {p.palletNumber}
                     </a>
+                    {(p.isTestData || p.lot.isTestData) && (
+                      <>
+                        {" "}
+                        <TestDataBadge />
+                      </>
+                    )}
                   </td>
-                  <td className="px-4 py-2">{p.lot.lotNumber}</td>
+                  <td className={cn("px-4 py-2", p.lot.isTestData && TEST_DATA_TEXT_CLASS)}>{p.lot.lotNumber}</td>
                   <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>
                   <td className="px-4 py-2">
                     {loaded.toFixed(2)}t / {p.weightTonnes}t

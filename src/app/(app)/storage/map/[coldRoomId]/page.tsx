@@ -53,6 +53,7 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
           fieldName: s.pallet.lot.field.name,
           clientName: s.pallet.client?.name ?? null,
           quality: qualityByPalletId.get(s.pallet.id) ?? null,
+          isTestData: s.pallet.isTestData || s.pallet.lot.isTestData,
         }
       : null,
   }));
@@ -79,6 +80,7 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
           palletNumber: p.palletNumber,
           lotNumber: p.lot.lotNumber,
           fieldName: p.lot.field.name,
+          isTestData: p.isTestData || p.lot.isTestData,
         }))}
       />
     </div>

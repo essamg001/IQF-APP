@@ -10,6 +10,8 @@ import { DEFECT_FIELDS } from "@/lib/validation/client";
 import { canManageClients } from "@/lib/roles";
 import { AddSpecForm } from "./add-spec-form";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 
 const FORMAT_LABEL = { WHOLE: "Whole", SLICED: "Sliced", DICED: "Diced" } as const;
 
@@ -95,8 +97,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <Card key={s.id}>
               <div className="flex items-center gap-2">
                 <Badge color={s.grade === "A" ? "green" : "amber"}>Grade {s.grade}</Badge>
-                <span className="text-sm font-medium text-slate-800">{s.specName}</span>
+                <span className={cn("text-sm font-medium text-slate-800", s.isTestData && TEST_DATA_TEXT_CLASS)}>
+                  {s.specName}
+                </span>
                 <Badge color="slate">{FORMAT_LABEL[s.format]}</Badge>
+                {s.isTestData && <TestDataBadge />}
               </div>
               <dl className="mt-3 grid grid-cols-4 gap-x-6 gap-y-2 text-sm">
                 <Row label="Brix" value={s.brix} />

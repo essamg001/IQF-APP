@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 import { markWasteAction } from "../../production/actions";
 import { combinedMicroStatus } from "@/lib/microbiology";
 import { combinedCfuValue } from "@/lib/cfuTier";
@@ -99,15 +101,29 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold text-slate-900">Pallet {pallet.palletNumber}</h1>
+        <h1 className={cn("text-xl font-semibold text-slate-900", pallet.isTestData && TEST_DATA_TEXT_CLASS)}>
+          Pallet {pallet.palletNumber}
+        </h1>
         <Badge color={STATUS_COLOR[pallet.status]}>{pallet.status.replace("_", " ")}</Badge>
+        {pallet.isTestData && <TestDataBadge />}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">Traceability</h2>
           <dl className="mt-3 space-y-2 text-sm">
-            <Row label="Lot number" value={pallet.lot.lotNumber} />
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">Lot number</dt>
+              <dd className={cn("text-right text-slate-800", pallet.lot.isTestData && TEST_DATA_TEXT_CLASS)}>
+                {pallet.lot.lotNumber}
+                {pallet.lot.isTestData && (
+                  <>
+                    {" "}
+                    <TestDataBadge />
+                  </>
+                )}
+              </dd>
+            </div>
             <Row label="Factory" value={pallet.lot.factory.name} />
             <Row label="Field" value={pallet.lot.field.name} />
             <Row label="Grade" value={`Grade ${pallet.lot.grade}`} />

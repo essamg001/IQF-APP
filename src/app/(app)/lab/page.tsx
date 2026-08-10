@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { markSentToLabAction } from "./actions";
 import { ResultForm } from "./result-form";
 import { ResolveHoldForm } from "./resolve-hold-form";
+import { TestDataBadge } from "@/components/test-data-badge";
 
 const LAB_LABEL = { IN_HOUSE: "In-House", EXTERNAL: "External" } as const;
 
@@ -79,6 +80,12 @@ export default async function LabPage() {
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
                 {r.lot.lotNumber} — {r.lot.field.name} — Grade {r.lot.grade}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>
+                {(r.isTestData || r.lot.isTestData) && (
+                  <>
+                    {" "}
+                    <TestDataBadge />
+                  </>
+                )}
               </summary>
               <form action={markSentToLabAction.bind(null, r.id)} className="mt-3 flex flex-wrap items-end gap-3">
                 <FieldGroup label="Lab Name">
@@ -114,6 +121,12 @@ export default async function LabPage() {
                     {r.labName ? ` to ${r.labName}` : ""}
                     {r.sentBy ? ` by ${r.sentBy.name}` : ""}
                   </span>
+                )}
+                {(r.isTestData || r.lot.isTestData) && (
+                  <>
+                    {" "}
+                    <TestDataBadge />
+                  </>
                 )}
               </summary>
               <ResultForm resultId={r.id} labType={r.labType} result={r} />
@@ -152,6 +165,12 @@ export default async function LabPage() {
                     {r.rejectionReason}
                     {r.rejectedQuantityTonnes ? ` — ${r.rejectedQuantityTonnes}t` : ""}
                   </span>
+                )}
+                {(r.isTestData || r.lot.isTestData) && (
+                  <>
+                    {" "}
+                    <TestDataBadge />
+                  </>
                 )}
               </summary>
               <ResultForm resultId={r.id} labType={r.labType} result={r} />

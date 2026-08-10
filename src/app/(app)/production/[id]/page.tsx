@@ -9,6 +9,8 @@ import { FORMAT_LABEL } from "@/lib/format";
 import { canSeeCosting } from "@/lib/roles";
 import { getCompanySettings } from "@/lib/companySettings";
 import { shiftHoursWorked, shiftCostPerTonneEgp, egpToUsd } from "@/lib/costing";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 
 const PALLET_STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -77,9 +79,12 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold text-slate-900">Lot {lot.lotNumber}</h1>
+          <h1 className={cn("text-xl font-semibold text-slate-900", lot.isTestData && TEST_DATA_TEXT_CLASS)}>
+            Lot {lot.lotNumber}
+          </h1>
           <Badge color={lot.grade === "A" ? "green" : "amber"}>Grade {lot.grade}</Badge>
           <Badge color="slate">{FORMAT_LABEL[lot.format]}</Badge>
+          {lot.isTestData && <TestDataBadge />}
         </div>
         <p className="mt-1 text-sm text-slate-500">
           {lot.factory.name} · {format(lot.shift.date, "dd MMM yyyy")} shift · Field: {lot.field.name}
@@ -235,9 +240,18 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             {lot.pallets.map((p) => (
               <tr key={p.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <a href={`/storage/${p.id}`} className="text-emerald-700 hover:underline">
+                  <a
+                    href={`/storage/${p.id}`}
+                    className={cn("text-emerald-700 hover:underline", p.isTestData && TEST_DATA_TEXT_CLASS)}
+                  >
                     {p.palletNumber}
                   </a>
+                  {p.isTestData && (
+                    <>
+                      {" "}
+                      <TestDataBadge />
+                    </>
+                  )}
                 </td>
                 <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>
                 <td className="px-4 py-2">{p.weightTonnes}t</td>
@@ -296,6 +310,7 @@ type MicroResult = {
   recommendation: string | null;
   reviewedBy: string | null;
   approvedBy: string | null;
+  isTestData: boolean;
   testLines: {
     testName: string | null;
     result: string | null;
@@ -310,7 +325,10 @@ function MicroResultSummary({ label, result }: { label: string; result: MicroRes
   return (
     <div className="rounded-md border border-slate-200 p-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-800">{label}</p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+          {label}
+          {result?.isTestData && <TestDataBadge />}
+        </p>
         <Badge
           color={
             status === "APPROVED"

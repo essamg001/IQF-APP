@@ -6,6 +6,8 @@ import Link from "next/link";
 import { getPalletQualitySnapshots } from "@/lib/palletQuality";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
 import { CfuTierLegend } from "@/components/cfu-tier-legend";
+import { TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 
 const STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -98,11 +100,14 @@ export default async function StoragePage({
             {pallets.map((p) => (
               <tr key={p.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <Link href={`/storage/${p.id}`} className="font-medium text-emerald-700 hover:underline">
+                  <Link
+                    href={`/storage/${p.id}`}
+                    className={cn("font-medium text-emerald-700 hover:underline", p.isTestData && TEST_DATA_TEXT_CLASS)}
+                  >
                     {p.palletNumber}
                   </Link>
                 </td>
-                <td className="px-4 py-2">{p.lot.lotNumber}</td>
+                <td className={cn("px-4 py-2", p.lot.isTestData && TEST_DATA_TEXT_CLASS)}>{p.lot.lotNumber}</td>
                 <td className="px-4 py-2">{p.lot.field.name}</td>
                 <td className="px-4 py-2">{p.lot.factory.name}</td>
                 <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { format } from "date-fns";
 import { FORMAT_LABEL } from "@/lib/format";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 
 const PALLET_STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -69,7 +71,9 @@ export default async function TraceabilityPage({
   }
 
   const affectedLots = [...directLots, ...possibleLots];
-  const allPallets = affectedLots.flatMap((lot) => lot.pallets.map((p) => ({ ...p, lotNumber: lot.lotNumber })));
+  const allPallets = affectedLots.flatMap((lot) =>
+    lot.pallets.map((p) => ({ ...p, lotNumber: lot.lotNumber, lotIsTestData: lot.isTestData }))
+  );
   const affectedClients = [...new Map(allPallets.filter((p) => p.client).map((p) => [p.client!.id, p.client!.name])).values()];
   const inStoragePallets = allPallets.filter((p) => p.status === "IN_STORAGE" || p.status === "ALLOCATED");
 
@@ -180,7 +184,9 @@ export default async function TraceabilityPage({
                 <tbody>
                   {directLots.map((lot) => (
                     <tr key={lot.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pr-4">{lot.lotNumber}</td>
+                      <td className={cn("py-2 pr-4", lot.isTestData && TEST_DATA_TEXT_CLASS)}>
+                        {lot.lotNumber} {lot.isTestData && <TestDataBadge />}
+                      </td>
                       <td className="py-2 pr-4">{lot.factory.name}</td>
                       <td className="py-2 pr-4">{format(lot.shift.date, "dd MMM yyyy")}</td>
                       <td className="py-2 pr-4">
@@ -197,7 +203,9 @@ export default async function TraceabilityPage({
                   ))}
                   {possibleLots.map((lot) => (
                     <tr key={lot.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pr-4">{lot.lotNumber}</td>
+                      <td className={cn("py-2 pr-4", lot.isTestData && TEST_DATA_TEXT_CLASS)}>
+                        {lot.lotNumber} {lot.isTestData && <TestDataBadge />}
+                      </td>
                       <td className="py-2 pr-4">{lot.factory.name}</td>
                       <td className="py-2 pr-4">{format(lot.shift.date, "dd MMM yyyy")}</td>
                       <td className="py-2 pr-4">
@@ -237,16 +245,21 @@ export default async function TraceabilityPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {allPallets.map((p) => (
-                    <tr key={p.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pr-4">{p.palletNumber}</td>
-                      <td className="py-2 pr-4">{p.lotNumber}</td>
-                      <td className="py-2 pr-4">
-                        <Badge color={PALLET_STATUS_COLOR[p.status]}>{p.status.replace("_", " ")}</Badge>
-                      </td>
-                      <td className="py-2 pr-4">{p.client?.name ?? "—"}</td>
-                    </tr>
-                  ))}
+                  {allPallets.map((p) => {
+                    const isTest = p.isTestData || p.lotIsTestData;
+                    return (
+                      <tr key={p.id} className="border-b border-slate-100 last:border-0">
+                        <td className={cn("py-2 pr-4", isTest && TEST_DATA_TEXT_CLASS)}>{p.palletNumber}</td>
+                        <td className={cn("py-2 pr-4", isTest && TEST_DATA_TEXT_CLASS)}>
+                          {p.lotNumber} {isTest && <TestDataBadge />}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <Badge color={PALLET_STATUS_COLOR[p.status]}>{p.status.replace("_", " ")}</Badge>
+                        </td>
+                        <td className="py-2 pr-4">{p.client?.name ?? "—"}</td>
+                      </tr>
+                    );
+                  })}
                   {allPallets.length === 0 && (
                     <tr>
                       <td colSpan={4} className="py-4 text-center text-slate-400">

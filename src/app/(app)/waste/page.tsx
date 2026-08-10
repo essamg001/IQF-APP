@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
 import Link from "next/link";
 import { canSeeCosting } from "@/lib/roles";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 
 export default async function WastePage() {
   const session = await auth();
@@ -65,10 +67,22 @@ export default async function WastePage() {
                 <td className="px-4 py-2">
                   {w.pallet ? (
                     <>
-                      <Link href={`/storage/${w.palletId}`} className="text-emerald-700 hover:underline">
+                      <Link
+                        href={`/storage/${w.palletId}`}
+                        className={cn("text-emerald-700 hover:underline", w.pallet.isTestData && TEST_DATA_TEXT_CLASS)}
+                      >
                         {w.pallet.palletNumber}
                       </Link>
-                      <span className="text-slate-500"> · Lot {w.pallet.lot.lotNumber}</span>
+                      <span className={cn("text-slate-500", w.pallet.lot.isTestData && TEST_DATA_TEXT_CLASS)}>
+                        {" "}
+                        · Lot {w.pallet.lot.lotNumber}
+                      </span>
+                      {(w.pallet.isTestData || w.pallet.lot.isTestData) && (
+                        <>
+                          {" "}
+                          <TestDataBadge />
+                        </>
+                      )}
                     </>
                   ) : w.shift ? (
                     <Link href={`/shifts/${w.shiftId}`} className="text-emerald-700 hover:underline">

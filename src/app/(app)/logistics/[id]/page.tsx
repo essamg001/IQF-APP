@@ -12,6 +12,8 @@ import { FORMAT_LABEL } from "@/lib/format";
 import { canSeeContainerValue, canSeeCosting, canSignSpecException } from "@/lib/roles";
 import { getCompanySettings } from "@/lib/companySettings";
 import { shiftCostPerTonneEgp, computeContainerMargin } from "@/lib/costing";
+import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 import { AddLoadLineForm } from "./add-load-line-form";
 import { AddCostForm } from "./add-cost-form";
 import { AddTemperatureForm } from "./add-temperature-form";
@@ -573,10 +575,14 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
           {pendingPallets.map((p) => (
             <div key={p.id} className="flex items-center justify-between py-2 text-sm">
               <div className="flex items-center gap-3">
-                <a href={`/storage/${p.id}`} className="font-medium text-emerald-700 hover:underline">
+                <a
+                  href={`/storage/${p.id}`}
+                  className={cn("font-medium text-emerald-700 hover:underline", p.isTestData && TEST_DATA_TEXT_CLASS)}
+                >
                   {p.palletNumber}
                 </a>
                 <span className="text-slate-500">{p.remaining.toFixed(2)}t remaining · Lot {p.lot.lotNumber}</span>
+                {(p.isTestData || p.lot.isTestData) && <TestDataBadge />}
               </div>
               <div>
                 {!p.stickeringRequired ? (
@@ -647,9 +653,21 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
               return (
                 <tr key={line.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2">
-                    <a href={`/storage/${line.pallet.id}`} className="text-emerald-700 hover:underline">
+                    <a
+                      href={`/storage/${line.pallet.id}`}
+                      className={cn(
+                        "text-emerald-700 hover:underline",
+                        (line.pallet.isTestData || line.pallet.lot.isTestData) && TEST_DATA_TEXT_CLASS
+                      )}
+                    >
                       {line.pallet.palletNumber}
                     </a>
+                    {(line.pallet.isTestData || line.pallet.lot.isTestData) && (
+                      <>
+                        {" "}
+                        <TestDataBadge />
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-2">{line.pallet.cartonLogo ?? "—"}</td>
                   <td className="px-4 py-2">{line.pallet.variety ?? "—"}</td>

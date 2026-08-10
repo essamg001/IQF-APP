@@ -270,6 +270,11 @@ model ClientSpec {
 
   notes String?
 
+  // See ProductionLot.isTestData -- marks a spec created purely to exercise
+  // a feature during development (e.g. "CFU Test Spec"), not a real client
+  // requirement.
+  isTestData Boolean @default(false)
+
   @@index([clientId])
 }
 
@@ -529,6 +534,11 @@ model ProductionLot {
   isEndOfDayGradeB Boolean  @default(false)
   createdAt        DateTime @default(now())
 
+  // Marks a lot created purely to exercise a feature during development
+  // (e.g. lotNumber "TEST1126210-1") -- surfaced as a visible warning
+  // wherever the lot is shown so it's never mistaken for real production.
+  isTestData Boolean @default(false)
+
   pallets             Pallet[]
   qualityChecks       QualityCheck[]
   microbiologyResults MicrobiologyResult[]
@@ -594,6 +604,11 @@ model Pallet {
   // client sticker applied at the load-out bay before they can go in the container.
   stickeringRequired    Boolean   @default(false)
   stickeringCompletedAt DateTime?
+
+  // See ProductionLot.isTestData -- same purpose, tracked per-pallet too
+  // since a pallet created for testing can be re-palletized under a later,
+  // genuinely real lot.
+  isTestData Boolean @default(false)
 
   waste          Waste[]
   qualityChecks  QualityCheck[]
@@ -839,6 +854,10 @@ model MicrobiologyResult {
   rejectedQuantityTonnes Float? // volume that did not make spec
   rejectionReason        String? // why it failed
   correctiveAction       String? // what was done about it
+
+  // See ProductionLot.isTestData -- marks a result fabricated purely to
+  // exercise a feature during development, not a genuine lab certificate.
+  isTestData Boolean @default(false)
 
   createdAt DateTime @default(now())
 
