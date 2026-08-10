@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
-import { LabourMatrixForm } from "./labour-matrix-form";
+import { LabourTable } from "./labour-table";
+import { LabourEntryForm } from "./labour-entry-form";
 
 type Entry = { shiftType: string; department: string; role: string; headcount: number | null; supervisorName: string | null };
 
@@ -33,14 +34,16 @@ export function LabourSection({
             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Shift 1 (Day)</h4>
             <span className="text-xs text-slate-400">{totalHeadcount(dayEntries)} on shift</span>
           </div>
-          <LabourMatrixForm factoryId={factoryId} date={date} shiftType="DAY" entries={dayEntries} />
+          <LabourTable entries={dayEntries} />
+          <LabourEntryForm factoryId={factoryId} date={date} shiftType="DAY" />
         </div>
         <div className="rounded-md border border-slate-200 p-3">
           <div className="mb-2 flex items-center justify-between">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Shift 2 (Night)</h4>
             <span className="text-xs text-slate-400">{totalHeadcount(nightEntries)} on shift</span>
           </div>
-          <LabourMatrixForm factoryId={factoryId} date={date} shiftType="NIGHT" entries={nightEntries} />
+          <LabourTable entries={nightEntries} />
+          <LabourEntryForm factoryId={factoryId} date={date} shiftType="NIGHT" />
         </div>
       </div>
     </Card>

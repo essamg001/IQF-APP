@@ -57,8 +57,3 @@ export function isValidLabourCombo(department: LabourDepartment, role: LabourRol
 export function isNameBasedRole(role: LabourRoleType): boolean {
   return role === "SUPERVISOR";
 }
-
-/** Form field name for one department+role cell -- shared between the matrix form and the action that parses it. */
-export function labourFieldName(department: LabourDepartment, role: LabourRoleType): string {
-  return `headcount__${department}__${role}`;
-}

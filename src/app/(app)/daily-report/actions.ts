@@ -1,11 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { parseDateSafe, parseLocalDateOnly } from "@/lib/dates";
 import { getTemperatureLocations } from "@/lib/dailyReportLocations";
-import { LABOUR_DEPARTMENTS, LABOUR_ROLE_MATRIX, isNameBasedRole, labourFieldName } from "@/lib/labour";
+import { isNameBasedRole, isValidLabourCombo, LABOUR_DEPARTMENT_LABEL, LABOUR_ROLE_LABEL } from "@/lib/labour";
 import { z } from "zod";
 
 function combineDateAndTime(dateStr: string, timeStr: string): Date | null {
@@ -244,67 +243,69 @@ export async function updateDecapEfficiencyAction(_prevState: string | undefined
   return "ok";
 }
 
-const labourEntrySchema = z.object({
-  factoryId: z.string().min(1),
-  date: z.string().min(1),
-  shiftType: z.enum(["DAY", "NIGHT"]),
+const singleLabourEntrySchema = z.object({
+  department: z.enum([
+    "INTAKE",
+    "INFEED",
+    "PROCESSING",
+    "OPERATIONS_EFFICIENCY",
+    "QUALITY_CONTROL",
+    "MAINTENANCE_ENGINEERING",
+    "PACKAGING",
+    "LOAD_OUT",
+    "CLEANING",
+  ]),
+  role: z.enum(["SUPERVISOR", "FORKLIFT_DRIVER", "DAILY_WORKER"]),
+  value: z.string().optional(),
 });
 
-// One save submits the whole department x role matrix for a single
-// factory/date/shift in one go -- a blank cell deletes any existing row for
-// that combo (the form reflects the current ground truth, not additions
-// only), matching how the rest of this batch-entry pattern already works.
-export async function updateLabourEntryAction(_prevState: string | undefined, formData: FormData) {
-  const parsed = labourEntrySchema.safeParse({
-    factoryId: formData.get("factoryId"),
-    date: formData.get("date"),
-    shiftType: formData.get("shiftType"),
+// One save updates a single department+role cell for a factory/date/shift --
+// a blank value deletes any existing row for that combo, so the table above
+// always reflects current ground truth rather than accumulating stale zeros.
+export async function updateSingleLabourEntryAction(
+  factoryId: string,
+  date: string,
+  shiftType: "DAY" | "NIGHT",
+  _prevState: string | undefined,
+  formData: FormData
+) {
+  const parsed = singleLabourEntrySchema.safeParse({
+    department: formData.get("department"),
+    role: formData.get("role"),
+    value: formData.get("value") || undefined,
   });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
-  const { factoryId, date, shiftType } = parsed.data;
+  const { department, role } = parsed.data;
+  if (!isValidLabourCombo(department, role)) {
+    return `${LABOUR_ROLE_LABEL[role]} doesn't apply to ${LABOUR_DEPARTMENT_LABEL[department]}.`;
+  }
+
   const parsedDate = parseLocalDateOnly(date);
   if (!parsedDate) return "That date couldn't be read.";
 
-  const ops: Prisma.PrismaPromise<unknown>[] = [];
-  for (const department of LABOUR_DEPARTMENTS) {
-    for (const role of LABOUR_ROLE_MATRIX[department]) {
-      const raw = formData.get(labourFieldName(department, role));
-      const value = typeof raw === "string" ? raw.trim() : "";
-      const uniqueWhere = {
-        factoryId_date_shiftType_department_role: { factoryId, date: parsedDate, shiftType, department, role },
-      };
+  const value = parsed.data.value?.trim() ?? "";
+  const uniqueWhere = {
+    factoryId_date_shiftType_department_role: { factoryId, date: parsedDate, shiftType, department, role },
+  };
 
-      if (!value) {
-        ops.push(
-          prisma.dailyLabourEntry.deleteMany({ where: { factoryId, date: parsedDate, shiftType, department, role } })
-        );
-        continue;
-      }
-
-      if (isNameBasedRole(role)) {
-        ops.push(
-          prisma.dailyLabourEntry.upsert({
-            where: uniqueWhere,
-            create: { factoryId, date: parsedDate, shiftType, department, role, supervisorName: value },
-            update: { supervisorName: value, headcount: null },
-          })
-        );
-      } else {
-        const headcount = Number(value);
-        if (!Number.isFinite(headcount) || headcount < 0) continue;
-        ops.push(
-          prisma.dailyLabourEntry.upsert({
-            where: uniqueWhere,
-            create: { factoryId, date: parsedDate, shiftType, department, role, headcount },
-            update: { headcount, supervisorName: null },
-          })
-        );
-      }
-    }
+  if (!value) {
+    await prisma.dailyLabourEntry.deleteMany({ where: { factoryId, date: parsedDate, shiftType, department, role } });
+  } else if (isNameBasedRole(role)) {
+    await prisma.dailyLabourEntry.upsert({
+      where: uniqueWhere,
+      create: { factoryId, date: parsedDate, shiftType, department, role, supervisorName: value },
+      update: { supervisorName: value, headcount: null },
+    });
+  } else {
+    const headcount = Number(value);
+    if (!Number.isFinite(headcount) || headcount < 0) return "Headcount must be a non-negative number.";
+    await prisma.dailyLabourEntry.upsert({
+      where: uniqueWhere,
+      create: { factoryId, date: parsedDate, shiftType, department, role, headcount },
+      update: { headcount, supervisorName: null },
+    });
   }
-
-  await prisma.$transaction(ops);
 
   revalidatePath("/daily-report");
   return "ok";
