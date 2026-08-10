@@ -44,7 +44,7 @@ export const DAILY_CHECKLIST_SECTIONS: DailyChecklistSection[] = [
       { key: "PRECOOLING_8", text: "Door rules: never open the outer door while the inner is open, and vice versa" },
       { key: "PRECOOLING_9", text: "Workers in the movement of ore and nutrition are committed to walking regularly at all times" },
       { key: "PRECOOLING_10", text: "Regular raw feed (no accumulation and no gaps)" },
-      { key: "PRECOOLING_11", text: "Collect all broken and violating dishes" },
+      { key: "PRECOOLING_11", text: "Remove and record all broken crates" },
     ],
   },
   {
@@ -61,7 +61,7 @@ export const DAILY_CHECKLIST_SECTIONS: DailyChecklistSection[] = [
       { key: "PRODUCTION_7", text: "Supervisors and employees adhere to health and safety instructions" },
       { key: "PRODUCTION_8", text: "Operating room temperature 14°C" },
       { key: "PRODUCTION_9", text: "Matching the temperature of the chiller water to the instructions" },
-      { key: "PRODUCTION_10", text: "Adhere to the colors of the dishes for both sorting and executing" },
+      { key: "PRODUCTION_10", text: "Adhere to the colors of the crates for both sorting and executing" },
       { key: "PRODUCTION_11", text: "PCB Calibration" },
       { key: "PRODUCTION_12", text: "Supplier PCB Conformity to the Specification from Data Sheet" },
       { key: "PRODUCTION_13", text: "Hourly measurement" },
