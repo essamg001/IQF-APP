@@ -16,7 +16,15 @@ import {
 } from "@/lib/specCompliance";
 import { logActivity } from "@/lib/activityLog";
 import { canSeeContainerValue, canSignSpecException } from "@/lib/roles";
-import { CAPACITY_TONNES, LOAD_TYPE_LABEL, isManifestLocked, MANIFEST_LOCKED_MESSAGE } from "@/lib/logistics";
+import {
+  CAPACITY_TONNES,
+  LOAD_TYPE_LABEL,
+  isManifestLocked,
+  MANIFEST_LOCKED_MESSAGE,
+  computeContainerChecklist,
+  isChecklistComplete,
+} from "@/lib/logistics";
+import { saveUploadedFile } from "@/lib/files";
 
 const containerSchema = z.object({
   orderId: z.string().min(1),
@@ -658,6 +666,18 @@ export async function markStickeringCompleteAction(containerId: string, palletId
 // free text -- a typed name can't be trusted as proof of who really signed,
 // and can't be checked against the other sign-off to enforce that they're
 // two different people.
+async function incompleteChecklistMessage(containerId: string): Promise<string | null> {
+  const container = await prisma.container.findUniqueOrThrow({
+    where: { id: containerId },
+    include: { loadPhotos: { select: { createdAt: true } } },
+  });
+  if (isChecklistComplete(container)) return null;
+  const missing = computeContainerChecklist(container)
+    .filter((i) => !i.done)
+    .map((i) => i.label);
+  return `Complete the pre-departure checklist first: ${missing.join("; ")}.`;
+}
+
 export async function signLoadOutRepAction(containerId: string, _prevState: string | undefined, _formData: FormData) {
   const session = await auth();
   if (!session?.user) return "You must be logged in to sign off.";
@@ -670,6 +690,9 @@ export async function signLoadOutRepAction(containerId: string, _prevState: stri
   // another tab between page load and this submit.
   const lineCount = await prisma.containerPalletLine.count({ where: { containerId } });
   if (lineCount === 0) return "Add at least one pallet to the manifest before signing off.";
+
+  const checklistError = await incompleteChecklistMessage(containerId);
+  if (checklistError) return checklistError;
 
   if (container.qualityRepUserId && container.qualityRepUserId === session.user.id) {
     return "You've already signed off as the Quality Department representative for this container -- the two sign-offs must be different people.";
@@ -700,6 +723,9 @@ export async function signQualityRepAction(containerId: string, _prevState: stri
 
   const lineCount = await prisma.containerPalletLine.count({ where: { containerId } });
   if (lineCount === 0) return "Add at least one pallet to the manifest before signing off.";
+
+  const checklistError = await incompleteChecklistMessage(containerId);
+  if (checklistError) return checklistError;
 
   if (container.loadOutRepUserId && container.loadOutRepUserId === session.user.id) {
     return "You've already signed off as the Load-Out Team representative for this container -- the two sign-offs must be different people.";
@@ -746,6 +772,11 @@ export async function reopenContainerManifestAction(containerId: string, _prevSt
       qualityRepName: null,
       qualityRepUserId: null,
       qualitySignedAt: null,
+      // The red-line confirmation was made against whatever was loaded
+      // before this correction -- stale once the manifest can change again.
+      loadLineConfirmedAt: null,
+      loadLineConfirmedByName: null,
+      loadLineConfirmedByUserId: null,
       manifestReopenedAt: new Date(),
       manifestReopenedReason: parsed.data.reason,
     },
@@ -762,4 +793,81 @@ export async function reopenContainerManifestAction(containerId: string, _prevSt
 
   revalidatePath(`/logistics/${containerId}`);
   return "ok";
+}
+
+// A physical visual check, not something the system can verify itself --
+// tied to the logged-in user's identity the same way the sign-offs are, so
+// there's a real accountable record of who actually looked.
+export async function confirmLoadLineAction(containerId: string, _prevState: string | undefined, _formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in to confirm this.";
+
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  if (isManifestLocked(container)) return MANIFEST_LOCKED_MESSAGE;
+  if (container.loadLineConfirmedAt) return "ok";
+
+  const lineCount = await prisma.containerPalletLine.count({ where: { containerId } });
+  if (lineCount === 0) return "Add at least one pallet to the manifest before confirming this.";
+
+  const name = session.user.name || session.user.email;
+  await prisma.container.update({
+    where: { id: containerId },
+    data: { loadLineConfirmedAt: new Date(), loadLineConfirmedByName: name, loadLineConfirmedByUserId: session.user.id },
+  });
+  await logActivity({
+    actorId: session.user.id,
+    action: "CONTAINER_LOAD_LINE_CONFIRMED",
+    entityType: "Container",
+    entityId: containerId,
+    detail: name,
+  });
+  revalidatePath(`/logistics/${containerId}`);
+  return "ok";
+}
+
+export async function addContainerLoadPhotoAction(containerId: string, formData: FormData) {
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  if (isManifestLocked(container)) return;
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return;
+
+  const saved = await saveUploadedFile(file, "container-load-photos");
+  const session = await auth();
+
+  await prisma.containerLoadPhoto.create({
+    data: {
+      containerId,
+      fileName: saved.fileName,
+      originalName: saved.originalName,
+      uploadedByUserId: session?.user.id,
+    },
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CONTAINER_LOAD_PHOTO_UPLOADED",
+    entityType: "Container",
+    entityId: containerId,
+    detail: saved.originalName,
+  });
+
+  revalidatePath(`/logistics/${containerId}`);
+}
+
+export async function removeContainerLoadPhotoAction(containerId: string, photoId: string) {
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  if (isManifestLocked(container)) return;
+
+  await prisma.containerLoadPhoto.delete({ where: { id: photoId } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CONTAINER_LOAD_PHOTO_REMOVED",
+    entityType: "Container",
+    entityId: containerId,
+  });
+
+  revalidatePath(`/logistics/${containerId}`);
 }

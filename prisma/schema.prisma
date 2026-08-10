@@ -178,6 +178,8 @@ model User {
   activityLogs             ActivityLog[]
   loadOutSignedContainers  Container[]          @relation("ContainerLoadOutRep")
   qualitySignedContainers  Container[]          @relation("ContainerQualityRep")
+  loadLineConfirmedContainers Container[]       @relation("ContainerLoadLineConfirmedBy")
+  uploadedContainerLoadPhotos ContainerLoadPhoto[] @relation("ContainerLoadPhotoUploadedBy")
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -1016,6 +1018,24 @@ model Container {
   manifestReopenedAt     DateTime?
   manifestReopenedReason String?
 
+  // Pre-departure checklist, required before either sign-off above: a
+  // physical visual check that cartons/pallets didn't exceed the
+  // container's marked load line ("red line") -- tracked separately from
+  // the sign-offs themselves since it's a distinct fact someone is
+  // attesting to, not just "loading is done." Cleared on reopen (see
+  // reopenContainerManifestAction) since a corrected manifest changes what
+  // was actually loaded, making the old confirmation stale.
+  loadLineConfirmedAt       DateTime?
+  loadLineConfirmedByName   String?
+  loadLineConfirmedByUserId String?
+  loadLineConfirmedByUser   User?     @relation("ContainerLoadLineConfirmedBy", fields: [loadLineConfirmedByUserId], references: [id])
+
+  // Photo(s) of the loaded container, taken before the doors are shut --
+  // required by the checklist, not optional documentation. Not cleared on
+  // reopen so earlier photos stay on file as history; the checklist instead
+  // requires at least one photo taken after the most recent reopen.
+  loadPhotos ContainerLoadPhoto[]
+
   // The Certificate of Quality is gated on (lab clearance approved for every
   // lot in this container + both sign-offs above) and, once explicitly
   // approved, frozen as a permanent snapshot so later data edits (a quality
@@ -1199,6 +1219,23 @@ model Claim {
   attachments ClaimAttachment[]
 
   @@index([clientId])
+}
+
+// Photo of the physically loaded container, taken before the doors are shut
+// -- part of the pre-departure checklist (see Container.loadPhotos), not
+// optional documentation. Who uploaded it is recorded for the same reason as
+// ClaimAttachment below.
+model ContainerLoadPhoto {
+  id               String    @id @default(cuid())
+  containerId      String
+  container        Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
+  fileName         String
+  originalName     String
+  uploadedByUserId String?
+  uploadedBy       User?     @relation("ContainerLoadPhotoUploadedBy", fields: [uploadedByUserId], references: [id])
+  createdAt        DateTime  @default(now())
+
+  @@index([containerId])
 }
 
 // Photo/document evidence attached to a claim -- who uploaded each file is

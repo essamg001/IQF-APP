@@ -14,12 +14,13 @@ import { getCompanySettings } from "@/lib/companySettings";
 import { shiftCostPerTonneEgp, computeContainerMargin } from "@/lib/costing";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
-import { CAPACITY_TONNES, isManifestLocked } from "@/lib/logistics";
+import { CAPACITY_TONNES, isManifestLocked, computeContainerChecklist, isChecklistComplete } from "@/lib/logistics";
 import { AddLoadLineForm } from "./add-load-line-form";
 import { AddCostForm } from "./add-cost-form";
 import { AddTemperatureForm } from "./add-temperature-form";
 import { SignOffForm } from "./sign-off-form";
 import { ReopenManifestForm } from "./reopen-manifest-form";
+import { ConfirmLoadLineForm } from "./confirm-load-line-form";
 import {
   updateContainerLocationAction,
   updateLoadingDetailsAction,
@@ -35,6 +36,9 @@ import {
   signLoadOutRepAction,
   signQualityRepAction,
   reopenContainerManifestAction,
+  confirmLoadLineAction,
+  addContainerLoadPhotoAction,
+  removeContainerLoadPhotoAction,
 } from "../actions";
 
 const COST_CATEGORY_LABEL: Record<string, string> = {
@@ -70,11 +74,14 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
       },
       costs: { orderBy: { incurredAt: "desc" } },
       temperatureLogs: { orderBy: { recordedAt: "desc" } },
+      loadPhotos: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } },
     },
   });
   if (!container) notFound();
 
   const manifestLocked = isManifestLocked(container);
+  const checklist = computeContainerChecklist(container);
+  const checklistComplete = isChecklistComplete(container);
   const currentUserLabel = session?.user.name ?? session?.user.email ?? null;
 
   const orderPallets = await prisma.pallet.findMany({
@@ -724,6 +731,108 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
       </Card>
 
       <Card>
+        <h2 className="text-sm font-semibold text-slate-900">Pre-Departure Checklist</h2>
+        <p className="text-xs text-slate-500">
+          Every item here must be satisfied before either sign-off below is accepted.
+        </p>
+        <ul className="mt-3 space-y-2 text-sm">
+          {checklist.map((item) => (
+            <li key={item.key} className="flex items-center gap-2">
+              <span className={item.done ? "text-emerald-600" : "text-slate-300"}>{item.done ? "✓" : "○"}</span>
+              <span className={item.done ? "text-slate-700" : "text-slate-500"}>{item.label}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <p className="mb-1 text-xs font-medium text-slate-500">Load Line (Red Line) Confirmation</p>
+          {container.loadLineConfirmedAt ? (
+            <p className="text-sm text-slate-800">
+              Confirmed by {container.loadLineConfirmedByName}
+              <span className="ml-2 text-xs text-slate-500">{container.loadLineConfirmedAt.toLocaleString()}</span>
+            </p>
+          ) : container.palletLines.length === 0 ? (
+            <p className="text-xs text-slate-400">Add at least one pallet to the manifest before confirming this.</p>
+          ) : (
+            <ConfirmLoadLineForm action={confirmLoadLineAction.bind(null, container.id)} />
+          )}
+        </div>
+
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <p className="mb-1 text-xs font-medium text-slate-500">
+            Photo of the Loaded Container (before closing the doors) — {container.loadPhotos.length}
+          </p>
+          <div className="mt-2 grid grid-cols-4 gap-3">
+            {container.loadPhotos.map((photo) => {
+              const isImage = /\.(jpe?g|png)$/i.test(photo.fileName);
+              const isStale =
+                !!container.manifestReopenedAt && photo.createdAt < container.manifestReopenedAt;
+              return (
+                <div key={photo.id} className="rounded-md border border-slate-200 p-2">
+                  <a
+                    href={`/api/files/container-load-photos/${photo.fileName}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    {isImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/files/container-load-photos/${photo.fileName}`}
+                        alt={photo.originalName}
+                        className="h-24 w-full rounded object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-24 w-full items-center justify-center rounded bg-slate-50 text-xs text-emerald-700 hover:underline">
+                        View file
+                      </div>
+                    )}
+                  </a>
+                  {isStale && (
+                    <p className="mt-1 text-[10px] font-medium text-amber-600">
+                      Taken before the manifest was last reopened — doesn&apos;t reflect the current load.
+                    </p>
+                  )}
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    {photo.uploadedBy?.name ?? "Unknown"} · {photo.createdAt.toLocaleString()}
+                  </p>
+                  {!manifestLocked && (
+                    <form action={removeContainerLoadPhotoAction.bind(null, container.id, photo.id)} className="mt-1">
+                      <ConfirmSubmitButton confirmMessage="Remove this photo?" className="text-[10px] text-red-600 hover:underline">
+                        Remove
+                      </ConfirmSubmitButton>
+                    </form>
+                  )}
+                </div>
+              );
+            })}
+            {container.loadPhotos.length === 0 && (
+              <p className="col-span-4 text-xs text-slate-400">No photo uploaded yet.</p>
+            )}
+          </div>
+          {!manifestLocked && (
+            <form
+              action={addContainerLoadPhotoAction.bind(null, container.id)}
+              className="mt-3 flex flex-wrap items-end gap-3"
+            >
+              <FieldGroup label="Photo (JPEG or PNG)">
+                <input
+                  name="file"
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  required
+                  className="block w-64 text-sm text-slate-700 file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-slate-50"
+                />
+              </FieldGroup>
+              <Button type="submit" variant="secondary">
+                Upload
+              </Button>
+            </form>
+          )}
+        </div>
+      </Card>
+
+      <Card>
         <h2 className="text-sm font-semibold text-slate-900">Sign-Off on Loading Complete</h2>
         <p className="text-xs text-slate-500">
           Once loading is finished, a load-out team representative and a quality representative both sign off as
@@ -742,6 +851,8 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
               </p>
             ) : container.palletLines.length === 0 ? (
               <p className="text-xs text-slate-400">Add at least one pallet to the manifest before signing off.</p>
+            ) : !checklistComplete ? (
+              <p className="text-xs text-slate-400">Complete the pre-departure checklist above before signing off.</p>
             ) : (
               <SignOffForm
                 action={signLoadOutRepAction.bind(null, container.id)}
@@ -762,6 +873,8 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
               </p>
             ) : container.palletLines.length === 0 ? (
               <p className="text-xs text-slate-400">Add at least one pallet to the manifest before signing off.</p>
+            ) : !checklistComplete ? (
+              <p className="text-xs text-slate-400">Complete the pre-departure checklist above before signing off.</p>
             ) : (
               <SignOffForm
                 action={signQualityRepAction.bind(null, container.id)}
