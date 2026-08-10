@@ -27,6 +27,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/waste", label: "Waste" },
   { href: "/daily-report", label: "Daily Report", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
   { href: "/cleaning", label: "Cleaning Mode" },
+  { href: "/daily-checklist", label: "Daily Checklist" },
   { href: "/shifts", label: "Hours Worked" },
 
   // Storage & Lab (gates before a pallet can ship)

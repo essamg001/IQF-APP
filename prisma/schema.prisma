@@ -188,6 +188,7 @@ model User {
   containerChecklistConfirmations ContainerChecklistConfirmation[]
   cleaningProductionSignOffs  CleaningShiftRecord[] @relation("CleaningProductionSignOff")
   cleaningMaintenanceSignOffs CleaningShiftRecord[] @relation("CleaningMaintenanceSignOff")
+  dailyChecklistConfirmations DailyProductionChecklistConfirmation[]
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -313,6 +314,7 @@ model Factory {
   dailyLabourEntries   DailyLabourEntry[]
   cleaningAreaScores   CleaningAreaScore[]
   cleaningShiftRecords CleaningShiftRecord[]
+  dailyChecklistConfirmations DailyProductionChecklistConfirmation[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -1612,6 +1614,30 @@ model CleaningShiftRecord {
   createdAt DateTime @default(now())
 
   @@unique([factoryId, date, shiftType])
+}
+
+// The Head of Production's per-shift plant walkthrough (receiving, pre-
+// cooling, production, packaging, cold stores, loading, warehouse, services
+// areas -- see DAILY_CHECKLIST_SECTIONS in src/lib/dailyChecklist.ts for the
+// actual item text). One row per factory/date/shift/item; presence of a row
+// means that item was confirmed on that walkthrough -- same existence-means-
+// confirmed shape as ContainerChecklistConfirmation. Unlike Cleaning Mode,
+// this has no sign-off/lock -- it's routine daily ticking, freely
+// re-checkable, not a one-time accountability gate.
+model DailyProductionChecklistConfirmation {
+  id                String    @id @default(cuid())
+  factoryId         String
+  factory           Factory   @relation(fields: [factoryId], references: [id])
+  date              DateTime
+  shiftType         ShiftType
+  itemKey           String
+  confirmedByName   String
+  confirmedByUserId String?
+  confirmedByUser   User?     @relation(fields: [confirmedByUserId], references: [id])
+  confirmedAt       DateTime  @default(now())
+
+  @@unique([factoryId, date, shiftType, itemKey])
+  @@index([factoryId, date, shiftType])
 }
 
 // Decap has no dedicated Factory/ShiftLog entity of its own (it exists only
