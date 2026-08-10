@@ -169,6 +169,12 @@ model User {
   // fails a client's own spec (see SpecException) — the accountability the sign-off
   // exists for only holds if the set of people who can grant it is narrow.
   isHeadOfProduction Boolean  @default(false)
+  // Only the Owner or whoever holds this flag can sign the Head of Maintenance
+  // side of a Cleaning Mode shift record -- same narrow-accountability
+  // reasoning as isHeadOfProduction above. Not tied to a specific Role since
+  // the app has no dedicated "Maintenance" role; the Owner grants it to
+  // whichever user actually holds that responsibility.
+  isHeadOfMaintenance Boolean @default(false)
   station            Station?
   createdAt          DateTime @default(now())
 
@@ -180,6 +186,8 @@ model User {
   qualitySignedContainers  Container[]          @relation("ContainerQualityRep")
   uploadedContainerLoadPhotos ContainerLoadPhoto[] @relation("ContainerLoadPhotoUploadedBy")
   containerChecklistConfirmations ContainerChecklistConfirmation[]
+  cleaningProductionSignOffs  CleaningShiftRecord[] @relation("CleaningProductionSignOff")
+  cleaningMaintenanceSignOffs CleaningShiftRecord[] @relation("CleaningMaintenanceSignOff")
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -303,6 +311,8 @@ model Factory {
   dailyDowntimeEvents  DailyDowntimeEvent[]
   dailyLineEfficiency  DailyLineEfficiency[]
   dailyLabourEntries   DailyLabourEntry[]
+  cleaningAreaScores   CleaningAreaScore[]
+  cleaningShiftRecords CleaningShiftRecord[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -1535,6 +1545,73 @@ model DailyLabourEntry {
 
   @@unique([factoryId, date, shiftType, department, role])
   @@index([factoryId, date])
+}
+
+// The physical areas Cleaning Mode scores, between shifts -- distinct from
+// LabourDepartment (which is about who's staffed where during a shift, not
+// which zones need cleaning/drying before the next one starts).
+enum CleaningArea {
+  ARRIVAL
+  PRE_COOLING
+  PROCESSING
+  PACKAGING
+  COLD_STORES_AND_CORRIDORS
+  LOAD_OUT
+  DRY_STORAGE_ROOMS
+}
+
+// One row per factory/date/shift/area -- each responsible head scores every
+// area independently, 0-10. Not cleared when the shift record is reopened
+// (see CleaningShiftRecord): correcting one area's score doesn't invalidate
+// the others, only the sign-offs need re-collecting.
+model CleaningAreaScore {
+  id               String       @id @default(cuid())
+  factoryId        String
+  factory          Factory      @relation(fields: [factoryId], references: [id])
+  date             DateTime
+  shiftType        ShiftType
+  area             CleaningArea
+  productionScore  Int?
+  maintenanceScore Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([factoryId, date, shiftType, area])
+  @@index([factoryId, date])
+}
+
+// One row per factory/date/shift -- whether the foam washer was used this
+// round (it isn't every shift, so this is what lets the scores be read
+// against actual cleaning method over time), and the two required
+// sign-offs before the next shift can start. Locked (like a container
+// manifest) once both sign-offs are on file; reopening clears both
+// sign-offs and requires a reason, since signing means "I've reviewed and
+// scored every area" -- area scores themselves aren't touched by a reopen.
+model CleaningShiftRecord {
+  id        String    @id @default(cuid())
+  factoryId String
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+  date      DateTime
+  shiftType ShiftType
+
+  cleanedWithFoam Boolean @default(false)
+
+  productionSignedByName   String?
+  productionSignedByUserId String?
+  productionSignedByUser   User?     @relation("CleaningProductionSignOff", fields: [productionSignedByUserId], references: [id])
+  productionSignedAt       DateTime?
+
+  maintenanceSignedByName   String?
+  maintenanceSignedByUserId String?
+  maintenanceSignedByUser   User?     @relation("CleaningMaintenanceSignOff", fields: [maintenanceSignedByUserId], references: [id])
+  maintenanceSignedAt       DateTime?
+
+  reopenedAt     DateTime?
+  reopenedReason String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([factoryId, date, shiftType])
 }
 
 // Decap has no dedicated Factory/ShiftLog entity of its own (it exists only

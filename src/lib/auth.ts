@@ -13,6 +13,7 @@ declare module "next-auth" {
       role: Role;
       isHeadOfSales: boolean;
       isHeadOfProduction: boolean;
+      isHeadOfMaintenance: boolean;
       station: Station | null;
     };
   }
@@ -20,6 +21,7 @@ declare module "next-auth" {
     role: Role;
     isHeadOfSales: boolean;
     isHeadOfProduction: boolean;
+    isHeadOfMaintenance: boolean;
     station: Station | null;
   }
 }
@@ -51,6 +53,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           role: user.role,
           isHeadOfSales: user.isHeadOfSales,
           isHeadOfProduction: user.isHeadOfProduction,
+          isHeadOfMaintenance: user.isHeadOfMaintenance,
           station: user.station,
         };
       },
@@ -63,6 +66,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = user.role;
         token.isHeadOfSales = user.isHeadOfSales;
         token.isHeadOfProduction = user.isHeadOfProduction;
+        token.isHeadOfMaintenance = user.isHeadOfMaintenance;
         token.station = user.station;
       }
       return token;
@@ -73,6 +77,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.role = token.role as Role;
         session.user.isHeadOfSales = token.isHeadOfSales as boolean;
         session.user.isHeadOfProduction = token.isHeadOfProduction as boolean;
+        session.user.isHeadOfMaintenance = token.isHeadOfMaintenance as boolean;
         session.user.station = (token.station as Station | null) ?? null;
       }
       return session;

@@ -59,6 +59,23 @@ export function canSignSpecException(user: { role: Role; isHeadOfProduction: boo
 }
 
 /**
+ * Cleaning Mode's Head of Production side (scoring + sign-off) -- same
+ * narrow-accountability reasoning as canSignSpecException, kept as its own
+ * function since the two features are unrelated even though the check is
+ * identical today.
+ */
+export function canSignAsHeadOfProduction(user: { role: Role; isHeadOfProduction: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfProduction;
+}
+
+/** Cleaning Mode's Head of Maintenance side -- see canSignAsHeadOfProduction. */
+export function canSignAsHeadOfMaintenance(user: { role: Role; isHeadOfMaintenance: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfMaintenance;
+}
+
+/**
  * Client records carry commercial terms and specs (including the CFU limit
  * that hard-gates allocation/load-out) -- Sales owns these relationships, so
  * access matches canSeePricing rather than being open to every role.

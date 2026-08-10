@@ -207,6 +207,26 @@ export async function toggleHeadOfProductionAction(id: string) {
   revalidatePath("/settings");
 }
 
+// Not gated to a specific Role like the two toggles above -- there's no
+// dedicated "Maintenance" role in this app, so the Owner can grant this to
+// whichever user actually holds that responsibility, regardless of theirs.
+export async function toggleHeadOfMaintenanceAction(id: string) {
+  if (!(await requireOwner())) return;
+  const user = await prisma.user.findUniqueOrThrow({ where: { id } });
+  await prisma.user.update({ where: { id }, data: { isHeadOfMaintenance: !user.isHeadOfMaintenance } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "USER_HEAD_OF_MAINTENANCE_TOGGLED",
+    entityType: "User",
+    entityId: id,
+    detail: `${user.name} → ${!user.isHeadOfMaintenance}`,
+  });
+
+  revalidatePath("/settings");
+}
+
 const costingRatesSchema = z.object({
   fxRateEgpPerUsd: z.coerce.number().positive().optional(),
   laborHourlyRateEgp: z.coerce.number().nonnegative().optional(),

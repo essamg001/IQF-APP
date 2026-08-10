@@ -26,6 +26,7 @@ import {
   deleteUserAction,
   toggleHeadOfSalesAction,
   toggleHeadOfProductionAction,
+  toggleHeadOfMaintenanceAction,
   updateCostingRatesAction,
 } from "./actions";
 import { AddUserForm } from "./add-user-form";
@@ -88,6 +89,18 @@ export default async function SettingsPage() {
                         </ConfirmSubmitButton>
                       </form>
                     ))}
+                  {u.isHeadOfMaintenance ? (
+                    <Badge color="green">Head of Maintenance</Badge>
+                  ) : (
+                    <form action={toggleHeadOfMaintenanceAction.bind(null, u.id)}>
+                      <ConfirmSubmitButton
+                        confirmMessage={`Make ${u.name} Head of Maintenance? This grants authority to sign off Cleaning Mode shift records. There's no dedicated Maintenance role, so this can be granted to any user.`}
+                        className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                      >
+                        Make head of maintenance?
+                      </ConfirmSubmitButton>
+                    </form>
+                  )}
                   {u.id !== session?.user.id && (
                     <form action={deleteUserAction.bind(null, u.id)}>
                       <ConfirmSubmitButton confirmMessage={`Remove ${u.name}'s login? They will no longer be able to sign in.`}>
