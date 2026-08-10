@@ -5,7 +5,7 @@ import { addPalletLoadLineAction } from "../actions";
 import { decodeSpecBlock } from "@/lib/specCompliance";
 import { SpecExceptionForm } from "./spec-exception-form";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 
 type EligiblePallet = { id: string; palletNumber: string; remaining: number; lotNumber: string };
 
@@ -60,9 +60,15 @@ export function AddLoadLineForm({
             className="w-32"
           />
         </FieldGroup>
-        <Button type="submit" variant="secondary" disabled={pending}>
+        <ConfirmSubmitButton
+          confirmMessage={`Load ${quantity}t of pallet ${
+            pallets.find((p) => p.id === selectedId)?.palletNumber ?? selectedId
+          } into this container? This physically commits it to the shipment and frees its storage slot once fully loaded.`}
+          disabled={pending}
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
+        >
           {pending ? "Adding…" : "Add to manifest"}
-        </Button>
+        </ConfirmSubmitButton>
         {error && !specBlock && <p className="w-full text-sm text-red-600">{error}</p>}
       </form>
       {specBlock && <SpecExceptionForm payload={specBlock} canSignOff={canSignOffSpecException} />}

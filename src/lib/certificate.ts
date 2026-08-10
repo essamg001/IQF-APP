@@ -116,6 +116,18 @@ export function computeCertificateGate(container: ContainerForCertificate): Cert
       const label = status === "ON_HOLD" ? "shift is on hold (split microbiology result)" : `lab clearance is ${status.replace(/_/g, " ").toLowerCase()}, not both approved`;
       reasons.push(`Lot ${lot.lotNumber}: ${label}.`);
     }
+    // Approved status alone isn't proof a real report exists on file --
+    // require the actual certificate file too, independent of whatever
+    // validation ran when the result was entered, so this can never drift
+    // (a future import, script, or bug that sets APPROVED without a file
+    // attached still can't produce a certificate nobody can back up).
+    for (const labType of ["IN_HOUSE", "EXTERNAL"] as const) {
+      const approved = lot.microbiologyResults.find((r) => r.labType === labType && r.status === "APPROVED");
+      if (approved && !approved.certificateFileName) {
+        const labLabel = labType === "IN_HOUSE" ? "In-House" : "External";
+        reasons.push(`Lot ${lot.lotNumber}: ${labLabel} lab result is Approved but has no certificate file attached.`);
+      }
+    }
   }
   if (!container.loadOutSignedAt) reasons.push("Load-out representative has not signed off.");
   if (!container.qualitySignedAt) reasons.push("Quality representative has not signed off.");

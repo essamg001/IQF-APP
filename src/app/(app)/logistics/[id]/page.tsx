@@ -14,9 +14,12 @@ import { getCompanySettings } from "@/lib/companySettings";
 import { shiftCostPerTonneEgp, computeContainerMargin } from "@/lib/costing";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
+import { CAPACITY_TONNES, isManifestLocked } from "@/lib/logistics";
 import { AddLoadLineForm } from "./add-load-line-form";
 import { AddCostForm } from "./add-cost-form";
 import { AddTemperatureForm } from "./add-temperature-form";
+import { SignOffForm } from "./sign-off-form";
+import { ReopenManifestForm } from "./reopen-manifest-form";
 import {
   updateContainerLocationAction,
   updateLoadingDetailsAction,
@@ -31,12 +34,8 @@ import {
   markStickeringCompleteAction,
   signLoadOutRepAction,
   signQualityRepAction,
+  reopenContainerManifestAction,
 } from "../actions";
-
-const CAPACITY_TONNES: Record<"PALLETISED" | "UNPALLETISED", number> = {
-  PALLETISED: 24,
-  UNPALLETISED: 25,
-};
 
 const COST_CATEGORY_LABEL: Record<string, string> = {
   DEMURRAGE: "Demurrage",
@@ -74,6 +73,9 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
     },
   });
   if (!container) notFound();
+
+  const manifestLocked = isManifestLocked(container);
+  const currentUserLabel = session?.user.name ?? session?.user.email ?? null;
 
   const orderPallets = await prisma.pallet.findMany({
     where: { orderId: container.orderId },
@@ -616,7 +618,11 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
 
         <div className="mt-4 border-t border-slate-100 pt-4">
           <p className="mb-2 text-xs font-medium text-slate-500">Add to this container&apos;s manifest</p>
-          <AddLoadLineForm containerId={container.id} pallets={eligibleToAdd} canSignOffSpecException={canSignOffSpecException} />
+          {manifestLocked ? (
+            <p className="text-sm text-slate-400">Manifest is locked — reopen it below to add more pallets.</p>
+          ) : (
+            <AddLoadLineForm containerId={container.id} pallets={eligibleToAdd} canSignOffSpecException={canSignOffSpecException} />
+          )}
         </div>
       </Card>
 
@@ -691,13 +697,17 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                     )}
                   </td>
                   <td className="px-4 py-2">
-                    <form action={removePalletLoadLineAction.bind(null, container.id, line.id)}>
-                      <ConfirmSubmitButton
-                        confirmMessage={`Remove pallet ${line.pallet.palletNumber} from this container's load-out manifest? This is the shipment's permanent traceability record.`}
-                      >
-                        Remove
-                      </ConfirmSubmitButton>
-                    </form>
+                    {manifestLocked ? (
+                      <span className="text-xs text-slate-300">Locked</span>
+                    ) : (
+                      <form action={removePalletLoadLineAction.bind(null, container.id, line.id)}>
+                        <ConfirmSubmitButton
+                          confirmMessage={`Remove pallet ${line.pallet.palletNumber} from this container's load-out manifest? This is the shipment's permanent traceability record.`}
+                        >
+                          Remove
+                        </ConfirmSubmitButton>
+                      </form>
+                    )}
                   </td>
                 </tr>
               );
@@ -716,7 +726,9 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">Sign-Off on Loading Complete</h2>
         <p className="text-xs text-slate-500">
-          Once loading is finished, a load-out team representative and a quality representative both sign off.
+          Once loading is finished, a load-out team representative and a quality representative both sign off as
+          themselves — whoever is logged in when the button is pressed, not a typed name. Both sign-offs must be
+          two different people, and once both are on file the manifest above locks against further changes.
         </p>
         <div className="mt-3 grid grid-cols-2 gap-4">
           <div>
@@ -731,17 +743,12 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             ) : container.palletLines.length === 0 ? (
               <p className="text-xs text-slate-400">Add at least one pallet to the manifest before signing off.</p>
             ) : (
-              <form action={signLoadOutRepAction.bind(null, container.id)} className="flex items-end gap-2">
-                <FieldGroup label="Name">
-                  <Input name="loadOutRepName" required className="w-48" />
-                </FieldGroup>
-                <ConfirmSubmitButton
-                  confirmMessage="Sign off as the Load-Out Team representative for this container? This can't be undone and is required before the Certificate of Quality can be issued."
-                  className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
-                >
-                  Sign off
-                </ConfirmSubmitButton>
-              </form>
+              <SignOffForm
+                action={signLoadOutRepAction.bind(null, container.id)}
+                confirmMessage={`Sign off as ${
+                  currentUserLabel ?? "yourself"
+                }, the Load-Out Team representative for this container? This can't be undone and locks the manifest once Quality also signs off.`}
+              />
             )}
           </div>
           <div>
@@ -756,20 +763,24 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             ) : container.palletLines.length === 0 ? (
               <p className="text-xs text-slate-400">Add at least one pallet to the manifest before signing off.</p>
             ) : (
-              <form action={signQualityRepAction.bind(null, container.id)} className="flex items-end gap-2">
-                <FieldGroup label="Name">
-                  <Input name="qualityRepName" required className="w-48" />
-                </FieldGroup>
-                <ConfirmSubmitButton
-                  confirmMessage="Sign off as the Quality Department representative for this container? This can't be undone and is required before the Certificate of Quality can be issued."
-                  className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
-                >
-                  Sign off
-                </ConfirmSubmitButton>
-              </form>
+              <SignOffForm
+                action={signQualityRepAction.bind(null, container.id)}
+                confirmMessage={`Sign off as ${
+                  currentUserLabel ?? "yourself"
+                }, the Quality Department representative for this container? This can't be undone and locks the manifest once Load-Out also signs off.`}
+              />
             )}
           </div>
         </div>
+
+        {manifestLocked && (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <p className="mb-2 text-xs font-medium text-amber-700">
+              Manifest locked — both sign-offs are on file. Reopening clears both and requires a reason.
+            </p>
+            <ReopenManifestForm containerId={container.id} />
+          </div>
+        )}
       </Card>
     </div>
   );

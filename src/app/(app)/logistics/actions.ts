@@ -16,6 +16,7 @@ import {
 } from "@/lib/specCompliance";
 import { logActivity } from "@/lib/activityLog";
 import { canSeeContainerValue, canSignSpecException } from "@/lib/roles";
+import { CAPACITY_TONNES, LOAD_TYPE_LABEL, isManifestLocked, MANIFEST_LOCKED_MESSAGE } from "@/lib/logistics";
 
 const containerSchema = z.object({
   orderId: z.string().min(1),
@@ -326,6 +327,21 @@ export async function updateLoadingDetailsAction(containerId: string, formData: 
 
 const ROUNDING_TOLERANCE_TONNES = 0.01;
 
+/** Hard-blocks a load that would push the container past its declared PALLETISED/UNPALLETISED capacity -- previously only shown as a display badge, never actually enforced. */
+function checkContainerCapacity(
+  container: { loadType: "PALLETISED" | "UNPALLETISED" | null; palletLines: { quantityTonnes: number }[] },
+  additionalTonnes: number
+): string | null {
+  if (!container.loadType) return null;
+  const capacity = CAPACITY_TONNES[container.loadType];
+  const alreadyLoaded = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
+  const projected = alreadyLoaded + additionalTonnes;
+  if (projected > capacity + ROUNDING_TOLERANCE_TONNES) {
+    return `Blocked: loading ${additionalTonnes.toFixed(2)}t would bring this container to ${projected.toFixed(2)}t, over its ${capacity}t ${LOAD_TYPE_LABEL[container.loadType]} capacity limit. Load the remainder into a different container.`;
+  }
+  return null;
+}
+
 async function palletWithRemaining(palletId: string) {
   const pallet = await prisma.pallet.findUniqueOrThrow({
     where: { id: palletId },
@@ -408,8 +424,16 @@ export async function addPalletLoadLineAction(
 
   const container = await prisma.container.findUniqueOrThrow({
     where: { id: containerId },
-    include: { order: { include: { client: { include: { specs: true } } } } },
+    include: {
+      order: { include: { client: { include: { specs: true } } } },
+      palletLines: { select: { quantityTonnes: true } },
+    },
   });
+
+  if (isManifestLocked(container)) return MANIFEST_LOCKED_MESSAGE;
+
+  const capacityError = checkContainerCapacity(container, parsed.data.quantityTonnes);
+  if (capacityError) return capacityError;
 
   const microStatus = combinedMicroStatus(pallet.lot.microbiologyResults, pallet.lot.shift.onHold);
   if (!isMicroCleared(pallet.lot.microbiologyResults, pallet.lot.shift.onHold)) {
@@ -535,8 +559,13 @@ export async function overrideSpecExceptionAction(_prevState: string | undefined
   const { pallet, remaining } = await palletWithRemaining(parsed.data.palletId);
   const container = await prisma.container.findUniqueOrThrow({
     where: { id: parsed.data.containerId },
-    include: { order: { include: { client: true } } },
+    include: { order: { include: { client: true } }, palletLines: { select: { quantityTonnes: true } } },
   });
+
+  if (isManifestLocked(container)) return MANIFEST_LOCKED_MESSAGE;
+
+  const capacityError = checkContainerCapacity(container, parsed.data.quantityTonnes);
+  if (capacityError) return capacityError;
 
   await prisma.specException.createMany({
     data: violations.map((v) => ({
@@ -591,6 +620,9 @@ export async function completeLoadLineAction(containerId: string, lineId: string
 }
 
 export async function removePalletLoadLineAction(containerId: string, lineId: string) {
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  if (isManifestLocked(container)) return;
+
   const line = await prisma.containerPalletLine.findUniqueOrThrow({ where: { id: lineId } });
   await prisma.containerPalletLine.delete({ where: { id: lineId } });
 
@@ -622,45 +654,112 @@ export async function markStickeringCompleteAction(containerId: string, palletId
   revalidatePath(`/storage/${palletId}`);
 }
 
-export async function signLoadOutRepAction(containerId: string, formData: FormData) {
-  const name = String(formData.get("loadOutRepName") ?? "").trim();
-  if (!name) return;
+// Signed-off by is derived from whoever is actually logged in, not typed
+// free text -- a typed name can't be trusted as proof of who really signed,
+// and can't be checked against the other sign-off to enforce that they're
+// two different people.
+export async function signLoadOutRepAction(containerId: string, _prevState: string | undefined, _formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in to sign off.";
+
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  if (container.loadOutSignedAt) return "ok";
+
   // Belt-and-suspenders alongside the UI hiding this form when the manifest
   // is empty -- guards the race where the last pallet line is removed in
   // another tab between page load and this submit.
   const lineCount = await prisma.containerPalletLine.count({ where: { containerId } });
-  if (lineCount === 0) return;
+  if (lineCount === 0) return "Add at least one pallet to the manifest before signing off.";
+
+  if (container.qualityRepUserId && container.qualityRepUserId === session.user.id) {
+    return "You've already signed off as the Quality Department representative for this container -- the two sign-offs must be different people.";
+  }
+
+  const name = session.user.name || session.user.email;
   await prisma.container.update({
     where: { id: containerId },
-    data: { loadOutRepName: name, loadOutSignedAt: new Date() },
+    data: { loadOutRepName: name, loadOutRepUserId: session.user.id, loadOutSignedAt: new Date() },
   });
-  const session = await auth();
   await logActivity({
-    actorId: session?.user.id,
+    actorId: session.user.id,
     action: "LOAD_OUT_SIGNED",
     entityType: "Container",
     entityId: containerId,
     detail: name,
   });
   revalidatePath(`/logistics/${containerId}`);
+  return "ok";
 }
 
-export async function signQualityRepAction(containerId: string, formData: FormData) {
-  const name = String(formData.get("qualityRepName") ?? "").trim();
-  if (!name) return;
+export async function signQualityRepAction(containerId: string, _prevState: string | undefined, _formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in to sign off.";
+
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  if (container.qualitySignedAt) return "ok";
+
   const lineCount = await prisma.containerPalletLine.count({ where: { containerId } });
-  if (lineCount === 0) return;
+  if (lineCount === 0) return "Add at least one pallet to the manifest before signing off.";
+
+  if (container.loadOutRepUserId && container.loadOutRepUserId === session.user.id) {
+    return "You've already signed off as the Load-Out Team representative for this container -- the two sign-offs must be different people.";
+  }
+
+  const name = session.user.name || session.user.email;
   await prisma.container.update({
     where: { id: containerId },
-    data: { qualityRepName: name, qualitySignedAt: new Date() },
+    data: { qualityRepName: name, qualityRepUserId: session.user.id, qualitySignedAt: new Date() },
   });
-  const session = await auth();
   await logActivity({
-    actorId: session?.user.id,
+    actorId: session.user.id,
     action: "QUALITY_SIGNED",
     entityType: "Container",
     entityId: containerId,
     detail: name,
   });
   revalidatePath(`/logistics/${containerId}`);
+  return "ok";
+}
+
+const reopenManifestSchema = z.object({
+  reason: z.string().min(1, "A reason is required to reopen this manifest."),
+});
+
+// The one explicit, logged escape hatch for correcting a manifest after both
+// sign-offs are on file -- clears both signatures (so they have to be
+// re-collected against whatever the manifest looks like once corrected)
+// rather than letting the existing sign-offs silently vouch for a shipment
+// that no longer matches what's recorded.
+export async function reopenContainerManifestAction(containerId: string, _prevState: string | undefined, formData: FormData) {
+  const parsed = reopenManifestSchema.safeParse({ reason: formData.get("reason") });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  if (!isManifestLocked(container)) return "This manifest isn't locked -- there's nothing to reopen.";
+
+  await prisma.container.update({
+    where: { id: containerId },
+    data: {
+      loadOutRepName: null,
+      loadOutRepUserId: null,
+      loadOutSignedAt: null,
+      qualityRepName: null,
+      qualityRepUserId: null,
+      qualitySignedAt: null,
+      manifestReopenedAt: new Date(),
+      manifestReopenedReason: parsed.data.reason,
+    },
+  });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "CONTAINER_MANIFEST_REOPENED",
+    entityType: "Container",
+    entityId: containerId,
+    detail: `Cleared sign-offs (were: ${container.loadOutRepName ?? "—"} / ${container.qualityRepName ?? "—"}) — ${parsed.data.reason}`,
+  });
+
+  revalidatePath(`/logistics/${containerId}`);
+  return "ok";
 }

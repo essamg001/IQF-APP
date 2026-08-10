@@ -176,6 +176,8 @@ model User {
   sentMicrobiologyResults  MicrobiologyResult[] @relation("MicrobiologySentBy")
   uploadedClaimAttachments ClaimAttachment[]    @relation("ClaimAttachmentUploadedBy")
   activityLogs             ActivityLog[]
+  loadOutSignedContainers  Container[]          @relation("ContainerLoadOutRep")
+  qualitySignedContainers  Container[]          @relation("ContainerQualityRep")
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -993,11 +995,26 @@ model Container {
   loadingSupervisor String?
   loadType          LoadType?
 
-  // Sign-off once loading is complete: one rep from the load-out team, one from quality.
-  loadOutRepName  String?
-  loadOutSignedAt DateTime?
-  qualityRepName  String?
-  qualitySignedAt DateTime?
+  // Sign-off once loading is complete: one rep from the load-out team, one
+  // from quality. The name is who actually signed (for the certificate/print
+  // record); the userId ties it to the logged-in account that submitted it,
+  // so it can't be spoofed by typing someone else's name, and so the two
+  // sign-offs can be checked as genuinely two different people.
+  loadOutRepName   String?
+  loadOutRepUserId String?
+  loadOutRepUser   User?     @relation("ContainerLoadOutRep", fields: [loadOutRepUserId], references: [id])
+  loadOutSignedAt  DateTime?
+  qualityRepName   String?
+  qualityRepUserId String?
+  qualityRepUser   User?     @relation("ContainerQualityRep", fields: [qualityRepUserId], references: [id])
+  qualitySignedAt  DateTime?
+
+  // Set (with a reason) when a manifest that had already collected both
+  // sign-offs above is reopened for correction -- the manifest can't be
+  // edited (pallets added/removed) while both sign-offs are on file, so
+  // reopening is the one explicit, logged escape hatch, not a silent bypass.
+  manifestReopenedAt     DateTime?
+  manifestReopenedReason String?
 
   // The Certificate of Quality is gated on (lab clearance approved for every
   // lot in this container + both sign-offs above) and, once explicitly
