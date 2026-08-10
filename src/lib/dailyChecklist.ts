@@ -187,13 +187,17 @@ export function dailyChecklistScoreColor(score: number | null | undefined): stri
 
 // Best-effort match against Labour Distribution's departments, so a
 // section header can show who's supervising that area this shift without
-// re-entering the name here. Cold Stores and Warehouse have no equivalent
-// Labour Distribution department, so they're left unmapped.
+// re-entering the name here. Cold Stores shares the Load Out department --
+// one head (normally Mahmoud) covers storage and load out together, so
+// whoever Daily Report has recorded as the Load Out supervisor that shift
+// (Mahmoud, or a stand-in when he's out) carries over to both sections.
+// Warehouse has no supervisor at all, so it's left unmapped.
 export const DAILY_CHECKLIST_SECTION_LABOUR_DEPARTMENT: Partial<Record<string, LabourDepartment>> = {
   ARRIVALS: "INTAKE",
   PRECOOLING: "INFEED",
   PRODUCTION: "PROCESSING",
   PACKAGING: "PACKAGING",
+  COLD_STORES: "LOAD_OUT",
   LOADING: "LOAD_OUT",
   SERVICES: "MAINTENANCE_ENGINEERING",
 };
