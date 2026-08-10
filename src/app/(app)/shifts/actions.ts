@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { canSeeCosting } from "@/lib/roles";
 import { logActivity } from "@/lib/activityLog";
+import { isCleaningLocked } from "@/lib/cleaning";
 
 // Builds a Date from separate "YYYY-MM-DD" and "HH:MM"(:SS) strings using
 // numeric components rather than string concatenation -- a `<input
@@ -56,6 +57,22 @@ export async function createShiftAction(_prevState: string | undefined, formData
   // after the start time, it belongs to the following day.
   if (endTime <= startTime) {
     endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  // A shift can't start until the cleaning done between it and the one
+  // before it is fully signed off -- DAY follows the previous calendar
+  // day's NIGHT cleaning; NIGHT follows the same day's DAY cleaning (see
+  // CleaningShiftRecord's doc comment in schema.prisma).
+  const priorShiftType = parsed.data.shiftType === "DAY" ? "NIGHT" : "DAY";
+  const priorDate = parsed.data.shiftType === "DAY" ? new Date(date.getTime() - 24 * 60 * 60 * 1000) : date;
+  const priorCleaning = await prisma.cleaningShiftRecord.findUnique({
+    where: {
+      factoryId_date_shiftType: { factoryId: parsed.data.factoryId, date: priorDate, shiftType: priorShiftType },
+    },
+  });
+  if (!isCleaningLocked(priorCleaning)) {
+    const priorLabel = priorShiftType === "DAY" ? "Shift 1 (Day)" : "Shift 2 (Night)";
+    return `Cleaning sign-off for the previous shift (${priorLabel}) isn't complete — both Head of Production and Head of Maintenance must sign off in Cleaning Mode before this shift can start.`;
   }
 
   await prisma.shiftLog.create({
