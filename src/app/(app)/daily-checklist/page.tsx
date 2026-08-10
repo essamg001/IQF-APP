@@ -18,11 +18,15 @@ export default async function DailyChecklistPage({
   const shiftType = shiftParam === "NIGHT" ? "NIGHT" : "DAY";
   const dayStart = parseLocalDateOnly(dateStr) ?? new Date();
 
-  const [factories, confirmations] = await Promise.all([
+  const [factories, scores, supervisorEntries] = await Promise.all([
     prisma.factory.findMany({ orderBy: { code: "asc" } }),
-    prisma.dailyProductionChecklistConfirmation.findMany({
+    prisma.dailyProductionChecklistScore.findMany({
       where: { date: dayStart, shiftType },
-      select: { factoryId: true, itemKey: true, confirmedByName: true },
+      select: { factoryId: true, itemKey: true, score: true },
+    }),
+    prisma.dailyLabourEntry.findMany({
+      where: { date: dayStart, shiftType, role: "SUPERVISOR" },
+      select: { factoryId: true, department: true, supervisorName: true },
     }),
   ]);
 
@@ -34,8 +38,8 @@ export default async function DailyChecklistPage({
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Daily Checklist</h1>
           <p className="mt-1 text-sm text-slate-500">
-            The Head of Production&apos;s per-shift plant walkthrough — receiving, pre-cooling, production,
-            packaging, cold stores, loading, warehouse, and services areas.
+            The Head of Production&apos;s per-shift plant walkthrough — a 0-10 score per item across arrivals,
+            pre-cooling, production, packaging, cold stores, loading, warehouse, and services areas.
           </p>
         </div>
         <form className="flex items-end gap-2">
@@ -61,7 +65,8 @@ export default async function DailyChecklistPage({
           factoryName={`${f.name}${f.code ? ` (${f.code})` : ""}`}
           date={dateStr}
           shiftType={shiftType}
-          confirmations={confirmations.filter((c) => c.factoryId === f.id)}
+          scores={scores.filter((s) => s.factoryId === f.id)}
+          supervisorsByDepartment={supervisorEntries.filter((e) => e.factoryId === f.id)}
           canEdit={canEdit}
         />
       ))}

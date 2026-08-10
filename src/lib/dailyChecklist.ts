@@ -1,9 +1,12 @@
-// Transcribed from the paper "IQF Manager Daily Checklist" form. Item text
-// is kept verbatim (including its original phrasing) since it's the real
-// operational document staff are trained against -- rewording it here would
-// make the digital version disagree with the paper one. Section letters C,
-// F, and G were cut off in the source photos; they're inferred from the
-// visible A/B/D/E/H sequence.
+import type { LabourDepartment } from "@prisma/client";
+
+// Transcribed from the paper "IQF Manager Daily Checklist" form, with a
+// handful of OCR/scan typos corrected per the Owner: "Recieving" -> Arrivals
+// (matching the Arrival Inspection terminology used elsewhere in the app),
+// "blue slotipe" -> Sellotape, "Clarkat drivers" -> Forklift drivers.
+// Everything else is kept verbatim since it's the real operational document
+// staff are trained against. Section letters C, F, and G were cut off in
+// the source photos; they're inferred from the visible A/B/D/E/H sequence.
 export type DailyChecklistSection = {
   key: string;
   letter: string;
@@ -13,17 +16,17 @@ export type DailyChecklistSection = {
 
 export const DAILY_CHECKLIST_SECTIONS: DailyChecklistSection[] = [
   {
-    key: "RECEIVING",
+    key: "ARRIVALS",
     letter: "A",
-    label: "Recieving Area",
+    label: "Arrivals Area",
     items: [
-      { key: "RECEIVING_1", text: "Floors are intact, free from defects, rust, or peeling coatings" },
-      { key: "RECEIVING_2", text: "Pest monitoring devices (traps) are intact, working, and correctly positioned" },
-      { key: "RECEIVING_3", text: "Receiving area cleanliness is maintained according to hygiene standards" },
-      { key: "RECEIVING_4", text: "Receiving Supervisor implements all trained receiving instructions/SOPs" },
-      { key: "RECEIVING_5", text: "Inspection log entries are accurately and completely registered by the supervisor" },
-      { key: "RECEIVING_6", text: "Empty raw crates are regularly stacked and promptly moved to the de-capping station" },
-      { key: "RECEIVING_7", text: "Vehicle unloading operations are conducted efficiently, meeting turnaround time targets" },
+      { key: "ARRIVALS_1", text: "Floors are intact, free from defects, rust, or peeling coatings" },
+      { key: "ARRIVALS_2", text: "Pest monitoring devices (traps) are intact, working, and correctly positioned" },
+      { key: "ARRIVALS_3", text: "Arrival area cleanliness is maintained according to hygiene standards" },
+      { key: "ARRIVALS_4", text: "Arrival Supervisor implements all trained arrival instructions/SOPs" },
+      { key: "ARRIVALS_5", text: "Inspection log entries are accurately and completely registered by the supervisor" },
+      { key: "ARRIVALS_6", text: "Empty raw crates are regularly stacked and promptly moved to the de-capping station" },
+      { key: "ARRIVALS_7", text: "Vehicle unloading operations are conducted efficiently, meeting turnaround time targets" },
     ],
   },
   {
@@ -101,7 +104,7 @@ export const DAILY_CHECKLIST_SECTIONS: DailyChecklistSection[] = [
       { key: "COLD_STORES_6", text: "Operating room temperature -18°C" },
       { key: "COLD_STORES_7", text: "Stacking the bits inside the refrigerators regularly according to specifications and production date" },
       { key: "COLD_STORES_8", text: "All pallets have the lot on them" },
-      { key: "COLD_STORES_9", text: "Clarkat drivers close doors, move safely and steadily, and their alarms work properly." },
+      { key: "COLD_STORES_9", text: "Forklift drivers close doors, move safely and steadily, and their alarms work properly." },
     ],
   },
   {
@@ -117,7 +120,7 @@ export const DAILY_CHECKLIST_SECTIONS: DailyChecklistSection[] = [
       { key: "LOADING_6", text: "Container cleanliness and it operates at a temperature of -18°C" },
       { key: "LOADING_7", text: "Print the stickers correctly and in the required number" },
       { key: "LOADING_8", text: "Only one pallet per container; no rushing loading." },
-      { key: "LOADING_9", text: "Safety of cartons and sealing them with blue slotipe only" },
+      { key: "LOADING_9", text: "Safety of cartons and sealing them with blue Sellotape only" },
       { key: "LOADING_10", text: "The cartons in the container do not exceed the red line" },
     ],
   },
@@ -168,3 +171,29 @@ export function isValidDailyChecklistItemKey(key: string): boolean {
 export function totalDailyChecklistItemCount(): number {
   return ALL_ITEM_KEYS.size;
 }
+
+export function findDailyChecklistSection(sectionKey: string): DailyChecklistSection | undefined {
+  return DAILY_CHECKLIST_SECTIONS.find((s) => s.key === sectionKey);
+}
+
+// Same green/amber/red scanning convention as cleaningScoreColor -- a quick
+// visual read on a 0-10 score.
+export function dailyChecklistScoreColor(score: number | null | undefined): string {
+  if (score == null) return "text-slate-300";
+  if (score >= 8) return "text-emerald-700";
+  if (score >= 5) return "text-amber-700";
+  return "text-red-700";
+}
+
+// Best-effort match against Labour Distribution's departments, so a
+// section header can show who's supervising that area this shift without
+// re-entering the name here. Cold Stores and Warehouse have no equivalent
+// Labour Distribution department, so they're left unmapped.
+export const DAILY_CHECKLIST_SECTION_LABOUR_DEPARTMENT: Partial<Record<string, LabourDepartment>> = {
+  ARRIVALS: "INTAKE",
+  PRECOOLING: "INFEED",
+  PRODUCTION: "PROCESSING",
+  PACKAGING: "PACKAGING",
+  LOADING: "LOAD_OUT",
+  SERVICES: "MAINTENANCE_ENGINEERING",
+};
