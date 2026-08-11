@@ -85,7 +85,8 @@ export function CleaningShiftCard({
 
       {locked ? (
         <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-amber-700">
-          Locked — both sign-offs are on file. Reopen below to correct a score.
+          Locked — cleared for production by both Head of Production and Head of Maintenance. Reopen below to correct
+          a score.
         </p>
       ) : (
         <>
@@ -106,46 +107,53 @@ export function CleaningShiftCard({
         </>
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-500">Head of Production</p>
-          {record?.productionSignedByName ? (
-            <p className="text-sm text-slate-800">
-              {record.productionSignedByName}
-              <span className="ml-2 text-xs text-slate-500">{record.productionSignedAt?.toLocaleString()}</span>
-            </p>
-          ) : !canScoreProduction ? (
-            <p className="text-xs text-slate-400">Waiting on Head of Production.</p>
-          ) : !productionComplete ? (
-            <p className="text-xs text-slate-400">Score every area above before signing off.</p>
-          ) : (
-            <SignOffForm
-              action={signCleaningAction.bind(null, factoryId, date, shiftType, "PRODUCTION")}
-              confirmMessage={`Sign off as ${
-                currentUserLabel ?? "yourself"
-              }, Head of Production, for this shift's cleaning? This locks the record once Maintenance also signs off.`}
-            />
-          )}
-        </div>
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-500">Head of Maintenance</p>
-          {record?.maintenanceSignedByName ? (
-            <p className="text-sm text-slate-800">
-              {record.maintenanceSignedByName}
-              <span className="ml-2 text-xs text-slate-500">{record.maintenanceSignedAt?.toLocaleString()}</span>
-            </p>
-          ) : !canScoreMaintenance ? (
-            <p className="text-xs text-slate-400">Waiting on Head of Maintenance.</p>
-          ) : !maintenanceComplete ? (
-            <p className="text-xs text-slate-400">Score every area above before signing off.</p>
-          ) : (
-            <SignOffForm
-              action={signCleaningAction.bind(null, factoryId, date, shiftType, "MAINTENANCE")}
-              confirmMessage={`Sign off as ${
-                currentUserLabel ?? "yourself"
-              }, Head of Maintenance, for this shift's cleaning? This locks the record once Production also signs off.`}
-            />
-          )}
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-700">Sign-off — Cleared for Production</h5>
+        <p className="mt-0.5 text-xs text-slate-500">
+          Approval that cleaning was done well and this area is cleared for production. The next shift can&apos;t be
+          logged until both sign-offs are on file.
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-4">
+          <div className="rounded-md border border-l-4 border-slate-200 border-l-sky-400 bg-slate-50/50 p-2">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Head of Production</p>
+            {record?.productionSignedByName ? (
+              <p className="text-sm text-slate-800">
+                {record.productionSignedByName}
+                <span className="ml-2 text-xs text-slate-500">{record.productionSignedAt?.toLocaleString()}</span>
+              </p>
+            ) : !canScoreProduction ? (
+              <p className="text-xs text-slate-400">Waiting on Head of Production.</p>
+            ) : !productionComplete ? (
+              <p className="text-xs text-slate-400">Score every area above before signing off.</p>
+            ) : (
+              <SignOffForm
+                action={signCleaningAction.bind(null, factoryId, date, shiftType, "PRODUCTION")}
+                confirmMessage={`Confirm as ${
+                  currentUserLabel ?? "yourself"
+                }, Head of Production: cleaning was done well and this area is cleared for production. This locks the record once Maintenance also signs off.`}
+              />
+            )}
+          </div>
+          <div className="rounded-md border border-l-4 border-slate-200 border-l-violet-400 bg-slate-50/50 p-2">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Head of Maintenance</p>
+            {record?.maintenanceSignedByName ? (
+              <p className="text-sm text-slate-800">
+                {record.maintenanceSignedByName}
+                <span className="ml-2 text-xs text-slate-500">{record.maintenanceSignedAt?.toLocaleString()}</span>
+              </p>
+            ) : !canScoreMaintenance ? (
+              <p className="text-xs text-slate-400">Waiting on Head of Maintenance.</p>
+            ) : !maintenanceComplete ? (
+              <p className="text-xs text-slate-400">Score every area above before signing off.</p>
+            ) : (
+              <SignOffForm
+                action={signCleaningAction.bind(null, factoryId, date, shiftType, "MAINTENANCE")}
+                confirmMessage={`Confirm as ${
+                  currentUserLabel ?? "yourself"
+                }, Head of Maintenance: cleaning was done well and this area is cleared for production. This locks the record once Production also signs off.`}
+              />
+            )}
+          </div>
         </div>
       </div>
 
