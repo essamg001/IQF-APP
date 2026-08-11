@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input, FieldGroup } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { canSignAsHeadOfProduction, canSignAsHeadOfMaintenance } from "@/lib/roles";
 import { CleaningShiftCard } from "./cleaning-shift-card";
@@ -34,25 +33,27 @@ export default async function CleaningPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Cleaning Mode</h1>
           <p className="mt-1 text-sm text-slate-500">
             Between-shift cleaning and drying — a 0-10 score per area from both Head of Production and Head of
-            Maintenance, and a dual sign-off before the next shift starts.{" "}
-            <Link href="/cleaning/history" className="text-emerald-700 hover:underline">
-              View History
-            </Link>
+            Maintenance, and a dual sign-off before the next shift starts.
           </p>
         </div>
-        <form className="flex items-end gap-2">
-          <FieldGroup label="Date">
-            <Input name="date" type="date" defaultValue={dateStr} />
-          </FieldGroup>
-          <Button type="submit" variant="secondary">
-            Go
-          </Button>
-        </form>
+        <div className="flex items-end gap-3">
+          <form className="flex items-end gap-2">
+            <FieldGroup label="Date">
+              <Input name="date" type="date" defaultValue={dateStr} />
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              Go
+            </Button>
+          </form>
+          <LinkButton href="/cleaning/history" variant="secondary">
+            View History
+          </LinkButton>
+        </div>
       </div>
 
       {factories.map((f) => {

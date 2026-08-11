@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input, FieldGroup } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { FactoryHistorySection } from "./factory-history-section";
 
@@ -54,27 +53,27 @@ export default async function CleaningHistoryPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Cleaning History</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Day-by-day results, low-score flags, and score trends per area.{" "}
-            <Link href="/cleaning" className="text-emerald-700 hover:underline">
-              Back to Cleaning Mode
-            </Link>
-          </p>
+          <p className="mt-1 text-sm text-slate-500">Day-by-day results, low-score flags, and score trends per area.</p>
         </div>
-        <form className="flex items-end gap-2">
-          <FieldGroup label="From">
-            <Input name="from" type="date" defaultValue={fromStr} />
-          </FieldGroup>
-          <FieldGroup label="To">
-            <Input name="to" type="date" defaultValue={toStr} />
-          </FieldGroup>
-          <Button type="submit" variant="secondary">
-            Go
-          </Button>
-        </form>
+        <div className="flex items-end gap-3">
+          <form className="flex items-end gap-2">
+            <FieldGroup label="From">
+              <Input name="from" type="date" defaultValue={fromStr} />
+            </FieldGroup>
+            <FieldGroup label="To">
+              <Input name="to" type="date" defaultValue={toStr} />
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              Go
+            </Button>
+          </form>
+          <LinkButton href="/cleaning" variant="secondary">
+            Back to Cleaning Mode
+          </LinkButton>
+        </div>
       </div>
 
       {factories.map((f) => (
