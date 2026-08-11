@@ -35,3 +35,12 @@ export function cleaningScoreColor(score: number | null | undefined): string {
   if (score >= 5) return "text-amber-700";
   return "text-red-700";
 }
+
+// Matches cleaningScoreColor's red tier -- the same boundary that already
+// reads as "bad" everywhere a score is shown, reused here to flag it in
+// history/summary views.
+export const CLEANING_LOW_SCORE_THRESHOLD = 5;
+
+export function isLowCleaningScore(score: number | null | undefined): boolean {
+  return score != null && score < CLEANING_LOW_SCORE_THRESHOLD;
+}

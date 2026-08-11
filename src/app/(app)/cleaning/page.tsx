@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,10 @@ export default async function CleaningPage({
           <h1 className="text-xl font-semibold text-slate-900">Cleaning Mode</h1>
           <p className="mt-1 text-sm text-slate-500">
             Between-shift cleaning and drying — a 0-10 score per area from both Head of Production and Head of
-            Maintenance, and a dual sign-off before the next shift starts.
+            Maintenance, and a dual sign-off before the next shift starts.{" "}
+            <Link href="/cleaning/history" className="text-emerald-700 hover:underline">
+              View History
+            </Link>
           </p>
         </div>
         <form className="flex items-end gap-2">
