@@ -15,11 +15,17 @@ type Record = {
 } | null;
 
 const ROLE_LABEL = { PRODUCTION: "Head of Production", MAINTENANCE: "Head of Maintenance" } as const;
-// Set via inline style, not a border-l-{color} class -- Tailwind's generated
-// stylesheet put the all-sides `border-slate-200` rule after the left-only
-// accent rule, so the shorthand silently overwrote the accent color. Inline
-// style always wins the cascade regardless of Tailwind's internal ordering.
-const ROLE_ACCENT_COLOR = { PRODUCTION: "#38bdf8", MAINTENANCE: "#a78bfa" } as const; // sky-400 / violet-400
+// A thin colored edge alone read as barely-there on some displays/browsers
+// (a 4px sliver next to a 1px gray border is easy to miss). Identity is now
+// carried three ways at once -- tinted background, colored heading text, and
+// a colored left rule -- all via ordinary same-specificity Tailwind classes
+// (no directional-vs-shorthand conflict like the border-color bug this
+// replaced, since every one of these classes is the only rule touching that
+// property).
+const ROLE_STYLE = {
+  PRODUCTION: { box: "bg-sky-50 border-sky-300", heading: "text-sky-800", rule: "bg-sky-400" },
+  MAINTENANCE: { box: "bg-violet-50 border-violet-300", heading: "text-violet-800", rule: "bg-violet-400" },
+} as const;
 
 // One panel per role, holding both that role's score entry and its sign-off
 // -- previously these were four separate boxes (two for scores, two for
@@ -51,13 +57,14 @@ function RolePanel({
 }) {
   const roleLabel = ROLE_LABEL[role];
   const otherRoleLabel = role === "PRODUCTION" ? ROLE_LABEL.MAINTENANCE : ROLE_LABEL.PRODUCTION;
+  const style = ROLE_STYLE[role];
 
   return (
-    <div
-      className="rounded-md border border-l-4 border-slate-200 bg-slate-50/50 p-2"
-      style={{ borderLeftColor: ROLE_ACCENT_COLOR[role] }}
-    >
-      <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-600">{roleLabel}</h5>
+    <div className={`rounded-md border-2 p-2 ${style.box}`}>
+      <div className="flex items-center gap-2">
+        <span className={`h-2.5 w-2.5 rounded-full ${style.rule}`} />
+        <h5 className={`text-xs font-bold uppercase tracking-wide ${style.heading}`}>{roleLabel}</h5>
+      </div>
       {!canScore ? (
         <p className="mt-1 text-xs text-slate-400">Only the Owner or {roleLabel} can score and sign off.</p>
       ) : (
