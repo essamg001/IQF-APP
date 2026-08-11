@@ -14,6 +14,75 @@ type Record = {
   maintenanceSignedAt: Date | null;
 } | null;
 
+const ROLE_LABEL = { PRODUCTION: "Head of Production", MAINTENANCE: "Head of Maintenance" } as const;
+const ROLE_ACCENT = { PRODUCTION: "border-l-sky-400", MAINTENANCE: "border-l-violet-400" } as const;
+
+// One panel per role, holding both that role's score entry and its sign-off
+// -- previously these were four separate boxes (two for scores, two for
+// sign-off) with the role name repeated on each, which read as cluttered.
+function RolePanel({
+  role,
+  factoryId,
+  date,
+  shiftType,
+  scores,
+  canScore,
+  locked,
+  complete,
+  signedByName,
+  signedAt,
+  currentUserLabel,
+}: {
+  role: "PRODUCTION" | "MAINTENANCE";
+  factoryId: string;
+  date: string;
+  shiftType: "DAY" | "NIGHT";
+  scores: Score[];
+  canScore: boolean;
+  locked: boolean;
+  complete: boolean;
+  signedByName: string | null;
+  signedAt: Date | null;
+  currentUserLabel: string | null;
+}) {
+  const roleLabel = ROLE_LABEL[role];
+  const otherRoleLabel = role === "PRODUCTION" ? ROLE_LABEL.MAINTENANCE : ROLE_LABEL.PRODUCTION;
+
+  return (
+    <div className={`rounded-md border border-l-4 border-slate-200 ${ROLE_ACCENT[role]} bg-slate-50/50 p-2`}>
+      <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-600">{roleLabel}</h5>
+      {!canScore ? (
+        <p className="mt-1 text-xs text-slate-400">Only the Owner or {roleLabel} can score and sign off.</p>
+      ) : (
+        <>
+          {!locked && (
+            <div className="mt-1">
+              <ScoreEntryForm factoryId={factoryId} date={date} shiftType={shiftType} role={role} scores={scores} />
+            </div>
+          )}
+          <div className="mt-2 border-t border-slate-200 pt-2">
+            {signedByName ? (
+              <p className="text-sm text-slate-800">
+                {signedByName}
+                <span className="ml-2 text-xs text-slate-500">{signedAt?.toLocaleString()}</span>
+              </p>
+            ) : !complete ? (
+              <p className="text-xs text-slate-400">Score every area above before signing off.</p>
+            ) : (
+              <SignOffForm
+                action={signCleaningAction.bind(null, factoryId, date, shiftType, role)}
+                confirmMessage={`Confirm as ${
+                  currentUserLabel ?? "yourself"
+                }, ${roleLabel}: cleaning was done well and this area is cleared for production. This locks the record once ${otherRoleLabel} also signs off.`}
+              />
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function CleaningShiftCard({
   factoryId,
   date,
@@ -83,77 +152,43 @@ export function CleaningShiftCard({
         </tbody>
       </table>
 
-      {locked ? (
-        <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-amber-700">
-          Locked — cleared for production by both Head of Production and Head of Maintenance. Reopen below to correct
-          a score.
-        </p>
-      ) : (
-        <>
-          {canScoreProduction ? (
-            <ScoreEntryForm factoryId={factoryId} date={date} shiftType={shiftType} role="PRODUCTION" scores={scores} />
-          ) : (
-            <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-400">
-              Only the Owner or Head of Production can enter production scores.
-            </p>
-          )}
-          {canScoreMaintenance ? (
-            <ScoreEntryForm factoryId={factoryId} date={date} shiftType={shiftType} role="MAINTENANCE" scores={scores} />
-          ) : (
-            <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-400">
-              Only the Owner or Head of Maintenance can enter maintenance scores.
-            </p>
-          )}
-        </>
-      )}
-
-      <div className="mt-3 border-t border-slate-100 pt-3">
-        <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-700">Sign-off — Cleared for Production</h5>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Approval that cleaning was done well and this area is cleared for production. The next shift can&apos;t be
-          logged until both sign-offs are on file.
-        </p>
-        <div className="mt-2 grid grid-cols-2 gap-4">
-          <div className="rounded-md border border-l-4 border-slate-200 border-l-sky-400 bg-slate-50/50 p-2">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Head of Production</p>
-            {record?.productionSignedByName ? (
-              <p className="text-sm text-slate-800">
-                {record.productionSignedByName}
-                <span className="ml-2 text-xs text-slate-500">{record.productionSignedAt?.toLocaleString()}</span>
-              </p>
-            ) : !canScoreProduction ? (
-              <p className="text-xs text-slate-400">Waiting on Head of Production.</p>
-            ) : !productionComplete ? (
-              <p className="text-xs text-slate-400">Score every area above before signing off.</p>
-            ) : (
-              <SignOffForm
-                action={signCleaningAction.bind(null, factoryId, date, shiftType, "PRODUCTION")}
-                confirmMessage={`Confirm as ${
-                  currentUserLabel ?? "yourself"
-                }, Head of Production: cleaning was done well and this area is cleared for production. This locks the record once Maintenance also signs off.`}
-              />
-            )}
-          </div>
-          <div className="rounded-md border border-l-4 border-slate-200 border-l-violet-400 bg-slate-50/50 p-2">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-600">Head of Maintenance</p>
-            {record?.maintenanceSignedByName ? (
-              <p className="text-sm text-slate-800">
-                {record.maintenanceSignedByName}
-                <span className="ml-2 text-xs text-slate-500">{record.maintenanceSignedAt?.toLocaleString()}</span>
-              </p>
-            ) : !canScoreMaintenance ? (
-              <p className="text-xs text-slate-400">Waiting on Head of Maintenance.</p>
-            ) : !maintenanceComplete ? (
-              <p className="text-xs text-slate-400">Score every area above before signing off.</p>
-            ) : (
-              <SignOffForm
-                action={signCleaningAction.bind(null, factoryId, date, shiftType, "MAINTENANCE")}
-                confirmMessage={`Confirm as ${
-                  currentUserLabel ?? "yourself"
-                }, Head of Maintenance: cleaning was done well and this area is cleared for production. This locks the record once Production also signs off.`}
-              />
-            )}
-          </div>
+      <div className="mt-2 border-t border-slate-100 pt-2">
+        {locked ? (
+          <p className="mb-2 text-xs text-amber-700">
+            Locked — cleared for production by both heads. Reopen below to correct a score.
+          </p>
+        ) : (
+          <p className="mb-2 text-xs text-slate-500">
+            Score every area, then sign off to confirm cleaning was done well and cleared for production.
+          </p>
+        )}
+        <div className="space-y-3">
+          <RolePanel
+            role="PRODUCTION"
+            factoryId={factoryId}
+            date={date}
+            shiftType={shiftType}
+            scores={scores}
+            canScore={canScoreProduction}
+            locked={locked}
+            complete={productionComplete}
+            signedByName={record?.productionSignedByName ?? null}
+            signedAt={record?.productionSignedAt ?? null}
+            currentUserLabel={currentUserLabel}
+          />
+          <RolePanel
+            role="MAINTENANCE"
+            factoryId={factoryId}
+            date={date}
+            shiftType={shiftType}
+            scores={scores}
+            canScore={canScoreMaintenance}
+            locked={locked}
+            complete={maintenanceComplete}
+            signedByName={record?.maintenanceSignedByName ?? null}
+            signedAt={record?.maintenanceSignedAt ?? null}
+            currentUserLabel={currentUserLabel}
+          />
         </div>
       </div>
 
