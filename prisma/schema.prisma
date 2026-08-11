@@ -133,6 +133,7 @@ enum AlertType {
   EARLY_WARNING
   SHIFT_ON_HOLD
   TEMPERATURE_EXCURSION
+  GLOBALGAP_EXPIRING
 }
 
 enum AlertStatus {
@@ -547,6 +548,13 @@ model CompanySettings {
   id                 String @id @default(cuid())
   fxRateEgpPerUsd    Float?
   laborHourlyRateEgp Float?
+
+  // Farm-level GlobalG.A.P. accreditation -- every field currently shares the
+  // same certification, so this lives once here rather than denormalized
+  // across every Field row (unlike farmName/capqFarmCode/nfsaFarmCode, which
+  // predate this and were already accepted as per-field duplication).
+  globalGapNumber String?
+  globalGapExpiry DateTime?
 }
 
 // lotNumber is auto-generated: {farmCode}{factory.code}{YY}{DDD}-{shift digit}

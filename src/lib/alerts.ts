@@ -5,8 +5,10 @@ import { sendEmail } from "@/lib/email";
 import { parseBrixRange } from "@/lib/allocation";
 import { formatViolation, formatTrendWarning, type LimitViolation, type TrendWarning } from "@/lib/qualityLimits";
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
+import { getCompanySettings } from "@/lib/companySettings";
 
 const MICRO_PENDING_DAYS_THRESHOLD = 3;
+const GLOBALGAP_EXPIRY_WARNING_DAYS = 30;
 
 async function upsertAlert(type: AlertType, relatedEntityId: string, targetRole: Role, message: string) {
   const existing = await prisma.alert.findFirst({
@@ -23,7 +25,13 @@ async function upsertAlert(type: AlertType, relatedEntityId: string, targetRole:
 
 /** Scans current state and raises alerts for newly-detected conditions. Safe to call repeatedly. */
 export async function generateAlerts() {
-  await Promise.all([checkSpecMismatch(), checkContainerOverdue(), checkLowStock(), checkMicrobiologyPending()]);
+  await Promise.all([
+    checkSpecMismatch(),
+    checkContainerOverdue(),
+    checkLowStock(),
+    checkMicrobiologyPending(),
+    checkGlobalGapExpiry(),
+  ]);
 }
 
 /**
@@ -459,4 +467,24 @@ async function checkMicrobiologyPending() {
     await upsertAlert("MICROBIOLOGY_PENDING", m.id, "QUALITY", message);
     await upsertAlert("MICROBIOLOGY_PENDING", m.id, "PRODUCTION", message);
   }
+}
+
+// All fields currently share one farm-level GlobalG.A.P. certification (see
+// CompanySettings.globalGapExpiry), so this is a single check rather than
+// one per field.
+async function checkGlobalGapExpiry() {
+  const settings = await getCompanySettings();
+  if (!settings.globalGapExpiry) return;
+
+  const daysLeft = differenceInDays(settings.globalGapExpiry, new Date());
+  if (daysLeft > GLOBALGAP_EXPIRY_WARNING_DAYS) return;
+
+  const numberLabel = settings.globalGapNumber ? `#${settings.globalGapNumber}` : "on file";
+  const message =
+    daysLeft < 0
+      ? `GlobalG.A.P. certification (${numberLabel}) expired ${Math.abs(daysLeft)} day(s) ago.`
+      : `GlobalG.A.P. certification (${numberLabel}) expires in ${daysLeft} day(s).`;
+
+  await upsertAlert("GLOBALGAP_EXPIRING", settings.id, "OWNER", message);
+  await upsertAlert("GLOBALGAP_EXPIRING", settings.id, "QUALITY", message);
 }

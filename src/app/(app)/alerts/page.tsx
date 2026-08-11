@@ -21,6 +21,7 @@ const TYPE_LABEL = {
   EARLY_WARNING: "Early Warning — Trend",
   SHIFT_ON_HOLD: "Shift On Hold",
   TEMPERATURE_EXCURSION: "Temperature Excursion",
+  GLOBALGAP_EXPIRING: "GlobalG.A.P. Expiring",
 } as const;
 
 export default async function AlertsPage() {

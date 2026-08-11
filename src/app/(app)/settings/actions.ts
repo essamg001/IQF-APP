@@ -257,3 +257,40 @@ export async function updateCostingRatesAction(formData: FormData) {
 
   revalidatePath("/settings");
 }
+
+const farmAccreditationSchema = z.object({
+  globalGapNumber: z.string().optional(),
+  globalGapExpiry: z.string().optional(),
+});
+
+// Every field currently shares one farm-level GlobalG.A.P. certification, so
+// this is a single company-wide fact (see CompanySettings) rather than
+// something repeated per Field row.
+export async function updateFarmAccreditationAction(formData: FormData) {
+  const session = await auth();
+  if (!(await requireOwner())) return;
+
+  const parsed = farmAccreditationSchema.parse({
+    globalGapNumber: formData.get("globalGapNumber") || undefined,
+    globalGapExpiry: formData.get("globalGapExpiry") || undefined,
+  });
+
+  const settings = await getCompanySettings();
+  await prisma.companySettings.update({
+    where: { id: settings.id },
+    data: {
+      globalGapNumber: parsed.globalGapNumber,
+      globalGapExpiry: parsed.globalGapExpiry ? new Date(parsed.globalGapExpiry) : undefined,
+    },
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "FARM_ACCREDITATION_UPDATED",
+    entityType: "CompanySettings",
+    entityId: settings.id,
+    detail: `GlobalG.A.P. ${parsed.globalGapNumber ?? "—"}, expires ${parsed.globalGapExpiry ?? "—"}`,
+  });
+
+  revalidatePath("/settings");
+}

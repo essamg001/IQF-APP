@@ -28,6 +28,7 @@ import {
   toggleHeadOfProductionAction,
   toggleHeadOfMaintenanceAction,
   updateCostingRatesAction,
+  updateFarmAccreditationAction,
 } from "./actions";
 import { AddUserForm } from "./add-user-form";
 
@@ -144,6 +145,35 @@ export default async function SettingsPage() {
                 min="0"
                 defaultValue={companySettings.laborHourlyRateEgp ?? ""}
                 className="w-56"
+              />
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              Save
+            </Button>
+          </form>
+        </Card>
+      )}
+
+      {isOwner && companySettings && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">Farm Accreditation</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            GlobalG.A.P. certification — every field currently shares the same one, so it&apos;s recorded once here
+            rather than per field. An expiring/expired certificate raises an Alert to Owner and Quality, since a
+            client can reject a shipment on paperwork grounds alone.
+          </p>
+          <form action={updateFarmAccreditationAction} className="mt-3 flex flex-wrap items-end gap-3">
+            <FieldGroup label="GlobalG.A.P. number">
+              <Input name="globalGapNumber" defaultValue={companySettings.globalGapNumber ?? ""} className="w-48" />
+            </FieldGroup>
+            <FieldGroup label="Expiry date">
+              <Input
+                name="globalGapExpiry"
+                type="date"
+                defaultValue={
+                  companySettings.globalGapExpiry ? companySettings.globalGapExpiry.toISOString().slice(0, 10) : ""
+                }
+                className="w-40"
               />
             </FieldGroup>
             <Button type="submit" variant="secondary">
