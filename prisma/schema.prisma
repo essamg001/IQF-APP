@@ -204,6 +204,9 @@ model User {
   verifiedQualityIssues QualityIssue[]
   recordedSupervisorTrainings SupervisorTrainingRecord[]
   recordedDepartmentTrainings DepartmentTrainingRecord[]
+  metalDetectorChecks MetalDetectorCheck[] @relation("MetalDetectorCheckedBy")
+  metalDetectorMaintenanceChecks MetalDetectorMaintenanceCheck[] @relation("MetalDetectorMaintenanceCheckedBy")
+  chlorineDosingChecks ChlorineDosingCheck[] @relation("ChlorineDosingVerifiedBy")
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -331,6 +334,9 @@ model Factory {
   cleaningShiftRecords CleaningShiftRecord[]
   dailyChecklistScores DailyProductionChecklistScore[]
   departmentTrainingRecords DepartmentTrainingRecord[]
+  metalDetectorChecks MetalDetectorCheck[]
+  metalDetectorMaintenanceChecks MetalDetectorMaintenanceCheck[]
+  chlorineDosingChecks ChlorineDosingCheck[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -1761,4 +1767,97 @@ model DepartmentTrainingRecord {
   isTestData Boolean @default(false)
 
   @@index([factoryId, department])
+}
+
+// CAL03607 -- one sealed carton is passed through the packaging-room metal
+// detector before palletisation. Sensitivity is verified before shift start,
+// hourly, at end of shift, on product change, and after a break by passing
+// three test packages (Ferrous/Non-Ferrous/Stainless steel test pieces) through
+// the opening and confirming the machine detects each.
+model MetalDetectorCheck {
+  id            String    @id @default(cuid())
+  factoryId     String
+  factory       Factory   @relation(fields: [factoryId], references: [id])
+  date          DateTime
+  shiftType     ShiftType
+  recordedAt    DateTime  @default(now())
+  equipmentNumber   String?
+  traceabilityCode  String?
+
+  ferrousDetected       Boolean?
+  ferrousDiameterMm     Float?
+  nonFerrousDetected    Boolean?
+  nonFerrousDiameterMm  Float?
+  stainlessDetected     Boolean?
+  stainlessDiameterMm   Float?
+
+  // False here means the carton was held, not released -- correctiveAction
+  // is required in that case (mirrors the paper form's own logic).
+  productReleased  Boolean?
+  correctiveAction String?
+
+  checkedByName   String?
+  checkedByUserId String?
+  checkedByUser   User?   @relation("MetalDetectorCheckedBy", fields: [checkedByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([factoryId, date, shiftType])
+}
+
+// The other half of CAL03607 -- a once-per-shift maintenance checklist,
+// separate from the hourly detection checks above (own signature, own
+// cadence: once per shift, not hourly).
+model MetalDetectorMaintenanceCheck {
+  id        String    @id @default(cuid())
+  factoryId String
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+  date      DateTime
+  shiftType ShiftType
+
+  sensitivityCheckedThreeSides Boolean?
+  alarmCheckedAudioVisual      Boolean?
+  electricalPanelChecked       Boolean?
+  beltRollersCleanChecked      Boolean?
+
+  checkedByName   String?
+  checkedByUserId String?
+  checkedByUser   User?    @relation("MetalDetectorMaintenanceCheckedBy", fields: [checkedByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@unique([factoryId, date, shiftType])
+}
+
+// STR03117 -- free chlorine dosed into the wash tanks (disinfecting the
+// strawberries during washing at the IQF factory). Verifies the hourly
+// manual reading against the dosing machine's set point/standard rate --
+// deviationOccurred is the checker's own call, matching the paper form
+// (not computed against a stored target, since the form doesn't record one).
+model ChlorineDosingCheck {
+  id        String    @id @default(cuid())
+  factoryId String
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+  date      DateTime
+  shiftType ShiftType
+  recordedAt DateTime @default(now())
+
+  phLevel            Float?
+  freeChlorinePpm    Float?
+  fruitTransitSeconds Float?
+
+  deviationOccurred Boolean?
+  correctiveAction  String?
+
+  verifiedOk      Boolean?
+  verifiedByName  String?
+  verifiedByUserId String?
+  verifiedByUser  User?   @relation("ChlorineDosingVerifiedBy", fields: [verifiedByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([factoryId, date, shiftType])
 }
