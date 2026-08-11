@@ -1,16 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
 import Link from "next/link";
-import { canSeeCosting } from "@/lib/roles";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 
 export default async function WastePage() {
-  const session = await auth();
-  const showCosting = canSeeCosting(session?.user);
-
   const waste = await prisma.waste.findMany({
     include: { pallet: { include: { lot: true } }, shift: { include: { factory: true } } },
     orderBy: { date: "desc" },
@@ -18,7 +13,6 @@ export default async function WastePage() {
   });
 
   const totalTonnes = waste.reduce((sum, w) => sum + w.quantity, 0);
-  const totalValueUsd = waste.reduce((sum, w) => sum + (w.valueUsd ?? 0), 0);
 
   const byReason = new Map<string, number>();
   for (const w of waste) {
@@ -39,14 +33,6 @@ export default async function WastePage() {
           <p className="text-xs text-slate-500">Waste events</p>
           <p className="text-lg font-semibold text-slate-900">{waste.length}</p>
         </Card>
-        {showCosting && (
-          <Card className="p-3 text-center">
-            <p className="text-xs text-slate-500">Total value written off</p>
-            <p className="text-lg font-semibold text-slate-900">
-              ${totalValueUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </p>
-          </Card>
-        )}
       </div>
 
       <Card className="mt-4 overflow-x-auto p-0">
@@ -57,7 +43,6 @@ export default async function WastePage() {
               <th className="px-4 py-2 font-medium">Source</th>
               <th className="px-4 py-2 font-medium">Quantity (t)</th>
               <th className="px-4 py-2 font-medium">Reason</th>
-              {showCosting && <th className="px-4 py-2 font-medium">Value (USD)</th>}
             </tr>
           </thead>
           <tbody>
@@ -94,14 +79,11 @@ export default async function WastePage() {
                 </td>
                 <td className="px-4 py-2">{w.quantity}</td>
                 <td className="px-4 py-2">{w.reason}</td>
-                {showCosting && (
-                  <td className="px-4 py-2">{w.valueUsd != null ? `$${w.valueUsd.toLocaleString()}` : "—"}</td>
-                )}
               </tr>
             ))}
             {waste.length === 0 && (
               <tr>
-                <td colSpan={showCosting ? 5 : 4} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
                   No waste recorded.
                 </td>
               </tr>

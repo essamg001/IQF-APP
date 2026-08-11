@@ -47,7 +47,6 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
 
   // Sales reporting
   { href: "/trends", label: "Historical Trends", requiresHeadOfSales: true },
-  { href: "/costing", label: "Costing", requiresHeadOfSales: true },
 
   // Quality oversight & post-shipment issues
   { href: "/quality", label: "Quality" },

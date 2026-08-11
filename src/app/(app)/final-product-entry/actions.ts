@@ -1,10 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { parseDateSafe } from "@/lib/dates";
-import { canSeeCosting } from "@/lib/roles";
 import { z } from "zod";
 
 const packedPalletSchema = z.object({
@@ -25,7 +23,6 @@ const packedPalletSchema = z.object({
   palletizationStart: z.string().optional(),
   palletizationEnd: z.string().optional(),
   fruitDiameterCalibrated: z.boolean(),
-  packagingCostUsd: z.coerce.number().nonnegative().optional(),
 });
 
 export async function createPackedPalletAction(_prevState: string | undefined, formData: FormData) {
@@ -57,14 +54,6 @@ export async function createPackedPalletAction(_prevState: string | undefined, f
   });
 
   const { lotNumber, packingDate, palletizationStart, palletizationEnd, parcelStatus, ...data } = parsed.data;
-
-  // packagingCostUsd is only ever rendered in the form for costing-authorized
-  // roles, but a Server Action is its own callable endpoint independent of
-  // what the form shows -- strip it here too rather than trust the client.
-  const session = await auth();
-  if (!canSeeCosting(session?.user)) {
-    delete data.packagingCostUsd;
-  }
 
   const packingData = {
     ...data,

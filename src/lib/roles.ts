@@ -37,16 +37,6 @@ export function canSeeContainerValue(user: { role: Role; isHeadOfSales: boolean 
 }
 
 /**
- * Margin/costing figures (raw material, labor, packaging cost vs. revenue)
- * are the most sensitive financial data in the app -- same narrow rule as
- * container value and historical trends: Owner + Head of Sales/Export only.
- */
-export function canSeeCosting(user: { role: Role; isHeadOfSales: boolean } | undefined | null) {
-  if (!user) return false;
-  return user.role === "OWNER" || user.isHeadOfSales;
-}
-
-/**
  * Signing off loading a pallet that fails a client's own spec (see
  * SpecException) is deliberately narrow -- Owner + whoever holds
  * isHeadOfProduction only, never the whole Production role -- since the

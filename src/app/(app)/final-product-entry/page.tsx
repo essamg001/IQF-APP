@@ -5,14 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { PackingForm } from "./packing-form";
-import { canSeeCosting } from "@/lib/roles";
 
 export default async function FinalProductEntryPage() {
   const session = await auth();
   if (!session?.user || !["PRODUCTION", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
-  const showCosting = canSeeCosting(session.user);
 
   const [lots, coldRooms] = await Promise.all([
     prisma.productionLot.findMany({ orderBy: { createdAt: "desc" }, take: 50, include: { field: true } }),
@@ -52,7 +50,7 @@ export default async function FinalProductEntryPage() {
       <Badge color="slate">{todaysPallets.length} pallets recorded today</Badge>
 
       <div className="max-w-4xl">
-        <PackingForm lots={lots} coldRooms={coldRooms} postFreezeChecks={postFreezeChecks} showCosting={showCosting} />
+        <PackingForm lots={lots} coldRooms={coldRooms} postFreezeChecks={postFreezeChecks} />
       </div>
 
       <Card className="max-w-4xl overflow-x-auto p-0">

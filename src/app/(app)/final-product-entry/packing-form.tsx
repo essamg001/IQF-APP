@@ -15,12 +15,10 @@ export function PackingForm({
   lots,
   coldRooms,
   postFreezeChecks,
-  showCosting,
 }: {
   lots: LotWithField[];
   coldRooms: ColdRoom[];
   postFreezeChecks: PostFreezeCheck[];
-  showCosting: boolean;
 }) {
   const [state, formAction, pending] = useActionState(createPackedPalletAction, undefined);
 
@@ -90,7 +88,6 @@ export function PackingForm({
         lotNumber={lotNumber || undefined}
         lotGrade={selectedLot?.grade}
         lotChecks={lotChecks}
-        showCosting={showCosting}
       />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
@@ -107,13 +104,11 @@ function PalletFields({
   lotNumber,
   lotGrade,
   lotChecks,
-  showCosting,
 }: {
   coldRooms: ColdRoom[];
   lotNumber?: string;
   lotGrade?: "A" | "B";
   lotChecks: PostFreezeCheck[];
-  showCosting: boolean;
 }) {
   const [isMixedVariety, setIsMixedVariety] = useState(false);
   const [palletNumber, setPalletNumber] = useState("");
@@ -185,11 +180,6 @@ function PalletFields({
         <FieldGroup label="Total No. of Cartons">
           <Input name="totalCartons" type="number" min="1" />
         </FieldGroup>
-        {showCosting && (
-          <FieldGroup label="Packaging cost (USD)">
-            <Input name="packagingCostUsd" type="number" step="0.01" min="0" />
-          </FieldGroup>
-        )}
         <FieldGroup label="Cold Room">
           <Select name="coldRoomId" defaultValue="">
             <option value="">—</option>

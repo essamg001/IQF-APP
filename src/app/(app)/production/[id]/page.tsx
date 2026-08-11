@@ -1,14 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { format } from "date-fns";
 import { FORMAT_LABEL } from "@/lib/format";
-import { canSeeCosting } from "@/lib/roles";
-import { getCompanySettings } from "@/lib/companySettings";
-import { shiftHoursWorked, shiftCostPerTonneEgp, egpToUsd } from "@/lib/costing";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 
@@ -22,18 +18,11 @@ const PALLET_STATUS_COLOR = {
 
 export default async function LotDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await auth();
-  const showCosting = canSeeCosting(session?.user);
 
   const lot = await prisma.productionLot.findUnique({
     where: { id },
     include: {
-      shift: {
-        include: {
-          factory: true,
-          lots: { include: { pallets: { select: { weightTonnes: true } } } },
-        },
-      },
+      shift: { include: { factory: true } },
       factory: true,
       field: true,
       microbiologyResults: { include: { testLines: true } },
@@ -43,20 +32,6 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
     },
   });
   if (!lot) notFound();
-
-  const companySettings = showCosting ? await getCompanySettings() : null;
-  const lotTonnage = lot.pallets.reduce((s, p) => s + p.weightTonnes, 0);
-  const shiftTonnage = lot.shift.lots.reduce((sum, l) => sum + l.pallets.reduce((ps, p) => ps + p.weightTonnes, 0), 0);
-  const shiftHours = shiftHoursWorked(lot.shift);
-  const shiftLaborCostEgp =
-    lot.shift.laborHourlyRateEgpSnapshot != null ? lot.shift.laborHourlyRateEgpSnapshot * lot.shift.workerCount * shiftHours : null;
-  const shiftTotalCostEgp =
-    lot.shift.rawMaterialCostEgp != null || shiftLaborCostEgp != null
-      ? (lot.shift.rawMaterialCostEgp ?? 0) + (shiftLaborCostEgp ?? 0)
-      : null;
-  const costPerTonneEgp = shiftCostPerTonneEgp(lot.shift, shiftTonnage);
-  const thisLotCostEgp = costPerTonneEgp != null ? costPerTonneEgp * lotTonnage : null;
-  const thisLotCostUsd = thisLotCostEgp != null ? egpToUsd(thisLotCostEgp, companySettings?.fxRateEgpPerUsd ?? null) : null;
 
   const inHouseResult = lot.microbiologyResults.find((r) => r.labType === "IN_HOUSE");
   const externalResult = lot.microbiologyResults.find((r) => r.labType === "EXTERNAL");
@@ -91,69 +66,6 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
           {lot.factory.name} · {format(lot.shift.date, "dd MMM yyyy")} shift · Field: {lot.field.name}
         </p>
       </div>
-
-      {showCosting && (
-        <Card>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">Costing — Shift &amp; This Lot</h2>
-            <LinkButton href={`/shifts/${lot.shiftId}`} variant="secondary" className="text-xs">
-              Edit shift costing
-            </LinkButton>
-          </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Raw material and labor are entered once per shift, then allocated across every lot the shift produced
-            by output tonnage — this lot&apos;s share below is {lotTonnage.toFixed(2)}t of the shift&apos;s{" "}
-            {shiftTonnage.toFixed(2)}t total.
-          </p>
-
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">By Hour (this shift)</h3>
-              <dl className="mt-2 space-y-1 text-sm">
-                <Row label="Hours worked" value={`${shiftHours.toFixed(1)}h (${format(lot.shift.startTime, "HH:mm")}–${format(lot.shift.endTime, "HH:mm")})`} />
-                <Row label="Workers" value={`${lot.shift.workerCount}`} />
-                <Row
-                  label="Wage rate"
-                  value={lot.shift.laborHourlyRateEgpSnapshot != null ? `${lot.shift.laborHourlyRateEgpSnapshot} EGP/hour/worker` : "Not entered yet"}
-                />
-                <Row
-                  label="Labor cost (rate × workers × hours)"
-                  value={shiftLaborCostEgp != null ? `${shiftLaborCostEgp.toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP` : "—"}
-                />
-              </dl>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">By Shift (all lots)</h3>
-              <dl className="mt-2 space-y-1 text-sm">
-                <Row
-                  label="Raw material cost"
-                  value={lot.shift.rawMaterialCostEgp != null ? `${lot.shift.rawMaterialCostEgp.toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP` : "Not entered yet"}
-                />
-                <Row label="+ Labor cost" value={shiftLaborCostEgp != null ? `${shiftLaborCostEgp.toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP` : "—"} />
-                <Row
-                  label="= Total shift cost"
-                  value={shiftTotalCostEgp != null ? `${shiftTotalCostEgp.toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP` : "—"}
-                />
-                <Row
-                  label="Cost per tonne"
-                  value={costPerTonneEgp != null ? `${costPerTonneEgp.toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP/t` : "—"}
-                />
-              </dl>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-            <span className="text-sm font-semibold text-slate-900">This Lot&apos;s Allocated Cost ({lotTonnage.toFixed(2)}t)</span>
-            <span className="text-sm font-semibold text-slate-900">
-              {thisLotCostEgp != null
-                ? `${thisLotCostEgp.toLocaleString(undefined, { maximumFractionDigits: 0 })} EGP${
-                    thisLotCostUsd != null ? ` ($${thisLotCostUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })})` : ""
-                  }`
-                : "Not costed yet — enter raw material cost and/or wage rate on the shift"}
-            </span>
-          </div>
-        </Card>
-      )}
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">Fields Supplying This Shift</h2>

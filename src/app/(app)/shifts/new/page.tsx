@@ -13,7 +13,7 @@ export default async function NewShiftPage({
     // it to prefill Log Shift's start/end time instead of making someone type
     // the same times twice. Kept as a separate, editable prefill (not a hard
     // link) since shift clock-in/out can legitimately differ from line uptime
-    // (setup/changeover time), and shift hours drive labor costing directly.
+    // (setup/changeover time).
     prisma.dailyLineEfficiency.findMany({
       where: { OR: [{ uptimeFrom: { not: null } }, { uptimeTo: { not: null } }] },
       select: { factoryId: true, date: true, shiftType: true, uptimeFrom: true, uptimeTo: true },

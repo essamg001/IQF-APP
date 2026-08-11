@@ -1,25 +1,15 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { canSeeCosting } from "@/lib/roles";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
-const STALE_COST_DAYS = 3;
-
 export default async function ShiftsPage() {
-  const session = await auth();
-  const showCosting = canSeeCosting(session?.user);
-
   const shifts = await prisma.shiftLog.findMany({
     include: { factory: true, _count: { select: { lots: true } }, waste: { select: { quantity: true } } },
     orderBy: { date: "desc" },
     take: 100,
   });
-
-  const staleCutoff = new Date();
-  staleCutoff.setDate(staleCutoff.getDate() - STALE_COST_DAYS);
 
   return (
     <div>
@@ -44,7 +34,6 @@ export default async function ShiftsPage() {
               <th className="px-4 py-2 font-medium">Workers</th>
               <th className="px-4 py-2 font-medium">Lots Produced</th>
               <th className="px-4 py-2 font-medium">Reject Waste</th>
-              {showCosting && <th className="px-4 py-2 font-medium">Cost</th>}
             </tr>
           </thead>
           <tbody>
@@ -78,25 +67,12 @@ export default async function ShiftsPage() {
                       </a>
                     )}
                   </td>
-                  {showCosting && (
-                    <td className="px-4 py-2">
-                      {s.rawMaterialCostEgp != null ? (
-                        <Badge color="green">Entered</Badge>
-                      ) : s.date < staleCutoff ? (
-                        <a href={`/shifts/${s.id}`}>
-                          <Badge color="amber">Not entered</Badge>
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  )}
                 </tr>
               );
             })}
             {shifts.length === 0 && (
               <tr>
-                <td colSpan={showCosting ? 10 : 9} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   No shifts logged yet.
                 </td>
               </tr>
