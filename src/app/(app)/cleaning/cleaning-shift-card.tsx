@@ -15,7 +15,11 @@ type Record = {
 } | null;
 
 const ROLE_LABEL = { PRODUCTION: "Head of Production", MAINTENANCE: "Head of Maintenance" } as const;
-const ROLE_ACCENT = { PRODUCTION: "border-l-sky-400", MAINTENANCE: "border-l-violet-400" } as const;
+// Set via inline style, not a border-l-{color} class -- Tailwind's generated
+// stylesheet put the all-sides `border-slate-200` rule after the left-only
+// accent rule, so the shorthand silently overwrote the accent color. Inline
+// style always wins the cascade regardless of Tailwind's internal ordering.
+const ROLE_ACCENT_COLOR = { PRODUCTION: "#38bdf8", MAINTENANCE: "#a78bfa" } as const; // sky-400 / violet-400
 
 // One panel per role, holding both that role's score entry and its sign-off
 // -- previously these were four separate boxes (two for scores, two for
@@ -49,7 +53,10 @@ function RolePanel({
   const otherRoleLabel = role === "PRODUCTION" ? ROLE_LABEL.MAINTENANCE : ROLE_LABEL.PRODUCTION;
 
   return (
-    <div className={`rounded-md border border-l-4 border-slate-200 ${ROLE_ACCENT[role]} bg-slate-50/50 p-2`}>
+    <div
+      className="rounded-md border border-l-4 border-slate-200 bg-slate-50/50 p-2"
+      style={{ borderLeftColor: ROLE_ACCENT_COLOR[role] }}
+    >
       <h5 className="text-xs font-semibold uppercase tracking-wide text-slate-600">{roleLabel}</h5>
       {!canScore ? (
         <p className="mt-1 text-xs text-slate-400">Only the Owner or {roleLabel} can score and sign off.</p>
