@@ -189,6 +189,7 @@ model User {
   cleaningProductionSignOffs  CleaningShiftRecord[] @relation("CleaningProductionSignOff")
   cleaningMaintenanceSignOffs CleaningShiftRecord[] @relation("CleaningMaintenanceSignOff")
   dailyChecklistScores DailyProductionChecklistScore[]
+  verifiedQualityIssues QualityIssue[]
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -1340,7 +1341,18 @@ model QualityIssue {
   relatedLot         ProductionLot? @relation(fields: [relatedLotId], references: [id])
 
   issueDetails     String?
+  rootCause        String?
   correctiveAction String?
+
+  // Effectiveness check -- did the corrective action actually stop the
+  // problem recurring? Session-identity-based like every other sign-off in
+  // this app (not a typed name), and gated on rootCause + correctiveAction
+  // both being on file first (see canVerifyQualityIssueCapa in actions.ts).
+  verifiedByName    String?
+  verifiedByUserId  String?
+  verifiedByUser    User?     @relation(fields: [verifiedByUserId], references: [id])
+  verifiedAt        DateTime?
+  verificationNotes String?
 
   createdAt DateTime @default(now())
 

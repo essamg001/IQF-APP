@@ -1,15 +1,19 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input, FieldGroup } from "@/components/ui/field";
-import { toggleQualityIssueStatusAction, updateCorrectiveActionAction } from "../actions";
+import { toggleQualityIssueStatusAction, updateCapaAction } from "../actions";
+import { VerifyCapaForm } from "./verify-capa-form";
 import { format } from "date-fns";
 
 export default async function QualityIssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const session = await auth();
+  const currentUserLabel = session?.user.name ?? session?.user.email ?? null;
 
   const issue = await prisma.qualityIssue.findUnique({
     where: { id },
@@ -82,13 +86,37 @@ export default async function QualityIssueDetailPage({ params }: { params: Promi
       </Card>
 
       <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">Corrective Action</h2>
-        <form action={updateCorrectiveActionAction.bind(null, issue.id)} className="space-y-3">
-          <FieldGroup label="What was done to prevent a repeat of this issue">
+        <h2 className="text-sm font-semibold text-slate-900">Root Cause &amp; Corrective Action</h2>
+        <form action={updateCapaAction.bind(null, issue.id)} className="space-y-3">
+          <FieldGroup label="Root cause — why did this actually happen">
+            <Input name="rootCause" defaultValue={issue.rootCause ?? ""} placeholder="e.g. Sorter calibration drifted out of spec after the belt change" />
+          </FieldGroup>
+          <FieldGroup label="Corrective action — what was done to prevent a repeat">
             <Input name="correctiveAction" defaultValue={issue.correctiveAction ?? ""} placeholder="e.g. Purchased an optical sorter…" />
           </FieldGroup>
           <Button type="submit">Save</Button>
         </form>
+      </Card>
+
+      <Card className="space-y-3">
+        <h2 className="text-sm font-semibold text-slate-900">Verification</h2>
+        <p className="text-xs text-slate-500">
+          Confirms the corrective action above actually stopped the issue recurring — a distinct step, often by a
+          different person, done once the fix has had time to prove itself.
+        </p>
+        {issue.verifiedByName ? (
+          <div className="text-sm">
+            <p className="text-slate-800">
+              {issue.verifiedByName}
+              <span className="ml-2 text-xs text-slate-500">{issue.verifiedAt?.toLocaleString()}</span>
+            </p>
+            {issue.verificationNotes && <p className="mt-1 text-xs text-slate-500">{issue.verificationNotes}</p>}
+          </div>
+        ) : !issue.rootCause?.trim() || !issue.correctiveAction?.trim() ? (
+          <p className="text-xs text-slate-400">Fill in root cause and corrective action above before verifying.</p>
+        ) : (
+          <VerifyCapaForm issueId={issue.id} currentUserLabel={currentUserLabel} />
+        )}
       </Card>
     </div>
   );
