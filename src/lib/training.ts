@@ -19,8 +19,3 @@ export function trainingExpiryColor(status: TrainingExpiryStatus): "slate" | "gr
   if (status === "OK") return "green";
   return "slate";
 }
-
-export function departmentCoveragePct(trainedCount: number, totalCount: number): number | null {
-  if (totalCount <= 0) return null;
-  return (trainedCount / totalCount) * 100;
-}

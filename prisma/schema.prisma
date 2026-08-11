@@ -202,8 +202,7 @@ model User {
   cleaningMaintenanceSignOffs CleaningShiftRecord[] @relation("CleaningMaintenanceSignOff")
   dailyChecklistScores DailyProductionChecklistScore[]
   verifiedQualityIssues QualityIssue[]
-  recordedSupervisorTrainings SupervisorTrainingRecord[]
-  recordedDepartmentTrainings DepartmentTrainingRecord[]
+  recordedStaffTrainings StaffTrainingRecord[]
   metalDetectorChecks MetalDetectorCheck[] @relation("MetalDetectorCheckedBy")
   metalDetectorMaintenanceChecks MetalDetectorMaintenanceCheck[] @relation("MetalDetectorMaintenanceCheckedBy")
   chlorineDosingChecks ChlorineDosingCheck[] @relation("ChlorineDosingVerifiedBy")
@@ -333,7 +332,6 @@ model Factory {
   cleaningAreaScores   CleaningAreaScore[]
   cleaningShiftRecords CleaningShiftRecord[]
   dailyChecklistScores DailyProductionChecklistScore[]
-  departmentTrainingRecords DepartmentTrainingRecord[]
   metalDetectorChecks MetalDetectorCheck[]
   metalDetectorMaintenanceChecks MetalDetectorMaintenanceCheck[]
   chlorineDosingChecks ChlorineDosingCheck[]
@@ -1728,36 +1726,28 @@ model DecapDailyLog {
 // User would silently drop everyone except the handful of office accounts.
 // trainingType is free text for now: the Owner is supplying the real list of
 // training types after this skeleton ships, so it isn't hardcoded yet.
-model SupervisorTrainingRecord {
-  id             String    @id @default(cuid())
-  supervisorName String
-  trainingType   String
-  trainedDate    DateTime
-  expiryDate     DateTime?
-  notes          String?
-
-  recordedByUserId String?
-  recordedByUser    User?  @relation(fields: [recordedByUserId], references: [id])
-  createdAt         DateTime @default(now())
-
-  isTestData Boolean @default(false)
-
-  @@index([supervisorName])
+enum StaffTrainingTier {
+  SUPERVISOR
+  WORKER
 }
 
-// Daily workers have no individual identity anywhere in the system (only a
-// headcount per department in DailyLabourEntry), so their training is
-// tracked as department-level coverage rather than per person -- how many of
-// a department's workers have had a given training, not who specifically.
-model DepartmentTrainingRecord {
-  id           String           @id @default(cuid())
-  factoryId    String
-  factory      Factory          @relation(fields: [factoryId], references: [id])
-  department   LabourDepartment
+// Originally split into a named-supervisor model and a department-aggregate
+// model for workers, since the app had no individual identity for daily
+// workers at all. Unified into one model once the Owner supplied TRA03 --
+// a real historical training register with named attendance for every
+// employee, workers included -- since aggregating that down to headcounts
+// would have thrown away real, already-available names.
+model StaffTrainingRecord {
+  id           String            @id @default(cuid())
+  tier         StaffTrainingTier
+  attendeeName String
+  jobTitle     String?
+  gender       String?
   trainingType String
   trainedDate  DateTime
-  trainedCount Int
-  totalCount   Int
+  expiryDate   DateTime?
+  provider     String?
+  trainerName  String?
   notes        String?
 
   recordedByUserId String?
@@ -1766,7 +1756,8 @@ model DepartmentTrainingRecord {
 
   isTestData Boolean @default(false)
 
-  @@index([factoryId, department])
+  @@index([attendeeName])
+  @@index([trainingType])
 }
 
 // CAL03607 -- one sealed carton is passed through the packaging-room metal
