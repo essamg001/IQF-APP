@@ -201,6 +201,8 @@ model User {
   cleaningMaintenanceSignOffs CleaningShiftRecord[] @relation("CleaningMaintenanceSignOff")
   dailyChecklistScores DailyProductionChecklistScore[]
   verifiedQualityIssues QualityIssue[]
+  recordedSupervisorTrainings SupervisorTrainingRecord[]
+  recordedDepartmentTrainings DepartmentTrainingRecord[]
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -327,6 +329,7 @@ model Factory {
   cleaningAreaScores   CleaningAreaScore[]
   cleaningShiftRecords CleaningShiftRecord[]
   dailyChecklistScores DailyProductionChecklistScore[]
+  departmentTrainingRecords DepartmentTrainingRecord[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -1714,4 +1717,51 @@ model DecapDailyLog {
   weightOutKg Float?
   calyxKg     Float?
   createdAt   DateTime @default(now())
+}
+
+// Named-individual training log for supervisors. supervisorName is free text
+// rather than a User relation -- most floor supervisors (e.g. the person
+// named on a DailyLabourEntry) have no app login at all, so tying this to
+// User would silently drop everyone except the handful of office accounts.
+// trainingType is free text for now: the Owner is supplying the real list of
+// training types after this skeleton ships, so it isn't hardcoded yet.
+model SupervisorTrainingRecord {
+  id             String    @id @default(cuid())
+  supervisorName String
+  trainingType   String
+  trainedDate    DateTime
+  expiryDate     DateTime?
+  notes          String?
+
+  recordedByUserId String?
+  recordedByUser    User?  @relation(fields: [recordedByUserId], references: [id])
+  createdAt         DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([supervisorName])
+}
+
+// Daily workers have no individual identity anywhere in the system (only a
+// headcount per department in DailyLabourEntry), so their training is
+// tracked as department-level coverage rather than per person -- how many of
+// a department's workers have had a given training, not who specifically.
+model DepartmentTrainingRecord {
+  id           String           @id @default(cuid())
+  factoryId    String
+  factory      Factory          @relation(fields: [factoryId], references: [id])
+  department   LabourDepartment
+  trainingType String
+  trainedDate  DateTime
+  trainedCount Int
+  totalCount   Int
+  notes        String?
+
+  recordedByUserId String?
+  recordedByUser    User?  @relation(fields: [recordedByUserId], references: [id])
+  createdAt         DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([factoryId, department])
 }
