@@ -18,6 +18,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/pre-decap-inspection", label: "Decap: Pre-Decap Arrivals", roles: ["OWNER", "QUALITY"] },
   { href: "/post-decap-quality", label: "Decap: Post-Decap Quality", roles: ["OWNER", "QUALITY"] },
   { href: "/field-quality", label: "Field Quality", roles: ["OWNER", "QUALITY"] },
+  { href: "/yield-recovery", label: "Yield & Recovery", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
 
   // Factory: intake -> freeze -> pack
   { href: "/arrival-inspection", label: "Arrival Inspection at Factory", roles: ["OWNER", "QUALITY"] },
