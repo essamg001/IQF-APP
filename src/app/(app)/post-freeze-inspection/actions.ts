@@ -38,6 +38,10 @@ const postFreezeSchema = z.object({
   fruitDiameterCalibratedSmall: z.string().optional(),
   fruitDiameterCalibratedMedium: z.string().optional(),
   fruitDiameterCalibratedLarge: z.string().optional(),
+  sliceThicknessNarrow: z.string().optional(),
+  sliceThicknessWide: z.string().optional(),
+  cubeSizeSmall: z.string().optional(),
+  cubeSizeLarge: z.string().optional(),
   brix: z.coerce.number().min(0).max(30),
   fruitColorPct: pct(),
   internalQualityPct: pct(),
@@ -117,7 +121,7 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
     },
   });
 
-  const violations = checkQualityLimits("POST_PACKAGING", { ...data, totalDefectsPct }, lot.grade);
+  const violations = checkQualityLimits("POST_PACKAGING", { ...data, totalDefectsPct }, lot.grade, lot.format);
   await raiseQualityLimitAlert({
     checkId: created.id,
     checkpointLabel: "Post-Freeze Inspection",

@@ -772,6 +772,12 @@ model QualityCheck {
   fruitDiameterCalibratedSmall  String?
   fruitDiameterCalibratedMedium String?
   fruitDiameterCalibratedLarge  String?
+  // STR03118 (Sliced) size classification -- سمك الشرائح
+  sliceThicknessNarrow String? // 6-8mm
+  sliceThicknessWide   String? // 8-10mm
+  // STR03119 (Diced) size classification -- المكعبات
+  cubeSizeSmall String? // 10x10x10mm
+  cubeSizeLarge String? // 20x20x20mm
   capsuleRemainsCount           Float? // بقايا الكبسولة — measured as pieces/10kg here, distinct unit from raw's capsuleRemainsPct
   leafRemainsCount              Float? // رض الاوراق وبقايا اوراق — pieces/10kg
   stemFragmentsCount            Float? // السيقان وشظايا الساق — pieces/10kg

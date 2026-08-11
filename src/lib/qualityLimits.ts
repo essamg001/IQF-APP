@@ -1,9 +1,9 @@
 // Every numeric tolerance printed on the real inspection forms (STR03101,
-// STR03107, STR03110, STR03111/STR03116), in one place, so a single check can
-// flag out-of-spec values consistently across every checkpoint. Ranges
-// (min+max together) cover things like PH; ceilings/floors cover defect
-// percentages and quality minimums.
-import type { QualityCheckpoint, Grade } from "@prisma/client";
+// STR03107, STR03110, STR03111/STR03116, STR03118/STR03119), in one place, so
+// a single check can flag out-of-spec values consistently across every
+// checkpoint. Ranges (min+max together) cover things like PH;
+// ceilings/floors cover defect percentages and quality minimums.
+import type { QualityCheckpoint, Grade, Format } from "@prisma/client";
 
 export type LimitRule = { field: string; label: string; min?: number; max?: number };
 export type LimitViolation = { label: string; value: number; min?: number; max?: number };
@@ -97,7 +97,34 @@ const POST_PACKAGING_LIMITS: Record<Grade, LimitRule[]> = {
   ],
 };
 
-export function limitsFor(checkpoint: QualityCheckpoint, grade?: Grade): LimitRule[] {
+// STR03118 (Sliced) / STR03119 (Diced) -- one spec each, not grade-split like
+// whole fruit. Numerically identical to each other (only the "broken" item's
+// real-world meaning differs -- slices vs cubes), kept as separate constants
+// anyway since they mirror two separate paper forms with their own labels.
+const POST_PACKAGING_SLICED_LIMITS: LimitRule[] = [
+  { field: "fruitColorPct", label: "Fruit Colour", min: 90 },
+  { field: "overmaturePct", label: "Overmature", max: 2 },
+  { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 2 },
+  { field: "shapeDeformitiesPct", label: "Shape Deformities", max: 3 },
+  { field: "skinDamagePct", label: "Skin Deformities", max: 2 },
+  { field: "cohesiveClustersPct", label: "Cohesive Clusters", max: 5 },
+  { field: "crushedBrokenFruitPct", label: "Broken/Crushed Slices", max: 20 },
+  { field: "dryBruisesPct", label: "Dry Bruises", max: 1 },
+  { field: "mechanicalFactorsPct", label: "Mechanical Factors", max: 2 },
+  { field: "oxidationPct", label: "Oxidation", max: 2 },
+  { field: "totalDefectsPct", label: "Total Defects", max: 10 },
+  { field: "internalQualityPct", label: "Internal Quality", max: 3 },
+  { field: "fungalInfectionPct", label: "Fungal Infection", max: 0 },
+  { field: "insectsLarvaePct", label: "Insects/Larvae", max: 0 },
+  { field: "insectInfestationPct", label: "Insect Infestation", max: 0 },
+  { field: "foreignBodiesPct", label: "Foreign Bodies", max: 0 },
+];
+
+const POST_PACKAGING_DICED_LIMITS: LimitRule[] = POST_PACKAGING_SLICED_LIMITS.map((rule) =>
+  rule.field === "crushedBrokenFruitPct" ? { ...rule, label: "Irregular/Broken Cubes" } : rule
+);
+
+export function limitsFor(checkpoint: QualityCheckpoint, grade?: Grade, format?: Format): LimitRule[] {
   switch (checkpoint) {
     case "PRE_DECAP":
       return PRE_DECAP_LIMITS;
@@ -106,6 +133,8 @@ export function limitsFor(checkpoint: QualityCheckpoint, grade?: Grade): LimitRu
     case "POST_DECAP":
       return POST_DECAP_LIMITS;
     case "POST_PACKAGING":
+      if (format === "SLICED") return POST_PACKAGING_SLICED_LIMITS;
+      if (format === "DICED") return POST_PACKAGING_DICED_LIMITS;
       return POST_PACKAGING_LIMITS[grade ?? "A"];
   }
 }
@@ -114,10 +143,11 @@ export function limitsFor(checkpoint: QualityCheckpoint, grade?: Grade): LimitRu
 export function checkQualityLimits(
   checkpoint: QualityCheckpoint,
   values: Record<string, unknown>,
-  grade?: Grade
+  grade?: Grade,
+  format?: Format
 ): LimitViolation[] {
   const violations: LimitViolation[] = [];
-  for (const rule of limitsFor(checkpoint, grade)) {
+  for (const rule of limitsFor(checkpoint, grade, format)) {
     const value = values[rule.field];
     if (typeof value !== "number") continue;
     if ((rule.max != null && value > rule.max) || (rule.min != null && value < rule.min)) {

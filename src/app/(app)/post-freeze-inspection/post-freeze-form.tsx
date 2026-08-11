@@ -9,14 +9,32 @@ import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
 import { POST_PACKAGING_DEFECT_FIELDS } from "@/lib/defectFields";
+import { FORMAT_LABEL } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { format } from "date-fns";
-import type { ProductionLot, Field, Pallet, ShiftLog, Grade } from "@prisma/client";
+import type { ProductionLot, Field, Pallet, ShiftLog, Grade, Format } from "@prisma/client";
 
 type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[]; shift: ShiftLog };
 
+type DisplayLimits = {
+  fruitColor: string;
+  overmature: string;
+  incompleteMaturity: string;
+  shapeDeformities: string;
+  skinDeformities: string;
+  cohesiveClusters: string;
+  crushedBroken: string;
+  crushedBrokenLabel: string;
+  dryBruises: string;
+  mechanicalFactors: string;
+  oxidation: string;
+  totalDefects: string;
+  calibratedSmall?: string;
+};
+
 // STR03111 (Grade A) vs STR03116 (Grade B) — same items, different tolerances.
-const LIMITS: Record<Grade, Record<string, string>> = {
+// Whole fruit only -- Sliced/Diced use one fixed spec regardless of grade.
+const WHOLE_LIMITS: Record<Grade, DisplayLimits> = {
   A: {
     fruitColor: "90% of body",
     overmature: "3%",
@@ -25,6 +43,7 @@ const LIMITS: Record<Grade, Record<string, string>> = {
     skinDeformities: "2%",
     cohesiveClusters: "2%",
     crushedBroken: "2%",
+    crushedBrokenLabel: "Crushed/Broken Fruit",
     dryBruises: "1%",
     mechanicalFactors: "2%",
     oxidation: "4%",
@@ -39,12 +58,46 @@ const LIMITS: Record<Grade, Record<string, string>> = {
     skinDeformities: "3%",
     cohesiveClusters: "3%",
     crushedBroken: "3%",
+    crushedBrokenLabel: "Crushed/Broken Fruit",
     dryBruises: "2%",
     mechanicalFactors: "2%",
     oxidation: "6%",
     totalDefects: "10%",
     calibratedSmall: "15-25mm (Class II)",
   },
+};
+
+// STR03118 (Sliced) — same numbers as STR03119 (Diced) apart from what the
+// "broken" item is actually called; kept as two constants to mirror the two
+// separate paper forms.
+const SLICED_LIMITS: DisplayLimits = {
+  fruitColor: "90% of body",
+  overmature: "2%",
+  incompleteMaturity: "2%",
+  shapeDeformities: "3%",
+  skinDeformities: "2%",
+  cohesiveClusters: "5%",
+  crushedBroken: "20%",
+  crushedBrokenLabel: "Broken/Crushed Slices",
+  dryBruises: "1%",
+  mechanicalFactors: "2%",
+  oxidation: "2%",
+  totalDefects: "10%",
+};
+
+const DICED_LIMITS: DisplayLimits = { ...SLICED_LIMITS, crushedBrokenLabel: "Irregular/Broken Cubes" };
+
+function displayLimitsFor(format: Format, grade: Grade): DisplayLimits {
+  if (format === "SLICED") return SLICED_LIMITS;
+  if (format === "DICED") return DICED_LIMITS;
+  return WHOLE_LIMITS[grade];
+}
+
+const FORM_LABEL: Record<Format, (grade: Grade) => string> = {
+  WHOLE: (grade) =>
+    grade === "A" ? "Final Product (Frozen) — Grade A — STR03111" : "Final Product (Frozen) — Grade B — STR03116",
+  SLICED: () => "Final Product (Frozen) — Sliced — STR03118",
+  DICED: () => "Final Product (Frozen) — Diced — STR03119",
 };
 
 export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] }) {
@@ -54,6 +107,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
   const selectedLot = lots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase());
   const pallets = selectedLot?.pallets ?? [];
   const grade = selectedLot?.grade ?? "A";
+  const lotFormat = selectedLot?.format ?? "WHOLE";
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
@@ -66,9 +120,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
   return (
     <form action={formAction} className="space-y-4">
       <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">
-          {grade === "A" ? "Final Product (Frozen) — Grade A — STR03111" : "Final Product (Frozen) — Grade B — STR03116"}
-        </h2>
+        <h2 className="text-sm font-semibold text-slate-900">{FORM_LABEL[lotFormat](grade)}</h2>
         <div className="grid grid-cols-3 gap-3">
           <FieldGroup label="Lot number">
             <Input
@@ -87,7 +139,8 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
             {lotNumber.trim() &&
               (selectedLot ? (
                 <p className="mt-1 text-xs font-medium text-emerald-700">
-                  ✓ {selectedLot.field.name} — Grade {selectedLot.grade} — produced {format(selectedLot.shift.date, "d MMM yyyy")}
+                  ✓ {selectedLot.field.name} — Grade {selectedLot.grade} · {FORMAT_LABEL[selectedLot.format]} — produced{" "}
+                  {format(selectedLot.shift.date, "d MMM yyyy")}
                 </p>
               ) : (
                 <p className="mt-1 text-xs font-medium text-red-600">No matching lot found — check the number.</p>
@@ -129,7 +182,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
         </div>
       </Card>
 
-      <MeasurementFields key={isSuccess ? state : "initial"} grade={grade} />
+      <MeasurementFields key={isSuccess ? state : "initial"} grade={grade} format={lotFormat} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       {decoded && <QualityLimitWarning violations={decoded.violations} />}
@@ -154,11 +207,11 @@ function PalletInput({ pallets }: { pallets: Pallet[] }) {
   );
 }
 
-function MeasurementFields({ grade }: { grade: Grade }) {
-  const limits = useMemo(() => LIMITS[grade], [grade]);
+function MeasurementFields({ grade, format: lotFormat }: { grade: Grade; format: Format }) {
+  const limits = useMemo(() => displayLimitsFor(lotFormat, grade), [lotFormat, grade]);
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
   const { total: defectTotal, bind } = useDefectTotal(POST_PACKAGING_DEFECT_FIELDS);
-  const totalDefectsMax = limitsFor("POST_PACKAGING", grade).find((r) => r.field === "totalDefectsPct")!.max!;
+  const totalDefectsMax = limitsFor("POST_PACKAGING", grade, lotFormat).find((r) => r.field === "totalDefectsPct")!.max!;
 
   return (
     <>
@@ -177,18 +230,42 @@ function MeasurementFields({ grade }: { grade: Grade }) {
           <FieldGroup label="Product Temperature (limit -18°C)">
             <Input name="productTemperatureC" type="number" step="0.1" />
           </FieldGroup>
-          <FieldGroup label="Fruit Diameter — Uncalibrated (25-40mm or per client spec)">
-            <Input name="fruitDiameterUncalibrated" placeholder="25-40mm" />
-          </FieldGroup>
-          <FieldGroup label={`Fruit Diameter — Calibrated, small (${limits.calibratedSmall})`}>
-            <Input name="fruitDiameterCalibratedSmall" />
-          </FieldGroup>
-          <FieldGroup label="Fruit Diameter — Calibrated, medium (25-35mm)">
-            <Input name="fruitDiameterCalibratedMedium" />
-          </FieldGroup>
-          <FieldGroup label="Fruit Diameter — Calibrated, large (>35mm)">
-            <Input name="fruitDiameterCalibratedLarge" />
-          </FieldGroup>
+          {lotFormat === "WHOLE" && (
+            <>
+              <FieldGroup label="Fruit Diameter — Uncalibrated (25-40mm or per client spec)">
+                <Input name="fruitDiameterUncalibrated" placeholder="25-40mm" />
+              </FieldGroup>
+              <FieldGroup label={`Fruit Diameter — Calibrated, small (${limits.calibratedSmall})`}>
+                <Input name="fruitDiameterCalibratedSmall" />
+              </FieldGroup>
+              <FieldGroup label="Fruit Diameter — Calibrated, medium (25-35mm)">
+                <Input name="fruitDiameterCalibratedMedium" />
+              </FieldGroup>
+              <FieldGroup label="Fruit Diameter — Calibrated, large (>35mm)">
+                <Input name="fruitDiameterCalibratedLarge" />
+              </FieldGroup>
+            </>
+          )}
+          {lotFormat === "SLICED" && (
+            <>
+              <FieldGroup label="Slice Thickness — 6-8mm">
+                <Input name="sliceThicknessNarrow" />
+              </FieldGroup>
+              <FieldGroup label="Slice Thickness — 8-10mm">
+                <Input name="sliceThicknessWide" />
+              </FieldGroup>
+            </>
+          )}
+          {lotFormat === "DICED" && (
+            <>
+              <FieldGroup label="Cube Size — 10×10×10mm">
+                <Input name="cubeSizeSmall" />
+              </FieldGroup>
+              <FieldGroup label="Cube Size — 20×20×20mm">
+                <Input name="cubeSizeLarge" />
+              </FieldGroup>
+            </>
+          )}
         </div>
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -241,7 +318,7 @@ function MeasurementFields({ grade }: { grade: Grade }) {
           <Pct name="shapeDeformitiesPct" label="Shape Deformities" limit={limits.shapeDeformities} {...bind("shapeDeformitiesPct")} />
           <Pct name="skinDamagePct" label="Skin Deformities" limit={limits.skinDeformities} {...bind("skinDamagePct")} />
           <Pct name="cohesiveClustersPct" label="Cohesive Clusters (2-3 pcs)" limit={limits.cohesiveClusters} {...bind("cohesiveClustersPct")} />
-          <Pct name="crushedBrokenFruitPct" label="Crushed/Broken Fruit" limit={limits.crushedBroken} {...bind("crushedBrokenFruitPct")} />
+          <Pct name="crushedBrokenFruitPct" label={limits.crushedBrokenLabel} limit={limits.crushedBroken} {...bind("crushedBrokenFruitPct")} />
           <Pct name="dryBruisesPct" label="Dry Bruises" limit={limits.dryBruises} {...bind("dryBruisesPct")} />
           <Pct name="mechanicalFactorsPct" label="Mechanical Factors" limit={limits.mechanicalFactors} {...bind("mechanicalFactorsPct")} />
           <Pct name="oxidationPct" label="Oxidation" limit={limits.oxidation} {...bind("oxidationPct")} />
