@@ -5,8 +5,9 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { raiseMicrobiologyLoadAttemptAlert, raiseCfuLimitLoadAttemptAlert, raiseSpecExceptionAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
+import { raiseMicrobiologyLoadAttemptAlert, raiseMrlLoadAttemptAlert, raiseCfuLimitLoadAttemptAlert, raiseSpecExceptionAlert, raiseTemperatureExcursionAlert } from "@/lib/alerts";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
+import { isMrlCleared } from "@/lib/mrl";
 import { combinedCfuValue, exceedsClientLimit } from "@/lib/cfuTier";
 import {
   evaluateSpecCompliance,
@@ -356,7 +357,7 @@ async function palletWithRemaining(palletId: string) {
   const pallet = await prisma.pallet.findUniqueOrThrow({
     where: { id: palletId },
     include: {
-      lot: { include: { microbiologyResults: true, shift: true, qualityChecks: true } },
+      lot: { include: { microbiologyResults: true, mrlResult: true, shift: true, qualityChecks: true } },
       qualityChecks: true,
     },
   });
@@ -456,6 +457,18 @@ export async function addPalletLoadLineAction(
     });
     const statusLabel = microStatus === "ON_HOLD" ? "shift on hold — split microbiology result" : microStatus.replace("_", " ");
     return `Blocked: Lot ${pallet.lot.lotNumber} has not cleared microbiology (both labs required — status: ${statusLabel}). Quality has been alerted.`;
+  }
+
+  if (!isMrlCleared(pallet.lot.mrlResult)) {
+    const mrlStatus = pallet.lot.mrlResult?.status ?? "PENDING";
+    await raiseMrlLoadAttemptAlert({
+      palletId: pallet.id,
+      palletNumber: pallet.palletNumber,
+      lotNumber: pallet.lot.lotNumber,
+      containerNumber: container.containerNumber,
+      mrlStatus,
+    });
+    return `Blocked: Lot ${pallet.lot.lotNumber} has not cleared MRL (pesticide residue) testing — status: ${mrlStatus.replace("_", " ")}. Quality has been alerted.`;
   }
 
   // Lab-Approved isn't the same as "fits this client" -- a pallet can pass

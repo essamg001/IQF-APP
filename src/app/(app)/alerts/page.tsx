@@ -14,6 +14,7 @@ const TYPE_LABEL = {
   LOW_STOCK: "Low Stock",
   MICROBIOLOGY_PENDING: "Microbiology Pending",
   MICROBIOLOGY_LOAD_ATTEMPT: "Blocked Load Attempt",
+  MRL_LOAD_ATTEMPT: "Blocked Load Attempt (MRL)",
   MICROBIOLOGY_REJECTED: "Lab Rejection",
   QUALITY_LIMIT_EXCEEDED: "Quality Limit Exceeded",
   QUALITY_OVERRIDE_APPROVED: "Risk Approved",

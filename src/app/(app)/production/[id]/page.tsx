@@ -37,6 +37,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
       factory: true,
       field: true,
       microbiologyResults: { include: { testLines: true } },
+      mrlResult: true,
       pallets: { include: { coldRoom: true, client: true }, orderBy: { palletNumber: "asc" } },
       qualityChecks: true,
     },
@@ -201,6 +202,16 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <MicroResultSummary label="In-House Lab" result={inHouseResult} />
           <MicroResultSummary label="External Lab" result={externalResult} />
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-slate-900">MRL — Pesticide Residue Approval</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Also required before pallets from this lot can load out — same hard gate as microbiology.
+        </p>
+        <div className="mt-4">
+          <MrlResultSummary result={lot.mrlResult} />
         </div>
       </Card>
 
@@ -402,6 +413,59 @@ function MicroResultSummary({ label, result }: { label: string; result: MicroRes
               <dd className="text-slate-700">{result.recommendation}</dd>
             </div>
           )}
+        </dl>
+      )}
+    </div>
+  );
+}
+
+type MrlResult = {
+  status: string;
+  certificateFileName: string | null;
+  certificateNumber: string | null;
+  labName: string | null;
+  sentDate: Date | null;
+  sampleCode: string | null;
+  reportDate: Date | null;
+  rejectionReason: string | null;
+  isTestData: boolean;
+} | null | undefined;
+
+function MrlResultSummary({ result }: { result: MrlResult }) {
+  const status = result?.status ?? "PENDING";
+  return (
+    <div className="rounded-md border border-slate-200 p-3">
+      <div className="flex items-center justify-between">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+          MRL Result
+          {result?.isTestData && <TestDataBadge />}
+        </p>
+        <Badge
+          color={
+            status === "APPROVED" ? "green" : status === "FAILED" ? "red" : status === "SENT_TO_LAB" ? "blue" : "slate"
+          }
+        >
+          {status.replace(/_/g, " ")}
+        </Badge>
+      </div>
+      {result?.certificateFileName && (
+        <a
+          href={`/api/files/certificates/${result.certificateFileName}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 inline-block text-xs text-emerald-700 hover:underline"
+        >
+          View certificate
+        </a>
+      )}
+      {result && (result.certificateNumber || result.labName || result.sentDate || result.sampleCode) && (
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-slate-50 p-3 text-xs">
+          <Row label="Sent to lab" value={result.sentDate ? format(result.sentDate, "dd MMM yyyy") : undefined} />
+          <Row label="Report date" value={result.reportDate ? format(result.reportDate, "dd MMM yyyy") : undefined} />
+          <Row label="Certificate #" value={result.certificateNumber} />
+          <Row label="Lab" value={result.labName} />
+          <Row label="Sample Code" value={result.sampleCode} />
+          {result.status === "FAILED" && <Row label="Rejection reason" value={result.rejectionReason} />}
         </dl>
       )}
     </div>

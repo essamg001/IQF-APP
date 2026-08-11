@@ -85,6 +85,7 @@ export async function createLotAction(_prevState: string | undefined, formData: 
       format: parsed.data.format,
       isEndOfDayGradeB: parsed.data.isEndOfDayGradeB,
       microbiologyResults: { create: [{ labType: "IN_HOUSE" }, { labType: "EXTERNAL" }] },
+      mrlResult: { create: {} },
     },
   });
 

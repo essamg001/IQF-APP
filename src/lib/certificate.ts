@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { combinedMicroStatus, isMicroCleared } from "@/lib/microbiology";
+import { isMrlCleared } from "@/lib/mrl";
 import { combinedCfuValue } from "@/lib/cfuTier";
 import { evaluateSpecCompliance, violatedSpecRows, type SpecComplianceRow } from "@/lib/specCompliance";
 
@@ -78,7 +79,14 @@ async function fetchContainerForCertificate(containerId: string) {
             include: {
               qualityChecks: true,
               lot: {
-                include: { field: true, factory: true, shift: true, microbiologyResults: true, qualityChecks: true },
+                include: {
+                  field: true,
+                  factory: true,
+                  shift: true,
+                  microbiologyResults: true,
+                  mrlResult: true,
+                  qualityChecks: true,
+                },
               },
             },
           },
@@ -127,6 +135,13 @@ export function computeCertificateGate(container: ContainerForCertificate): Cert
         const labLabel = labType === "IN_HOUSE" ? "In-House" : "External";
         reasons.push(`Lot ${lot.lotNumber}: ${labLabel} lab result is Approved but has no certificate file attached.`);
       }
+    }
+
+    if (!isMrlCleared(lot.mrlResult)) {
+      const status = lot.mrlResult?.status ?? "PENDING";
+      reasons.push(`Lot ${lot.lotNumber}: MRL (pesticide residue) status is ${status.replace(/_/g, " ").toLowerCase()}, not approved.`);
+    } else if (!lot.mrlResult?.certificateFileName) {
+      reasons.push(`Lot ${lot.lotNumber}: MRL result is Approved but has no certificate file attached.`);
     }
   }
   if (!container.loadOutSignedAt) reasons.push("Load-out representative has not signed off.");

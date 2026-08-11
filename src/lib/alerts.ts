@@ -54,6 +54,31 @@ export async function raiseMicrobiologyLoadAttemptAlert(params: {
   }
 }
 
+/** Same shape as raiseMicrobiologyLoadAttemptAlert, for the MRL (pesticide residue) gate. */
+export async function raiseMrlLoadAttemptAlert(params: {
+  palletId: string;
+  palletNumber: string;
+  lotNumber: string;
+  containerNumber: string;
+  mrlStatus: string;
+}) {
+  const message = `Blocked: attempt to load pallet ${params.palletNumber} (Lot ${params.lotNumber}) into container ${params.containerNumber} without MRL approval (status: ${params.mrlStatus.replace("_", " ")}).`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "MRL_LOAD_ATTEMPT",
+        relatedEntityType: "MRL_LOAD_ATTEMPT",
+        relatedEntityId: params.palletId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Blocked Load Attempt", message)));
+  }
+}
+
 /**
  * Same blocked-load-attempt alert type as raiseMicrobiologyLoadAttemptAlert,
  * but for the distinct case where a pallet IS lab-Approved and still gets

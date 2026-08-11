@@ -74,6 +74,15 @@ enum MicrobiologyStatus {
   FAILED_SEVERE
 }
 
+// Simpler than MicrobiologyStatus -- an MRL reading is a straight pass/fail
+// against a legal residue limit, not a graded severity.
+enum MrlStatus {
+  PENDING
+  SENT_TO_LAB
+  APPROVED
+  FAILED
+}
+
 // Every lot gets a sample tested in both -- neither is a substitute for the
 // other. A pallet only clears once both come back Approved; if they
 // disagree (one Approved, one Failed) the whole shift goes on hold pending
@@ -117,6 +126,7 @@ enum AlertType {
   LOW_STOCK
   MICROBIOLOGY_PENDING
   MICROBIOLOGY_LOAD_ATTEMPT
+  MRL_LOAD_ATTEMPT
   MICROBIOLOGY_REJECTED
   QUALITY_LIMIT_EXCEEDED
   QUALITY_OVERRIDE_APPROVED
@@ -180,6 +190,7 @@ model User {
 
   qualityChecks            QualityCheck[]
   sentMicrobiologyResults  MicrobiologyResult[] @relation("MicrobiologySentBy")
+  sentMrlResults           MrlResult[]          @relation("MrlSentBy")
   uploadedClaimAttachments ClaimAttachment[]    @relation("ClaimAttachmentUploadedBy")
   activityLogs             ActivityLog[]
   loadOutSignedContainers  Container[]          @relation("ContainerLoadOutRep")
@@ -560,6 +571,7 @@ model ProductionLot {
   pallets             Pallet[]
   qualityChecks       QualityCheck[]
   microbiologyResults MicrobiologyResult[]
+  mrlResult           MrlResult?
   qualityIssues       QualityIssue[]
 
   @@index([factoryId, grade])
@@ -899,6 +911,43 @@ model MicrobiologyTestLine {
   methodRef              String?
 
   @@index([microbiologyResultId])
+}
+
+// Maximum Residue Limit (pesticide/agrochemical) testing, per lot. Added
+// even though the farms run a biological-control program with no synthetic
+// spraying -- per the Owner, "we lose nothing by including it." Unlike
+// MicrobiologyResult there's no in-house/external split (one external lab
+// test per lot, since there's no in-house MRL capability), and this gates
+// load-out exactly the way microbiology does in addPalletLoadLineAction
+// (see src/lib/mrl.ts, src/app/(app)/logistics/actions.ts).
+model MrlResult {
+  id    String    @id @default(cuid())
+  lotId String    @unique
+  lot   ProductionLot @relation(fields: [lotId], references: [id])
+  status MrlStatus @default(PENDING)
+
+  sentDate     DateTime?
+  sentByUserId String?
+  sentBy       User?     @relation("MrlSentBy", fields: [sentByUserId], references: [id])
+  trackingRef  String?
+
+  labName           String?
+  certificateNumber String?
+  sampleCode        String?
+  reportDate        DateTime?
+  analysisDate      DateTime?
+  notes             String?
+
+  certificateFileName         String?
+  certificateFileOriginalName String?
+
+  rejectionReason String?
+
+  // See ProductionLot.isTestData -- marks a result fabricated purely to
+  // exercise a feature during development, not a genuine lab certificate.
+  isTestData Boolean @default(false)
+
+  createdAt DateTime @default(now())
 }
 
 model Waste {

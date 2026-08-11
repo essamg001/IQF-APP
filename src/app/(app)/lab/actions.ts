@@ -304,3 +304,116 @@ export async function resolveShiftHoldAction(shiftId: string, _prevState: string
   revalidatePath("/production");
   return "ok";
 }
+
+const mrlSendSchema = z.object({
+  labName: z.string().optional(),
+  sentDate: z.string().optional(),
+});
+
+export async function markMrlSentToLabAction(resultId: string, formData: FormData) {
+  const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
+  const parsed = mrlSendSchema.parse(raw);
+  const session = await auth();
+
+  const existing = await prisma.mrlResult.findUniqueOrThrow({ where: { id: resultId }, include: { lot: true } });
+
+  await prisma.mrlResult.update({
+    where: { id: resultId },
+    data: {
+      status: "SENT_TO_LAB",
+      labName: parsed.labName,
+      trackingRef: existing.lot.lotNumber,
+      sentDate: parseDateSafe(parsed.sentDate) ?? new Date(),
+      sentByUserId: session?.user.id,
+    },
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "MRL_DISPATCHED",
+    entityType: "MrlResult",
+    entityId: resultId,
+    detail: `Lot ${existing.lot.lotNumber}${parsed.labName ? ` to ${parsed.labName}` : ""}`,
+  });
+
+  revalidatePath("/lab");
+  revalidatePath(`/production/${existing.lotId}`);
+}
+
+const mrlResultSchema = z.object({
+  status: z.enum(["PENDING", "SENT_TO_LAB", "APPROVED", "FAILED"]),
+  labName: z.string().optional(),
+  certificateNumber: z.string().optional(),
+  sampleCode: z.string().optional(),
+  reportDate: z.string().optional(),
+  analysisDate: z.string().optional(),
+  notes: z.string().optional(),
+  rejectionReason: z.string().optional(),
+});
+
+export async function updateMrlResultAction(resultId: string, _prevState: string | undefined, formData: FormData) {
+  const raw = Object.fromEntries(
+    Array.from(formData.entries()).filter(([k]) => k !== "certificateFile").map(([k, v]) => [k, v === "" ? undefined : v])
+  );
+  const parsed = mrlResultSchema.parse(raw);
+
+  const existing = await prisma.mrlResult.findUnique({ where: { id: resultId }, include: { lot: true } });
+  if (!existing) return;
+
+  const file = formData.get("certificateFile");
+  const hasNewFile = file instanceof File && file.size > 0;
+
+  // Same rigor as the microbiology gate -- an Approved/Failed result can't
+  // sit with nothing to back it up.
+  if (parsed.status === "APPROVED" || parsed.status === "FAILED") {
+    if (!hasNewFile && !existing.certificateFileName) {
+      return "A certificate file must be attached before this result can be recorded as Approved or Failed.";
+    }
+    if (!parsed.certificateNumber?.trim()) {
+      return "Certificate/lab result number is required before this result can be recorded as Approved or Failed.";
+    }
+    if (!parsed.sampleCode?.trim()) {
+      return "Sample code is required before this result can be recorded as Approved or Failed.";
+    }
+    const duplicate = await prisma.mrlResult.findFirst({
+      where: { id: { not: resultId }, certificateNumber: { equals: parsed.certificateNumber.trim(), mode: "insensitive" } },
+      include: { lot: true },
+    });
+    if (duplicate) {
+      return `Certificate number "${parsed.certificateNumber}" is already recorded against Lot ${duplicate.lot.lotNumber} -- check this is the right certificate for Lot ${existing.lot.lotNumber}.`;
+    }
+  }
+
+  let fileFields: { certificateFileName?: string; certificateFileOriginalName?: string } = {};
+  if (hasNewFile) {
+    const saved = await saveUploadedFile(file, "certificates");
+    fileFields = { certificateFileName: saved.fileName, certificateFileOriginalName: saved.originalName };
+  }
+
+  const { reportDate, analysisDate, ...rest } = parsed;
+
+  await prisma.mrlResult.update({
+    where: { id: resultId },
+    data: {
+      ...rest,
+      ...fileFields,
+      reportDate: parseDateSafe(reportDate),
+      analysisDate: parseDateSafe(analysisDate),
+    },
+  });
+
+  if (parsed.status === "APPROVED" || parsed.status === "FAILED") {
+    const session = await auth();
+    await logActivity({
+      actorId: session?.user.id,
+      action: "MRL_RESULT_RECORDED",
+      entityType: "MrlResult",
+      entityId: resultId,
+      detail: `Lot ${existing.lot.lotNumber}: ${parsed.status}`,
+    });
+  }
+
+  revalidatePath("/lab");
+  revalidatePath(`/production/${existing.lotId}`);
+  return "ok";
+}
