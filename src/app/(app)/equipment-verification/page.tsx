@@ -22,6 +22,7 @@ export default async function EquipmentVerificationPage({
   const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
   const dayStart = parseLocalDateOnly(dateStr) ?? new Date();
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const now = new Date();
 
   const [factories, metalChecks, maintenanceChecks, chlorineChecks] = await Promise.all([
     prisma.factory.findMany({ orderBy: { code: "asc" } }),
@@ -80,6 +81,7 @@ export default async function EquipmentVerificationPage({
                       maintenanceChecks.find((m) => m.factoryId === f.id && m.shiftType === shiftType) ?? null
                     }
                     currentUserLabel={currentUserLabel}
+                    now={now}
                   />
                   <ChlorineDosingSection
                     factoryId={f.id}
@@ -87,6 +89,7 @@ export default async function EquipmentVerificationPage({
                     shiftType={shiftType}
                     checks={chlorineChecks.filter((c) => c.factoryId === f.id && c.shiftType === shiftType)}
                     currentUserLabel={currentUserLabel}
+                    now={now}
                   />
                 </div>
               ))}

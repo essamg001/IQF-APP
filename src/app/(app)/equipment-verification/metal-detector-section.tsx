@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useActionState } from "react";
 import { createMetalDetectorCheckAction, updateMetalDetectorMaintenanceAction } from "./actions";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { HourCoverageGrid } from "./hour-coverage-grid";
+import { SHIFT_HOURS, hourSlotDate, toDateTimeLocalValue } from "@/lib/shiftHours";
+import { parseLocalDateOnly } from "@/lib/dates";
 import type { MetalDetectorCheck, MetalDetectorMaintenanceCheck, ShiftType } from "@prisma/client";
 
 export function MetalDetectorSection({
@@ -14,6 +18,7 @@ export function MetalDetectorSection({
   checks,
   maintenanceCheck,
   currentUserLabel,
+  now,
 }: {
   factoryId: string;
   date: string;
@@ -21,12 +26,29 @@ export function MetalDetectorSection({
   checks: MetalDetectorCheck[];
   maintenanceCheck: MetalDetectorMaintenanceCheck | null;
   currentUserLabel: string | null;
+  now: Date;
 }) {
+  const [presetHour, setPresetHour] = useState<number | null>(null);
+  const shiftDate = parseLocalDateOnly(date) ?? now;
+  const hours = SHIFT_HOURS[shiftType];
+
+  const latestByHour = new Map<number, MetalDetectorCheck>();
+  for (const c of checks) latestByHour.set(c.recordedAt.getHours(), c);
+
   return (
     <div className="rounded-md border border-slate-200 p-3">
       <h5 className="text-xs font-semibold text-slate-700">Metal Detector — CAL03607</h5>
 
       <MaintenanceChecklist factoryId={factoryId} date={date} shiftType={shiftType} record={maintenanceCheck} />
+
+      <div className="mt-2">
+        <HourCoverageGrid
+          hours={hours}
+          hasCheck={(h) => latestByHour.has(h)}
+          elapsed={(h) => hourSlotDate(shiftDate, shiftType, h) <= now}
+          onPick={setPresetHour}
+        />
+      </div>
 
       {checks.length > 0 && (
         <table className="mt-3 w-full text-left text-[11px]">
@@ -74,7 +96,14 @@ export function MetalDetectorSection({
         </table>
       )}
 
-      <MetalDetectorCheckForm factoryId={factoryId} date={date} shiftType={shiftType} currentUserLabel={currentUserLabel} />
+      <MetalDetectorCheckForm
+        factoryId={factoryId}
+        date={date}
+        shiftType={shiftType}
+        currentUserLabel={currentUserLabel}
+        presetHour={presetHour}
+        shiftDate={shiftDate}
+      />
     </div>
   );
 }
@@ -145,20 +174,34 @@ function MetalDetectorCheckForm({
   date,
   shiftType,
   currentUserLabel,
+  presetHour,
+  shiftDate,
 }: {
   factoryId: string;
   date: string;
   shiftType: ShiftType;
   currentUserLabel: string | null;
+  presetHour: number | null;
+  shiftDate: Date;
 }) {
   const [state, formAction, pending] = useActionState(createMetalDetectorCheckAction, undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
+  const defaultRecordedAt = presetHour != null ? toDateTimeLocalValue(hourSlotDate(shiftDate, shiftType, presetHour)) : "";
 
   return (
     <form action={formAction} className="mt-2 space-y-2 border-t border-slate-100 pt-2">
       <input type="hidden" name="factoryId" value={factoryId} />
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="shiftType" value={shiftType} />
+      <FieldGroup label="Time (defaults to now)">
+        <Input
+          key={presetHour ?? "now"}
+          name="recordedAt"
+          type="datetime-local"
+          defaultValue={defaultRecordedAt}
+          className="px-1.5 py-1 text-xs"
+        />
+      </FieldGroup>
       <div className="grid grid-cols-3 gap-1.5">
         {(
           [

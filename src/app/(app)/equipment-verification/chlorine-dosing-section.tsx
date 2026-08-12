@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useActionState } from "react";
 import { createChlorineDosingCheckAction } from "./actions";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { HourCoverageGrid } from "./hour-coverage-grid";
+import { SHIFT_HOURS, hourSlotDate, toDateTimeLocalValue } from "@/lib/shiftHours";
+import { parseLocalDateOnly } from "@/lib/dates";
 import type { ChlorineDosingCheck, ShiftType } from "@prisma/client";
 
 export function ChlorineDosingSection({
@@ -13,13 +17,25 @@ export function ChlorineDosingSection({
   shiftType,
   checks,
   currentUserLabel,
+  now,
 }: {
   factoryId: string;
   date: string;
   shiftType: ShiftType;
   checks: ChlorineDosingCheck[];
   currentUserLabel: string | null;
+  now: Date;
 }) {
+  const [presetHour, setPresetHour] = useState<number | null>(null);
+  const shiftDate = parseLocalDateOnly(date) ?? now;
+  const hours = SHIFT_HOURS[shiftType];
+
+  const latestByHour = new Map<number, ChlorineDosingCheck>();
+  for (const c of checks) latestByHour.set(c.recordedAt.getHours(), c);
+
+  const defaultRecordedAt =
+    presetHour != null ? toDateTimeLocalValue(hourSlotDate(shiftDate, shiftType, presetHour)) : "";
+
   const [state, formAction, pending] = useActionState(createChlorineDosingCheckAction, undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
 
@@ -29,6 +45,15 @@ export function ChlorineDosingSection({
       <p className="mt-0.5 text-[11px] text-slate-400">
         Free chlorine dosed into the wash tank, injected — checked hourly against the dosing machine&apos;s set point.
       </p>
+
+      <div className="mt-2">
+        <HourCoverageGrid
+          hours={hours}
+          hasCheck={(h) => latestByHour.has(h)}
+          elapsed={(h) => hourSlotDate(shiftDate, shiftType, h) <= now}
+          onPick={setPresetHour}
+        />
+      </div>
 
       {checks.length > 0 && (
         <table className="mt-2 w-full text-left text-[11px]">
@@ -71,6 +96,15 @@ export function ChlorineDosingSection({
         <input type="hidden" name="factoryId" value={factoryId} />
         <input type="hidden" name="date" value={date} />
         <input type="hidden" name="shiftType" value={shiftType} />
+        <FieldGroup label="Time (defaults to now)">
+          <Input
+            key={presetHour ?? "now"}
+            name="recordedAt"
+            type="datetime-local"
+            defaultValue={defaultRecordedAt}
+            className="px-1.5 py-1 text-xs"
+          />
+        </FieldGroup>
         <div className="grid grid-cols-3 gap-1.5">
           <FieldGroup label="PH">
             <Input name="phLevel" type="number" step="0.01" className="px-1.5 py-1 text-xs" />
