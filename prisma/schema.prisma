@@ -206,6 +206,10 @@ model User {
   metalDetectorChecks MetalDetectorCheck[] @relation("MetalDetectorCheckedBy")
   metalDetectorMaintenanceChecks MetalDetectorMaintenanceCheck[] @relation("MetalDetectorMaintenanceCheckedBy")
   chlorineDosingChecks ChlorineDosingCheck[] @relation("ChlorineDosingVerifiedBy")
+  recordedLaundryRecords LaundryRecord[]
+  recordedLaundryWashCycles LaundryWashCycle[]
+  laundrySignOffsAsSupervisor LaundryDailySignOff[] @relation("LaundrySignOffSupervisor")
+  laundrySignOffsAsVerifier   LaundryDailySignOff[] @relation("LaundrySignOffVerifiedBy")
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -1851,4 +1855,103 @@ model ChlorineDosingCheck {
   isTestData Boolean @default(false)
 
   @@index([factoryId, date, shiftType])
+}
+
+// HSE03296 -- daily uniform laundry register for the shared washroom serving
+// both packhouses (Factory codes 11/13). One row per worker per day whose
+// garment pieces were exchanged/laundered that day; each garment's value is
+// its piece number from the laundry's monthly register, not a count.
+model LaundryRecord {
+  id        String   @id @default(cuid())
+  date      DateTime
+  packhouse String   @default("PKH 11,13")
+
+  workerName String
+
+  whiteCoatNo          String?
+  whiteTrousersNo      String?
+  blueCoatNo           String?
+  visitorCoatNo        String?
+  maintenanceOverallNo String?
+  yellowCoatNo         String?
+  greenCoatNo          String?
+  yellowSuitNo         String?
+  coldStoreSuitNo      String?
+  greyJacketNo         String?
+  blackJacketNo        String?
+  glovesNo             String?
+  whiteHeadscarfNo     String?
+  towelNo              String?
+  capNo                String?
+  blueSuitNo           String?
+
+  comments String?
+
+  recordedByName   String?
+  recordedByUserId String?
+  recordedByUser   User?    @relation(fields: [recordedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([date])
+  @@index([workerName])
+}
+
+// HSE03293 -- one row per batch/load washed at the same laundry room, with
+// its washing parameters. Distinct from LaundryRecord (which garment piece
+// went to which worker) -- this is the wash cycle itself.
+model LaundryWashCycle {
+  id       String   @id @default(cuid())
+  date     DateTime
+  location String   @default("PKH 11,13")
+
+  itemType String
+  count    Int?
+  purpose  String?
+
+  waterTemperatureC Float?
+  agent             String?
+  concentration     String?
+  timeFrom          String?
+  timeTo            String?
+  amountOfAgent     String?
+  dryerTemperatureC Float?
+
+  recordedByName   String?
+  recordedByUserId String?
+  recordedByUser   User?    @relation(fields: [recordedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([date, location])
+}
+
+// HSE03293's end-of-day sign-off -- one per date+location, separate from the
+// wash-cycle rows above (own cadence: once per day, not once per load).
+// Mirrors CleaningShiftRecord's two-different-people sign-off pattern.
+model LaundryDailySignOff {
+  id       String   @id @default(cuid())
+  date     DateTime
+  location String   @default("PKH 11,13")
+
+  notes                 String?
+  cleanlinessAcceptable Boolean?
+
+  supervisorSignedByName   String?
+  supervisorSignedByUserId String?
+  supervisorSignedByUser   User?     @relation("LaundrySignOffSupervisor", fields: [supervisorSignedByUserId], references: [id])
+  supervisorSignedAt       DateTime?
+
+  verifiedSignedByName   String?
+  verifiedSignedByUserId String?
+  verifiedSignedByUser   User?     @relation("LaundrySignOffVerifiedBy", fields: [verifiedSignedByUserId], references: [id])
+  verifiedSignedAt       DateTime?
+
+  createdAt DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@unique([date, location])
 }

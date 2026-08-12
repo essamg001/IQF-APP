@@ -30,6 +30,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/cleaning", label: "Cleaning Mode" },
   { href: "/daily-checklist", label: "Daily Checklist" },
   { href: "/equipment-verification", label: "Equipment Verification", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+  { href: "/laundry", label: "Laundry", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
   { href: "/training", label: "Staff Training", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
   { href: "/shifts", label: "Hours Worked" },
 
