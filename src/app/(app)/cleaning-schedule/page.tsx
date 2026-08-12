@@ -1,0 +1,132 @@
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { Card } from "@/components/ui/card";
+import { addDays, getWeekStart, parseLocalDateOnly, toDateOnlyString, WEEK_DAY_LABELS } from "@/lib/dates";
+import { MASTER_CLEANING_SCHEDULE, MASTER_CLEANING_TASK_COUNT } from "@/lib/masterCleaningSchedule";
+import { TaskDayCheckbox } from "./task-day-checkbox";
+import { cn } from "@/lib/cn";
+
+export default async function CleaningSchedulePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string; factoryId?: string }>;
+}) {
+  const session = await auth();
+  if (!session?.user) redirect("/");
+
+  const { date: dateParam, factoryId: factoryIdParam } = await searchParams;
+  const anchorDate = parseLocalDateOnly(dateParam ?? "") ?? new Date();
+  const weekStart = getWeekStart(anchorDate);
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekStartStr = toDateOnlyString(weekStart);
+  const prevWeekStr = toDateOnlyString(addDays(weekStart, -7));
+  const nextWeekStr = toDateOnlyString(addDays(weekStart, 7));
+
+  const factories = await prisma.factory.findMany({ orderBy: { code: "asc" } });
+  const factoryId = factoryIdParam && factories.some((f) => f.id === factoryIdParam) ? factoryIdParam : factories[0]?.id;
+
+  const logs = factoryId
+    ? await prisma.masterCleaningTaskLog.findMany({
+        where: { factoryId, date: { gte: weekStart, lt: addDays(weekStart, 7) }, completed: true },
+      })
+    : [];
+  const completedSet = new Set(logs.map((l) => `${toDateOnlyString(l.date)}|${l.taskKey}`));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">Cleaning Schedule</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Master sanitation schedule — HSE03297 (Packhouse 11) / HSE03312 (Packhouse 13). {MASTER_CLEANING_TASK_COUNT}{" "}
+          scheduled tasks across {MASTER_CLEANING_SCHEDULE.length} zones, each at its own tools/chemical/frequency.
+          Check off a task once it&apos;s done for the day.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-1 border-b border-slate-200">
+          {factories.map((f) => (
+            <a
+              key={f.id}
+              href={`/cleaning-schedule?date=${weekStartStr}&factoryId=${f.id}`}
+              className={cn(
+                "rounded-t-md px-4 py-2 text-sm font-medium",
+                f.id === factoryId
+                  ? "border border-b-0 border-slate-200 bg-white text-emerald-700"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              {f.name}
+              {f.code ? ` (${f.code})` : ""}
+            </a>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <a href={`/cleaning-schedule?date=${prevWeekStr}&factoryId=${factoryId ?? ""}`} className="rounded-md border border-slate-300 px-2.5 py-1.5 hover:bg-slate-50">
+            ← Prev week
+          </a>
+          <span className="text-slate-600">
+            Week of {weekDates[0].toLocaleDateString(undefined, { day: "2-digit", month: "short" })} –{" "}
+            {weekDates[6].toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}
+          </span>
+          <a href={`/cleaning-schedule?date=${nextWeekStr}&factoryId=${factoryId ?? ""}`} className="rounded-md border border-slate-300 px-2.5 py-1.5 hover:bg-slate-50">
+            Next week →
+          </a>
+        </div>
+      </div>
+
+      {!factoryId && (
+        <Card>
+          <p className="text-sm text-slate-400">No factories set up yet.</p>
+        </Card>
+      )}
+
+      {factoryId &&
+        MASTER_CLEANING_SCHEDULE.map((zone) => (
+          <Card key={zone.key} className="overflow-x-auto">
+            <h3 className="text-sm font-semibold text-slate-900">{zone.title}</h3>
+            <table className="mt-3 w-full text-left text-xs">
+              <thead className="border-b border-slate-200 text-slate-500">
+                <tr>
+                  <th className="py-1.5 pr-2 font-medium">Item</th>
+                  <th className="py-1.5 pr-2 font-medium">Tools</th>
+                  <th className="py-1.5 pr-2 font-medium">Chemical</th>
+                  <th className="py-1.5 pr-2 font-medium whitespace-nowrap">Frequency</th>
+                  {weekDates.map((d, i) => (
+                    <th key={i} className="px-1.5 py-1.5 text-center font-medium">
+                      {WEEK_DAY_LABELS[i]}
+                      <div className="text-[10px] font-normal text-slate-400">{d.getDate()}</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {zone.tasks.map((task) => (
+                  <tr key={task.key} className="border-b border-slate-100 last:border-0">
+                    <td className="py-1.5 pr-2 font-medium text-slate-800">{task.item}</td>
+                    <td className="py-1.5 pr-2 text-slate-500">{task.tools}</td>
+                    <td className="py-1.5 pr-2 text-slate-500">{task.chemical ?? "—"}</td>
+                    <td className="py-1.5 pr-2 whitespace-nowrap text-slate-500">{task.frequency}</td>
+                    {weekDates.map((d, i) => {
+                      const dStr = toDateOnlyString(d);
+                      return (
+                        <td key={i} className="px-1.5 py-1.5 text-center">
+                          <TaskDayCheckbox
+                            factoryId={factoryId}
+                            date={dStr}
+                            taskKey={task.key}
+                            defaultChecked={completedSet.has(`${dStr}|${task.key}`)}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        ))}
+    </div>
+  );
+}

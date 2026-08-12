@@ -210,6 +210,7 @@ model User {
   recordedLaundryWashCycles LaundryWashCycle[]
   laundrySignOffsAsSupervisor LaundryDailySignOff[] @relation("LaundrySignOffSupervisor")
   laundrySignOffsAsVerifier   LaundryDailySignOff[] @relation("LaundrySignOffVerifiedBy")
+  completedMasterCleaningTasks MasterCleaningTaskLog[]
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -339,6 +340,7 @@ model Factory {
   metalDetectorChecks MetalDetectorCheck[]
   metalDetectorMaintenanceChecks MetalDetectorMaintenanceCheck[]
   chlorineDosingChecks ChlorineDosingCheck[]
+  masterCleaningTaskLogs MasterCleaningTaskLog[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -1954,4 +1956,31 @@ model LaundryDailySignOff {
   isTestData Boolean @default(false)
 
   @@unique([date, location])
+}
+
+// HSE03297 (Packhouse 11) / HSE03312 (Packhouse 13) -- the master sanitation
+// schedule, distinct from CleaningShiftRecord/CleaningAreaScore's 0-10
+// quality score. This tracks whether a specific scheduled task (of ~280,
+// spanning ~19 zones, each with its own tools/chemical/frequency) was
+// actually performed on a given day. taskKey matches a key in the static
+// MASTER_CLEANING_TASKS config in src/lib/masterCleaningSchedule.ts -- the
+// two packhouses share one task list (their schedules are near-identical),
+// logged separately per factory.
+model MasterCleaningTaskLog {
+  id        String   @id @default(cuid())
+  factoryId String
+  factory   Factory  @relation(fields: [factoryId], references: [id])
+  date      DateTime
+  taskKey   String
+
+  completed         Boolean  @default(true)
+  completedByName   String?
+  completedByUserId String?
+  completedByUser   User?    @relation(fields: [completedByUserId], references: [id])
+  completedAt       DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@unique([factoryId, date, taskKey])
+  @@index([factoryId, date])
 }
