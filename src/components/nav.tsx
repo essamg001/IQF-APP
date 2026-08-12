@@ -8,6 +8,7 @@ import type { Role, Station } from "@prisma/client";
 const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSales?: boolean }[] = [
   // Overview
   { href: "/", label: "Dashboard" },
+  { href: "/our-process", label: "Our Process" },
 
   // Reference data
   { href: "/fields", label: "Fields" },
