@@ -10,6 +10,7 @@ import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
 import { POST_PACKAGING_DEFECT_FIELDS } from "@/lib/defectFields";
 import { FORMAT_LABEL } from "@/lib/format";
+import { addYears, parseLocalDateOnly, toDateOnlyString } from "@/lib/dates";
 import { cn } from "@/lib/cn";
 import { format } from "date-fns";
 import type { ProductionLot, Field, Pallet, ShiftLog, Grade, Format } from "@prisma/client";
@@ -103,6 +104,8 @@ const FORM_LABEL: Record<Format, (grade: Grade) => string> = {
 export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] }) {
   const [state, formAction, pending] = useActionState(createPostFreezeCheckAction, undefined);
   const [lotNumber, setLotNumber] = useState("");
+  const [operationDate, setOperationDate] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
 
   const selectedLot = lots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase());
   const pallets = selectedLot?.pallets ?? [];
@@ -159,10 +162,19 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
             <Input name="shiftNumber" />
           </FieldGroup>
           <FieldGroup label="Operation Date">
-            <Input name="operationDate" type="date" />
+            <Input
+              name="operationDate"
+              type="date"
+              value={operationDate}
+              onChange={(e) => {
+                setOperationDate(e.target.value);
+                const parsed = parseLocalDateOnly(e.target.value);
+                setExpiryDate(parsed ? toDateOnlyString(addYears(parsed, 2)) : "");
+              }}
+            />
           </FieldGroup>
-          <FieldGroup label="Expiry Date">
-            <Input name="expiryDate" type="date" />
+          <FieldGroup label="Expiry Date (2 years from operation date)">
+            <Input name="expiryDate" type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
           </FieldGroup>
           <FieldGroup label="PH (limit 3.3±0.2)">
             <Input name="acidityPh" type="number" step="0.01" />

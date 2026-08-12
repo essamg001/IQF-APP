@@ -31,6 +31,12 @@ export function addDays(d: Date, days: number): Date {
   return copy;
 }
 
+export function addYears(d: Date, years: number): Date {
+  const copy = new Date(d);
+  copy.setFullYear(copy.getFullYear() + years);
+  return copy;
+}
+
 export function toDateOnlyString(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
