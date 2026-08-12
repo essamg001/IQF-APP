@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { createPackedPalletAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CARTON_LOGO_OPTIONS } from "@/lib/cartonLogo";
+import { FULL_PALLET_WEIGHT_TONNES, FULL_PALLET_CARTON_COUNT } from "@/lib/logistics";
 import type { ProductionLot, Field, ColdRoom, QualityCheck, Pallet } from "@prisma/client";
 
 type LotWithField = ProductionLot & { field: Field };
@@ -112,6 +113,8 @@ function PalletFields({
 }) {
   const [isMixedVariety, setIsMixedVariety] = useState(false);
   const [palletNumber, setPalletNumber] = useState("");
+  const [parcelStatus, setParcelStatus] = useState<"FULL" | "PARTIAL">("FULL");
+  const isFull = parcelStatus === "FULL";
 
   // Post-Freeze Inspection is the first stage that ties produce to this
   // pallet number, so its variety, client, full/partial call, and fruit
@@ -125,6 +128,10 @@ function PalletFields({
     }
     return lotChecks.find((c) => !c.palletId) ?? null;
   }, [lotChecks, palletNumber]);
+
+  useEffect(() => {
+    setParcelStatus(matchedCheck?.fullPallet === false ? "PARTIAL" : "FULL");
+  }, [matchedCheck]);
 
   return (
     <Card className="space-y-4">
@@ -177,8 +184,35 @@ function PalletFields({
             <option value="B">Grade B</option>
           </Select>
         </FieldGroup>
+        <FieldGroup label="Parcels">
+          <Select
+            name="parcelStatus"
+            value={parcelStatus}
+            onChange={(e) => setParcelStatus(e.target.value as "FULL" | "PARTIAL")}
+          >
+            <option value="FULL">Full pallet</option>
+            <option value="PARTIAL">Partial</option>
+          </Select>
+        </FieldGroup>
         <FieldGroup label="Total No. of Cartons">
-          <Input name="totalCartons" type="number" min="1" />
+          {isFull ? (
+            <>
+              <input type="hidden" name="totalCartons" value={FULL_PALLET_CARTON_COUNT} />
+              <p className="flex h-9 items-center text-sm text-slate-600">{FULL_PALLET_CARTON_COUNT} (full pallet)</p>
+            </>
+          ) : (
+            <Input name="totalCartons" type="number" min="1" />
+          )}
+        </FieldGroup>
+        <FieldGroup label="Weight (tonnes)">
+          {isFull ? (
+            <>
+              <input type="hidden" name="weightTonnes" value={FULL_PALLET_WEIGHT_TONNES} />
+              <p className="flex h-9 items-center text-sm text-slate-600">{FULL_PALLET_WEIGHT_TONNES} t (full pallet)</p>
+            </>
+          ) : (
+            <Input name="weightTonnes" type="number" step="0.01" min="0" required />
+          )}
         </FieldGroup>
         <FieldGroup label="Cold Room">
           <Select name="coldRoomId" defaultValue="">
@@ -198,16 +232,6 @@ function PalletFields({
           >
             <option value="off">One variety</option>
             <option value="on">Mixed varieties</option>
-          </Select>
-        </FieldGroup>
-        <FieldGroup label="Parcels">
-          <Select
-            key={matchedCheck?.id ?? "none-parcel"}
-            name="parcelStatus"
-            defaultValue={matchedCheck?.fullPallet === false ? "PARTIAL" : "FULL"}
-          >
-            <option value="FULL">Full pallet</option>
-            <option value="PARTIAL">Partial</option>
           </Select>
         </FieldGroup>
         <FieldGroup label="Beginning of Palletization">

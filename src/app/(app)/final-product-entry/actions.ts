@@ -15,6 +15,7 @@ const packedPalletSchema = z.object({
   isMixedVariety: z.boolean(),
   parcelStatus: z.enum(["FULL", "PARTIAL"]),
   totalCartons: z.coerce.number().int().positive().optional(),
+  weightTonnes: z.coerce.number().positive(),
   clientSpecNote: z.string().optional(),
   qualityGrade: z.enum(["A", "B"]).optional(),
   packingDate: z.string().optional(),
