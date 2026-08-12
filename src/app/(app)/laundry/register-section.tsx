@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import { createLaundryRecordAction } from "./actions";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -21,12 +21,14 @@ export function RegisterSection({
   const [state, formAction, pending] = useActionState(createLaundryRecordAction, undefined);
   const formRef = useRef<HTMLFormElement>(null);
   const errorMessage = state && state !== "ok" ? state : undefined;
+  const [checkedGarments, setCheckedGarments] = useState<Record<string, boolean>>({});
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-slate-900">Laundry Daily Register — HSE03296</h3>
       <p className="mt-0.5 text-xs text-slate-500">
-        Garment pieces issued/exchanged today, by worker and piece number (per the laundry&apos;s monthly register).
+        Garment pieces issued/exchanged today, by worker — tick which garments, then enter each piece number (per
+        the laundry&apos;s monthly register).
       </p>
 
       {records.length > 0 && (
@@ -65,6 +67,7 @@ export function RegisterSection({
         action={async (formData) => {
           await formAction(formData);
           formRef.current?.reset();
+          setCheckedGarments({});
         }}
         className="mt-3 space-y-2 border-t border-slate-100 pt-3"
       >
@@ -80,9 +83,20 @@ export function RegisterSection({
             </datalist>
           </FieldGroup>
           {GARMENT_TYPES.map((g) => (
-            <FieldGroup key={g.key} label={g.label}>
-              <Input name={g.key} placeholder="Piece #" className="px-2 py-1 text-xs" />
-            </FieldGroup>
+            <div key={g.key}>
+              <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={checkedGarments[g.key] ?? false}
+                  onChange={(e) => setCheckedGarments((prev) => ({ ...prev, [g.key]: e.target.checked }))}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
+                />
+                {g.label}
+              </label>
+              {checkedGarments[g.key] && (
+                <Input name={g.key} placeholder="Piece #" autoFocus className="px-2 py-1 text-xs" />
+              )}
+            </div>
           ))}
           <FieldGroup label="Comments">
             <Input name="comments" className="px-2 py-1 text-xs" />
