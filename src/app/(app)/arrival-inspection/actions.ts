@@ -9,6 +9,7 @@ import { checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
 import { raiseQualityLimitAlert } from "@/lib/alerts";
 import { DECAP_SHARED_DEFECT_FIELDS } from "@/lib/defectFields";
 import { egyptDayStart } from "@/lib/timezone";
+import { QC_NUMBER_REGEX } from "@/lib/qc";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
@@ -21,7 +22,7 @@ const arrivalCheckSchema = z
     rawMaterialSource: z.string().optional(),
     farmCode: z.string().optional(),
     decapPackHouse: z.string().optional(),
-    decapQcApprover: z.string().optional(),
+    decapQcApprover: z.string().regex(QC_NUMBER_REGEX).optional(),
     transportVehicleNo: z.string().optional(),
     receiptNoteNo: z.string().optional(),
     varietyName: z.string().optional(),

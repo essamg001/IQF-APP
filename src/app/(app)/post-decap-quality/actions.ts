@@ -9,6 +9,7 @@ import { checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
 import { raiseQualityLimitAlert } from "@/lib/alerts";
 import { DECAP_SHARED_DEFECT_FIELDS } from "@/lib/defectFields";
 import { egyptDayStart } from "@/lib/timezone";
+import { QC_NUMBER_REGEX } from "@/lib/qc";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
@@ -20,9 +21,7 @@ const postDecapCheckSchema = z.object({
   varietyName: z.string().optional(),
   clientName: z.string().optional(),
   processingLine: z.string().optional(),
-  decapQcApprover: z
-    .string()
-    .regex(/^QC([1-9]|[1-4][0-9]|5[01])$/, "QC number must be between QC1 and QC51."),
+  decapQcApprover: z.string().regex(QC_NUMBER_REGEX, "QC number must be between QC1 and QC51."),
 
   sampleNo: z.string().min(1),
   sampleCollectionTime: z.string().optional(),

@@ -10,6 +10,7 @@ import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
 import { DECAP_SHARED_DEFECT_FIELDS } from "@/lib/defectFields";
+import { QC_NUMBERS } from "@/lib/qc";
 import { cn } from "@/lib/cn";
 
 const TOTAL_DEFECTS_LIMIT = limitsFor("RAW_MATERIAL").find((r) => r.field === "totalDefectsPct")!.max!;
@@ -115,12 +116,18 @@ export function ArrivalInspectionForm({
             />
           </FieldGroup>
           <FieldGroup label="QC Approver (Pack House)">
-            <Input
+            <Select
               name="decapQcApprover"
               value={decapQcApprover}
               onChange={(e) => setDecapQcApprover(e.target.value)}
-              placeholder="Who approved it to leave the decap facility"
-            />
+            >
+              <option value="">Who approved it to leave the decap facility</option>
+              {QC_NUMBERS.map((qc) => (
+                <option key={qc} value={qc}>
+                  {qc}
+                </option>
+              ))}
+            </Select>
           </FieldGroup>
           <FieldGroup label="Transport Vehicle No.">
             <Input name="transportVehicleNo" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} />

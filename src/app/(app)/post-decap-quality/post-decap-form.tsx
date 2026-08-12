@@ -9,10 +9,8 @@ import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
 import { DECAP_SHARED_DEFECT_FIELDS } from "@/lib/defectFields";
+import { QC_NUMBERS } from "@/lib/qc";
 import { cn } from "@/lib/cn";
-
-// The factory has 51 QC staff, each identified on paperwork as "QC1"..."QC51".
-const QC_NUMBERS = Array.from({ length: 51 }, (_, i) => `QC${i + 1}`);
 
 const TOTAL_DEFECTS_LIMIT = limitsFor("POST_DECAP").find((r) => r.field === "totalDefectsPct")!.max!;
 
