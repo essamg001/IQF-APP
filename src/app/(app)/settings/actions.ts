@@ -1,7 +1,9 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -97,7 +99,17 @@ export async function addFieldAction(formData: FormData) {
 
 export async function deleteFieldAction(id: string) {
   if (!(await requireOwner())) return;
-  await prisma.field.delete({ where: { id } });
+  try {
+    await prisma.field.delete({ where: { id } });
+  } catch (err) {
+    // Field is a required FK on ProductionLot -- Prisma refuses the delete
+    // (P2003) rather than orphaning real production history. Redirect back
+    // with an explanatory error instead of a raw 500.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+      redirect("/settings?error=field-in-use");
+    }
+    throw err;
+  }
   revalidatePath("/settings");
 }
 
@@ -221,6 +233,25 @@ export async function toggleHeadOfMaintenanceAction(id: string) {
     entityType: "User",
     entityId: id,
     detail: `${user.name} → ${!user.isHeadOfMaintenance}`,
+  });
+
+  revalidatePath("/settings");
+}
+
+// Not gated to a specific Role either -- there's no dedicated "Purchasing"
+// role, same reasoning as toggleHeadOfMaintenanceAction above.
+export async function toggleHeadOfPurchasingAction(id: string) {
+  if (!(await requireOwner())) return;
+  const user = await prisma.user.findUniqueOrThrow({ where: { id } });
+  await prisma.user.update({ where: { id }, data: { isHeadOfPurchasing: !user.isHeadOfPurchasing } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "USER_HEAD_OF_PURCHASING_TOGGLED",
+    entityType: "User",
+    entityId: id,
+    detail: `${user.name} → ${!user.isHeadOfPurchasing}`,
   });
 
   revalidatePath("/settings");

@@ -23,6 +23,7 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
 
   // Factory: intake -> freeze -> pack
   { href: "/arrival-inspection", label: "Arrival Inspection at Factory", roles: ["OWNER", "QUALITY"] },
+  { href: "/shifts", label: "Shifts" },
   { href: "/production", label: "Production" },
   { href: "/post-freeze-inspection", label: "Post-Freeze Inspection", roles: ["OWNER", "QUALITY"] },
   { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
@@ -34,7 +35,8 @@ const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSa
   { href: "/equipment-verification", label: "Equipment Verification", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
   { href: "/laundry", label: "Laundry", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
   { href: "/training", label: "Staff Training", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/shifts", label: "Hours Worked" },
+  { href: "/purchase-requests", label: "Purchase Requests" },
+  { href: "/structural-issues", label: "Structural Issues" },
 
   // Storage & Lab (gates before a pallet can ship)
   { href: "/storage", label: "Storage" },

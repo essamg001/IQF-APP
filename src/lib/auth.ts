@@ -14,6 +14,7 @@ declare module "next-auth" {
       isHeadOfSales: boolean;
       isHeadOfProduction: boolean;
       isHeadOfMaintenance: boolean;
+      isHeadOfPurchasing: boolean;
       station: Station | null;
     };
   }
@@ -22,6 +23,7 @@ declare module "next-auth" {
     isHeadOfSales: boolean;
     isHeadOfProduction: boolean;
     isHeadOfMaintenance: boolean;
+    isHeadOfPurchasing: boolean;
     station: Station | null;
   }
 }
@@ -54,6 +56,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           isHeadOfSales: user.isHeadOfSales,
           isHeadOfProduction: user.isHeadOfProduction,
           isHeadOfMaintenance: user.isHeadOfMaintenance,
+          isHeadOfPurchasing: user.isHeadOfPurchasing,
           station: user.station,
         };
       },
@@ -67,6 +70,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.isHeadOfSales = user.isHeadOfSales;
         token.isHeadOfProduction = user.isHeadOfProduction;
         token.isHeadOfMaintenance = user.isHeadOfMaintenance;
+        token.isHeadOfPurchasing = user.isHeadOfPurchasing;
         token.station = user.station;
       }
       return token;
@@ -78,6 +82,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.isHeadOfSales = token.isHeadOfSales as boolean;
         session.user.isHeadOfProduction = token.isHeadOfProduction as boolean;
         session.user.isHeadOfMaintenance = token.isHeadOfMaintenance as boolean;
+        session.user.isHeadOfPurchasing = token.isHeadOfPurchasing as boolean;
         session.user.station = (token.station as Station | null) ?? null;
       }
       return session;

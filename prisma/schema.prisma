@@ -54,6 +54,36 @@ enum ShiftType {
   NIGHT
 }
 
+enum PurchaseCategory {
+  CLEANING_MATERIALS
+  EQUIPMENT
+  SPARE_PARTS
+  OTHER
+}
+
+// Requested -> Approved/Rejected by Purchasing -> Ordered (tracked to the
+// farm gate) -> Received (Production confirms physical arrival) ->
+// ConfirmedWorking (Production confirms it actually works, separate from
+// just having arrived -- matters most for equipment).
+enum PurchaseRequestStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  ORDERED
+  RECEIVED
+  CONFIRMED_WORKING
+}
+
+// Reported (by Head of Production) -> Planned (Head of Maintenance confirms
+// the damage and commits to a plan + completion date) -> Completed. Overdue
+// is derived (see isStructuralIssueOverdue in src/lib/structuralIssues.ts),
+// not stored -- it's just "still Planned past its proposed date."
+enum StructuralIssueStatus {
+  REPORTED
+  PLANNED
+  COMPLETED
+}
+
 enum ComplianceLevel {
   GLOBALGAP
   SPRING
@@ -186,6 +216,10 @@ model User {
   // the app has no dedicated "Maintenance" role; the Owner grants it to
   // whichever user actually holds that responsibility.
   isHeadOfMaintenance Boolean @default(false)
+  // Only the Owner or whoever holds this flag can approve/order a purchase
+  // request -- same narrow-accountability reasoning as isHeadOfMaintenance.
+  // Not tied to a Role since there's no dedicated "Purchasing" role either.
+  isHeadOfPurchasing Boolean @default(false)
   station            Station?
   createdAt          DateTime @default(now())
 
@@ -211,6 +245,18 @@ model User {
   laundrySignOffsAsSupervisor LaundryDailySignOff[] @relation("LaundrySignOffSupervisor")
   laundrySignOffsAsVerifier   LaundryDailySignOff[] @relation("LaundrySignOffVerifiedBy")
   completedMasterCleaningTasks MasterCleaningTaskLog[]
+
+  requestedPurchaseRequests PurchaseRequest[] @relation("PurchaseRequestedBy")
+  reviewedPurchaseRequests  PurchaseRequest[] @relation("PurchaseReviewedBy")
+  orderedPurchaseRequests   PurchaseRequest[] @relation("PurchaseOrderedBy")
+  receivedPurchaseRequests  PurchaseRequest[] @relation("PurchaseReceivedBy")
+  workingConfirmedPurchaseRequests PurchaseRequest[] @relation("PurchaseWorkingConfirmedBy")
+  uploadedPurchaseRequestPhotos    PurchaseRequestPhoto[] @relation("PurchaseRequestPhotoUploadedBy")
+
+  reportedStructuralIssues  StructuralIssue[] @relation("StructuralIssueReportedBy")
+  confirmedStructuralIssues StructuralIssue[] @relation("StructuralIssueConfirmedBy")
+  completedStructuralIssues StructuralIssue[] @relation("StructuralIssueCompletedBy")
+  uploadedStructuralIssuePhotos StructuralIssuePhoto[] @relation("StructuralIssuePhotoUploadedBy")
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -334,6 +380,8 @@ model Factory {
   dailyDowntimeEvents  DailyDowntimeEvent[]
   dailyLineEfficiency  DailyLineEfficiency[]
   dailyLabourEntries   DailyLabourEntry[]
+  purchaseRequests   PurchaseRequest[]
+  structuralIssues   StructuralIssue[]
   cleaningAreaScores   CleaningAreaScore[]
   cleaningShiftRecords CleaningShiftRecord[]
   dailyChecklistScores DailyProductionChecklistScore[]
@@ -523,7 +571,10 @@ model ShiftLog {
   date        DateTime
   shiftType   ShiftType
   startTime   DateTime
-  endTime     DateTime
+  // Not asked at shift-open time -- nobody knows it yet. Filled in
+  // automatically once the day's Daily Report records this shift's line
+  // uptime (see updateLineEfficiencyAction), or entered by hand if known.
+  endTime     DateTime?
   workerCount Int
   createdAt   DateTime  @default(now())
 
@@ -1823,6 +1874,9 @@ model MetalDetectorMaintenanceCheck {
   checkedByUser   User?    @relation("MetalDetectorMaintenanceCheckedBy", fields: [checkedByUserId], references: [id])
   createdAt       DateTime @default(now())
 
+  reopenedAt     DateTime?
+  reopenedReason String?
+
   isTestData Boolean @default(false)
 
   @@unique([factoryId, date, shiftType])
@@ -1951,6 +2005,9 @@ model LaundryDailySignOff {
   verifiedSignedByUser   User?     @relation("LaundrySignOffVerifiedBy", fields: [verifiedSignedByUserId], references: [id])
   verifiedSignedAt       DateTime?
 
+  reopenedAt     DateTime?
+  reopenedReason String?
+
   createdAt DateTime @default(now())
 
   isTestData Boolean @default(false)
@@ -1983,4 +2040,133 @@ model MasterCleaningTaskLog {
 
   @@unique([factoryId, date, taskKey])
   @@index([factoryId, date])
+}
+
+// A factory's request for anything it needs (cleaning materials, equipment,
+// spare parts) tracked from request through to confirmed-working. Production
+// requests it; Purchasing (Owner or whoever holds isHeadOfPurchasing)
+// approves/rejects, then orders and tracks delivery to the farm gate;
+// Production then confirms it actually arrived, and separately confirms it
+// works -- "delivered" and "works" are deliberately two different facts,
+// since a piece of equipment can arrive damaged or wrong.
+model PurchaseRequest {
+  id              String           @id @default(cuid())
+  factoryId       String
+  factory         Factory          @relation(fields: [factoryId], references: [id])
+  category        PurchaseCategory
+  itemDescription String
+  quantity        String?
+  reason          String?
+
+  status PurchaseRequestStatus @default(REQUESTED)
+
+  requestedByName   String
+  requestedByUserId String?
+  requestedByUser   User?    @relation("PurchaseRequestedBy", fields: [requestedByUserId], references: [id])
+  requestedAt       DateTime @default(now())
+
+  reviewedByName   String?
+  reviewedByUserId String?
+  reviewedByUser   User?     @relation("PurchaseReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt       DateTime?
+  rejectionReason  String?
+
+  supplierName         String?
+  orderReference        String?
+  costUsd               Float?
+  expectedDeliveryDate  DateTime?
+  orderedByUserId       String?
+  orderedByUser         User?     @relation("PurchaseOrderedBy", fields: [orderedByUserId], references: [id])
+  orderedAt             DateTime?
+
+  receivedByName   String?
+  receivedByUserId String?
+  receivedByUser   User?     @relation("PurchaseReceivedBy", fields: [receivedByUserId], references: [id])
+  receivedAt       DateTime?
+
+  workingConfirmedByName   String?
+  workingConfirmedByUserId String?
+  workingConfirmedByUser   User?     @relation("PurchaseWorkingConfirmedBy", fields: [workingConfirmedByUserId], references: [id])
+  workingConfirmedAt       DateTime?
+  workingNotes             String?
+
+  photos PurchaseRequestPhoto[]
+
+  isTestData Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([factoryId])
+  @@index([status])
+}
+
+model PurchaseRequestPhoto {
+  id                String          @id @default(cuid())
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  fileName          String
+  originalName      String
+  caption           String?
+  uploadedByUserId  String?
+  uploadedBy        User?           @relation("PurchaseRequestPhotoUploadedBy", fields: [uploadedByUserId], references: [id])
+  createdAt         DateTime        @default(now())
+
+  @@index([purchaseRequestId])
+}
+
+// A physical defect in the factory itself (damaged floor, leaking roof,
+// etc.), tracked from report through to fix -- distinct from a
+// PurchaseRequest (this is "something is broken/damaged," not "we need to
+// buy something," though a repair might end up needing one). Head of
+// Production reports what he sees; Head of Maintenance confirms it's real
+// and commits to a plan + completion date; the point of storing that date is
+// to catch maintenance-caused delays (see isStructuralIssueOverdue in
+// src/lib/structuralIssues.ts), not just to record when it got fixed.
+model StructuralIssue {
+  id          String @id @default(cuid())
+  factoryId   String
+  factory     Factory @relation(fields: [factoryId], references: [id])
+  location    String
+  description String
+
+  status StructuralIssueStatus @default(REPORTED)
+
+  reportedByName   String
+  reportedByUserId String?
+  reportedByUser   User?    @relation("StructuralIssueReportedBy", fields: [reportedByUserId], references: [id])
+  reportedAt       DateTime @default(now())
+
+  confirmedByName        String?
+  confirmedByUserId      String?
+  confirmedByUser        User?     @relation("StructuralIssueConfirmedBy", fields: [confirmedByUserId], references: [id])
+  confirmedAt            DateTime?
+  proposedPlan           String?
+  proposedCompletionDate DateTime?
+
+  completedByName   String?
+  completedByUserId String?
+  completedByUser   User?     @relation("StructuralIssueCompletedBy", fields: [completedByUserId], references: [id])
+  completedAt       DateTime?
+  completionNotes   String?
+
+  photos StructuralIssuePhoto[]
+
+  isTestData Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([factoryId])
+  @@index([status])
+}
+
+model StructuralIssuePhoto {
+  id                String          @id @default(cuid())
+  structuralIssueId String
+  structuralIssue   StructuralIssue @relation(fields: [structuralIssueId], references: [id], onDelete: Cascade)
+  fileName          String
+  originalName      String
+  caption           String?
+  uploadedByUserId  String?
+  uploadedBy        User?           @relation("StructuralIssuePhotoUploadedBy", fields: [uploadedByUserId], references: [id])
+  createdAt         DateTime        @default(now())
+
+  @@index([structuralIssueId])
 }

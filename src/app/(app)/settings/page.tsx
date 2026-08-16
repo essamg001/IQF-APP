@@ -27,13 +27,19 @@ import {
   toggleHeadOfSalesAction,
   toggleHeadOfProductionAction,
   toggleHeadOfMaintenanceAction,
+  toggleHeadOfPurchasingAction,
   updateFarmAccreditationAction,
 } from "./actions";
 import { AddUserForm } from "./add-user-form";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   const isOwner = session?.user.role === "OWNER";
+  const { error } = await searchParams;
 
   const [factories, coldRooms, fields, users, companySettings] = await Promise.all([
     prisma.factory.findMany({ orderBy: { name: "asc" } }),
@@ -45,6 +51,11 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      {error === "field-in-use" && (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          Can&apos;t delete this field — it still has production lots on file. Those need to be resolved first.
+        </p>
+      )}
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Setup</h1>
         <p className="mt-1 text-sm text-slate-500">Factories, cold rooms, fields, and users.</p>
@@ -97,6 +108,18 @@ export default async function SettingsPage() {
                         className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                       >
                         Make head of maintenance?
+                      </ConfirmSubmitButton>
+                    </form>
+                  )}
+                  {u.isHeadOfPurchasing ? (
+                    <Badge color="green">Head of Purchasing</Badge>
+                  ) : (
+                    <form action={toggleHeadOfPurchasingAction.bind(null, u.id)}>
+                      <ConfirmSubmitButton
+                        confirmMessage={`Make ${u.name} Head of Purchasing? This grants authority to approve, order, and track Purchase Requests. There's no dedicated Purchasing role, so this can be granted to any user.`}
+                        className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                      >
+                        Make head of purchasing?
                       </ConfirmSubmitButton>
                     </form>
                   )}
