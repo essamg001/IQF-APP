@@ -10,6 +10,7 @@ export type LimitViolation = { label: string; value: number; min?: number; max?:
 
 const PRE_DECAP_LIMITS: LimitRule[] = [
   { field: "brix", label: "Brix", min: 7 },
+  { field: "productTemperatureC", label: "Temperature", min: 30 },
   { field: "fruitColorPct", label: "Berry Colour", min: 85 },
   { field: "internalQualityPct", label: "Internal Quality", max: 10 },
   { field: "overmaturePct", label: "Over Maturity", max: 50 },
@@ -31,6 +32,8 @@ const PRE_DECAP_LIMITS: LimitRule[] = [
 // Shared by both RAW_MATERIAL (STR03110, Arrival Inspection at Factory) and
 // POST_DECAP (STR03107, Post-Decap Quality) -- same defect checklist, same limits.
 const DECAP_SHARED_LIMITS: LimitRule[] = [
+  { field: "crateWeightKg", label: "Crate Weight", min: 3.3, max: 3.7 },
+  { field: "leafStemRemainsCount", label: "Leaf/Stem Remains", max: 1 },
   { field: "fruitColorPct", label: "Fruit Colour", min: 90 },
   { field: "internalQualityPct", label: "Internal Quality", max: 3 },
   { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 1 },
@@ -54,12 +57,35 @@ const DECAP_SHARED_LIMITS: LimitRule[] = [
   { field: "brokenUncleanCratesPct", label: "Broken/Unclean Crates", max: 0 },
 ];
 
-const RAW_MATERIAL_LIMITS: LimitRule[] = [...DECAP_SHARED_LIMITS, { field: "totalDefectsPct", label: "Total Defects", max: 5 }];
-const POST_DECAP_LIMITS: LimitRule[] = [...DECAP_SHARED_LIMITS, { field: "totalDefectsPct", label: "Total Defects", max: 6 }];
+const RAW_MATERIAL_LIMITS: LimitRule[] = [
+  ...DECAP_SHARED_LIMITS,
+  { field: "productTemperatureC", label: "Temperature", max: 10 },
+  { field: "acidityPh", label: "PH", min: 3.1, max: 3.5 },
+  { field: "totalDefectsPct", label: "Total Defects", max: 5 },
+];
+const POST_DECAP_LIMITS: LimitRule[] = [
+  ...DECAP_SHARED_LIMITS,
+  { field: "brix", label: "Brix", min: 7 },
+  { field: "totalDefectsPct", label: "Total Defects", max: 6 },
+];
+
+// Process-control checks on Post-Freeze Inspection (STR03111/STR03116/
+// STR03118/STR03119) that don't vary by grade or format -- sample-handling
+// and cold-chain constants, not fruit-quality grading criteria.
+const POST_FREEZE_PROCESS_LIMITS: LimitRule[] = [
+  { field: "acidityPh", label: "PH", min: 3.1, max: 3.5 },
+  { field: "sampleWeightKg", label: "Sample Weight", min: 2 },
+  { field: "productTemperatureC", label: "Product Temperature", max: -18 },
+  { field: "capsuleRemainsCount", label: "Capsule Remains", max: 10 },
+  { field: "leafRemainsCount", label: "Leaf Remains", max: 10 },
+  { field: "stemFragmentsCount", label: "Stem Fragments", max: 1 },
+  { field: "frozenProductWaitMinutes", label: "Frozen Product Waiting Period", min: 10, max: 30 },
+];
 
 // STR03111 (Grade A) / STR03116 (Grade B) -- same checklist, tighter tolerances for A.
 const POST_PACKAGING_LIMITS: Record<Grade, LimitRule[]> = {
   A: [
+    ...POST_FREEZE_PROCESS_LIMITS,
     { field: "fruitColorPct", label: "Fruit Colour", min: 90 },
     { field: "overmaturePct", label: "Overmature", max: 3 },
     { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 3 },
@@ -78,6 +104,7 @@ const POST_PACKAGING_LIMITS: Record<Grade, LimitRule[]> = {
     { field: "foreignBodiesPct", label: "Foreign Bodies", max: 0 },
   ],
   B: [
+    ...POST_FREEZE_PROCESS_LIMITS,
     { field: "fruitColorPct", label: "Fruit Colour", min: 80 },
     { field: "overmaturePct", label: "Overmature", max: 5 },
     { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 5 },
@@ -102,6 +129,7 @@ const POST_PACKAGING_LIMITS: Record<Grade, LimitRule[]> = {
 // real-world meaning differs -- slices vs cubes), kept as separate constants
 // anyway since they mirror two separate paper forms with their own labels.
 const POST_PACKAGING_SLICED_LIMITS: LimitRule[] = [
+  ...POST_FREEZE_PROCESS_LIMITS,
   { field: "fruitColorPct", label: "Fruit Colour", min: 90 },
   { field: "overmaturePct", label: "Overmature", max: 2 },
   { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 2 },

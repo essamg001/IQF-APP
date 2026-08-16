@@ -4,12 +4,14 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 import { markWasteAction } from "../../production/actions";
 import { combinedMicroStatus } from "@/lib/microbiology";
 import { combinedCfuValue } from "@/lib/cfuTier";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
+import { MrlStatusBadge } from "@/components/mrl-status-badge";
 import { buildRackOrder, nextAvailableSlot, dominantProductType, suggestColdRoom } from "@/lib/coldStorage";
 
 const STATUS_COLOR = {
@@ -25,7 +27,7 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
   const pallet = await prisma.pallet.findUnique({
     where: { id: palletId },
     include: {
-      lot: { include: { field: true, factory: true, shift: true, microbiologyResults: true } },
+      lot: { include: { field: true, factory: true, shift: true, microbiologyResults: true, mrlResult: true } },
       coldRoom: true,
       client: true,
       order: true,
@@ -167,6 +169,12 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
                 <CfuTierBadge cfuValue={combinedCfuValue(pallet.lot.microbiologyResults)} />
               </dd>
             </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">MRL (pesticide residue)</dt>
+              <dd className="text-right">
+                <MrlStatusBadge status={pallet.lot.mrlResult?.status ?? "PENDING"} />
+              </dd>
+            </div>
             <Row label="Client (allocated)" value={pallet.client?.name} />
           </dl>
         </Card>
@@ -196,9 +204,12 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
                 <FieldGroup label="Quantity (tonnes)">
                   <Input name="quantity" type="number" step="0.1" defaultValue={pallet.weightTonnes} />
                 </FieldGroup>
-                <Button type="submit" variant="danger">
+                <ConfirmSubmitButton
+                  confirmMessage={`Mark pallet ${pallet.palletNumber} as waste? This can't be easily undone.`}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+                >
                   Mark as waste
-                </Button>
+                </ConfirmSubmitButton>
               </form>
             </>
           )}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getPalletQualitySnapshots } from "@/lib/palletQuality";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
 import { CfuTierLegend } from "@/components/cfu-tier-legend";
+import { MrlStatusBadge } from "@/components/mrl-status-badge";
 import { TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 
@@ -94,6 +95,7 @@ export default async function StoragePage({
               <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2 font-medium">Client</th>
               <th className="px-4 py-2 font-medium">Total Plate Count</th>
+              <th className="px-4 py-2 font-medium">MRL</th>
             </tr>
           </thead>
           <tbody>
@@ -118,11 +120,14 @@ export default async function StoragePage({
                 <td className="px-4 py-2">
                   <CfuTierBadge cfuValue={qualityByPalletId.get(p.id)?.cfuValue ?? null} />
                 </td>
+                <td className="px-4 py-2">
+                  <MrlStatusBadge status={qualityByPalletId.get(p.id)?.mrlStatus ?? "PENDING"} />
+                </td>
               </tr>
             ))}
             {pallets.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   No pallets match this filter.
                 </td>
               </tr>

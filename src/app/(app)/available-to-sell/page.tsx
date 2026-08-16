@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { FORMAT_LABEL } from "@/lib/format";
 import type { Grade, Format } from "@prisma/client";
 import { bothLabsApprovedFilter, notBothLabsApprovedFilter } from "@/lib/microbiology";
+import { isMrlCleared } from "@/lib/mrl";
+import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
 
 const GRADES: Grade[] = ["A", "B"];
 const FORMATS: Format[] = ["WHOLE", "SLICED", "DICED"];
@@ -15,7 +17,7 @@ export default async function AvailableToSellPage() {
         status: "IN_STORAGE",
         lot: { shift: { is: { onHold: false } }, ...bothLabsApprovedFilter },
       },
-      select: { weightTonnes: true, lot: { select: { grade: true, format: true } } },
+      select: { weightTonnes: true, lot: { select: { grade: true, format: true, mrlResult: true } } },
     }),
     prisma.pallet.findMany({
       where: {
@@ -32,7 +34,9 @@ export default async function AvailableToSellPage() {
 
   const rows = GRADES.flatMap((grade) =>
     FORMATS.map((format) => {
-      const ready = readyPallets.filter((p) => p.lot.grade === grade && p.lot.format === format);
+      const ready = readyPallets.filter(
+        (p) => p.lot.grade === grade && p.lot.format === format && isMrlCleared(p.lot.mrlResult)
+      );
       const pendingMicro = pendingMicroPallets.filter((p) => p.lot.grade === grade && p.lot.format === format);
       const committed = pendingOrders
         .filter((o) => o.grade === grade && o.format === format)
@@ -41,7 +45,7 @@ export default async function AvailableToSellPage() {
       const readyPalletCount = ready.length;
       const readyTonnes = ready.reduce((s, p) => s + p.weightTonnes, 0);
       const availablePallets = readyPalletCount - committed;
-      const availableTonnes = availablePallets * 1.2;
+      const availableTonnes = availablePallets * FULL_PALLET_WEIGHT_TONNES;
 
       return {
         grade,

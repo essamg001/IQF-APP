@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Grade } from "@prisma/client";
+import type { Grade, MrlStatus } from "@prisma/client";
 import { combinedMicroStatus, type CombinedMicroStatus } from "@/lib/microbiology";
 import { combinedCfuValue } from "@/lib/cfuTier";
 
@@ -8,6 +8,7 @@ export type PalletQualitySnapshot = {
   microbiologyStatus: CombinedMicroStatus;
   /** Higher (worse) of the two labs' Total Plate Count readings, in cfu/g -- null if neither has reported one yet. */
   cfuValue: number | null;
+  mrlStatus: MrlStatus;
   brix: number | null;
   mouldPct: number | null;
   internalQualityPct: number | null;
@@ -33,7 +34,7 @@ export async function getPalletQualitySnapshots(
   const [lots, palletChecks, lotChecks] = await Promise.all([
     prisma.productionLot.findMany({
       where: { id: { in: lotIds } },
-      include: { microbiologyResults: true, shift: true },
+      include: { microbiologyResults: true, shift: true, mrlResult: true },
     }),
     prisma.qualityCheck.findMany({
       where: { palletId: { in: pallets.map((p) => p.id) }, checkpoint: "POST_PACKAGING" },
@@ -61,6 +62,7 @@ export async function getPalletQualitySnapshots(
     const grade = lot?.grade ?? "A";
     const microbiologyStatus = lot ? combinedMicroStatus(lot.microbiologyResults, lot.shift.onHold) : "PENDING";
     const cfuValue = lot ? combinedCfuValue(lot.microbiologyResults) : null;
+    const mrlStatus = lot?.mrlResult?.status ?? "PENDING";
 
     const palletCheck = latestPalletCheck.get(p.id);
     if (palletCheck) {
@@ -68,6 +70,7 @@ export async function getPalletQualitySnapshots(
         grade,
         microbiologyStatus,
         cfuValue,
+        mrlStatus,
         brix: palletCheck.brix,
         mouldPct: palletCheck.mouldPct,
         internalQualityPct: palletCheck.internalQualityPct,
@@ -82,6 +85,7 @@ export async function getPalletQualitySnapshots(
         grade,
         microbiologyStatus,
         cfuValue,
+        mrlStatus,
         brix: lotCheck.brix,
         mouldPct: lotCheck.mouldPct,
         internalQualityPct: lotCheck.internalQualityPct,
@@ -90,7 +94,7 @@ export async function getPalletQualitySnapshots(
       continue;
     }
 
-    result.set(p.id, { grade, microbiologyStatus, cfuValue, brix: null, mouldPct: null, internalQualityPct: null, source: "none" });
+    result.set(p.id, { grade, microbiologyStatus, cfuValue, mrlStatus, brix: null, mouldPct: null, internalQualityPct: null, source: "none" });
   }
 
   return result;

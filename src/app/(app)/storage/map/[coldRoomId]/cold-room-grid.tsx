@@ -1,12 +1,15 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import type { MrlStatus } from "@prisma/client";
 import { assignPalletToSlotAction, unassignSlotAction } from "../actions";
 import { Select, FieldGroup } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
+import { MrlStatusBadge } from "@/components/mrl-status-badge";
 import { CfuTierLegend } from "@/components/cfu-tier-legend";
 import { cfuTierFor } from "@/lib/cfuTier";
 import { rackLetter } from "@/lib/coldStorage";
@@ -24,6 +27,7 @@ type SlotPallet = {
     grade: string;
     microbiologyStatus: string;
     cfuValue: number | null;
+    mrlStatus: MrlStatus;
     brix: number | null;
     mouldPct: number | null;
     internalQualityPct: number | null;
@@ -192,7 +196,7 @@ function RowFragment({
         const isSuggested = !occupied && slot.id === suggestedSlotId;
         const title = occupied
           ? `${slot.pallet!.palletNumber} — Lot ${slot.pallet!.lotNumber}${
-              cfuValue != null ? ` — ${cfuValue.toLocaleString()} cfu/g` : ""
+              cfuValue != null ? ` — ${cfuValue.toLocaleString("en-US")} cfu/g` : ""
             }${slot.pallet!.isTestData ? " — TEST DATA" : ""}`
           : isSuggested
             ? `${rack}${level} — empty (suggested next slot)`
@@ -267,6 +271,12 @@ function SlotDetail({
                 <CfuTierBadge cfuValue={slot.pallet.quality?.cfuValue ?? null} />
               </dd>
             </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-slate-500">MRL</dt>
+              <dd className="text-right">
+                <MrlStatusBadge status={slot.pallet.quality?.mrlStatus ?? "PENDING"} />
+              </dd>
+            </div>
             <Row
               label="Brix"
               value={slot.pallet.quality?.brix != null ? String(slot.pallet.quality.brix) : "—"}
@@ -290,9 +300,12 @@ function SlotDetail({
               View pallet
             </LinkButton>
             <form action={unassignSlotAction.bind(null, slot.id)}>
-              <Button type="submit" variant="danger">
+              <ConfirmSubmitButton
+                confirmMessage={`Unassign ${slot.pallet.palletNumber} from Round ${slot.round} / Rack ${slot.rack} / Level ${slot.level}?`}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+              >
                 Unassign
-              </Button>
+              </ConfirmSubmitButton>
             </form>
           </div>
         </>

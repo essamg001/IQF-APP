@@ -3,6 +3,7 @@ import type { Grade, Format } from "@prisma/client";
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
 import { combinedCfuValue, exceedsClientLimit } from "@/lib/cfuTier";
 import { evaluateSpecCompliance, violatedSpecRows } from "@/lib/specCompliance";
+import { isMrlCleared } from "@/lib/mrl";
 
 /** Best-effort parse of free-text brix specs like "8-11%", "8% ± 2.5", "7 - 8.5", or "8.0". */
 export function parseBrixRange(text: string | null | undefined): { min: number; max: number } | null {
@@ -52,7 +53,7 @@ export async function suggestAllocation(params: {
       status: "IN_STORAGE",
       lot: { grade, format, shift: { is: { onHold: false } }, ...bothLabsApprovedFilter },
     },
-    include: { lot: { include: { qualityChecks: true, microbiologyResults: true } } },
+    include: { lot: { include: { qualityChecks: true, microbiologyResults: true, mrlResult: true } } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -78,6 +79,8 @@ export async function suggestAllocation(params: {
   // A pallet with no reading at all isn't excluded -- absence of data isn't
   // evidence it exceeds the limit.
   const eligiblePallets = allEligiblePallets.filter((p) => {
+    if (!isMrlCleared(p.lot.mrlResult)) return false;
+
     const cfuValue = combinedCfuValue(p.lot.microbiologyResults);
     if (cfuValue != null && exceedsClientLimit(cfuValue, spec?.maxCfuPerGram)) return false;
 

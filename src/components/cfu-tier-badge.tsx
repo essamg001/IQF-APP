@@ -21,7 +21,7 @@ export function CfuTierBadge({ cfuValue, className }: { cfuValue: number | null;
       )}
       title={tier.label}
     >
-      {cfuValue.toLocaleString()} cfu/g
+      {cfuValue.toLocaleString("en-US")} cfu/g
     </span>
   );
 }
