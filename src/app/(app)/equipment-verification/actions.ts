@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { parseLocalDateOnly, parseDateSafe } from "@/lib/dates";
 import { logActivity } from "@/lib/activityLog";
+import { isMetalDetectorMaintenanceLocked } from "@/lib/equipmentVerification";
 import { z } from "zod";
 
 const metalDetectorSchema = z.object({
@@ -77,7 +78,7 @@ const metalDetectorMaintenanceSchema = z.object({
   beltRollersCleanChecked: z.boolean(),
 });
 
-export async function updateMetalDetectorMaintenanceAction(formData: FormData) {
+export async function updateMetalDetectorMaintenanceAction(_prevState: string | undefined, formData: FormData) {
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
   const parsed = metalDetectorMaintenanceSchema.safeParse({
     ...raw,
@@ -86,13 +87,20 @@ export async function updateMetalDetectorMaintenanceAction(formData: FormData) {
     electricalPanelChecked: formData.get("electricalPanelChecked") === "on",
     beltRollersCleanChecked: formData.get("beltRollersCleanChecked") === "on",
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
   const date = parseLocalDateOnly(parsed.data.date);
-  if (!date) return;
+  if (!date) return "That date couldn't be read.";
 
   const session = await auth();
   const { date: _date, factoryId, shiftType, ...checklist } = parsed.data;
+
+  const existing = await prisma.metalDetectorMaintenanceCheck.findUnique({
+    where: { factoryId_date_shiftType: { factoryId, date, shiftType } },
+  });
+  if (isMetalDetectorMaintenanceLocked(existing)) {
+    return "This shift's checklist is already confirmed. Reopen it first to make changes.";
+  }
 
   const record = await prisma.metalDetectorMaintenanceCheck.upsert({
     where: { factoryId_date_shiftType: { factoryId, date, shiftType } },
@@ -115,6 +123,58 @@ export async function updateMetalDetectorMaintenanceAction(formData: FormData) {
   });
 
   revalidatePath("/equipment-verification");
+  return "ok";
+}
+
+const reopenMetalDetectorMaintenanceSchema = z.object({
+  reason: z.string().min(1, "A reason is required to reopen this checklist."),
+});
+
+// Same explicit, logged escape hatch as Cleaning Mode / Laundry's reopen --
+// clears the confirming identity (so it has to be re-confirmed against
+// whatever the checklist looks like once corrected) rather than letting a
+// stale confirmation silently vouch for answers that can still be edited.
+export async function reopenMetalDetectorMaintenanceAction(
+  factoryId: string,
+  date: string,
+  shiftType: "DAY" | "NIGHT",
+  _prevState: string | undefined,
+  formData: FormData
+) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in to reopen this checklist.";
+
+  const parsed = reopenMetalDetectorMaintenanceSchema.safeParse({ reason: formData.get("reason") });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const parsedDate = parseLocalDateOnly(date);
+  if (!parsedDate) return "That date couldn't be read.";
+
+  const record = await prisma.metalDetectorMaintenanceCheck.findUnique({
+    where: { factoryId_date_shiftType: { factoryId, date: parsedDate, shiftType } },
+  });
+  if (!isMetalDetectorMaintenanceLocked(record)) return "This checklist isn't confirmed -- there's nothing to reopen.";
+
+  await prisma.metalDetectorMaintenanceCheck.update({
+    where: { factoryId_date_shiftType: { factoryId, date: parsedDate, shiftType } },
+    data: {
+      checkedByName: null,
+      checkedByUserId: null,
+      reopenedAt: new Date(),
+      reopenedReason: parsed.data.reason,
+    },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    action: "METAL_DETECTOR_MAINTENANCE_REOPENED",
+    entityType: "MetalDetectorMaintenanceCheck",
+    entityId: `${factoryId}:${date}:${shiftType}`,
+    detail: `Cleared confirmation (was: ${record?.checkedByName ?? "—"}) — ${parsed.data.reason}`,
+  });
+
+  revalidatePath("/equipment-verification");
+  return "ok";
 }
 
 const chlorineDosingSchema = z.object({

@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
-import { createMetalDetectorCheckAction, updateMetalDetectorMaintenanceAction } from "./actions";
+import { createMetalDetectorCheckAction, updateMetalDetectorMaintenanceAction, reopenMetalDetectorMaintenanceAction } from "./actions";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { HourCoverageGrid } from "./hour-coverage-grid";
 import { SHIFT_HOURS, hourSlotDate, toDateTimeLocalValue } from "@/lib/shiftHours";
 import { parseLocalDateOnly } from "@/lib/dates";
+import { isMetalDetectorMaintenanceLocked } from "@/lib/equipmentVerification";
 import type { MetalDetectorCheck, MetalDetectorMaintenanceCheck, ShiftType } from "@prisma/client";
 
 export function MetalDetectorSection({
@@ -119,7 +121,14 @@ function MaintenanceChecklist({
   shiftType: ShiftType;
   record: MetalDetectorMaintenanceCheck | null;
 }) {
-  if (record) {
+  const locked = isMetalDetectorMaintenanceLocked(record);
+  const [state, formAction, pending] = useActionState(updateMetalDetectorMaintenanceAction, undefined);
+  const errorMessage = state && state !== "ok" ? state : undefined;
+  const reopenAction = reopenMetalDetectorMaintenanceAction.bind(null, factoryId, date, shiftType);
+  const [reopenState, reopenFormAction, reopenPending] = useActionState(reopenAction, undefined);
+  const reopenError = reopenState && reopenState !== "ok" ? reopenState : undefined;
+
+  if (locked && record) {
     const items = [
       ["Sensitivity checked (3 sides)", record.sensitivityCheckedThreeSides],
       ["Alarm checked (audio/visual)", record.alarmCheckedAudioVisual],
@@ -138,33 +147,49 @@ function MaintenanceChecklist({
             </li>
           ))}
         </ul>
+        <form action={reopenFormAction} className="mt-2 flex flex-wrap items-end gap-2 border-t border-slate-200 pt-2">
+          <FieldGroup label="Reason for reopening">
+            <Input name="reason" required className="w-56 px-1.5 py-1 text-xs" placeholder="e.g. Missed an item" />
+          </FieldGroup>
+          <ConfirmSubmitButton
+            confirmMessage="Reopen this shift's maintenance checklist? It will need to be re-confirmed."
+            disabled={reopenPending}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-600 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {reopenPending ? "Reopening…" : "Reopen"}
+          </ConfirmSubmitButton>
+          {reopenError && <p className="w-full text-[11px] text-red-600">{reopenError}</p>}
+        </form>
       </div>
     );
   }
 
   return (
-    <form action={updateMetalDetectorMaintenanceAction} className="mt-2 space-y-1 rounded bg-slate-50 p-2">
+    <form action={formAction} className="mt-2 space-y-1 rounded bg-slate-50 p-2">
       <input type="hidden" name="factoryId" value={factoryId} />
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="shiftType" value={shiftType} />
-      <p className="text-[11px] font-medium text-slate-600">Shift maintenance checklist (once per shift)</p>
+      <p className="text-[11px] font-medium text-slate-600">
+        {record ? "Shift maintenance checklist — reopened, re-confirm below" : "Shift maintenance checklist (once per shift)"}
+      </p>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-700">
         <label className="flex items-center gap-1">
-          <input type="checkbox" name="sensitivityCheckedThreeSides" /> Sensitivity (3 sides)
+          <input type="checkbox" name="sensitivityCheckedThreeSides" defaultChecked={record?.sensitivityCheckedThreeSides ?? false} /> Sensitivity (3 sides)
         </label>
         <label className="flex items-center gap-1">
-          <input type="checkbox" name="alarmCheckedAudioVisual" /> Alarm audio/visual
+          <input type="checkbox" name="alarmCheckedAudioVisual" defaultChecked={record?.alarmCheckedAudioVisual ?? false} /> Alarm audio/visual
         </label>
         <label className="flex items-center gap-1">
-          <input type="checkbox" name="electricalPanelChecked" /> Electrical panel
+          <input type="checkbox" name="electricalPanelChecked" defaultChecked={record?.electricalPanelChecked ?? false} /> Electrical panel
         </label>
         <label className="flex items-center gap-1">
-          <input type="checkbox" name="beltRollersCleanChecked" /> Belt/rollers clean
+          <input type="checkbox" name="beltRollersCleanChecked" defaultChecked={record?.beltRollersCleanChecked ?? false} /> Belt/rollers clean
         </label>
       </div>
-      <Button type="submit" variant="secondary" className="px-2 py-1 text-[11px]">
-        Confirm checklist
+      <Button type="submit" variant="secondary" disabled={pending} className="px-2 py-1 text-[11px]">
+        {pending ? "Confirming…" : "Confirm checklist"}
       </Button>
+      {errorMessage && <p className="text-[11px] text-red-600">{errorMessage}</p>}
     </form>
   );
 }
