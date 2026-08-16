@@ -12,12 +12,11 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* This app's cards/tables/badges are all styled for a fixed light theme (no
+   dark: variants anywhere in src) -- following the OS's prefers-color-scheme
+   here flips plain (unstyled) text to near-white while every explicitly-
+   colored surface stays light-mode, making untyped table cells unreadable
+   whenever the OS is in dark mode. */
 
 body {
   background: var(--background);
