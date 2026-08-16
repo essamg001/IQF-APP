@@ -79,6 +79,7 @@ export const MASTER_CLEANING_SCHEDULE: CleaningZone[] = [
     ["Pump Room", "Broom, Scraper, Squeegee", STD, "Weekly"],
     ["Water Pipes", "Wet Cloth", STD, "Weekly"],
     ["Pump Room Door", "Cloth", STD, "Weekly"],
+    ["Fire Extinguishers & Boxes", "Cloth", undefined, "Daily"],
     ["Post-Maintenance Cleaning", "As required", undefined, "After maintenance"],
   ]),
   zone("pre-cooling", "Inside the Packhouse — Pre-Cooling", [
