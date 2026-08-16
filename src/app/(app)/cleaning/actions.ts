@@ -196,6 +196,11 @@ export async function reopenCleaningRecordAction(
   _prevState: string | undefined,
   formData: FormData
 ) {
+  const session = await auth();
+  if (!canSignAsHeadOfProduction(session?.user) && !canSignAsHeadOfMaintenance(session?.user)) {
+    return "Only the Owner, Head of Production, or Head of Maintenance can reopen a locked cleaning record.";
+  }
+
   const parsed = reopenCleaningSchema.safeParse({ reason: formData.get("reason") });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
@@ -219,7 +224,6 @@ export async function reopenCleaningRecordAction(
     },
   });
 
-  const session = await auth();
   await logActivity({
     actorId: session?.user.id,
     action: "CLEANING_RECORD_REOPENED",

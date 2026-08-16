@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -25,6 +26,7 @@ export async function createQualityIssueAction(_prevState: string | undefined, f
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
   const { data } = parsed;
+  const session = await auth();
 
   // Order/container/lot numbers don't overlap, so at most one of these ever
   // matches -- resolving here means a typo'd reference is visible on the
@@ -59,6 +61,14 @@ export async function createQualityIssueAction(_prevState: string | undefined, f
     },
   });
 
+  await logActivity({
+    actorId: session?.user.id,
+    action: "QUALITY_ISSUE_CREATED",
+    entityType: "QualityIssue",
+    entityId: created.id,
+    detail: `${data.reason.replace(/_/g, " ")}${reference ? ` — ${reference}` : ""}`,
+  });
+
   revalidatePath("/quality-issues");
   redirect(`/quality-issues/${created.id}`);
 }
@@ -82,6 +92,14 @@ export async function updateCapaAction(issueId: string, formData: FormData) {
   await prisma.qualityIssue.update({
     where: { id: issueId },
     data: parsed,
+  });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "QUALITY_ISSUE_CAPA_UPDATED",
+    entityType: "QualityIssue",
+    entityId: issueId,
   });
 
   revalidatePath(`/quality-issues/${issueId}`);
@@ -122,9 +140,19 @@ export async function verifyCapaAction(issueId: string, _prevState: string | und
 
 export async function toggleQualityIssueStatusAction(issueId: string) {
   const issue = await prisma.qualityIssue.findUniqueOrThrow({ where: { id: issueId } });
+  const newStatus = issue.status === "OPEN" ? "RESOLVED" : "OPEN";
   await prisma.qualityIssue.update({
     where: { id: issueId },
-    data: { status: issue.status === "OPEN" ? "RESOLVED" : "OPEN" },
+    data: { status: newStatus },
+  });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "QUALITY_ISSUE_STATUS_TOGGLED",
+    entityType: "QualityIssue",
+    entityId: issueId,
+    detail: `${issue.status} → ${newStatus}`,
   });
 
   revalidatePath(`/quality-issues/${issueId}`);

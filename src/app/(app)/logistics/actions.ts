@@ -343,12 +343,18 @@ function checkContainerCapacity(
   container: { loadType: "PALLETISED" | "UNPALLETISED" | null; palletLines: { quantityTonnes: number }[] },
   additionalTonnes: number
 ): string | null {
-  if (!container.loadType) return null;
-  const capacity = CAPACITY_TONNES[container.loadType];
+  // Load type not decided yet doesn't mean "no limit" -- fall back to the
+  // smaller of the two real capacities so the hard block still applies until
+  // someone confirms which one this container actually is.
+  const capacity = container.loadType
+    ? CAPACITY_TONNES[container.loadType]
+    : Math.min(...Object.values(CAPACITY_TONNES));
   const alreadyLoaded = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
   const projected = alreadyLoaded + additionalTonnes;
   if (projected > capacity + ROUNDING_TOLERANCE_TONNES) {
-    return `Blocked: loading ${additionalTonnes.toFixed(2)}t would bring this container to ${projected.toFixed(2)}t, over its ${capacity}t ${LOAD_TYPE_LABEL[container.loadType]} capacity limit. Load the remainder into a different container.`;
+    const label = container.loadType ? LOAD_TYPE_LABEL[container.loadType] : "undecided load type";
+    const hint = container.loadType ? "" : " -- set the load type to confirm the real limit";
+    return `Blocked: loading ${additionalTonnes.toFixed(2)}t would bring this container to ${projected.toFixed(2)}t, over its ${capacity}t ${label} capacity limit${hint}. Load the remainder into a different container.`;
   }
   return null;
 }
@@ -634,6 +640,9 @@ export async function overrideSpecExceptionAction(_prevState: string | undefined
 }
 
 export async function completeLoadLineAction(containerId: string, lineId: string) {
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  if (isManifestLocked(container)) return;
+
   const line = await prisma.containerPalletLine.findUniqueOrThrow({ where: { id: lineId } });
   await prisma.containerPalletLine.update({
     where: { id: lineId },
@@ -775,6 +784,9 @@ const reopenManifestSchema = z.object({
 // rather than letting the existing sign-offs silently vouch for a shipment
 // that no longer matches what's recorded.
 export async function reopenContainerManifestAction(containerId: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in to reopen this manifest.";
+
   const parsed = reopenManifestSchema.safeParse({ reason: formData.get("reason") });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
@@ -802,7 +814,6 @@ export async function reopenContainerManifestAction(containerId: string, _prevSt
   const resetKeys = CONTAINER_CHECKLIST_ITEMS.filter((i) => i.resetOnReopen).map((i) => i.key);
   await prisma.containerChecklistConfirmation.deleteMany({ where: { containerId, itemKey: { in: resetKeys } } });
 
-  const session = await auth();
   await logActivity({
     actorId: session?.user.id,
     action: "CONTAINER_MANIFEST_REOPENED",

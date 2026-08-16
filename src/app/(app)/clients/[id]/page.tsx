@@ -15,8 +15,15 @@ import { cn } from "@/lib/cn";
 
 const FORMAT_LABEL = { WHOLE: "Whole", SLICED: "Sliced", DICED: "Diced" } as const;
 
-export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ClientDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error } = await searchParams;
   const [session, client] = await Promise.all([
     auth(),
     prisma.client.findUnique({
@@ -32,6 +39,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div>
+      {error === "in-use" && (
+        <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          Can&apos;t delete this client — it still has orders or claims on file. Those need to be resolved first.
+        </p>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">{client.name}</h1>

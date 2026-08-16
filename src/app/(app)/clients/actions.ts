@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { clientSchema, specSchema } from "@/lib/validation/client";
 import { canManageClients } from "@/lib/roles";
@@ -77,7 +78,17 @@ export async function updateClientAction(id: string, _prevState: string | undefi
 
 export async function deleteClientAction(id: string) {
   if (!(await requireOwner())) return;
-  await prisma.client.delete({ where: { id } });
+  try {
+    await prisma.client.delete({ where: { id } });
+  } catch (err) {
+    // Client is a required FK on Order/Claim -- Prisma refuses the delete
+    // (P2003) rather than orphaning real order/claim history. Redirect back
+    // with an explanatory error instead of a raw 500.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+      redirect(`/clients/${id}?error=in-use`);
+    }
+    throw err;
+  }
   revalidatePath("/clients");
   redirect("/clients");
 }

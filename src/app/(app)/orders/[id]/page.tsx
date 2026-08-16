@@ -12,6 +12,7 @@ import { allocatePalletsAction, updateOrderQuantityAction, updateOrderValueActio
 import { AdvanceStageButton } from "./advance-stage-button";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { FORMAT_LABEL } from "@/lib/format";
+import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 
@@ -92,7 +93,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           {order.pallets.length < order.quantityPallets && (
             <form action={allocatePalletsAction.bind(null, order.id)}>
               <ConfirmSubmitButton
-                confirmMessage={`Allocate up to ${order.quantityPallets - order.pallets.length} pallet(s) (~${((order.quantityPallets - order.pallets.length) * 1.2).toFixed(1)}t) to ${order.orderNumber}? Allocated pallets aren't easily un-allocated.`}
+                confirmMessage={`Allocate up to ${order.quantityPallets - order.pallets.length} pallet(s) (~${((order.quantityPallets - order.pallets.length) * FULL_PALLET_WEIGHT_TONNES).toFixed(1)}t) to ${order.orderNumber}? Allocated pallets aren't easily un-allocated.`}
                 className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
               >
                 Allocate pallets
@@ -125,7 +126,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                   type="number"
                   step="0.1"
                   min="0.1"
-                  defaultValue={order.quantityPallets * 1.2}
+                  defaultValue={order.quantityPallets * FULL_PALLET_WEIGHT_TONNES}
                   className="w-40"
                 />
               </FieldGroup>

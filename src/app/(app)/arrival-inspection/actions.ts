@@ -72,6 +72,10 @@ const arrivalCheckSchema = z
   .refine((data) => data.appliesToWholeDelivery || data.brix !== undefined, {
     message: "Brix is required unless this is a whole-delivery rejection.",
     path: ["brix"],
+  })
+  .refine((data) => data.decision !== "REJECTED" || !!data.notes?.trim(), {
+    message: "A reason is required when the delivery is rejected.",
+    path: ["notes"],
   });
 
 

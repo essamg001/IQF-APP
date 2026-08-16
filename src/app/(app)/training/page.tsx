@@ -121,7 +121,17 @@ export default async function TrainingPage({
               const status = trainingExpiryStatus(r.expiryDate, now);
               return (
                 <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-2 font-medium text-slate-900">{r.attendeeName}</td>
+                  <td className="px-4 py-2 font-medium text-slate-900">
+                    {r.attendeeName}
+                    {r.notes && (
+                      <span
+                        title={r.notes}
+                        className="ml-1.5 inline-flex cursor-help items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                      >
+                        note
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     <Badge color={r.tier === "SUPERVISOR" ? "blue" : "slate"}>{TIER_LABEL[r.tier]}</Badge>
                   </td>

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { raiseQualityOverrideAlert } from "@/lib/alerts";
 import { logActivity } from "@/lib/activityLog";
+import { canSignSpecException } from "@/lib/roles";
 
 export async function markAlertReadAction(alertId: string) {
   const session = await auth();
@@ -29,8 +30,13 @@ async function resolveRelatedAlerts(checkId: string) {
   });
 }
 
+// Same narrow-accountability gate as overrideSpecExceptionAction -- rejecting
+// or accepting the risk on an out-of-spec quality check is exactly the kind
+// of call that shouldn't be doable by anyone who merely has a session.
 export async function rejectQualityCheckAction(checkId: string) {
   const session = await auth();
+  if (!canSignSpecException(session?.user)) return;
+
   await prisma.qualityCheck.update({
     where: { id: checkId },
     data: {
@@ -56,6 +62,11 @@ const approveAtRiskSchema = z.object({
 });
 
 export async function approveAtRiskAction(checkId: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canSignSpecException(session?.user)) {
+    return "Only the Owner or a Head of Production can approve an out-of-spec check at risk.";
+  }
+
   const parsed = approveAtRiskSchema.safeParse({
     name: formData.get("name"),
     signature: formData.get("signature"),
@@ -92,7 +103,6 @@ export async function approveAtRiskAction(checkId: string, _prevState: string | 
     note: parsed.data.note,
   });
 
-  const session = await auth();
   await logActivity({
     actorId: session?.user.id,
     action: "QUALITY_OVERRIDE_APPROVED_AT_RISK",

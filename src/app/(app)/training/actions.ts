@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logActivity } from "@/lib/activityLog";
+import { parseLocalDateOnly } from "@/lib/dates";
 
 const staffTrainingSchema = z.object({
   tier: z.enum(["SUPERVISOR", "WORKER"]),
@@ -35,8 +36,8 @@ export async function addStaffTrainingAction(_prevState: string | undefined, for
       jobTitle: data.jobTitle,
       gender: data.gender,
       trainingType: data.trainingType.trim(),
-      trainedDate: new Date(data.trainedDate),
-      expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
+      trainedDate: parseLocalDateOnly(data.trainedDate) ?? new Date(data.trainedDate),
+      expiryDate: data.expiryDate ? (parseLocalDateOnly(data.expiryDate) ?? new Date(data.expiryDate)) : undefined,
       provider: data.provider,
       trainerName: data.trainerName,
       notes: data.notes,

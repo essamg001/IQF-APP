@@ -66,10 +66,31 @@ export function canSignAsHeadOfMaintenance(user: { role: Role; isHeadOfMaintenan
 }
 
 /**
+ * Approving, ordering, and tracking delivery on a Purchase Request -- same
+ * narrow-accountability reasoning as canSignAsHeadOfProduction/Maintenance.
+ * Not tied to a Role since there's no dedicated "Purchasing" role either.
+ */
+export function canManagePurchasing(user: { role: Role; isHeadOfPurchasing: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfPurchasing;
+}
+
+/**
  * Client records carry commercial terms and specs (including the CFU limit
  * that hard-gates allocation/load-out) -- Sales owns these relationships, so
  * access matches canSeePricing rather than being open to every role.
  */
 export function canManageClients(role: Role | undefined | null) {
   return !!role && ROLES_WITH_PRICING_ACCESS.includes(role);
+}
+
+/**
+ * The Lab page's own actions are the hard gate the rest of the app trusts
+ * (they flip microbiology/MRL results to APPROVED/FAILED and release shift
+ * holds) -- matches the role check /lab's page-level redirect already uses,
+ * applied at the action layer too since a page redirect alone doesn't stop a
+ * Server Action from being invoked directly.
+ */
+export function canAccessLab(role: Role | undefined | null) {
+  return !!role && (role === "OWNER" || role === "QUALITY");
 }

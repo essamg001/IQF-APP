@@ -5,13 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { FORMAT_LABEL } from "@/lib/format";
+import { CAPACITY_TONNES } from "@/lib/logistics";
 import Link from "next/link";
 import { differenceInDays } from "date-fns";
-
-const CAPACITY_TONNES: Record<"PALLETISED" | "UNPALLETISED", number> = {
-  PALLETISED: 24,
-  UNPALLETISED: 25,
-};
 
 export default async function LogisticsPage({
   searchParams,

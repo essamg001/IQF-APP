@@ -4,11 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { suggestAllocation } from "@/lib/allocation";
 import { logActivity } from "@/lib/activityLog";
+import { canSeePricing } from "@/lib/roles";
+import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-const PALLET_WEIGHT_TONNES = 1.2;
+const PALLET_WEIGHT_TONNES = FULL_PALLET_WEIGHT_TONNES;
 
 const orderSchema = z.object({
   poNumber: z.string().optional(),
@@ -92,11 +94,13 @@ export async function updateOrderQuantityAction(orderId: string, formData: FormD
 }
 
 export async function updateOrderValueAction(orderId: string, formData: FormData) {
+  const session = await auth();
+  if (!canSeePricing(session?.user?.role)) return;
+
   const valueUsd = z.coerce.number().nonnegative().parse(formData.get("valueUsd"));
   const before = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
   await prisma.order.update({ where: { id: orderId }, data: { valueUsd } });
 
-  const session = await auth();
   await logActivity({
     actorId: session?.user.id,
     action: "ORDER_VALUE_UPDATED",

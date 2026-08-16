@@ -13,9 +13,9 @@ const plotLineSchema = z.object({
   cycleNumber: z.string().optional(),
   plantingYear: z.string().optional(),
   cutNo: z.string().optional(),
-  palletsCount: z.coerce.number().int().optional(),
-  cratesCount: z.coerce.number().int().optional(),
-  weightKg: z.coerce.number().optional(),
+  palletsCount: z.coerce.number().int().min(0).optional(),
+  cratesCount: z.coerce.number().int().min(0).optional(),
+  weightKg: z.coerce.number().min(0).optional(),
 });
 
 const complianceLevels = ["GLOBALGAP", "SPRING", "LEAF", "OTHER", "NURTURE", "AH_DL_GROW", "FAIRTRADE", "ORGANIC_100", "BIO_SUISSE"] as const;
@@ -129,10 +129,10 @@ const receiptSchema = z.object({
   receivedDate: z.string().optional(),
   receivedTime: z.string().optional(),
   deliveryNumber: z.string().optional(),
-  cratesReceived: z.coerce.number().int().optional(),
-  palletsReceived: z.coerce.number().int().optional(),
-  grossWeightKg: z.coerce.number().optional(),
-  netWeightKg: z.coerce.number().optional(),
+  cratesReceived: z.coerce.number().int().min(0).optional(),
+  palletsReceived: z.coerce.number().int().min(0).optional(),
+  grossWeightKg: z.coerce.number().min(0).optional(),
+  netWeightKg: z.coerce.number().min(0).optional(),
   electronicWeightCardNo: z.string().optional(),
   productTempC: z.coerce.number().optional(),
   optimumTempC: z.coerce.number().optional(),

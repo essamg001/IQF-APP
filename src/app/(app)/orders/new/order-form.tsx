@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FORMAT_LABEL } from "@/lib/format";
 import { DEFECT_FIELDS } from "@/lib/validation/client";
+import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
 import type { Client, ClientSpec, Grade, Format } from "@prisma/client";
 
 type ClientWithSpecs = Client & { specs: ClientSpec[] };
@@ -24,7 +25,9 @@ export function OrderForm({ clients }: { clients: ClientWithSpecs[] }) {
     return client?.specs.find((s) => s.grade === grade && s.format === format);
   }, [clients, clientId, grade, format]);
 
-  const estimatedPallets = quantityTonnes ? Math.max(1, Math.round(Number(quantityTonnes) / 1.2)) : null;
+  const estimatedPallets = quantityTonnes
+    ? Math.max(1, Math.round(Number(quantityTonnes) / FULL_PALLET_WEIGHT_TONNES))
+    : null;
 
   return (
     <form action={formAction}>
@@ -91,7 +94,7 @@ export function OrderForm({ clients }: { clients: ClientWithSpecs[] }) {
             onChange={(e) => setQuantityTonnes(e.target.value)}
           />
           {estimatedPallets && (
-            <p className="mt-1 text-xs text-slate-400">≈ {estimatedPallets} pallets at 1.2t each</p>
+            <p className="mt-1 text-xs text-slate-400">≈ {estimatedPallets} pallets at {FULL_PALLET_WEIGHT_TONNES}t each</p>
           )}
         </FieldGroup>
         <FieldGroup label="Order date">

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { markAlertReadAction } from "./actions";
 import { QualityOverrideActions } from "./quality-override-actions";
+import { canSignSpecException } from "@/lib/roles";
 import { format } from "date-fns";
 
 const TYPE_LABEL = {
@@ -29,6 +30,7 @@ export default async function AlertsPage() {
 
   const session = await auth();
   const role = session!.user.role;
+  const canOverride = canSignSpecException(session!.user);
 
   const alerts = await prisma.alert.findMany({
     where: { targetRole: role },
@@ -74,7 +76,10 @@ export default async function AlertsPage() {
                   <td className="px-4 py-2">{format(a.createdAt, "dd MMM yyyy HH:mm")}</td>
                   <td className="px-4 py-2">{a.status}</td>
                   <td className="px-4 py-2">
-                    {check?.overrideStatus === "PENDING" && <QualityOverrideActions checkId={check.id} />}
+                    {check?.overrideStatus === "PENDING" && canOverride && <QualityOverrideActions checkId={check.id} />}
+                    {check?.overrideStatus === "PENDING" && !canOverride && (
+                      <span className="text-xs text-slate-400">Owner or Head of Production only</span>
+                    )}
                     {check?.overrideStatus === "REJECTED" && (
                       <div>
                         <Badge color="red">Rejected</Badge>

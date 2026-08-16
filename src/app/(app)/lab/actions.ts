@@ -8,6 +8,7 @@ import { raiseMicrobiologyRejectionAlert, raiseShiftOnHoldAlert } from "@/lib/al
 import { isSplitResult } from "@/lib/microbiology";
 import { CFU_REJECT_TIER } from "@/lib/cfuTier";
 import { logActivity } from "@/lib/activityLog";
+import { canAccessLab } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -17,11 +18,13 @@ const sendSchema = z.object({
 });
 
 export async function markSentToLabAction(resultId: string, formData: FormData) {
+  const session = await auth();
+  if (!canAccessLab(session?.user?.role)) return;
+
   const raw = Object.fromEntries(
     Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v])
   );
   const parsed = sendSchema.parse(raw);
-  const session = await auth();
 
   // The tracking reference for a dispatched sample is just the lot number --
   // every lot gets tested, so the lot number already is the unique
@@ -112,6 +115,9 @@ export async function updateLabResultAction(
   _prevState: string | undefined,
   formData: FormData
 ) {
+  const session = await auth();
+  if (!canAccessLab(session?.user?.role)) return "Only Quality or the Owner can record lab results.";
+
   const raw = Object.fromEntries(
     Array.from(formData.entries())
       .filter(([k]) => k !== "certificateFile" && k !== "testLinesJson")
@@ -175,8 +181,6 @@ export async function updateLabResultAction(
     const saved = await saveUploadedFile(file, "certificates");
     fileFields = { certificateFileName: saved.fileName, certificateFileOriginalName: saved.originalName };
   }
-
-  const session = await auth();
 
   const isNewRejection =
     (status === "FAILED_MINOR" || status === "FAILED_SEVERE") &&
@@ -272,6 +276,9 @@ const resolveHoldSchema = z.object({
 });
 
 export async function resolveShiftHoldAction(shiftId: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canAccessLab(session?.user?.role)) return "Only Quality or the Owner can resolve a shift hold.";
+
   const parsed = resolveHoldSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
@@ -290,7 +297,6 @@ export async function resolveShiftHoldAction(shiftId: string, _prevState: string
     data: { status: "READ" },
   });
 
-  const session = await auth();
   await logActivity({
     actorId: session?.user.id,
     action: "SHIFT_HOLD_RESOLVED",
@@ -311,9 +317,11 @@ const mrlSendSchema = z.object({
 });
 
 export async function markMrlSentToLabAction(resultId: string, formData: FormData) {
+  const session = await auth();
+  if (!canAccessLab(session?.user?.role)) return;
+
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
   const parsed = mrlSendSchema.parse(raw);
-  const session = await auth();
 
   const existing = await prisma.mrlResult.findUniqueOrThrow({ where: { id: resultId }, include: { lot: true } });
 
@@ -352,6 +360,9 @@ const mrlResultSchema = z.object({
 });
 
 export async function updateMrlResultAction(resultId: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canAccessLab(session?.user?.role)) return "Only Quality or the Owner can record MRL results.";
+
   const raw = Object.fromEntries(
     Array.from(formData.entries()).filter(([k]) => k !== "certificateFile").map(([k, v]) => [k, v === "" ? undefined : v])
   );
@@ -403,7 +414,6 @@ export async function updateMrlResultAction(resultId: string, _prevState: string
   });
 
   if (parsed.status === "APPROVED" || parsed.status === "FAILED") {
-    const session = await auth();
     await logActivity({
       actorId: session?.user.id,
       action: "MRL_RESULT_RECORDED",

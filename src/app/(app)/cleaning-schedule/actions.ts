@@ -3,8 +3,9 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { parseLocalDateOnly } from "@/lib/dates";
+import { parseLocalDateOnly, toDateOnlyString } from "@/lib/dates";
 import { findCleaningTask } from "@/lib/masterCleaningSchedule";
+import { logActivity } from "@/lib/activityLog";
 
 export async function toggleMasterCleaningTaskAction(formData: FormData) {
   const factoryId = formData.get("factoryId");
@@ -12,7 +13,8 @@ export async function toggleMasterCleaningTaskAction(formData: FormData) {
   const taskKey = formData.get("taskKey");
   const checked = formData.get("checked") === "true";
   if (typeof factoryId !== "string" || typeof dateStr !== "string" || typeof taskKey !== "string") return;
-  if (!findCleaningTask(taskKey)) return;
+  const found = findCleaningTask(taskKey);
+  if (!found) return;
 
   const date = parseLocalDateOnly(dateStr);
   if (!date) return;
@@ -36,6 +38,14 @@ export async function toggleMasterCleaningTaskAction(formData: FormData) {
   } else {
     await prisma.masterCleaningTaskLog.deleteMany({ where: { factoryId, date, taskKey } });
   }
+
+  await logActivity({
+    actorId: session.user.id,
+    action: checked ? "CLEANING_SCHEDULE_TASK_COMPLETED" : "CLEANING_SCHEDULE_TASK_UNCHECKED",
+    entityType: "MasterCleaningTaskLog",
+    entityId: `${factoryId}:${toDateOnlyString(date)}:${taskKey}`,
+    detail: `${found.zone.title} — ${found.task.item}`,
+  });
 
   revalidatePath("/cleaning-schedule");
 }

@@ -20,7 +20,7 @@ const preDecapCheckSchema = z.object({
   harvestSupervisor: z.string().optional(),
 
   sampleNo: z.string().min(1),
-  numberOfBoxesReceived: z.coerce.number().int().optional(),
+  numberOfBoxesReceived: z.coerce.number().int().min(0).optional(),
   sampleCollectionTime: z.string().optional(),
   sampleWeightKg: z.coerce.number().optional(),
   productTemperatureC: z.coerce.number().optional(),

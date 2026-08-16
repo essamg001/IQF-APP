@@ -4,14 +4,10 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
-import { parseLocalDateOnly } from "@/lib/dates";
+import { parseLocalDateOnly, toDateOnlyString } from "@/lib/dates";
 import { FactoryHistorySection } from "./factory-history-section";
 
 const DEFAULT_RANGE_DAYS = 30;
-
-function toDateInputValue(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 export default async function CleaningHistoryPage({
   searchParams,
@@ -25,8 +21,8 @@ export default async function CleaningHistoryPage({
   const today = new Date();
   const defaultFrom = new Date(today.getTime() - DEFAULT_RANGE_DAYS * 24 * 60 * 60 * 1000);
 
-  const fromStr = fromParam ?? toDateInputValue(defaultFrom);
-  const toStr = toParam ?? toDateInputValue(today);
+  const fromStr = fromParam ?? toDateOnlyString(defaultFrom);
+  const toStr = toParam ?? toDateOnlyString(today);
   const fromDate = parseLocalDateOnly(fromStr) ?? defaultFrom;
   const toDate = parseLocalDateOnly(toStr) ?? today;
 
