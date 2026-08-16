@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { logActivity } from "@/lib/activityLog";
-import { GARMENT_TYPES } from "@/lib/laundry";
+import { GARMENT_TYPES, isLaundrySignOffLocked } from "@/lib/laundry";
 
 const garmentFields = Object.fromEntries(GARMENT_TYPES.map((g) => [g.key, z.string().optional()]));
 
@@ -111,13 +111,18 @@ async function getSignOff(date: Date, location: string) {
   return prisma.laundryDailySignOff.findUnique({ where: { date_location: { date, location } } });
 }
 
-export async function updateLaundrySignOffDetailsAction(formData: FormData) {
+export async function updateLaundrySignOffDetailsAction(_prevState: string | undefined, formData: FormData) {
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
   const parsed = signOffDetailsSchema.safeParse(raw);
-  if (!parsed.success) return;
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
   const date = parseLocalDateOnly(parsed.data.date);
-  if (!date) return;
+  if (!date) return "That date couldn't be read.";
+
+  const existing = await getSignOff(date, parsed.data.location);
+  if (isLaundrySignOffLocked(existing)) {
+    return "This day's sign-off is locked -- both signatures are already on file. Reopen it first to make changes.";
+  }
 
   const cleanlinessAcceptable =
     parsed.data.cleanlinessAcceptable === "ACCEPTABLE"
@@ -133,6 +138,7 @@ export async function updateLaundrySignOffDetailsAction(formData: FormData) {
   });
 
   revalidatePath("/laundry");
+  return "ok";
 }
 
 const signRoleSchema = z.enum(["SUPERVISOR", "VERIFIER"]);
@@ -184,6 +190,58 @@ export async function signLaundryAction(
     action: role === "SUPERVISOR" ? "LAUNDRY_SUPERVISOR_SIGNED" : "LAUNDRY_VERIFIED_SIGNED",
     entityType: "LaundryDailySignOff",
     entityId: `${location}/${date}`,
+  });
+
+  revalidatePath("/laundry");
+  return "ok";
+}
+
+const reopenLaundrySchema = z.object({
+  reason: z.string().min(1, "A reason is required to reopen this day's sign-off."),
+});
+
+// Same explicit, logged escape hatch as Cleaning Mode's reopen -- clears both
+// signatures (so they have to be re-collected against whatever the record
+// looks like once corrected) rather than letting a stale sign-off silently
+// vouch for a day's notes/cleanliness verdict that can still be edited.
+export async function reopenLaundrySignOffAction(
+  date: string,
+  location: string,
+  _prevState: string | undefined,
+  formData: FormData
+) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in to reopen this sign-off.";
+
+  const parsed = reopenLaundrySchema.safeParse({ reason: formData.get("reason") });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const parsedDate = parseLocalDateOnly(date);
+  if (!parsedDate) return "That date couldn't be read.";
+
+  const record = await getSignOff(parsedDate, location);
+  if (!isLaundrySignOffLocked(record)) return "This day's sign-off isn't locked -- there's nothing to reopen.";
+
+  await prisma.laundryDailySignOff.update({
+    where: { date_location: { date: parsedDate, location } },
+    data: {
+      supervisorSignedByName: null,
+      supervisorSignedByUserId: null,
+      supervisorSignedAt: null,
+      verifiedSignedByName: null,
+      verifiedSignedByUserId: null,
+      verifiedSignedAt: null,
+      reopenedAt: new Date(),
+      reopenedReason: parsed.data.reason,
+    },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    action: "LAUNDRY_SIGN_OFF_REOPENED",
+    entityType: "LaundryDailySignOff",
+    entityId: `${location}/${date}`,
+    detail: `Cleared sign-offs (were: ${record?.supervisorSignedByName ?? "—"} / ${record?.verifiedSignedByName ?? "—"}) — ${parsed.data.reason}`,
   });
 
   revalidatePath("/laundry");

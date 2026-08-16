@@ -21,3 +21,10 @@ export const GARMENT_TYPES: { key: string; label: string }[] = [
 ];
 
 export const DEFAULT_LAUNDRY_PACKHOUSE = "PKH 11,13";
+
+/** Same lock-once-both-signed rule as Cleaning Mode -- see isCleaningLocked. */
+export function isLaundrySignOffLocked(
+  signOff: { supervisorSignedAt: Date | null; verifiedSignedAt: Date | null } | null | undefined
+): boolean {
+  return !!signOff?.supervisorSignedAt && !!signOff?.verifiedSignedAt;
+}
