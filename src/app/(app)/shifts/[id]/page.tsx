@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { LogRejectWasteForm } from "./log-reject-waste-form";
 
-function shiftHoursWorked(shift: { startTime: Date; endTime: Date }): number {
+function shiftHoursWorked(shift: { startTime: Date; endTime: Date | null }): number | null {
+  if (!shift.endTime) return null;
   return (shift.endTime.getTime() - shift.startTime.getTime()) / (1000 * 60 * 60);
 }
 
@@ -31,8 +32,9 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
           <Badge color={shift.shiftType === "DAY" ? "amber" : "blue"}>
             {shift.shiftType === "DAY" ? "Shift 1 (Day)" : "Shift 2 (Night)"}
           </Badge>{" "}
-          {format(shift.startTime, "HH:mm")}–{format(shift.endTime, "HH:mm")} · {hours.toFixed(1)}h ·{" "}
-          {shift.workerCount} workers · {shift.lots.length} lot{shift.lots.length === 1 ? "" : "s"} produced
+          {format(shift.startTime, "HH:mm")}–{shift.endTime ? format(shift.endTime, "HH:mm") : "in progress"}
+          {hours != null && ` · ${hours.toFixed(1)}h`} · {shift.workerCount} workers · {shift.lots.length} lot
+          {shift.lots.length === 1 ? "" : "s"} produced
         </p>
       </div>
 

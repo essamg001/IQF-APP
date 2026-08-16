@@ -8,6 +8,8 @@ import { getTemperatureLocations } from "@/lib/dailyReportLocations";
 import { isNameBasedRole, LABOUR_ROLE_MATRIX } from "@/lib/labour";
 import { z } from "zod";
 
+const pct = () => z.coerce.number().min(0).max(100).optional();
+
 function combineDateAndTime(dateStr: string, timeStr: string): Date | null {
   const dateParts = dateStr.split("-").map(Number);
   const timeParts = timeStr.split(":").map(Number);
@@ -69,25 +71,25 @@ const quantitySchema = z.object({
   date: z.string().min(1),
   shiftType: z.enum(["DAY", "NIGHT"]),
   variety: z.string().min(1),
-  firstBalanceTon: z.coerce.number().optional(),
-  rawIncomingTon: z.coerce.number().optional(),
-  rawIncomingPct: z.coerce.number().optional(),
-  inletForOperationTon: z.coerce.number().optional(),
-  inletForOperationPct: z.coerce.number().optional(),
-  endBalanceTon: z.coerce.number().optional(),
-  endBalancePct: z.coerce.number().optional(),
-  firstClassWholeTon: z.coerce.number().optional(),
-  firstClassWholePct: z.coerce.number().optional(),
-  secondClassWholeTon: z.coerce.number().optional(),
-  secondClassWholePct: z.coerce.number().optional(),
-  rejectedBeforeTunnelTon: z.coerce.number().optional(),
-  rejectedBeforeTunnelPct: z.coerce.number().optional(),
-  rejectedAfterTunnelTon: z.coerce.number().optional(),
-  rejectedAfterTunnelPct: z.coerce.number().optional(),
-  totalPackedTon: z.coerce.number().optional(),
-  totalPackedPct: z.coerce.number().optional(),
-  lostTon: z.coerce.number().optional(),
-  lostPct: z.coerce.number().optional(),
+  firstBalanceTon: z.coerce.number().nonnegative().optional(),
+  rawIncomingTon: z.coerce.number().nonnegative().optional(),
+  rawIncomingPct: pct(),
+  inletForOperationTon: z.coerce.number().nonnegative().optional(),
+  inletForOperationPct: pct(),
+  endBalanceTon: z.coerce.number().nonnegative().optional(),
+  endBalancePct: pct(),
+  firstClassWholeTon: z.coerce.number().nonnegative().optional(),
+  firstClassWholePct: pct(),
+  secondClassWholeTon: z.coerce.number().nonnegative().optional(),
+  secondClassWholePct: pct(),
+  rejectedBeforeTunnelTon: z.coerce.number().nonnegative().optional(),
+  rejectedBeforeTunnelPct: pct(),
+  rejectedAfterTunnelTon: z.coerce.number().nonnegative().optional(),
+  rejectedAfterTunnelPct: pct(),
+  totalPackedTon: z.coerce.number().nonnegative().optional(),
+  totalPackedPct: pct(),
+  lostTon: z.coerce.number().nonnegative().optional(),
+  lostPct: pct(),
 });
 
 export async function addQuantityEntryAction(_prevState: string | undefined, formData: FormData) {
@@ -110,14 +112,14 @@ const packingSchema = z.object({
   factoryId: z.string().optional(),
   packageType: z.string().min(1),
   logo: z.string().min(1),
-  weightKg: z.coerce.number().optional(),
+  weightKg: z.coerce.number().nonnegative().optional(),
   variety: z.string().optional(),
   clientId: z.string().optional(),
   clientOther: z.string().optional(),
-  firstClassQty: z.coerce.number().int().optional(),
-  secondClassQty: z.coerce.number().int().optional(),
-  totalPackageQty: z.coerce.number().int().optional(),
-  totalTon: z.coerce.number().optional(),
+  firstClassQty: z.coerce.number().int().nonnegative().optional(),
+  secondClassQty: z.coerce.number().int().nonnegative().optional(),
+  totalPackageQty: z.coerce.number().int().nonnegative().optional(),
+  totalTon: z.coerce.number().nonnegative().optional(),
 });
 
 export async function addPackingLineAction(_prevState: string | undefined, formData: FormData) {
@@ -189,9 +191,9 @@ const efficiencySchema = z.object({
   shiftType: z.enum(["DAY", "NIGHT"]),
   uptimeFrom: z.string().optional(),
   uptimeTo: z.string().optional(),
-  lineCapacityTonPerHour: z.coerce.number().optional(),
-  expectedQuantityTon: z.coerce.number().optional(),
-  actualQuantityTon: z.coerce.number().optional(),
+  lineCapacityTonPerHour: z.coerce.number().nonnegative().optional(),
+  expectedQuantityTon: z.coerce.number().nonnegative().optional(),
+  actualQuantityTon: z.coerce.number().nonnegative().optional(),
 });
 
 export async function updateLineEfficiencyAction(_prevState: string | undefined, formData: FormData) {
@@ -214,6 +216,27 @@ export async function updateLineEfficiencyAction(_prevState: string | undefined,
     create: { factoryId, date: parsedDate, shiftType, ...data },
     update: data,
   });
+
+  // Log Shift doesn't ask for an end time -- it's expected to come from here,
+  // the shift's actual recorded line uptime, once the day's Daily Report is
+  // filled in. Only fills a still-open end time; never overwrites one that's
+  // already on file, in case it was deliberately entered by hand.
+  if (data.uptimeTo) {
+    const openShift = await prisma.shiftLog.findFirst({
+      where: { factoryId, date: parsedDate, shiftType, endTime: null },
+    });
+    if (openShift) {
+      let endTime = data.uptimeTo;
+      // Night shifts cross midnight -- if the recorded end time isn't after
+      // the start time, it belongs to the following day.
+      if (endTime <= openShift.startTime) {
+        endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+      }
+      await prisma.shiftLog.update({ where: { id: openShift.id }, data: { endTime } });
+      revalidatePath("/shifts");
+      revalidatePath(`/shifts/${openShift.id}`);
+    }
+  }
 
   revalidatePath("/daily-report");
   return "ok";

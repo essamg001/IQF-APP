@@ -45,7 +45,9 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
       checkpoint: "POST_DECAP",
       decision: "ACCEPTED",
       fieldId: { not: null },
-      createdAt: { gte: lot.shift.startTime, lte: lot.shift.endTime },
+      // A still-open shift (no end time yet) has no upper bound -- anything
+      // from its start onward could still be part of the mix.
+      createdAt: { gte: lot.shift.startTime, ...(lot.shift.endTime ? { lte: lot.shift.endTime } : {}) },
     },
     include: { field: true },
   });
@@ -72,8 +74,9 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         <p className="mt-1 text-xs text-slate-500">
           Fruit is mixed at the decap facility and the mix is split across both factories, so this lot isn&apos;t
           traceable to one exact field — this is every field that cleared Post-Decap Quality during this shift&apos;s
-          time window ({format(lot.shift.startTime, "HH:mm")}–{format(lot.shift.endTime, "HH:mm")}), any of which
-          could be present in the mix.
+          time window ({format(lot.shift.startTime, "HH:mm")}–
+          {lot.shift.endTime ? format(lot.shift.endTime, "HH:mm") : "now"}), any of which could be present in the
+          mix.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {contributingFields.map((name) => (

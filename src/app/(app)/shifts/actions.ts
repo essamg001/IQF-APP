@@ -27,7 +27,7 @@ const shiftSchema = z.object({
   shiftType: z.enum(["DAY", "NIGHT"]),
   date: z.string().min(1),
   startTime: z.string().min(1),
-  endTime: z.string().min(1),
+  endTime: z.string().optional(),
   workerCount: z.coerce.number().int().positive(),
 });
 
@@ -46,14 +46,22 @@ export async function createShiftAction(_prevState: string | undefined, formData
 
   const date = combineDateAndTime(parsed.data.date, "00:00");
   const startTime = combineDateAndTime(parsed.data.date, parsed.data.startTime);
-  let endTime = combineDateAndTime(parsed.data.date, parsed.data.endTime);
-  if (!date || !startTime || !endTime) {
+  if (!date || !startTime) {
     return "That date or time couldn't be read — please re-enter it.";
   }
-  // Night shifts cross midnight (e.g. 18:00-02:00): if the end time isn't
-  // after the start time, it belongs to the following day.
-  if (endTime <= startTime) {
-    endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+  // End time isn't asked for at shift-open -- it gets filled in automatically
+  // once the day's Daily Report records this shift's line uptime (see
+  // updateLineEfficiencyAction). Only set here if someone already knows it
+  // and typed it in (e.g. logging a shift retroactively).
+  let endTime: Date | null = null;
+  if (parsed.data.endTime) {
+    endTime = combineDateAndTime(parsed.data.date, parsed.data.endTime);
+    if (!endTime) return "That date or time couldn't be read — please re-enter it.";
+    // Night shifts cross midnight (e.g. 18:00-02:00): if the end time isn't
+    // after the start time, it belongs to the following day.
+    if (endTime <= startTime) {
+      endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+    }
   }
 
   // A shift can't start until the cleaning done between it and the one

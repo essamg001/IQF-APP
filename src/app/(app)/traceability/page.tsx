@@ -59,13 +59,20 @@ export default async function TraceabilityPage({
       const candidateLots = await prisma.productionLot.findMany({
         where: {
           fieldId: { not: field.id },
-          shift: { startTime: { lte: maxTime }, endTime: { gte: minTime } },
+          // A still-open shift (no end time yet) has no upper bound -- for a
+          // food-safety recall lookup, treat it as possibly still running
+          // rather than silently excluding it (SQL comparisons against NULL
+          // are never true, so `endTime: { gte: minTime }` alone would drop
+          // it).
+          shift: { startTime: { lte: maxTime }, OR: [{ endTime: { gte: minTime } }, { endTime: null }] },
         },
         include: lotInclude,
       });
 
       possibleLots = candidateLots.filter((lot) =>
-        times.some((t) => t >= lot.shift.startTime.getTime() && t <= lot.shift.endTime.getTime())
+        times.some(
+          (t) => t >= lot.shift.startTime.getTime() && (lot.shift.endTime == null || t <= lot.shift.endTime.getTime())
+        )
       );
     }
   }

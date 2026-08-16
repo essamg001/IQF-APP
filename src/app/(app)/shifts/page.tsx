@@ -15,8 +15,10 @@ export default async function ShiftsPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Hours Worked</h1>
-          <p className="mt-1 text-sm text-slate-500">Shift logs per factory: timing, worker counts, and linked production.</p>
+          <h1 className="text-xl font-semibold text-slate-900">Shifts</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Open a shift before logging production lots against it — timing, worker counts, and linked production.
+          </p>
         </div>
         <LinkButton href="/shifts/new">Log Shift</LinkButton>
       </div>
@@ -38,7 +40,7 @@ export default async function ShiftsPage() {
           </thead>
           <tbody>
             {shifts.map((s) => {
-              const hours = (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000;
+              const hours = s.endTime ? (s.endTime.getTime() - s.startTime.getTime()) / 3_600_000 : null;
               const rejectWasteKg = s.waste.reduce((sum, w) => sum + w.quantity, 0) * 1000;
               return (
                 <tr key={s.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
@@ -54,8 +56,10 @@ export default async function ShiftsPage() {
                     </Badge>
                   </td>
                   <td className="px-4 py-2">{format(s.startTime, "HH:mm")}</td>
-                  <td className="px-4 py-2">{format(s.endTime, "HH:mm")}</td>
-                  <td className="px-4 py-2">{hours.toFixed(1)}</td>
+                  <td className="px-4 py-2">
+                    {s.endTime ? format(s.endTime, "HH:mm") : <span className="text-slate-400">In progress</span>}
+                  </td>
+                  <td className="px-4 py-2">{hours != null ? hours.toFixed(1) : "—"}</td>
                   <td className="px-4 py-2">{s.workerCount}</td>
                   <td className="px-4 py-2">{s._count.lots}</td>
                   <td className="px-4 py-2">

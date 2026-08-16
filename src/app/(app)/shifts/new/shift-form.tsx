@@ -5,7 +5,17 @@ import { createShiftAction } from "../actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { SHIFT_HOURS } from "@/lib/shiftHours";
 import type { Factory } from "@prisma/client";
+
+// Derived from the same fixed schedule (Day 7:00 AM-7:00 PM, Night 7:00 PM-
+// 7:00 AM) used to build hourly coverage grids elsewhere, so it can't drift
+// out of sync -- only the start time is known at shift-open, so that's all
+// this prefills. The end time isn't asked for here at all: it fills in
+// automatically once the day's Daily Report records this shift's line
+// uptime (see updateLineEfficiencyAction), not from a guessed schedule.
+const pad = (n: number) => String(n).padStart(2, "0");
+const scheduledStart = (type: "DAY" | "NIGHT") => `${pad(SHIFT_HOURS[type][0])}:00`;
 
 type EfficiencyLookupRow = {
   factoryId: string;
@@ -63,6 +73,15 @@ export function ShiftForm({
   const key = `${factoryId}__${date}__${shiftType}`;
   const match = date ? efficiencyByKey.get(key) : undefined;
 
+  // Start time defaults to the standard schedule (still editable); end time
+  // only prefills if Daily Report already happens to have this shift's
+  // uptime on file (e.g. logging retroactively) -- otherwise it's left blank
+  // and filled in automatically later, once Daily Report records it.
+  const fallbackStart = useMemo(
+    () => (shiftType === "DAY" || shiftType === "NIGHT" ? scheduledStart(shiftType) : ""),
+    [shiftType]
+  );
+
   useEffect(() => {
     if (key !== lastKeyRef.current) {
       // A fresh factory/date/shift combo -- start clean rather than leaving
@@ -70,13 +89,13 @@ export function ShiftForm({
       // to a different shift entirely.
       lastKeyRef.current = key;
       touchedRef.current = { start: false, end: false };
-      setStartTime(match?.uptimeFrom ?? "");
+      setStartTime(match?.uptimeFrom ?? fallbackStart);
       setEndTime(match?.uptimeTo ?? "");
       return;
     }
-    if (match?.uptimeFrom && !touchedRef.current.start) setStartTime(match.uptimeFrom);
-    if (match?.uptimeTo && !touchedRef.current.end) setEndTime(match.uptimeTo);
-  }, [key, match]);
+    if (!touchedRef.current.start) setStartTime(match?.uptimeFrom ?? fallbackStart);
+    if (!touchedRef.current.end && match?.uptimeTo) setEndTime(match.uptimeTo);
+  }, [key, match, fallbackStart]);
 
   return (
     <form action={formAction}>
@@ -108,11 +127,10 @@ export function ShiftForm({
               }}
             />
           </FieldGroup>
-          <FieldGroup label="End time">
+          <FieldGroup label="End time (optional)">
             <Input
               name="endTime"
               type="time"
-              required
               value={endTime}
               onChange={(e) => {
                 touchedRef.current.end = true;
@@ -121,9 +139,14 @@ export function ShiftForm({
             />
           </FieldGroup>
         </div>
-        {match && (match.uptimeFrom || match.uptimeTo) && (
+        {match && (match.uptimeFrom || match.uptimeTo) ? (
           <p className="text-xs text-slate-500">
             Prefilled from this shift&apos;s line uptime in Daily Report — edit if the actual start/end differs.
+          </p>
+        ) : (
+          <p className="text-xs text-slate-500">
+            Leave end time blank if the shift hasn&apos;t finished yet — it fills in automatically once today&apos;s
+            Daily Report records this shift&apos;s line uptime.
           </p>
         )}
         <FieldGroup label="Number of workers">
