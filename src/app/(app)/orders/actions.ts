@@ -114,26 +114,36 @@ export async function updateOrderValueAction(orderId: string, formData: FormData
 }
 
 export async function allocatePalletsAction(orderId: string) {
-  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
-  const alreadyAllocated = await prisma.pallet.count({ where: { orderId } });
-  const remaining = order.quantityPallets - alreadyAllocated;
-  if (remaining <= 0) return;
+  const picks = await prisma.$transaction(
+    async (tx) => {
+      const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
+      const alreadyAllocated = await tx.pallet.count({ where: { orderId } });
+      const remaining = order.quantityPallets - alreadyAllocated;
+      if (remaining <= 0) return [];
 
-  const picks = await suggestAllocation({
-    clientId: order.clientId,
-    grade: order.grade,
-    format: order.format,
-    quantity: remaining,
-  });
+      const picks = await suggestAllocation(
+        {
+          clientId: order.clientId,
+          grade: order.grade,
+          format: order.format,
+          quantity: remaining,
+        },
+        tx
+      );
 
-  await prisma.$transaction(
-    picks.map((p) =>
-      prisma.pallet.update({
-        where: { id: p.id },
-        data: { status: "ALLOCATED", clientId: order.clientId, orderId: order.id },
-      })
-    )
+      for (const p of picks) {
+        await tx.pallet.update({
+          where: { id: p.id, status: "IN_STORAGE" },
+          data: { status: "ALLOCATED", clientId: order.clientId, orderId: order.id },
+        });
+      }
+
+      return picks;
+    },
+    { isolationLevel: "Serializable" }
   );
+
+  if (picks.length === 0) return;
 
   const session = await auth();
   await logActivity({

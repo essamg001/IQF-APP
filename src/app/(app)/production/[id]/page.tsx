@@ -3,14 +3,36 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
-import { format } from "date-fns";
-import { FORMAT_LABEL } from "@/lib/format";
+import { formatDate } from "@/lib/dates";
+import type { Locale } from "@prisma/client";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
 type ProductionDict = ReturnType<typeof getDictionary>["production"];
+
+// palletNumber is free-text (e.g. "L-2026-0001-P1", "L-2026-0001-P10"), so a
+// plain string sort orders P10 before P2. Split into digit/non-digit chunks
+// and compare digit chunks numerically so P1, P2, ... P10 sort in the order
+// staff actually expect.
+function comparePalletNumbers(a: string, b: string): number {
+  const chunksA = a.match(/\d+|\D+/g) ?? [];
+  const chunksB = b.match(/\d+|\D+/g) ?? [];
+  const len = Math.max(chunksA.length, chunksB.length);
+  for (let i = 0; i < len; i++) {
+    const x = chunksA[i] ?? "";
+    const y = chunksB[i] ?? "";
+    if (x === y) continue;
+    if (/^\d+$/.test(x) && /^\d+$/.test(y)) {
+      const diff = Number(x) - Number(y);
+      if (diff !== 0) return diff;
+    } else {
+      return x < y ? -1 : 1;
+    }
+  }
+  return 0;
+}
 
 const PALLET_STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -22,8 +44,14 @@ const PALLET_STATUS_COLOR = {
 
 export default async function LotDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const fullDict = getDictionary(await resolveLocale());
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
   const dict = fullDict.production;
+  const FORMAT_LABEL: Record<string, string> = {
+    WHOLE: dict.formatWhole,
+    SLICED: dict.formatSliced,
+    DICED: dict.formatDiced,
+  };
   const PALLET_STATUS_LABEL: Record<string, string> = {
     IN_STORAGE: fullDict.storage.statusInStorage,
     ALLOCATED: fullDict.storage.statusAllocated,
@@ -94,7 +122,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         <p className="mt-1 text-sm text-slate-500">
           {dict.shiftLine
             .replace("{factory}", lot.factory.name)
-            .replace("{date}", format(lot.shift.date, "dd MMM yyyy"))
+            .replace("{date}", formatDate(lot.shift.date, "dd MMM yyyy", locale))
             .replace("{field}", lot.field.name)}
         </p>
       </div>
@@ -104,7 +132,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         <p className="mt-1 text-xs text-slate-500">
           {dict.fieldsSupplyingSubtitle.replace(
             "{window}",
-            `${format(lot.shift.startTime, "HH:mm")}–${lot.shift.endTime ? format(lot.shift.endTime, "HH:mm") : dict.now}`
+            `${formatDate(lot.shift.startTime, "HH:mm", locale)}–${lot.shift.endTime ? formatDate(lot.shift.endTime, "HH:mm", locale) : dict.now}`
           )}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -126,7 +154,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
           <p className="mt-1 text-xs text-slate-500">
             {dict.onHoldSinceLabel.replace(
               "{date}",
-              lot.shift.holdSince ? format(lot.shift.holdSince, "dd MMM yyyy HH:mm") : "—"
+              lot.shift.holdSince ? formatDate(lot.shift.holdSince, "dd MMM yyyy HH:mm", locale) : "—"
             )}
           </p>
         </Card>
@@ -142,8 +170,20 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         <p className="mt-1 text-xs text-slate-500">{dict.microbiologySubtitle}</p>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <MicroResultSummary label={dict.inHouseLabLabel} result={inHouseResult} dict={dict} statusLabel={MICRO_STATUS_LABEL} />
-          <MicroResultSummary label={dict.externalLabLabel} result={externalResult} dict={dict} statusLabel={MICRO_STATUS_LABEL} />
+          <MicroResultSummary
+            label={dict.inHouseLabLabel}
+            result={inHouseResult}
+            dict={dict}
+            statusLabel={MICRO_STATUS_LABEL}
+            locale={locale}
+          />
+          <MicroResultSummary
+            label={dict.externalLabLabel}
+            result={externalResult}
+            dict={dict}
+            statusLabel={MICRO_STATUS_LABEL}
+            locale={locale}
+          />
         </div>
       </Card>
 
@@ -151,7 +191,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         <h2 className="text-sm font-semibold text-slate-900">{dict.mrlApprovalTitle}</h2>
         <p className="mt-1 text-xs text-slate-500">{dict.mrlApprovalSubtitle}</p>
         <div className="mt-4">
-          <MrlResultSummary result={lot.mrlResult} dict={dict} statusLabel={MRL_STATUS_LABEL} />
+          <MrlResultSummary result={lot.mrlResult} dict={dict} statusLabel={MRL_STATUS_LABEL} locale={locale} />
         </div>
       </Card>
 
@@ -195,7 +235,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             </tr>
           </thead>
           <tbody>
-            {lot.pallets.map((p) => (
+            {[...lot.pallets].sort((a, b) => comparePalletNumbers(a.palletNumber, b.palletNumber)).map((p) => (
               <tr key={p.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">
                   <a
@@ -236,9 +276,9 @@ function Row({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function dateRange(start?: Date | null, end?: Date | null) {
+function dateRange(start: Date | null | undefined, end: Date | null | undefined, locale: Locale) {
   if (!start && !end) return undefined;
-  const fmt = (d: Date) => format(d, "dd MMM yyyy");
+  const fmt = (d: Date) => formatDate(d, "dd MMM yyyy", locale);
   if (start && end) return `${fmt(start)} – ${fmt(end)}`;
   return fmt((start ?? end) as Date);
 }
@@ -283,11 +323,13 @@ function MicroResultSummary({
   result,
   dict,
   statusLabel,
+  locale,
 }: {
   label: string;
   result: MicroResult;
   dict: ProductionDict;
   statusLabel: Record<string, string>;
+  locale: Locale;
 }) {
   const status = result?.status ?? "PENDING";
   return (
@@ -325,7 +367,10 @@ function MicroResultSummary({
       )}
       {result && (result.certificateNumber || result.labName || result.sentDate || result.sampleCode) && (
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-slate-50 p-3 text-xs">
-          <Row label={dict.sentToLabLabel} value={result.sentDate ? format(result.sentDate, "dd MMM yyyy") : undefined} />
+          <Row
+            label={dict.sentToLabLabel}
+            value={result.sentDate ? formatDate(result.sentDate, "dd MMM yyyy", locale) : undefined}
+          />
           <Row label={dict.certificateNumberLabel} value={result.certificateNumber} />
           <Row label={dict.labLabel} value={result.labName} />
           <Row label={dict.clientLabel} value={result.clientName} />
@@ -340,7 +385,10 @@ function MicroResultSummary({
           <Row label={dict.protocolNumberLabel} value={result.protocolNumber} />
           <Row label={dict.samplingBagSerialLabel} value={result.samplingBagSerial} />
           <Row label={dict.samplingPlaceLabel} value={result.samplingPlace} />
-          <Row label={dict.analysisPeriodLabel} value={dateRange(result.analysisStartDate, result.analysisEndDate)} />
+          <Row
+            label={dict.analysisPeriodLabel}
+            value={dateRange(result.analysisStartDate, result.analysisEndDate, locale)}
+          />
           <Row label={dict.personInChargeLabel} value={result.personInCharge} />
           <Row label={dict.reviewedByLabel} value={result.reviewedBy} />
           <Row label={dict.approvedByLabel} value={result.approvedBy} />
@@ -392,10 +440,12 @@ function MrlResultSummary({
   result,
   dict,
   statusLabel,
+  locale,
 }: {
   result: MrlResult;
   dict: ProductionDict;
   statusLabel: Record<string, string>;
+  locale: Locale;
 }) {
   const status = result?.status ?? "PENDING";
   return (
@@ -425,8 +475,14 @@ function MrlResultSummary({
       )}
       {result && (result.certificateNumber || result.labName || result.sentDate || result.sampleCode) && (
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 rounded-md bg-slate-50 p-3 text-xs">
-          <Row label={dict.sentToLabLabel} value={result.sentDate ? format(result.sentDate, "dd MMM yyyy") : undefined} />
-          <Row label={dict.reportDateLabel} value={result.reportDate ? format(result.reportDate, "dd MMM yyyy") : undefined} />
+          <Row
+            label={dict.sentToLabLabel}
+            value={result.sentDate ? formatDate(result.sentDate, "dd MMM yyyy", locale) : undefined}
+          />
+          <Row
+            label={dict.reportDateLabel}
+            value={result.reportDate ? formatDate(result.reportDate, "dd MMM yyyy", locale) : undefined}
+          />
           <Row label={dict.certificateNumberLabel} value={result.certificateNumber} />
           <Row label={dict.labLabel} value={result.labName} />
           <Row label={dict.sampleCodeLabel} value={result.sampleCode} />

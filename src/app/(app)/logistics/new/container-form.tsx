@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
-import { FORMAT_LABEL } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/locale-context";
 import type { Client, Order } from "@prisma/client";
 
@@ -19,7 +18,13 @@ export function ContainerForm({
   defaultOrderId?: string;
 }) {
   const [error, formAction, pending] = useActionState(createContainerAction, undefined);
-  const dict = useTranslations().logistics;
+  const fullDict = useTranslations();
+  const dict = fullDict.logistics;
+  const FORMAT_LABEL: Record<string, string> = {
+    WHOLE: fullDict.orders.formatWhole,
+    SLICED: fullDict.orders.formatSliced,
+    DICED: fullDict.orders.formatDiced,
+  };
 
   return (
     <form action={formAction}>

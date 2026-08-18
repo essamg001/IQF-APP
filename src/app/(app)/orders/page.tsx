@@ -5,7 +5,7 @@ import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
@@ -37,7 +37,8 @@ function stageLabel(dict: Dictionary["orders"], stage: keyof typeof STAGE_COLOR)
 export default async function OrdersPage() {
   const session = await auth();
   const showPricing = canSeePricing(session?.user.role);
-  const dict = getDictionary(await resolveLocale()).orders;
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).orders;
 
   const orders = await prisma.order.findMany({
     include: { client: true, _count: { select: { pallets: true } } },
@@ -94,7 +95,7 @@ export default async function OrdersPage() {
                 <td className="px-4 py-2">
                   <Badge color={STAGE_COLOR[o.stage]}>{stageLabel(dict, o.stage)}</Badge>
                 </td>
-                <td className="px-4 py-2">{format(o.orderDate, "dd MMM yyyy")}</td>
+                <td className="px-4 py-2">{formatDate(o.orderDate, "dd MMM yyyy", locale)}</td>
               </tr>
             ))}
             {orders.length === 0 && (

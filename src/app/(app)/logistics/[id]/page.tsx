@@ -8,7 +8,6 @@ import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
-import { FORMAT_LABEL } from "@/lib/format";
 import { canSeeContainerValue, canSignSpecException } from "@/lib/roles";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
@@ -46,6 +45,7 @@ import {
 } from "../actions";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { formatDate } from "@/lib/dates";
 
 // Matches the tolerance addTemperatureReadingAction uses to decide whether a
 // reading is worth alerting on -- kept in sync so a reading flagged here is
@@ -58,7 +58,9 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   const isLoadOutStation = session?.user.station === "LOAD_OUT";
   const showPricing = canSeeContainerValue(session?.user);
   const canSignOffSpecException = canSignSpecException(session?.user);
-  const dict = getDictionary(await resolveLocale()).logistics;
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.logistics;
   const COST_CATEGORY_LABEL: Record<string, string> = {
     DEMURRAGE: dict.costDemurrage,
     DETENTION: dict.costDetention,
@@ -68,6 +70,42 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
     INSPECTION: dict.costInspection,
     REROUTING: dict.costRerouting,
     OTHER: dict.costOther,
+  };
+  const FORMAT_LABEL: Record<string, string> = {
+    WHOLE: fullDict.orders.formatWhole,
+    SLICED: fullDict.orders.formatSliced,
+    DICED: fullDict.orders.formatDiced,
+  };
+  const CHECKLIST_LABELS: Record<string, string> = {
+    seal: dict.checklistSealLabel,
+    reefer: dict.checklistReeferLabel,
+    photo: dict.checklistPhotoLabel,
+    preLoadInspection: dict.checklistPreLoadInspectionLabel,
+    stickering: dict.checklistStickeringLabel,
+    coldChain: dict.checklistColdChainLabel,
+    loadLine: dict.checklistLoadLineLabel,
+  };
+  const CHECKLIST_ITEM_DICT: Record<string, { label: string; confirmMessage: string; buttonLabel: string }> = {
+    preLoadInspection: {
+      label: dict.checklistPreLoadInspectionLabel,
+      confirmMessage: dict.checklistPreLoadInspectionConfirm,
+      buttonLabel: dict.checklistPreLoadInspectionButton,
+    },
+    stickering: {
+      label: dict.checklistStickeringLabel,
+      confirmMessage: dict.checklistStickeringConfirm,
+      buttonLabel: dict.checklistStickeringButton,
+    },
+    coldChain: {
+      label: dict.checklistColdChainLabel,
+      confirmMessage: dict.checklistColdChainConfirm,
+      buttonLabel: dict.checklistColdChainButton,
+    },
+    loadLine: {
+      label: dict.checklistLoadLineLabel,
+      confirmMessage: dict.checklistLoadLineConfirm,
+      buttonLabel: dict.checklistLoadLineButton,
+    },
   };
   const container = await prisma.container.findUnique({
     where: { id },
@@ -86,7 +124,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   if (!container) notFound();
 
   const manifestLocked = isManifestLocked(container);
-  const checklist = computeContainerChecklist(container);
+  const checklist = computeContainerChecklist(container, CHECKLIST_LABELS);
   const checklistComplete = isChecklistComplete(container);
   const currentUserLabel = session?.user.name ?? session?.user.email ?? null;
 
@@ -664,23 +702,26 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
         </ul>
 
         {CONTAINER_CHECKLIST_ITEMS.map((item) => {
+          const itemText = CHECKLIST_ITEM_DICT[item.key];
           const confirmation = container.checklistConfirmations.find((c) => c.itemKey === item.key);
           const isDone = checklist.find((c) => c.key === item.key)?.done ?? false;
           return (
             <div key={item.key} className="mt-4 border-t border-slate-100 pt-4">
-              <p className="mb-1 text-xs font-medium text-slate-500">{item.label}</p>
+              <p className="mb-1 text-xs font-medium text-slate-500">{itemText.label}</p>
               {isDone && confirmation ? (
                 <p className="text-sm text-slate-800">
                   {dict.confirmedBy.replace("{name}", confirmation.confirmedByName)}
-                  <span className="ms-2 text-xs text-slate-500">{confirmation.confirmedAt.toLocaleString()}</span>
+                  <span className="ms-2 text-xs text-slate-500">
+                    {formatDate(confirmation.confirmedAt, "dd MMM yyyy HH:mm", locale)}
+                  </span>
                 </p>
               ) : container.palletLines.length === 0 ? (
                 <p className="text-xs text-slate-400">{dict.addPalletFirstHint}</p>
               ) : (
                 <ChecklistItemConfirmForm
                   action={confirmChecklistItemAction.bind(null, container.id, item.key)}
-                  confirmMessage={item.confirmMessage}
-                  buttonLabel={item.buttonLabel}
+                  confirmMessage={itemText.confirmMessage}
+                  buttonLabel={itemText.buttonLabel}
                 />
               )}
             </div>

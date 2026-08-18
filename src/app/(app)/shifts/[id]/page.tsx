@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dates";
 import { LogRejectWasteForm } from "./log-reject-waste-form";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
@@ -14,7 +14,9 @@ function shiftHoursWorked(shift: { startTime: Date; endTime: Date | null }): num
 
 export default async function ShiftDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const dict = getDictionary(await resolveLocale()).shifts;
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.shifts;
 
   const shift = await prisma.shiftLog.findUnique({
     where: { id },
@@ -29,13 +31,14 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">
-          {shift.factory.name} — {format(shift.date, "dd MMM yyyy")}
+          {shift.factory.name} — {formatDate(shift.date, "dd MMM yyyy", locale)}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           <Badge color={shift.shiftType === "DAY" ? "amber" : "blue"}>
             {shift.shiftType === "DAY" ? dict.shift1Day : dict.shift2Night}
           </Badge>{" "}
-          {format(shift.startTime, "HH:mm")}–{shift.endTime ? format(shift.endTime, "HH:mm") : dict.inProgress}
+          {formatDate(shift.startTime, "HH:mm", locale)}–
+          {shift.endTime ? formatDate(shift.endTime, "HH:mm", locale) : dict.inProgress}
           {hours != null && ` · ${dict.hoursSuffix.replace("{hours}", hours.toFixed(1))}`}
           {shift.workerCount != null && ` · ${dict.workersSuffix.replace("{count}", String(shift.workerCount))}`} ·{" "}
           {shift.lots.length}{" "}
@@ -46,7 +49,9 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-3 text-center">
           <p className="text-xs text-slate-500">{dict.rejectedFruitComposted}</p>
-          <p className="text-lg font-semibold text-slate-900">{totalRejectWasteKg.toFixed(0)} kg</p>
+          <p className="text-lg font-semibold text-slate-900">
+            {totalRejectWasteKg.toFixed(0)} {fullDict.common.kg}
+          </p>
         </Card>
         <Card className="p-3 text-center">
           <p className="text-xs text-slate-500">{dict.entriesLogged}</p>
@@ -64,7 +69,8 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
               <li key={w.id} className="flex items-center justify-between py-2">
                 <span>{w.reason}</span>
                 <span className="text-slate-500">
-                  {(w.quantity * 1000).toFixed(0)} kg · {w.date.toLocaleString()}
+                  {(w.quantity * 1000).toFixed(0)} {fullDict.common.kg} ·{" "}
+                  {formatDate(w.date, "dd MMM yyyy HH:mm", locale)}
                 </span>
               </li>
             ))}

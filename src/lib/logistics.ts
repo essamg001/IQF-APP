@@ -94,7 +94,16 @@ type ChecklistContainer = {
 // addPalletLoadLineAction already refuses to load without) -- this is the
 // pre-departure checklist both sign-offs are gated on, in
 // src/app/(app)/logistics/actions.ts.
-export function computeContainerChecklist(container: ChecklistContainer): ChecklistItem[] {
+// `labels`, keyed by item key, lets a caller with access to the i18n
+// dictionary (the logistics page) override these English defaults for
+// display. The default English labels remain the fallback used by
+// server-side callers like incompleteChecklistMessage's error text, which --
+// like every other server-action error string in this app -- is
+// intentionally never translated.
+export function computeContainerChecklist(
+  container: ChecklistContainer,
+  labels?: Record<string, string>
+): ChecklistItem[] {
   // A reopened manifest may hold different pallets than what a "final
   // loaded state" item was confirmed against or the photo was taken of --
   // only evidence from after the most recent reopen counts as current.
@@ -107,14 +116,22 @@ export function computeContainerChecklist(container: ChecklistContainer): Checkl
     const done =
       !!confirmation &&
       (!item.resetOnReopen || !container.manifestReopenedAt || confirmation.confirmedAt >= container.manifestReopenedAt);
-    return { key: item.key, label: item.label, done };
+    return { key: item.key, label: labels?.[item.key] ?? item.label, done };
   });
 
   return [
-    { key: "seal", label: "Seal number recorded", done: !!container.sealNumber },
-    { key: "reefer", label: "Reefer temperature set-point recorded", done: container.reeferSetPointC != null },
+    { key: "seal", label: labels?.seal ?? "Seal number recorded", done: !!container.sealNumber },
+    {
+      key: "reefer",
+      label: labels?.reefer ?? "Reefer temperature set-point recorded",
+      done: container.reeferSetPointC != null,
+    },
     ...manualItems,
-    { key: "photo", label: "Photo of the loaded container uploaded before closing the doors", done: photoIsCurrent },
+    {
+      key: "photo",
+      label: labels?.photo ?? "Photo of the loaded container uploaded before closing the doors",
+      done: photoIsCurrent,
+    },
   ];
 }
 

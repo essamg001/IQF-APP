@@ -5,7 +5,7 @@ import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
@@ -14,7 +14,8 @@ export default async function HarvestTicketsPage() {
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
-  const dict = getDictionary(await resolveLocale()).harvestTickets;
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).harvestTickets;
 
   const tickets = await prisma.harvestTicket.findMany({
     include: { plotLines: true, _count: { select: { plotLines: true } } },
@@ -54,7 +55,7 @@ export default async function HarvestTicketsPage() {
                       {t.serialNumber}
                     </Link>
                   </td>
-                  <td className="px-4 py-2">{t.harvestDate ? format(t.harvestDate, "dd MMM yyyy") : "—"}</td>
+                  <td className="px-4 py-2">{t.harvestDate ? formatDate(t.harvestDate, "dd MMM yyyy", locale) : "—"}</td>
                   <td className="px-4 py-2">{t.vehicleNo ?? "—"}</td>
                   <td className="px-4 py-2">{t._count.plotLines}</td>
                   <td className="px-4 py-2">{totalCrates || "—"}</td>

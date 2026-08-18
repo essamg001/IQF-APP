@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ReceiptForm } from "./receipt-form";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary, type Dictionary } from "@/lib/i18n/getDictionary";
 
@@ -79,7 +79,8 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
   }
 
   const { id } = await params;
-  const dict = getDictionary(await resolveLocale()).harvestTickets;
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).harvestTickets;
   const COMPLIANCE_LABEL = complianceLabel(dict);
   const ticket = await prisma.harvestTicket.findUnique({
     where: { id },
@@ -169,7 +170,7 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
             <DetailRow label={dict.loadingSupervisor} value={ticket.loadingSupervisor} />
             <DetailRow
               label={dict.loadingTime}
-              value={ticket.loadingTime ? format(ticket.loadingTime, "dd MMM yyyy HH:mm") : null}
+              value={ticket.loadingTime ? formatDate(ticket.loadingTime, "dd MMM yyyy HH:mm", locale) : null}
             />
             <DetailRow label={dict.transferredBy} value={ticket.transferredBy} />
             <DetailRow label={dict.vehicleNo} value={ticket.vehicleNo} />
@@ -177,12 +178,12 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
             <DetailRow label={dict.cropName} value={ticket.cropName} />
             <DetailRow
               label={dict.harvestTime}
-              value={ticket.harvestTime ? format(ticket.harvestTime, "dd MMM yyyy HH:mm") : null}
+              value={ticket.harvestTime ? formatDate(ticket.harvestTime, "dd MMM yyyy HH:mm", locale) : null}
             />
             <DetailRow label={dict.harvestSupervisor} value={ticket.harvestSupervisor} />
             <DetailRow
               label={dict.harvestDate}
-              value={ticket.harvestDate ? format(ticket.harvestDate, "dd MMM yyyy") : null}
+              value={ticket.harvestDate ? formatDate(ticket.harvestDate, "dd MMM yyyy", locale) : null}
             />
           </div>
         </Card>
@@ -244,10 +245,10 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
         <div className="mt-4">
           {ticket.receivedDate ? (
             <div className="grid grid-cols-4 gap-3">
-              <DetailRow label={dict.receivedDate} value={format(ticket.receivedDate, "dd MMM yyyy")} />
+              <DetailRow label={dict.receivedDate} value={formatDate(ticket.receivedDate, "dd MMM yyyy", locale)} />
               <DetailRow
                 label={dict.receivedTime}
-                value={ticket.receivedTime ? format(ticket.receivedTime, "HH:mm") : null}
+                value={ticket.receivedTime ? formatDate(ticket.receivedTime, "HH:mm", locale) : null}
               />
               <DetailRow label={dict.deliveryNumber} value={ticket.deliveryNumber} />
               <DetailRow label={dict.cratesReceived} value={ticket.cratesReceived} />

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Grade, Format } from "@prisma/client";
+import type { Grade, Format, Prisma } from "@prisma/client";
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
 import { combinedCfuValue, exceedsClientLimit } from "@/lib/cfuTier";
 import { evaluateSpecCompliance, violatedSpecRows } from "@/lib/specCompliance";
@@ -36,19 +36,22 @@ export function parseBrixRange(text: string | null | undefined): { min: number; 
  * free-text spec) before falling back to FIFO order, with logged defect %
  * as a secondary tiebreaker.
  */
-export async function suggestAllocation(params: {
-  clientId: string;
-  grade: Grade;
-  format: Format;
-  quantity: number;
-}) {
+export async function suggestAllocation(
+  params: {
+    clientId: string;
+    grade: Grade;
+    format: Format;
+    quantity: number;
+  },
+  client: Prisma.TransactionClient | typeof prisma = prisma
+) {
   const { clientId, grade, format, quantity } = params;
 
-  const spec = await prisma.clientSpec.findFirst({
+  const spec = await client.clientSpec.findFirst({
     where: { clientId, grade, format },
   });
 
-  const allEligiblePallets = await prisma.pallet.findMany({
+  const allEligiblePallets = await client.pallet.findMany({
     where: {
       status: "IN_STORAGE",
       lot: { grade, format, shift: { is: { onHold: false } }, ...bothLabsApprovedFilter },

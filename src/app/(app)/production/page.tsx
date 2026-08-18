@@ -3,8 +3,7 @@ import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { format } from "date-fns";
-import { FORMAT_LABEL } from "@/lib/format";
+import { formatDate } from "@/lib/dates";
 import { combinedMicroStatus } from "@/lib/microbiology";
 import { combinedCfuValue } from "@/lib/cfuTier";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
@@ -24,7 +23,8 @@ const MICRO_COLOR = {
 } as const;
 
 export default async function ProductionPage() {
-  const fullDict = getDictionary(await resolveLocale());
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
   const dict = fullDict.production;
   const labDict = fullDict.lab;
   const MICRO_LABEL: Record<string, string> = {
@@ -34,6 +34,11 @@ export default async function ProductionPage() {
     FAILED_MINOR: labDict.statusFailedMinor,
     FAILED_SEVERE: labDict.statusFailedSevere,
     ON_HOLD: labDict.statusOnHold,
+  };
+  const FORMAT_LABEL: Record<string, string> = {
+    WHOLE: dict.formatWhole,
+    SLICED: dict.formatSliced,
+    DICED: dict.formatDiced,
   };
   const lots = await prisma.productionLot.findMany({
     include: {
@@ -92,7 +97,7 @@ export default async function ProductionPage() {
                     </>
                   )}
                 </td>
-                <td className="px-4 py-2">{format(lot.shift.date, "dd MMM yyyy")}</td>
+                <td className="px-4 py-2">{formatDate(lot.shift.date, "dd MMM yyyy", locale)}</td>
                 <td className="px-4 py-2">{lot.factory.name}</td>
                 <td className="px-4 py-2">{lot.field.name}</td>
                 <td className="px-4 py-2">
@@ -121,7 +126,11 @@ export default async function ProductionPage() {
           </tbody>
         </table>
       </Card>
-      <CfuTierLegend className="mt-3" />
+      <CfuTierLegend
+        className="mt-3"
+        title={fullDict.common.cfuLegendTitle}
+        rejectWord={fullDict.common.cfuRejectWord}
+      />
     </div>
   );
 }

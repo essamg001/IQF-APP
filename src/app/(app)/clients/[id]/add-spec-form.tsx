@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { addClientSpecAction } from "../actions";
-import { Input, Select, FieldGroup } from "@/components/ui/field";
+import { Input, Select, FieldGroup, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { DEFECT_FIELDS } from "@/lib/validation/client";
 import { useTranslations } from "@/lib/i18n/locale-context";
@@ -12,6 +12,27 @@ export function AddSpecForm({ clientId }: { clientId: string }) {
   const isSuccess = state === "ok";
   const errorMessage = state && !isSuccess ? state : undefined;
   const dict = useTranslations().clients;
+  const DEFECT_LABEL: Record<string, string> = {
+    overripe: dict.defectOverripe,
+    unripe: dict.defectUnripe,
+    calyx: dict.defectCalyx,
+    leaves: dict.defectLeaves,
+    stems: dict.defectStems,
+    misshapen: dict.defectMisshapen,
+    blemish: dict.defectBlemish,
+    dryPump: dict.defectDryPump,
+    clumps: dict.defectClumps,
+    broken: dict.defectBroken,
+    oxidation: dict.defectOxidation,
+    mechanicalDamage: dict.defectMechanicalDamage,
+    rotten: dict.defectRotten,
+    insectDamage: dict.defectInsectDamage,
+    internalQuality: dict.defectInternalQuality,
+    deadWorm: dict.defectDeadWorm,
+    fungalInfection: dict.defectFungalInfection,
+    dryBruises: dict.defectDryBruises,
+    foreignBodies: dict.defectForeignBodies,
+  };
 
   return (
     <form action={formAction} key={isSuccess ? "reset" : "initial"} className="space-y-4">
@@ -34,7 +55,7 @@ export function AddSpecForm({ clientId }: { clientId: string }) {
           </Select>
         </FieldGroup>
         <FieldGroup label={dict.sizeCaliberFieldLabel}>
-          <Input name="sizeCaliber" />
+          <Textarea name="sizeCaliber" rows={2} />
         </FieldGroup>
         <FieldGroup label={dict.brixLabel}>
           <Input name="brix" placeholder={dict.brixPlaceholder} />
@@ -50,7 +71,7 @@ export function AddSpecForm({ clientId }: { clientId: string }) {
       <p className="text-xs font-medium text-slate-500">{dict.defectTolerancesHint}</p>
       <div className="grid grid-cols-4 gap-3">
         {DEFECT_FIELDS.map((f) => (
-          <FieldGroup key={f.key} label={f.label}>
+          <FieldGroup key={f.key} label={DEFECT_LABEL[f.key]}>
             <Input name={f.key} placeholder="*" />
           </FieldGroup>
         ))}

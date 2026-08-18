@@ -14,7 +14,30 @@ type ClientWithSpecs = Client & { specs: ClientSpec[] };
 
 export function OrderForm({ clients }: { clients: ClientWithSpecs[] }) {
   const [error, formAction, pending] = useActionState(createOrderAction, undefined);
-  const dict = useTranslations().orders;
+  const fullDict = useTranslations();
+  const dict = fullDict.orders;
+  const clientsDict = fullDict.clients;
+  const DEFECT_LABEL: Record<string, string> = {
+    overripe: clientsDict.defectOverripe,
+    unripe: clientsDict.defectUnripe,
+    calyx: clientsDict.defectCalyx,
+    leaves: clientsDict.defectLeaves,
+    stems: clientsDict.defectStems,
+    misshapen: clientsDict.defectMisshapen,
+    blemish: clientsDict.defectBlemish,
+    dryPump: clientsDict.defectDryPump,
+    clumps: clientsDict.defectClumps,
+    broken: clientsDict.defectBroken,
+    oxidation: clientsDict.defectOxidation,
+    mechanicalDamage: clientsDict.defectMechanicalDamage,
+    rotten: clientsDict.defectRotten,
+    insectDamage: clientsDict.defectInsectDamage,
+    internalQuality: clientsDict.defectInternalQuality,
+    deadWorm: clientsDict.defectDeadWorm,
+    fungalInfection: clientsDict.defectFungalInfection,
+    dryBruises: clientsDict.defectDryBruises,
+    foreignBodies: clientsDict.defectForeignBodies,
+  };
 
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
   const [grade, setGrade] = useState<Grade>("A");
@@ -73,8 +96,8 @@ export function OrderForm({ clients }: { clients: ClientWithSpecs[] }) {
               {matchedSpec.ph && <SpecRow label={dict.ph} value={matchedSpec.ph} />}
               {matchedSpec.sizeCaliber && <SpecRow label={dict.sizeCaliber} value={matchedSpec.sizeCaliber} />}
               {DEFECT_FIELDS.map(
-                ({ key, label }) =>
-                  matchedSpec[key] && <SpecRow key={key} label={label} value={matchedSpec[key] as string} />
+                ({ key }) =>
+                  matchedSpec[key] && <SpecRow key={key} label={DEFECT_LABEL[key]} value={matchedSpec[key] as string} />
               )}
             </div>
             {matchedSpec.notes && <p className="mt-2 text-xs italic text-slate-500">{matchedSpec.notes}</p>}

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import type { InputHTMLAttributes, LabelHTMLAttributes, SelectHTMLAttributes } from "react";
+import type { InputHTMLAttributes, LabelHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 const inputBase =
   "block w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600";
@@ -10,6 +10,13 @@ export function Label(props: LabelHTMLAttributes<HTMLLabelElement>) {
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(inputBase, props.className)} />;
+}
+
+// For fields that need embedded newlines to survive editing -- a plain
+// `<input>` silently strips `\n`/`\r` from its value on save, which
+// corrupts any multi-line value the moment someone re-saves the form.
+export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className={cn(inputBase, "min-h-[4.5rem]", props.className)} />;
 }
 
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {

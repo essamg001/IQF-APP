@@ -68,7 +68,8 @@ export function ColdRoomGrid({
   suggestedSlotId: string | null;
   unassignedPallets: UnassignedPallet[];
 }) {
-  const dict = useTranslations().storage;
+  const fullDict = useTranslations();
+  const dict = fullDict.storage;
   const suggestedSlot = useMemo(() => slots.find((s) => s.id === suggestedSlotId) ?? null, [slots, suggestedSlotId]);
   const [round, setRound] = useState(suggestedSlot?.round ?? 1);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -145,7 +146,11 @@ export function ColdRoomGrid({
             />
           ))}
         </div>
-        <CfuTierLegend className="mt-3 border-t border-slate-100 pt-2" />
+        <CfuTierLegend
+          className="mt-3 border-t border-slate-100 pt-2"
+          title={fullDict.common.cfuLegendTitle}
+          rejectWord={fullDict.common.cfuRejectWord}
+        />
       </Card>
 
       <div>

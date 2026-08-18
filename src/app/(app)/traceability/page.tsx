@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { format } from "date-fns";
-import { FORMAT_LABEL } from "@/lib/format";
+import { formatDate } from "@/lib/dates";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
@@ -42,8 +41,14 @@ export default async function TraceabilityPage({
     redirect("/");
   }
 
-  const fullDict = getDictionary(await resolveLocale());
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
   const dict = fullDict.traceability;
+  const FORMAT_LABEL: Record<string, string> = {
+    WHOLE: fullDict.storage.formatWhole,
+    SLICED: fullDict.storage.formatSliced,
+    DICED: fullDict.storage.formatDiced,
+  };
 
   const { field: fieldName } = await searchParams;
 
@@ -167,7 +172,7 @@ export default async function TraceabilityPage({
                 <tbody>
                   {preDecapRecords.map((r) => (
                     <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pe-4">{format(r.createdAt, "dd MMM yyyy HH:mm")}</td>
+                      <td className="py-2 pe-4">{formatDate(r.createdAt, "dd MMM yyyy HH:mm", locale)}</td>
                       <td className="py-2 pe-4">{r.sampleNo ?? "—"}</td>
                       <td className="py-2 pe-4">{r.receiptNoteNo ?? "—"}</td>
                       <td className="py-2 pe-4">
@@ -212,7 +217,7 @@ export default async function TraceabilityPage({
                         {lot.lotNumber} {lot.isTestData && <TestDataBadge />}
                       </td>
                       <td className="py-2 pe-4">{lot.factory.name}</td>
-                      <td className="py-2 pe-4">{format(lot.shift.date, "dd MMM yyyy")}</td>
+                      <td className="py-2 pe-4">{formatDate(lot.shift.date, "dd MMM yyyy", locale)}</td>
                       <td className="py-2 pe-4">
                         <Badge color={lot.grade === "A" ? "green" : "amber"}>
                           {fullDict.storage.gradeLabel.replace("{grade}", lot.grade)}
@@ -233,7 +238,7 @@ export default async function TraceabilityPage({
                         {lot.lotNumber} {lot.isTestData && <TestDataBadge />}
                       </td>
                       <td className="py-2 pe-4">{lot.factory.name}</td>
-                      <td className="py-2 pe-4">{format(lot.shift.date, "dd MMM yyyy")}</td>
+                      <td className="py-2 pe-4">{formatDate(lot.shift.date, "dd MMM yyyy", locale)}</td>
                       <td className="py-2 pe-4">
                         <Badge color={lot.grade === "A" ? "green" : "amber"}>
                           {fullDict.storage.gradeLabel.replace("{grade}", lot.grade)}

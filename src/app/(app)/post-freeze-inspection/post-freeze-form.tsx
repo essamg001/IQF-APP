@@ -10,12 +10,10 @@ import { VarietyField } from "@/components/variety-field";
 import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
 import { POST_PACKAGING_DEFECT_FIELDS } from "@/lib/defectFields";
-import { FORMAT_LABEL } from "@/lib/format";
-import { addYears, parseLocalDateOnly, toDateOnlyString } from "@/lib/dates";
+import { addYears, formatDate, parseLocalDateOnly, toDateOnlyString } from "@/lib/dates";
 import { cn } from "@/lib/cn";
-import { format } from "date-fns";
 import type { ProductionLot, Field, Pallet, ShiftLog, Grade, Format } from "@prisma/client";
-import { useTranslations } from "@/lib/i18n/locale-context";
+import { useTranslations, useLocale } from "@/lib/i18n/locale-context";
 import type { Dictionary } from "@/lib/i18n/getDictionary";
 
 type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[]; shift: ShiftLog };
@@ -123,6 +121,12 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
   const decoded = isSuccess ? decodeActionResult(state) : null;
   const fullDict = useTranslations();
   const dict = fullDict.postFreezeInspection;
+  const locale = useLocale();
+  const FORMAT_LABEL: Record<string, string> = {
+    WHOLE: fullDict.storage.formatWhole,
+    SLICED: fullDict.storage.formatSliced,
+    DICED: fullDict.storage.formatDiced,
+  };
 
   if (lots.length === 0) {
     return <p className="text-sm text-slate-500">{dict.noLotsYet}</p>;
@@ -154,7 +158,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
                     .replace("{field}", selectedLot.field.name)
                     .replace("{grade}", selectedLot.grade)
                     .replace("{format}", FORMAT_LABEL[selectedLot.format])
-                    .replace("{date}", format(selectedLot.shift.date, "d MMM yyyy"))}
+                    .replace("{date}", formatDate(selectedLot.shift.date, "d MMM yyyy", locale))}
                 </p>
               ) : (
                 <p className="mt-1 text-xs font-medium text-red-600">{dict.noMatchingLot}</p>

@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { format, startOfWeek } from "date-fns";
+import { startOfWeek } from "date-fns";
+import { formatDate } from "@/lib/dates";
 import {
   egyptDateKey,
   egyptDateOnly,
@@ -230,7 +231,7 @@ export default async function FieldQualityPage() {
       checks,
       fieldById,
       (d) => egyptDateKey(d),
-      (key) => format(parseDateKey(key), "dd MMM yyyy"),
+      (key) => formatDate(parseDateKey(key), "dd MMM yyyy", locale),
       (key) => parseDateKey(key).getTime(),
       14
     ),
@@ -238,7 +239,7 @@ export default async function FieldQualityPage() {
       checks,
       fieldById,
       (d) => formatYMD(startOfWeek(egyptDateOnly(d), { weekStartsOn: 1 })),
-      (key) => dict.weekOfLabel.replace("{date}", format(parseDateKey(key), "dd MMM yyyy")),
+      (key) => dict.weekOfLabel.replace("{date}", formatDate(parseDateKey(key), "dd MMM yyyy", locale)),
       (key) => parseDateKey(key).getTime(),
       8
     ),
@@ -246,7 +247,7 @@ export default async function FieldQualityPage() {
       checks,
       fieldById,
       (d) => egyptMonthKey(d),
-      (key) => format(parseDateKey(key), "MMM yyyy"),
+      (key) => formatDate(parseDateKey(key), "MMM yyyy", locale),
       (key) => parseDateKey(key).getTime(),
       6
     ),

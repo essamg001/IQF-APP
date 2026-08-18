@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { FORMAT_LABEL } from "@/lib/format";
 import { CAPACITY_TONNES } from "@/lib/logistics";
 import Link from "next/link";
 import { differenceInDays } from "date-fns";
@@ -23,6 +22,11 @@ export default async function LogisticsPage({
   const fullDict = getDictionary(await resolveLocale());
   const dict = fullDict.logistics;
   const ordersDict = fullDict.orders;
+  const FORMAT_LABEL: Record<string, string> = {
+    WHOLE: ordersDict.formatWhole,
+    SLICED: ordersDict.formatSliced,
+    DICED: ordersDict.formatDiced,
+  };
   const STAGE_LABEL: Record<string, string> = {
     CONFIRMED: ordersDict.stageConfirmed,
     IN_PRODUCTION: ordersDict.stageInProduction,

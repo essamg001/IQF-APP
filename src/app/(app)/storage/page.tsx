@@ -37,7 +37,8 @@ export default async function StoragePage({
   searchParams: Promise<{ status?: string; coldRoomId?: string }>;
 }) {
   const { status, coldRoomId } = await searchParams;
-  const dict = getDictionary(await resolveLocale()).storage;
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.storage;
 
   const [pallets, coldRooms, counts] = await Promise.all([
     prisma.pallet.findMany({
@@ -149,7 +150,11 @@ export default async function StoragePage({
           </tbody>
         </table>
       </Card>
-      <CfuTierLegend className="mt-3" />
+      <CfuTierLegend
+        className="mt-3"
+        title={fullDict.common.cfuLegendTitle}
+        rejectWord={fullDict.common.cfuRejectWord}
+      />
     </div>
   );
 }

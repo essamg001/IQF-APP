@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Input, Select, FieldGroup } from "@/components/ui/field";
+import { Input, Select, FieldGroup, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DEFECT_FIELDS, type SpecInput } from "@/lib/validation/client";
@@ -38,6 +38,27 @@ function SpecCard({
   dict: Dictionary["clients"];
 }) {
   const set = (key: keyof SpecInput, value: string) => onChange({ ...spec, [key]: value });
+  const DEFECT_LABEL: Record<string, string> = {
+    overripe: dict.defectOverripe,
+    unripe: dict.defectUnripe,
+    calyx: dict.defectCalyx,
+    leaves: dict.defectLeaves,
+    stems: dict.defectStems,
+    misshapen: dict.defectMisshapen,
+    blemish: dict.defectBlemish,
+    dryPump: dict.defectDryPump,
+    clumps: dict.defectClumps,
+    broken: dict.defectBroken,
+    oxidation: dict.defectOxidation,
+    mechanicalDamage: dict.defectMechanicalDamage,
+    rotten: dict.defectRotten,
+    insectDamage: dict.defectInsectDamage,
+    internalQuality: dict.defectInternalQuality,
+    deadWorm: dict.defectDeadWorm,
+    fungalInfection: dict.defectFungalInfection,
+    dryBruises: dict.defectDryBruises,
+    foreignBodies: dict.defectForeignBodies,
+  };
 
   return (
     <div className="rounded-md border border-slate-200 p-4">
@@ -70,7 +91,7 @@ function SpecCard({
           </Select>
         </FieldGroup>
         <FieldGroup label={dict.sizeCaliberFieldLabel}>
-          <Input value={spec.sizeCaliber ?? ""} onChange={(e) => set("sizeCaliber", e.target.value)} />
+          <Textarea rows={3} value={spec.sizeCaliber ?? ""} onChange={(e) => set("sizeCaliber", e.target.value)} />
         </FieldGroup>
         <FieldGroup label={dict.brixLabel}>
           <Input value={spec.brix ?? ""} onChange={(e) => set("brix", e.target.value)} placeholder={dict.brixPlaceholder} />
@@ -93,7 +114,7 @@ function SpecCard({
       <p className="mt-4 text-xs font-medium text-slate-500">{dict.defectTolerancesHint}</p>
       <div className="mt-2 grid grid-cols-4 gap-3">
         {DEFECT_FIELDS.map((f) => (
-          <FieldGroup key={f.key} label={f.label}>
+          <FieldGroup key={f.key} label={DEFECT_LABEL[f.key]}>
             <Input
               value={spec[f.key] ?? ""}
               onChange={(e) => set(f.key, e.target.value)}

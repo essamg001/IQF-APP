@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { limitsFor } from "@/lib/qualityLimits";
-import { format } from "date-fns";
+import { limitsFor, translateLabel } from "@/lib/qualityLimits";
+import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
@@ -14,7 +14,8 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
   if (!session?.user || !["QUALITY", "OWNER", "PRODUCTION"].includes(session.user.role)) {
     redirect("/");
   }
-  const fullDict = getDictionary(await resolveLocale());
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
   const dict = fullDict.qualityCheckDetail;
   const CHECKPOINT_LABEL: Record<string, string> = {
     PRE_DECAP: dict.checkpointPreDecap,
@@ -42,7 +43,7 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
     const value = (check as unknown as Record<string, unknown>)[rule.field];
     const numeric = typeof value === "number" ? value : null;
     const pass = numeric == null ? null : !((rule.max != null && numeric > rule.max) || (rule.min != null && numeric < rule.min));
-    return { ...rule, value: numeric, pass };
+    return { ...rule, label: translateLabel(rule.label, locale), value: numeric, pass };
   });
 
   const identityFields: { label: string; value: string | number | null | undefined }[] = [
@@ -62,7 +63,10 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
     { label: dict.transportVehicleNo, value: check.transportVehicleNo },
     { label: dict.numberOfBoxesPalletsReceived, value: check.numberOfBoxesReceived },
     { label: dict.harvestSupervisor, value: check.harvestSupervisor },
-    { label: dict.sampleCollectionTime, value: check.sampleCollectionTime ? format(check.sampleCollectionTime, "dd MMM yyyy HH:mm") : null },
+    {
+      label: dict.sampleCollectionTime,
+      value: check.sampleCollectionTime ? formatDate(check.sampleCollectionTime, "dd MMM yyyy HH:mm", locale) : null,
+    },
     { label: dict.sampleWeightKg, value: check.sampleWeightKg },
     { label: dict.crateCartonWeightKg, value: check.crateWeightKg },
     { label: dict.sizeCaliber, value: check.sizeCaliber },
@@ -81,7 +85,7 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">{CHECKPOINT_LABEL[check.checkpoint] ?? check.checkpoint}</h1>
-        <p className="mt-1 text-sm text-slate-500">{format(check.createdAt, "dd MMM yyyy HH:mm")}</p>
+        <p className="mt-1 text-sm text-slate-500">{formatDate(check.createdAt, "dd MMM yyyy HH:mm", locale)}</p>
       </div>
 
       <Card>
@@ -89,6 +93,9 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
           <h2 className="text-sm font-semibold text-slate-900">{dict.decision}</h2>
           {check.decision && <Badge color={check.decision === "ACCEPTED" ? "green" : "red"}>{check.decision}</Badge>}
         </div>
+        {!check.decision && !check.notes && !check.overrideStatus && (
+          <p className="mt-2 text-sm text-slate-400">{dict.noDecisionRecorded}</p>
+        )}
         {check.notes && <p className="mt-2 text-sm text-slate-600">{check.notes}</p>}
         {check.overrideStatus && (
           <div className="mt-3 border-t border-slate-100 pt-3 text-sm">
@@ -99,7 +106,7 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
               <p className="mt-1 text-xs text-slate-500">
                 by {check.overrideByName}
                 {check.overrideNote ? ` — ${check.overrideNote}` : ""}
-                {check.overrideAt ? ` · ${format(check.overrideAt, "dd MMM yyyy HH:mm")}` : ""}
+                {check.overrideAt ? ` · ${formatDate(check.overrideAt, "dd MMM yyyy HH:mm", locale)}` : ""}
               </p>
             )}
           </div>

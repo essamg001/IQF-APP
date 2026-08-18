@@ -16,6 +16,7 @@ import { buildRackOrder, nextAvailableSlot, dominantProductType, suggestColdRoom
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { formatDate } from "@/lib/dates";
 
 const STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -41,9 +42,19 @@ function formatLabel(dict: Dictionary["storage"], format: "WHOLE" | "SLICED" | "
 
 export default async function PalletDetailPage({ params }: { params: Promise<{ palletId: string }> }) {
   const { palletId } = await params;
-  const fullDict = getDictionary(await resolveLocale());
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
   const dict = fullDict.storage;
   const fpe = fullDict.finalProductEntry;
+  const labDict = fullDict.lab;
+  const MICRO_LABEL: Record<string, string> = {
+    PENDING: labDict.statusPending,
+    SENT_TO_LAB: labDict.statusSentToLab,
+    APPROVED: labDict.statusApproved,
+    FAILED_MINOR: labDict.statusFailedMinor,
+    FAILED_SEVERE: labDict.statusFailedSevere,
+    ON_HOLD: labDict.statusOnHold,
+  };
   const pallet = await prisma.pallet.findUnique({
     where: { id: palletId },
     include: {
@@ -187,7 +198,7 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
             )}
             <Row
               label={dict.microbiologyLabel}
-              value={combinedMicroStatus(pallet.lot.microbiologyResults, pallet.lot.shift.onHold).replace("_", " ")}
+              value={MICRO_LABEL[combinedMicroStatus(pallet.lot.microbiologyResults, pallet.lot.shift.onHold)]}
             />
             <div className="flex justify-between gap-4">
               <dt className="text-slate-500">{dict.totalPlateCountLabel}</dt>
@@ -245,7 +256,10 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">{dict.packingDetailsTitle}</h2>
         <dl className="mt-3 grid grid-cols-4 gap-x-6 gap-y-2 text-sm">
-          <Row label={fpe.packingDate} value={pallet.packingDate?.toDateString()} />
+          <Row
+            label={fpe.packingDate}
+            value={pallet.packingDate ? formatDate(pallet.packingDate, "dd MMM yyyy", locale) : undefined}
+          />
           <Row label={fpe.packingLocation} value={pallet.packingLocation} />
           <Row label={fpe.supervisor} value={pallet.packingSupervisor} />
           <Row label={fpe.cartonLogo} value={pallet.cartonLogo} />
@@ -312,9 +326,9 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
                 </div>
                 <p className="text-xs text-slate-500">
                   {dict.mouldSkinInternalLine
-                    .replace("{mould}", String(q.mouldPct))
-                    .replace("{skin}", String(q.skinDamagePct))
-                    .replace("{internal}", String(q.internalQualityPct))}
+                    .replace("{mould}", String(q.mouldPct ?? "—"))
+                    .replace("{skin}", String(q.skinDamagePct ?? "—"))
+                    .replace("{internal}", String(q.internalQualityPct ?? "—"))}
                   {q.foreignOdor && dict.foreignOdorSuffix.replace("{value}", q.foreignOdor)}
                 </p>
               </li>

@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dates";
 import { markSentToLabAction, markMrlSentToLabAction } from "./actions";
 import { ResultForm } from "./result-form";
 import { MrlResultForm } from "./mrl-result-form";
@@ -19,7 +19,8 @@ export default async function LabPage() {
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
-  const dict = getDictionary(await resolveLocale()).lab;
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).lab;
   const LAB_LABEL = { IN_HOUSE: dict.labInHouse, EXTERNAL: dict.labExternal } as const;
 
   const [onHoldShifts, results, mrlResults] = await Promise.all([
@@ -67,12 +68,15 @@ export default async function LabPage() {
                 <p className="text-sm font-medium text-slate-900">
                   {dict.factoryDateShiftLine
                     .replace("{factory}", shift.factory.name)
-                    .replace("{date}", format(shift.date, "dd MMM yyyy"))
+                    .replace("{date}", formatDate(shift.date, "dd MMM yyyy", locale))
                     .replace("{shiftType}", shift.shiftType === "DAY" ? dict.dayShift : dict.nightShift)}
                 </p>
                 <p className="mt-1 text-sm text-red-700">{shift.holdReason}</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {dict.onHoldSince.replace("{date}", shift.holdSince ? format(shift.holdSince, "dd MMM yyyy HH:mm") : "—")}
+                  {dict.onHoldSince.replace(
+                    "{date}",
+                    shift.holdSince ? formatDate(shift.holdSince, "dd MMM yyyy HH:mm", locale) : "—"
+                  )}
                 </p>
                 <ResolveHoldForm shiftId={shift.id} />
               </div>
@@ -129,7 +133,7 @@ export default async function LabPage() {
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>
                 {r.sentDate && (
                   <span className="ms-2 font-normal text-slate-400">
-                    {dict.sentDateInline.replace("{date}", format(r.sentDate, "dd MMM yyyy"))}
+                    {dict.sentDateInline.replace("{date}", formatDate(r.sentDate, "dd MMM yyyy", locale))}
                     {r.labName ? dict.toLabSuffix.replace("{lab}", r.labName) : ""}
                     {r.sentBy ? dict.byPersonSuffix.replace("{name}", r.sentBy.name) : ""}
                   </span>
@@ -247,7 +251,7 @@ export default async function LabPage() {
                 {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
                 {r.sentDate && (
                   <span className="ms-2 font-normal text-slate-400">
-                    {dict.sentDateInline.replace("{date}", format(r.sentDate, "dd MMM yyyy"))}
+                    {dict.sentDateInline.replace("{date}", formatDate(r.sentDate, "dd MMM yyyy", locale))}
                     {r.labName ? dict.toLabSuffix.replace("{lab}", r.labName) : ""}
                     {r.sentBy ? dict.byPersonSuffix.replace("{name}", r.sentBy.name) : ""}
                   </span>

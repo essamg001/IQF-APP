@@ -42,6 +42,27 @@ export default async function ClientDetailPage({
   const canManage = canManageClients(session?.user.role);
   const isOwner = session?.user.role === "OWNER";
   const dict = getDictionary(await resolveLocale()).clients;
+  const DEFECT_LABEL: Record<string, string> = {
+    overripe: dict.defectOverripe,
+    unripe: dict.defectUnripe,
+    calyx: dict.defectCalyx,
+    leaves: dict.defectLeaves,
+    stems: dict.defectStems,
+    misshapen: dict.defectMisshapen,
+    blemish: dict.defectBlemish,
+    dryPump: dict.defectDryPump,
+    clumps: dict.defectClumps,
+    broken: dict.defectBroken,
+    oxidation: dict.defectOxidation,
+    mechanicalDamage: dict.defectMechanicalDamage,
+    rotten: dict.defectRotten,
+    insectDamage: dict.defectInsectDamage,
+    internalQuality: dict.defectInternalQuality,
+    deadWorm: dict.defectDeadWorm,
+    fungalInfection: dict.defectFungalInfection,
+    dryBruises: dict.defectDryBruises,
+    foreignBodies: dict.defectForeignBodies,
+  };
 
   return (
     <div>
@@ -110,7 +131,7 @@ export default async function ClientDetailPage({
           </Card>
         )}
         {client.specs.map((s) => {
-          const defects = DEFECT_FIELDS.map((f) => ({ label: f.label, value: s[f.key] })).filter(
+          const defects = DEFECT_FIELDS.map((f) => ({ label: DEFECT_LABEL[f.key], value: s[f.key] })).filter(
             (d) => d.value && d.value !== "*"
           );
           return (
@@ -126,7 +147,10 @@ export default async function ClientDetailPage({
               <dl className="mt-3 grid grid-cols-4 gap-x-6 gap-y-2 text-sm">
                 <Row label={dict.brixLabel} value={s.brix} />
                 <Row label={dict.phLabel} value={s.ph} />
-                <Row label={dict.sizeCaliberLabel} value={s.sizeCaliber} />
+                <div className="flex justify-between gap-4">
+                  <dt className="text-slate-500">{dict.sizeCaliberLabel}</dt>
+                  <dd className="whitespace-pre-line text-end text-slate-800">{s.sizeCaliber || "—"}</dd>
+                </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-slate-500">{dict.maxTotalPlateCount}</dt>
                   <dd className="text-end">

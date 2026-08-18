@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export function ConfirmSubmitButton({
   confirmMessage,
   children,
@@ -11,13 +13,19 @@ export function ConfirmSubmitButton({
   className?: string;
   disabled?: boolean;
 }) {
+  const [submitting, setSubmitting] = useState(false);
+
   return (
     <button
       type="submit"
       className={className}
-      disabled={disabled}
+      disabled={disabled || submitting}
       onClick={(e) => {
-        if (!confirm(confirmMessage)) e.preventDefault();
+        if (!confirm(confirmMessage)) {
+          e.preventDefault();
+          return;
+        }
+        setSubmitting(true);
       }}
     >
       {children}

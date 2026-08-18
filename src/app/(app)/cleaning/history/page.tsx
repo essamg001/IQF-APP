@@ -67,7 +67,7 @@ export default async function CleaningHistoryPage({
               <Input name="to" type="date" defaultValue={toStr} />
             </FieldGroup>
             <Button type="submit" variant="secondary">
-              Go
+              {fullDict.common.go}
             </Button>
           </form>
           <LinkButton href="/cleaning" variant="secondary">

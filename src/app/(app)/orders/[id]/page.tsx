@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dates";
 import { allocatePalletsAction, updateOrderQuantityAction, updateOrderValueAction } from "../actions";
 import { AdvanceStageButton } from "./advance-stage-button";
 import { Input, FieldGroup } from "@/components/ui/field";
@@ -67,7 +67,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const session = await auth();
   const showPricing = canSeePricing(session?.user.role);
-  const dict = getDictionary(await resolveLocale()).orders;
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).orders;
 
   const order = await prisma.order.findUnique({
     where: { id },
@@ -150,7 +151,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           <h2 className="text-sm font-semibold text-slate-900">{dict.orderDetailsTitle}</h2>
           <dl className="mt-3 space-y-2 text-sm">
             <Row label={dict.poNumberLabel} value={order.poNumber} />
-            <Row label={dict.orderDateLabel} value={format(order.orderDate, "dd MMM yyyy")} />
+            <Row label={dict.orderDateLabel} value={formatDate(order.orderDate, "dd MMM yyyy", locale)} />
             <Row label={dict.quantityLabel} value={`${order.quantityPallets} ${dict.palletsSuffix}`} />
             <Row label={dict.allocatedLabel} value={`${order.pallets.length} / ${order.quantityPallets}`} />
             {showPricing && <Row label={dict.grossValueLabel} value={`$${order.valueUsd.toLocaleString()}`} />}

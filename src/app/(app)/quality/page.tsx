@@ -1,12 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { LinkButton } from "@/components/ui/button";
-import { limitsFor } from "@/lib/qualityLimits";
+import { limitsFor, translateLabel } from "@/lib/qualityLimits";
 import { format, startOfWeek } from "date-fns";
 import { egyptDateKey, egyptDateOnly, egyptMonthKey, formatYMD, parseDateKey } from "@/lib/timezone";
 import { QualityPeriodTable, type MetricDef, type Period, type PeriodRow } from "./quality-period-table";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import type { Locale } from "@prisma/client";
 
+// English versions drive the actual aggregation (only `.key` is read there);
+// locale-aware display versions for the table headers are built separately
+// below, once the request's locale is known.
 const RAW_MATERIAL_METRICS: MetricDef[] = [
   { key: "brix", label: "Brix", suffix: "" },
   ...limitsFor("RAW_MATERIAL").map((r) => ({
@@ -23,6 +27,24 @@ const POST_PACKAGING_METRICS: MetricDef[] = [
   { key: "brix", label: "Brix", suffix: "" },
   ...limitsFor("POST_PACKAGING", "A").map((r) => ({ key: r.field, label: r.label, suffix: "%" })),
 ];
+
+function localizedRawMaterialMetrics(locale: Locale): MetricDef[] {
+  return [
+    { key: "brix", label: translateLabel("Brix", locale), suffix: "" },
+    ...limitsFor("RAW_MATERIAL").map((r) => ({
+      key: r.field,
+      label: `${translateLabel(r.label, locale)} (${r.max != null ? `≤${r.max}%` : `≥${r.min}%`})`,
+      suffix: "%",
+    })),
+  ];
+}
+
+function localizedPostPackagingMetrics(locale: Locale): MetricDef[] {
+  return [
+    { key: "brix", label: translateLabel("Brix", locale), suffix: "" },
+    ...limitsFor("POST_PACKAGING", "A").map((r) => ({ key: r.field, label: translateLabel(r.label, locale), suffix: "%" })),
+  ];
+}
 
 type Check = {
   id: string;
@@ -93,7 +115,8 @@ function byMonth(rows: Check[], metrics: MetricDef[], take: number): PeriodRow[]
 }
 
 export default async function QualityPage() {
-  const dict = getDictionary(await resolveLocale()).qualityReports;
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).qualityReports;
   // Both checkpoints are filled in automatically from their own dedicated
   // fast-entry screens -- Raw Material Intake from Arrival Inspection at
   // Factory, Post-Packaging/Final Product from Post-Freeze Inspection.
@@ -180,14 +203,14 @@ export default async function QualityPage() {
         title={dict.rawMaterialTitle}
         description={dict.rawMaterialDescription}
         dataByPeriod={rawByPeriod}
-        metrics={RAW_MATERIAL_METRICS}
+        metrics={localizedRawMaterialMetrics(locale)}
       />
 
       <QualityPeriodTable
         title={dict.postPackagingTitle}
         description={dict.postPackagingDescription}
         dataByPeriod={postByPeriod}
-        metrics={POST_PACKAGING_METRICS}
+        metrics={localizedPostPackagingMetrics(locale)}
       />
     </div>
   );

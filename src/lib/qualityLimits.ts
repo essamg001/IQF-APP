@@ -3,7 +3,7 @@
 // a single check can flag out-of-spec values consistently across every
 // checkpoint. Ranges (min+max together) cover things like PH;
 // ceilings/floors cover defect percentages and quality minimums.
-import type { QualityCheckpoint, Grade, Format } from "@prisma/client";
+import type { QualityCheckpoint, Grade, Format, Locale } from "@prisma/client";
 
 export type LimitRule = { field: string; label: string; min?: number; max?: number };
 export type LimitViolation = { label: string; value: number; min?: number; max?: number };
@@ -151,6 +151,72 @@ const POST_PACKAGING_SLICED_LIMITS: LimitRule[] = [
 const POST_PACKAGING_DICED_LIMITS: LimitRule[] = POST_PACKAGING_SLICED_LIMITS.map((rule) =>
   rule.field === "crushedBrokenFruitPct" ? { ...rule, label: "Irregular/Broken Cubes" } : rule
 );
+
+// Every distinct English `label` used anywhere above, translated for display
+// on the /quality and /quality-check report pages (the only consumers that
+// show these as UI chrome -- violation/trend-warning message text stays
+// English like every other server-action string in this app). Keyed by the
+// English label itself rather than `field`, since a few fields (e.g.
+// crushedBrokenFruitPct) carry a different label depending on format/grade.
+const LABEL_AR: Record<string, string> = {
+  "Berry Colour": "لون الثمرة",
+  "Bird Food": "أثر تغذية الطيور",
+  "Bird Traces": "آثار الطيور",
+  Botrytis: "العفن الرمادي",
+  Brix: "بريكس",
+  "Broken/Crushed Slices": "شرائح مكسورة/مهروسة",
+  "Broken/Unclean Crates": "صناديق مكسورة/غير نظيفة",
+  "Broken/Unclean Pallets": "باليتات مكسورة/غير نظيفة",
+  Bruises: "كدمات",
+  "Capsule Remains": "بقايا الكأس",
+  "Cohesive Clusters": "عناقيد متلاصقة",
+  "Crate Weight": "وزن الصندوق",
+  "Crushed/Broken Fruit": "ثمار مهروسة/مكسورة",
+  "Diameter <22mm": "القطر أقل من 22 مم",
+  "Dry Bruises": "كدمات جافة",
+  "Dry Cavities": "تجاويف جافة",
+  "Early Botrytis": "العفن الرمادي المبكر",
+  "Foreign Bodies": "أجسام غريبة",
+  "Frozen Product Waiting Period": "فترة انتظار المنتج المجمد",
+  "Fruit Colour": "لون الثمرة",
+  "Fungal Infection": "عدوى فطرية",
+  "Incomplete Maturity": "نضج غير مكتمل",
+  "Insect Damage": "ضرر الحشرات",
+  "Insect Infestation": "إصابة حشرية",
+  "Insects/Larvae": "حشرات/يرقات",
+  "Internal Quality": "الجودة الداخلية",
+  "Irregular/Broken Cubes": "مكعبات غير منتظمة/مكسورة",
+  "Leaf Remains": "بقايا أوراق",
+  "Leaf/Stem Remains": "بقايا أوراق/سيقان",
+  "Leaves/Stalks": "أوراق/سيقان",
+  "Mechanical Factors": "عوامل ميكانيكية",
+  Mishape: "تشوه الشكل",
+  "Mold Signs": "علامات العفن",
+  Mould: "عفن",
+  "Over Maturity": "فرط النضج",
+  "Over-Decapping": "إفراط في إزالة الكأس",
+  Overmature: "مفرط النضج",
+  Oxidation: "أكسدة",
+  PH: "الحموضة PH",
+  "Pest/Disease": "آفات/أمراض",
+  "Product Temperature": "درجة حرارة المنتج",
+  "Sample Weight": "وزن العينة",
+  Sand: "رمل",
+  "Sand/Dust": "رمل/غبار",
+  "Seed Clustering": "تكتل البذور",
+  "Shape Deformities": "تشوهات الشكل",
+  "Skin Deformities": "تشوهات القشرة",
+  "Stem Fragments": "أجزاء سيقان",
+  Temperature: "درجة الحرارة",
+  "Total Defects": "إجمالي العيوب",
+  "Unfumigated Pallets": "باليتات غير مبخرة",
+  "Worm-Eaten": "متآكل بالديدان",
+};
+
+/** Translates a `LimitRule`/`LimitViolation` label for display -- English labels pass through unchanged for AR if no translation is on file, rather than showing blank. */
+export function translateLabel(label: string, locale: Locale): string {
+  return locale === "AR" ? (LABEL_AR[label] ?? label) : label;
+}
 
 export function limitsFor(checkpoint: QualityCheckpoint, grade?: Grade, format?: Format): LimitRule[] {
   switch (checkpoint) {
