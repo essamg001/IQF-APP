@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
 import { FORMAT_LABEL } from "@/lib/format";
+import { useTranslations } from "@/lib/i18n/locale-context";
 import type { Client, Order } from "@prisma/client";
 
 export function ContainerForm({
@@ -18,86 +19,84 @@ export function ContainerForm({
   defaultOrderId?: string;
 }) {
   const [error, formAction, pending] = useActionState(createContainerAction, undefined);
+  const dict = useTranslations().logistics;
 
   return (
     <form action={formAction}>
       <Card className="space-y-4">
-        <FieldGroup label="Order">
+        <FieldGroup label={dict.orderLabel}>
           <Select name="orderId" required defaultValue={defaultOrderId ?? ""}>
             <option value="" disabled>
-              Select an order
+              {dict.selectAnOrder}
             </option>
             {orders.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.orderNumber} — {o.client.name} — Grade {o.grade}, {FORMAT_LABEL[o.format]}
+                {o.orderNumber} — {o.client.name} — {dict.gradeLabel.replace("{grade}", o.grade)}, {FORMAT_LABEL[o.format]}
               </option>
             ))}
           </Select>
         </FieldGroup>
-        <FieldGroup label="Container number">
-          <Input name="containerNumber" required placeholder="e.g. MSKU1234567" />
+        <FieldGroup label={dict.containerNumberLabel}>
+          <Input name="containerNumber" required placeholder={dict.containerNumberPlaceholder} />
         </FieldGroup>
-        <FieldGroup label="Carrier">
+        <FieldGroup label={dict.carrierLabel}>
           <CarrierInput name="carrier" />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Load type">
+          <FieldGroup label={dict.loadTypeLabel}>
             <Select name="loadType" defaultValue="">
-              <option value="">Not yet decided</option>
-              <option value="PALLETISED">Palletised — pallet ships as-is (24t capacity)</option>
-              <option value="UNPALLETISED">Unpalletised — cartons stacked loose (25t capacity)</option>
+              <option value="">{dict.notYetDecided}</option>
+              <option value="PALLETISED">{dict.palletisedOption}</option>
+              <option value="UNPALLETISED">{dict.unpalletisedOption}</option>
             </Select>
           </FieldGroup>
-          <FieldGroup label="Booking number">
+          <FieldGroup label={dict.bookingNumberLabel}>
             <Input name="bookingNumber" />
           </FieldGroup>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Vessel name">
+          <FieldGroup label={dict.vesselNameLabel}>
             <Input name="vesselName" />
           </FieldGroup>
-          <FieldGroup label="Voyage number">
+          <FieldGroup label={dict.voyageNumberLabel}>
             <Input name="voyageNumber" />
           </FieldGroup>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Departure port">
+          <FieldGroup label={dict.departurePortLabel}>
             <PortInput name="departurePort" />
           </FieldGroup>
-          <FieldGroup label="Destination port">
+          <FieldGroup label={dict.destinationPortLabel}>
             <Input name="destinationPort" />
           </FieldGroup>
         </div>
-        <FieldGroup label="Destination country">
-          <Input name="destinationCountry" placeholder="e.g. Germany" />
+        <FieldGroup label={dict.destinationCountryLabel}>
+          <Input name="destinationCountry" placeholder={dict.destinationCountryPlaceholder} />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Departure date">
+          <FieldGroup label={dict.departureDateLabel}>
             <Input name="departureDate" type="date" />
           </FieldGroup>
-          <FieldGroup label="Expected transit (days)">
+          <FieldGroup label={dict.expectedTransitLabel}>
             <Input name="expectedTransitDays" type="number" min="1" />
           </FieldGroup>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Tracking provider (optional)">
-            <Input name="trackingProvider" placeholder="e.g. ShipsGo" />
+          <FieldGroup label={dict.trackingProviderLabel}>
+            <Input name="trackingProvider" placeholder={dict.trackingProviderPlaceholder} />
           </FieldGroup>
-          <FieldGroup label="Tracking reference (optional)">
+          <FieldGroup label={dict.trackingRefLabel}>
             <Input name="trackingRef" />
           </FieldGroup>
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" name="reeferConfirmed" defaultChecked />
-          Reefer set to −18°C (standard for IQF frozen product — uncheck if this shipment needs a different set-point)
+          {dict.reeferConfirmedLabel}
         </label>
-        <p className="text-xs text-slate-500">
-          Seal number and bill of lading number are usually only known once the carrier issues them after
-          departure — add those from the container&apos;s own page once you have them.
-        </p>
+        <p className="text-xs text-slate-500">{dict.sealBolHint}</p>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Create container"}
+          {pending ? dict.saving : dict.createContainer}
         </Button>
       </Card>
     </form>

@@ -6,6 +6,7 @@ import { decodeSpecBlock } from "@/lib/specCompliance";
 import { SpecExceptionForm } from "./spec-exception-form";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 type EligiblePallet = { id: string; palletNumber: string; remaining: number; lotNumber: string };
 
@@ -23,15 +24,16 @@ export function AddLoadLineForm({
   const [selectedId, setSelectedId] = useState(pallets[0]?.id ?? "");
   const [quantity, setQuantity] = useState(pallets[0]?.remaining.toFixed(2) ?? "");
   const specBlock = decodeSpecBlock(error);
+  const dict = useTranslations().logistics;
 
   if (pallets.length === 0) {
-    return <p className="text-sm text-slate-400">No allocated pallets with remaining tonnage for this order.</p>;
+    return <p className="text-sm text-slate-400">{dict.noPalletsRemainingTonnage}</p>;
   }
 
   return (
     <div className="flex flex-wrap items-end gap-3">
       <form action={formAction} className="flex flex-wrap items-end gap-3">
-        <FieldGroup label="Pallet">
+        <FieldGroup label={dict.palletLabel}>
           <Select
             name="palletId"
             value={selectedId}
@@ -44,12 +46,15 @@ export function AddLoadLineForm({
           >
             {pallets.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.palletNumber} — {p.remaining.toFixed(2)}t remaining — Lot {p.lotNumber}
+                {dict.remainingLotOption
+                  .replace("{pallet}", p.palletNumber)
+                  .replace("{remaining}", p.remaining.toFixed(2))
+                  .replace("{lot}", p.lotNumber)}
               </option>
             ))}
           </Select>
         </FieldGroup>
-        <FieldGroup label="Quantity to load (t)">
+        <FieldGroup label={dict.quantityToLoadLabel}>
           <Input
             name="quantityTonnes"
             type="number"
@@ -61,13 +66,13 @@ export function AddLoadLineForm({
           />
         </FieldGroup>
         <ConfirmSubmitButton
-          confirmMessage={`Load ${quantity}t of pallet ${
-            pallets.find((p) => p.id === selectedId)?.palletNumber ?? selectedId
-          } into this container? This physically commits it to the shipment and frees its storage slot once fully loaded.`}
+          confirmMessage={dict.loadPalletConfirm
+            .replace("{quantity}", quantity)
+            .replace("{pallet}", pallets.find((p) => p.id === selectedId)?.palletNumber ?? selectedId)}
           disabled={pending}
           className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
         >
-          {pending ? "Adding…" : "Add to manifest"}
+          {pending ? dict.adding : dict.addToManifest}
         </ConfirmSubmitButton>
         {error && !specBlock && <p className="w-full text-sm text-red-600">{error}</p>}
       </form>

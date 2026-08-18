@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 export type MetricDef = { key: string; label: string; suffix: string };
 
@@ -19,20 +20,6 @@ export type PeriodRow = {
 
 export type Period = "SHIFT" | "DAILY" | "WEEKLY" | "MONTHLY";
 
-const PERIOD_LABEL: Record<Period, string> = {
-  SHIFT: "By Shift",
-  DAILY: "Daily",
-  WEEKLY: "Weekly",
-  MONTHLY: "Monthly",
-};
-
-const BUCKET_COLUMN_LABEL: Record<Period, string> = {
-  SHIFT: "Shift",
-  DAILY: "Date",
-  WEEKLY: "Week",
-  MONTHLY: "Month",
-};
-
 export function QualityPeriodTable({
   title,
   description,
@@ -46,6 +33,19 @@ export function QualityPeriodTable({
 }) {
   const [period, setPeriod] = useState<Period>("SHIFT");
   const rows = dataByPeriod[period];
+  const dict = useTranslations().qualityReports;
+  const PERIOD_LABEL: Record<Period, string> = {
+    SHIFT: dict.periodByShift,
+    DAILY: dict.periodDaily,
+    WEEKLY: dict.periodWeekly,
+    MONTHLY: dict.periodMonthly,
+  };
+  const BUCKET_COLUMN_LABEL: Record<Period, string> = {
+    SHIFT: dict.bucketShift,
+    DAILY: dict.bucketDate,
+    WEEKLY: dict.bucketWeek,
+    MONTHLY: dict.bucketMonth,
+  };
 
   return (
     <div>
@@ -69,12 +69,12 @@ export function QualityPeriodTable({
       </div>
 
       <Card className="overflow-x-auto rounded-tl-none p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="sticky left-0 bg-slate-50 px-4 py-2 font-medium">{BUCKET_COLUMN_LABEL[period]}</th>
-              <th className="px-4 py-2 font-medium">Checks</th>
-              <th className="px-4 py-2 font-medium">Rejected</th>
+              <th className="sticky start-0 bg-slate-50 px-4 py-2 font-medium">{BUCKET_COLUMN_LABEL[period]}</th>
+              <th className="px-4 py-2 font-medium">{dict.colChecks}</th>
+              <th className="px-4 py-2 font-medium">{dict.colRejected}</th>
               {metrics.map((m) => (
                 <th key={m.key} className="whitespace-nowrap px-4 py-2 font-medium">
                   {m.label}
@@ -85,7 +85,7 @@ export function QualityPeriodTable({
           <tbody>
             {rows.map((row) => (
               <tr key={row.key} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="sticky left-0 bg-white px-4 py-2 font-medium text-slate-800">{row.label}</td>
+                <td className="sticky start-0 bg-white px-4 py-2 font-medium text-slate-800">{row.label}</td>
                 <td className="px-4 py-2">{row.count}</td>
                 <td className="px-4 py-2">
                   <Badge color={row.rejectionRate > 10 ? "red" : row.rejectionRate > 0 ? "amber" : "green"}>
@@ -105,7 +105,7 @@ export function QualityPeriodTable({
             {rows.length === 0 && (
               <tr>
                 <td colSpan={3 + metrics.length} className="px-4 py-8 text-center text-slate-400">
-                  No checks logged in this view.
+                  {dict.noChecksInView}
                 </td>
               </tr>
             )}

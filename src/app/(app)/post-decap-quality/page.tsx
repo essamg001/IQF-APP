@@ -5,12 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { PostDecapForm } from "./post-decap-form";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function PostDecapQualityPage() {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
+  const dict = getDictionary(await resolveLocale()).postDecapQuality;
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -50,17 +53,20 @@ export default async function PostDecapQualityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Decap — Post-Decap Quality</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Final product strawberry inspection (STR03107) — the greenlight for fruit to leave the decap facility
-          for the factory. Enter the same Harvest Ticket Serial Number as the matching pre-decap arrival to auto-fill the field.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       <div className="flex gap-4">
-        <Badge color="slate">{todaysChecks.length} logged today</Badge>
-        <Badge color="green">{accepted} accepted</Badge>
-        <Badge color="red">{rejected} rejected</Badge>
+        <Badge color="slate">
+          {todaysChecks.length} {dict.loggedTodaySuffix}
+        </Badge>
+        <Badge color="green">
+          {accepted} {dict.acceptedSuffix}
+        </Badge>
+        <Badge color="red">
+          {rejected} {dict.rejectedSuffix}
+        </Badge>
       </div>
 
       <div className="max-w-3xl">
@@ -68,17 +74,17 @@ export default async function PostDecapQualityPage() {
       </div>
 
       <Card className="max-w-3xl overflow-x-auto p-0">
-        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Today&apos;s Log</h2>
-        <table className="w-full text-left text-sm">
+        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">{dict.todaysLogTitle}</h2>
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Time</th>
-              <th className="px-4 py-2 font-medium">Sample</th>
-              <th className="px-4 py-2 font-medium">QC</th>
-              <th className="px-4 py-2 font-medium">Receipt Note</th>
-              <th className="px-4 py-2 font-medium">Client</th>
-              <th className="px-4 py-2 font-medium">Total Defects</th>
-              <th className="px-4 py-2 font-medium">Decision</th>
+              <th className="px-4 py-2 font-medium">{dict.colTime}</th>
+              <th className="px-4 py-2 font-medium">{dict.colSample}</th>
+              <th className="px-4 py-2 font-medium">{dict.colQc}</th>
+              <th className="px-4 py-2 font-medium">{dict.colReceiptNote}</th>
+              <th className="px-4 py-2 font-medium">{dict.colClient}</th>
+              <th className="px-4 py-2 font-medium">{dict.colTotalDefects}</th>
+              <th className="px-4 py-2 font-medium">{dict.colDecision}</th>
             </tr>
           </thead>
           <tbody>
@@ -103,14 +109,16 @@ export default async function PostDecapQualityPage() {
                   )}
                 </td>
                 <td className="px-4 py-2">
-                  <Badge color={c.decision === "ACCEPTED" ? "green" : "red"}>{c.decision}</Badge>
+                  <Badge color={c.decision === "ACCEPTED" ? "green" : "red"}>
+                    {c.decision === "ACCEPTED" ? dict.conforming : dict.nonconforming}
+                  </Badge>
                 </td>
               </tr>
             ))}
             {todaysChecks.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
-                  Nothing logged yet today.
+                  {dict.nothingLoggedToday}
                 </td>
               </tr>
             )}

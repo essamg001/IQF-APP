@@ -12,6 +12,7 @@ import { SHIFT_HOURS, hourSlotDate, toDateTimeLocalValue } from "@/lib/shiftHour
 import { parseLocalDateOnly } from "@/lib/dates";
 import { isMetalDetectorMaintenanceLocked } from "@/lib/equipmentVerification";
 import type { MetalDetectorCheck, MetalDetectorMaintenanceCheck, ShiftType } from "@prisma/client";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 export function MetalDetectorSection({
   factoryId,
@@ -36,10 +37,11 @@ export function MetalDetectorSection({
 
   const latestByHour = new Map<number, MetalDetectorCheck>();
   for (const c of checks) latestByHour.set(c.recordedAt.getHours(), c);
+  const dict = useTranslations().metalDetector;
 
   return (
     <div className="rounded-md border border-slate-200 p-3">
-      <h5 className="text-xs font-semibold text-slate-700">Metal Detector — CAL03607</h5>
+      <h5 className="text-xs font-semibold text-slate-700">{dict.title}</h5>
 
       <MaintenanceChecklist factoryId={factoryId} date={date} shiftType={shiftType} record={maintenanceCheck} />
 
@@ -53,15 +55,15 @@ export function MetalDetectorSection({
       </div>
 
       {checks.length > 0 && (
-        <table className="mt-3 w-full text-left text-[11px]">
+        <table className="mt-3 w-full text-start text-[11px]">
           <thead className="border-b border-slate-200 text-slate-500">
             <tr>
-              <th className="py-1 pr-2 font-medium">Time</th>
-              <th className="py-1 pr-2 font-medium">Fe</th>
-              <th className="py-1 pr-2 font-medium">Non-Fe</th>
-              <th className="py-1 pr-2 font-medium">SS</th>
-              <th className="py-1 pr-2 font-medium">Released</th>
-              <th className="py-1 pr-2 font-medium">By</th>
+              <th className="py-1 pr-2 font-medium">{dict.colTime}</th>
+              <th className="py-1 pr-2 font-medium">{dict.colFe}</th>
+              <th className="py-1 pr-2 font-medium">{dict.colNonFe}</th>
+              <th className="py-1 pr-2 font-medium">{dict.colSs}</th>
+              <th className="py-1 pr-2 font-medium">{dict.colReleased}</th>
+              <th className="py-1 pr-2 font-medium">{dict.colBy}</th>
             </tr>
           </thead>
           <tbody>
@@ -86,9 +88,9 @@ export function MetalDetectorSection({
                   {c.productReleased == null ? (
                     "—"
                   ) : c.productReleased ? (
-                    <Badge color="green">Released</Badge>
+                    <Badge color="green">{dict.released}</Badge>
                   ) : (
-                    <Badge color="red">Held</Badge>
+                    <Badge color="red">{dict.held}</Badge>
                   )}
                 </td>
                 <td className="py-1 pr-2 text-slate-500">{c.checkedByName ?? "—"}</td>
@@ -127,18 +129,19 @@ function MaintenanceChecklist({
   const reopenAction = reopenMetalDetectorMaintenanceAction.bind(null, factoryId, date, shiftType);
   const [reopenState, reopenFormAction, reopenPending] = useActionState(reopenAction, undefined);
   const reopenError = reopenState && reopenState !== "ok" ? reopenState : undefined;
+  const dict = useTranslations().metalDetector;
 
   if (locked && record) {
     const items = [
-      ["Sensitivity checked (3 sides)", record.sensitivityCheckedThreeSides],
-      ["Alarm checked (audio/visual)", record.alarmCheckedAudioVisual],
-      ["Electrical panel checked", record.electricalPanelChecked],
-      ["Belt/rollers clean", record.beltRollersCleanChecked],
+      [dict.sensitivityThreeSides, record.sensitivityCheckedThreeSides],
+      [dict.alarmAudioVisual, record.alarmCheckedAudioVisual],
+      [dict.electricalPanel, record.electricalPanelChecked],
+      [dict.beltRollersClean, record.beltRollersCleanChecked],
     ] as const;
     return (
       <div className="mt-2 rounded bg-slate-50 p-2 text-[11px] text-slate-600">
         <p className="font-medium text-slate-700">
-          Shift maintenance checklist — {record.checkedByName ?? "confirmed"}
+          {dict.maintenanceChecklistConfirmedBy.replace("{name}", record.checkedByName ?? dict.confirmedFallback)}
         </p>
         <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
           {items.map(([label, ok]) => (
@@ -148,15 +151,15 @@ function MaintenanceChecklist({
           ))}
         </ul>
         <form action={reopenFormAction} className="mt-2 flex flex-wrap items-end gap-2 border-t border-slate-200 pt-2">
-          <FieldGroup label="Reason for reopening">
-            <Input name="reason" required className="w-56 px-1.5 py-1 text-xs" placeholder="e.g. Missed an item" />
+          <FieldGroup label={dict.reopenReasonLabel}>
+            <Input name="reason" required className="w-56 px-1.5 py-1 text-xs" placeholder={dict.reopenReasonPlaceholder} />
           </FieldGroup>
           <ConfirmSubmitButton
-            confirmMessage="Reopen this shift's maintenance checklist? It will need to be re-confirmed."
+            confirmMessage={dict.reopenConfirm}
             disabled={reopenPending}
             className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-600 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-amber-700 disabled:opacity-50 disabled:pointer-events-none"
           >
-            {reopenPending ? "Reopening…" : "Reopen"}
+            {reopenPending ? dict.reopening : dict.reopen}
           </ConfirmSubmitButton>
           {reopenError && <p className="w-full text-[11px] text-red-600">{reopenError}</p>}
         </form>
@@ -170,24 +173,24 @@ function MaintenanceChecklist({
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="shiftType" value={shiftType} />
       <p className="text-[11px] font-medium text-slate-600">
-        {record ? "Shift maintenance checklist — reopened, re-confirm below" : "Shift maintenance checklist (once per shift)"}
+        {record ? dict.maintenanceChecklistReopened : dict.maintenanceChecklistOncePerShift}
       </p>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-700">
         <label className="flex items-center gap-1">
-          <input type="checkbox" name="sensitivityCheckedThreeSides" defaultChecked={record?.sensitivityCheckedThreeSides ?? false} /> Sensitivity (3 sides)
+          <input type="checkbox" name="sensitivityCheckedThreeSides" defaultChecked={record?.sensitivityCheckedThreeSides ?? false} /> {dict.sensitivityThreeSides}
         </label>
         <label className="flex items-center gap-1">
-          <input type="checkbox" name="alarmCheckedAudioVisual" defaultChecked={record?.alarmCheckedAudioVisual ?? false} /> Alarm audio/visual
+          <input type="checkbox" name="alarmCheckedAudioVisual" defaultChecked={record?.alarmCheckedAudioVisual ?? false} /> {dict.alarmAudioVisual}
         </label>
         <label className="flex items-center gap-1">
-          <input type="checkbox" name="electricalPanelChecked" defaultChecked={record?.electricalPanelChecked ?? false} /> Electrical panel
+          <input type="checkbox" name="electricalPanelChecked" defaultChecked={record?.electricalPanelChecked ?? false} /> {dict.electricalPanel}
         </label>
         <label className="flex items-center gap-1">
-          <input type="checkbox" name="beltRollersCleanChecked" defaultChecked={record?.beltRollersCleanChecked ?? false} /> Belt/rollers clean
+          <input type="checkbox" name="beltRollersCleanChecked" defaultChecked={record?.beltRollersCleanChecked ?? false} /> {dict.beltRollersClean}
         </label>
       </div>
       <Button type="submit" variant="secondary" disabled={pending} className="px-2 py-1 text-[11px]">
-        {pending ? "Confirming…" : "Confirm checklist"}
+        {pending ? dict.confirming : dict.confirmChecklist}
       </Button>
       {errorMessage && <p className="text-[11px] text-red-600">{errorMessage}</p>}
     </form>
@@ -212,13 +215,19 @@ function MetalDetectorCheckForm({
   const [state, formAction, pending] = useActionState(createMetalDetectorCheckAction, undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
   const defaultRecordedAt = presetHour != null ? toDateTimeLocalValue(hourSlotDate(shiftDate, shiftType, presetHour)) : "";
+  const dict = useTranslations().metalDetector;
+  const DETECTION_LABELS = {
+    ferrousDetected: dict.ferrousDetected,
+    nonFerrousDetected: dict.nonFerrousDetected,
+    stainlessDetected: dict.stainlessDetected,
+  } as const;
 
   return (
     <form action={formAction} className="mt-2 space-y-2 border-t border-slate-100 pt-2">
       <input type="hidden" name="factoryId" value={factoryId} />
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="shiftType" value={shiftType} />
-      <FieldGroup label="Time (defaults to now)">
+      <FieldGroup label={dict.timeDefaultNow}>
         <Input
           key={presetHour ?? "now"}
           name="recordedAt"
@@ -230,14 +239,14 @@ function MetalDetectorCheckForm({
       <div className="grid grid-cols-3 gap-1.5">
         {(
           [
-            ["ferrousDetected", "ferrousDiameterMm", "Ferrous"],
-            ["nonFerrousDetected", "nonFerrousDiameterMm", "Non-Ferrous"],
-            ["stainlessDetected", "stainlessDiameterMm", "Stainless"],
+            ["ferrousDetected", "ferrousDiameterMm"],
+            ["nonFerrousDetected", "nonFerrousDiameterMm"],
+            ["stainlessDetected", "stainlessDiameterMm"],
           ] as const
-        ).map(([detectedName, diameterName, label]) => (
+        ).map(([detectedName, diameterName]) => (
           <div key={detectedName} className="space-y-1">
             <label className="flex items-center gap-1 text-[11px] text-slate-700">
-              <input type="checkbox" name={detectedName} defaultChecked /> {label} detected
+              <input type="checkbox" name={detectedName} defaultChecked /> {DETECTION_LABELS[detectedName]}
             </label>
             <Input name={diameterName} type="number" step="0.1" placeholder="mm" className="px-1.5 py-1 text-xs" />
           </div>
@@ -245,16 +254,18 @@ function MetalDetectorCheckForm({
       </div>
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-1 text-[11px] text-slate-700">
-          <input type="checkbox" name="productReleased" defaultChecked /> Product released
+          <input type="checkbox" name="productReleased" defaultChecked /> {dict.productReleased}
         </label>
       </div>
-      <FieldGroup label="Corrective action (if held)">
+      <FieldGroup label={dict.correctiveActionIfHeld}>
         <Input name="correctiveAction" className="px-1.5 py-1 text-xs" />
       </FieldGroup>
       <Button type="submit" variant="secondary" disabled={pending} className="px-2 py-1 text-[11px]">
-        {pending ? "Logging…" : "Log check"}
+        {pending ? dict.logging : dict.logCheck}
       </Button>
-      {currentUserLabel && <span className="ml-2 text-[11px] text-slate-400">as {currentUserLabel}</span>}
+      {currentUserLabel && (
+        <span className="ms-2 text-[11px] text-slate-400">{dict.asUser.replace("{name}", currentUserLabel)}</span>
+      )}
       {errorMessage && <p className="text-[11px] text-red-600">{errorMessage}</p>}
     </form>
   );

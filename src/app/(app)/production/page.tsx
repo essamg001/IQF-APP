@@ -11,6 +11,8 @@ import { CfuTierBadge } from "@/components/cfu-tier-badge";
 import { CfuTierLegend } from "@/components/cfu-tier-legend";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const MICRO_COLOR = {
   PENDING: "amber",
@@ -22,6 +24,17 @@ const MICRO_COLOR = {
 } as const;
 
 export default async function ProductionPage() {
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.production;
+  const labDict = fullDict.lab;
+  const MICRO_LABEL: Record<string, string> = {
+    PENDING: labDict.statusPending,
+    SENT_TO_LAB: labDict.statusSentToLab,
+    APPROVED: labDict.statusApproved,
+    FAILED_MINOR: labDict.statusFailedMinor,
+    FAILED_SEVERE: labDict.statusFailedSevere,
+    ON_HOLD: labDict.statusOnHold,
+  };
   const lots = await prisma.productionLot.findMany({
     include: {
       shift: true,
@@ -38,25 +51,25 @@ export default async function ProductionPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Production Lots</h1>
-          <p className="mt-1 text-sm text-slate-500">Each lot ties a shift&apos;s output to pallets, quality, and microbiology.</p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/production/new">Log Production Lot</LinkButton>
+        <LinkButton href="/production/new">{dict.logProductionLot}</LinkButton>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Lot #</th>
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Factory</th>
-              <th className="px-4 py-2 font-medium">Field</th>
-              <th className="px-4 py-2 font-medium">Grade</th>
-              <th className="px-4 py-2 font-medium">Format</th>
-              <th className="px-4 py-2 font-medium">Pallets</th>
-              <th className="px-4 py-2 font-medium">Microbiology</th>
-              <th className="px-4 py-2 font-medium">Total Plate Count</th>
+              <th className="px-4 py-2 font-medium">{dict.colLotNumber}</th>
+              <th className="px-4 py-2 font-medium">{dict.colDate}</th>
+              <th className="px-4 py-2 font-medium">{dict.colFactory}</th>
+              <th className="px-4 py-2 font-medium">{dict.colField}</th>
+              <th className="px-4 py-2 font-medium">{dict.colGrade}</th>
+              <th className="px-4 py-2 font-medium">{dict.colFormat}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPallets}</th>
+              <th className="px-4 py-2 font-medium">{dict.colMicrobiology}</th>
+              <th className="px-4 py-2 font-medium">{dict.colTotalPlateCount}</th>
             </tr>
           </thead>
           <tbody>
@@ -70,7 +83,7 @@ export default async function ProductionPage() {
                     {lot.lotNumber}
                   </Link>
                   {lot.isEndOfDayGradeB && (
-                    <span className="ml-2 text-xs text-slate-400">(end-of-day)</span>
+                    <span className="ms-2 text-xs text-slate-400">{dict.endOfDaySuffix}</span>
                   )}
                   {lot.isTestData && (
                     <>
@@ -83,14 +96,14 @@ export default async function ProductionPage() {
                 <td className="px-4 py-2">{lot.factory.name}</td>
                 <td className="px-4 py-2">{lot.field.name}</td>
                 <td className="px-4 py-2">
-                  <Badge color={lot.grade === "A" ? "green" : "amber"}>Grade {lot.grade}</Badge>
+                  <Badge color={lot.grade === "A" ? "green" : "amber"}>{dict.gradeLabel.replace("{grade}", lot.grade)}</Badge>
                 </td>
                 <td className="px-4 py-2">{FORMAT_LABEL[lot.format]}</td>
                 <td className="px-4 py-2">{lot._count.pallets}</td>
                 <td className="px-4 py-2">
                   {(() => {
                     const micro = combinedMicroStatus(lot.microbiologyResults, lot.shift.onHold);
-                    return <Badge color={MICRO_COLOR[micro]}>{micro.replace("_", " ")}</Badge>;
+                    return <Badge color={MICRO_COLOR[micro]}>{MICRO_LABEL[micro] ?? micro}</Badge>;
                   })()}
                 </td>
                 <td className="px-4 py-2">
@@ -101,7 +114,7 @@ export default async function ProductionPage() {
             {lots.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                  No production lots logged yet.
+                  {dict.noProductionLotsYet}
                 </td>
               </tr>
             )}

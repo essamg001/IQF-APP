@@ -12,14 +12,26 @@ export type AreaTrendPoint = {
   maintenance: number | null;
 };
 
-export function AreaTrendChart({ title, data }: { title: string; data: AreaTrendPoint[] }) {
+export function AreaTrendChart({
+  title,
+  data,
+  noScoresLabel,
+  legendProduction,
+  legendMaintenance,
+}: {
+  title: string;
+  data: AreaTrendPoint[];
+  noScoresLabel: string;
+  legendProduction: string;
+  legendMaintenance: string;
+}) {
   const hasAnyPoint = data.some((d) => d.production != null || d.maintenance != null);
 
   return (
     <div className="rounded-md border border-slate-200 p-2">
       <h5 className="text-xs font-semibold text-slate-700">{title}</h5>
       {!hasAnyPoint ? (
-        <p className="mt-6 text-center text-xs text-slate-400">No scores in this range.</p>
+        <p className="mt-6 text-center text-xs text-slate-400">{noScoresLabel}</p>
       ) : (
         <ResponsiveContainer width="100%" height={160}>
           <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -39,7 +51,7 @@ export function AreaTrendChart({ title, data }: { title: string; data: AreaTrend
             <Line
               type="monotone"
               dataKey="production"
-              name="Production"
+              name={legendProduction}
               stroke={PRODUCTION_COLOR}
               strokeWidth={2}
               dot={{ r: 3 }}
@@ -48,7 +60,7 @@ export function AreaTrendChart({ title, data }: { title: string; data: AreaTrend
             <Line
               type="monotone"
               dataKey="maintenance"
-              name="Maintenance"
+              name={legendMaintenance}
               stroke={MAINTENANCE_COLOR}
               strokeWidth={2}
               dot={{ r: 3 }}

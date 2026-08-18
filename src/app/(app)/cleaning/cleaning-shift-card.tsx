@@ -1,9 +1,11 @@
-import { CLEANING_AREAS, CLEANING_AREA_LABEL, cleaningScoreColor, isCleaningLocked } from "@/lib/cleaning";
+import { CLEANING_AREAS, cleaningScoreColor, isCleaningLocked } from "@/lib/cleaning";
+import type { CleaningArea } from "@prisma/client";
 import { signCleaningAction } from "./actions";
 import { ScoreEntryForm } from "./score-entry-form";
 import { FoamToggleForm } from "./foam-toggle-form";
 import { SignOffForm } from "./sign-off-form";
 import { ReopenCleaningForm } from "./reopen-cleaning-form";
+import type { Dictionary } from "@/lib/i18n/getDictionary";
 
 type Score = { area: string; productionScore: number | null; maintenanceScore: number | null };
 type Record = {
@@ -13,8 +15,25 @@ type Record = {
   maintenanceSignedByName: string | null;
   maintenanceSignedAt: Date | null;
 } | null;
+type CleaningModeDict = Dictionary["cleaningMode"];
 
-const ROLE_LABEL = { PRODUCTION: "Head of Production", MAINTENANCE: "Head of Maintenance" } as const;
+function areaLabel(area: CleaningArea, dict: CleaningModeDict): string {
+  const map: { [key in CleaningArea]: string } = {
+    ARRIVAL: dict.areaArrival,
+    PRE_COOLING: dict.areaPreCooling,
+    PROCESSING: dict.areaProcessing,
+    PACKAGING: dict.areaPackaging,
+    COLD_STORES_AND_CORRIDORS: dict.areaColdStoresAndCorridors,
+    LOAD_OUT: dict.areaLoadOut,
+    DRY_STORAGE_ROOMS: dict.areaDryStorageRooms,
+  };
+  return map[area];
+}
+
+function roleLabelFor(role: "PRODUCTION" | "MAINTENANCE", dict: CleaningModeDict): string {
+  return role === "PRODUCTION" ? dict.roleHeadOfProduction : dict.roleHeadOfMaintenance;
+}
+
 // A thin colored edge alone read as barely-there on some displays/browsers
 // (a 4px sliver next to a 1px gray border is easy to miss). Identity is now
 // carried three ways at once -- tinted background, colored heading text, and
@@ -42,6 +61,7 @@ function RolePanel({
   signedByName,
   signedAt,
   currentUserLabel,
+  dict,
 }: {
   role: "PRODUCTION" | "MAINTENANCE";
   factoryId: string;
@@ -54,9 +74,10 @@ function RolePanel({
   signedByName: string | null;
   signedAt: Date | null;
   currentUserLabel: string | null;
+  dict: CleaningModeDict;
 }) {
-  const roleLabel = ROLE_LABEL[role];
-  const otherRoleLabel = role === "PRODUCTION" ? ROLE_LABEL.MAINTENANCE : ROLE_LABEL.PRODUCTION;
+  const roleLabel = roleLabelFor(role, dict);
+  const otherRoleLabel = roleLabelFor(role === "PRODUCTION" ? "MAINTENANCE" : "PRODUCTION", dict);
   const style = ROLE_STYLE[role];
 
   return (
@@ -66,7 +87,7 @@ function RolePanel({
         <h5 className={`text-xs font-bold uppercase tracking-wide ${style.heading}`}>{roleLabel}</h5>
       </div>
       {!canScore ? (
-        <p className="mt-1 text-xs text-slate-400">Only the Owner or {roleLabel} can score and sign off.</p>
+        <p className="mt-1 text-xs text-slate-400">{dict.onlyRoleCanScore.replace("{role}", roleLabel)}</p>
       ) : (
         <>
           {!locked && (
@@ -78,16 +99,17 @@ function RolePanel({
             {signedByName ? (
               <p className="text-sm text-slate-800">
                 {signedByName}
-                <span className="ml-2 text-xs text-slate-500">{signedAt?.toLocaleString()}</span>
+                <span className="ms-2 text-xs text-slate-500">{signedAt?.toLocaleString()}</span>
               </p>
             ) : !complete ? (
-              <p className="text-xs text-slate-400">Score every area above before signing off.</p>
+              <p className="text-xs text-slate-400">{dict.scoreAllBeforeSignOff}</p>
             ) : (
               <SignOffForm
                 action={signCleaningAction.bind(null, factoryId, date, shiftType, role)}
-                confirmMessage={`Confirm as ${
-                  currentUserLabel ?? "yourself"
-                }, ${roleLabel}: cleaning was done well and this area is cleared for production. This locks the record once ${otherRoleLabel} also signs off.`}
+                confirmMessage={dict.signOffConfirm
+                  .replace("{name}", currentUserLabel ?? "yourself")
+                  .replace("{role}", roleLabel)
+                  .replace("{otherRole}", otherRoleLabel)}
               />
             )}
           </div>
@@ -107,6 +129,7 @@ export function CleaningShiftCard({
   canScoreProduction,
   canScoreMaintenance,
   currentUserLabel,
+  dict,
 }: {
   factoryId: string;
   date: string;
@@ -117,6 +140,7 @@ export function CleaningShiftCard({
   canScoreProduction: boolean;
   canScoreMaintenance: boolean;
   currentUserLabel: string | null;
+  dict: CleaningModeDict;
 }) {
   const locked = isCleaningLocked(record);
   const missingForRole = (role: "PRODUCTION" | "MAINTENANCE") =>
@@ -140,12 +164,12 @@ export function CleaningShiftCard({
         />
       </div>
 
-      <table className="w-full text-left text-xs">
+      <table className="w-full text-start text-xs">
         <thead className="border-b border-slate-200 text-slate-500">
           <tr>
-            <th className="py-1.5 pr-3 font-medium">Area</th>
-            <th className="py-1.5 pr-3 font-medium">Production</th>
-            <th className="py-1.5 pr-3 font-medium">Maintenance</th>
+            <th className="py-1.5 pr-3 font-medium">{dict.colArea}</th>
+            <th className="py-1.5 pr-3 font-medium">{dict.colProduction}</th>
+            <th className="py-1.5 pr-3 font-medium">{dict.colMaintenance}</th>
           </tr>
         </thead>
         <tbody>
@@ -153,7 +177,7 @@ export function CleaningShiftCard({
             const row = scores.find((s) => s.area === area);
             return (
               <tr key={area} className="border-b border-slate-100 last:border-0">
-                <td className="py-1.5 pr-3 font-medium text-slate-800">{CLEANING_AREA_LABEL[area]}</td>
+                <td className="py-1.5 pr-3 font-medium text-slate-800">{areaLabel(area, dict)}</td>
                 <td className={`py-1.5 pr-3 font-semibold ${cleaningScoreColor(row?.productionScore)}`}>
                   {row?.productionScore ?? "—"}
                 </td>
@@ -168,13 +192,9 @@ export function CleaningShiftCard({
 
       <div className="mt-2 border-t border-slate-100 pt-2">
         {locked ? (
-          <p className="mb-2 text-xs text-amber-700">
-            Locked — cleared for production by both heads. Reopen below to correct a score.
-          </p>
+          <p className="mb-2 text-xs text-amber-700">{dict.locked}</p>
         ) : (
-          <p className="mb-2 text-xs text-slate-500">
-            Score every area, then sign off to confirm cleaning was done well and cleared for production.
-          </p>
+          <p className="mb-2 text-xs text-slate-500">{dict.scoreThenSignOff}</p>
         )}
         <div className="space-y-3">
           <RolePanel
@@ -189,6 +209,7 @@ export function CleaningShiftCard({
             signedByName={record?.productionSignedByName ?? null}
             signedAt={record?.productionSignedAt ?? null}
             currentUserLabel={currentUserLabel}
+            dict={dict}
           />
           <RolePanel
             role="MAINTENANCE"
@@ -202,6 +223,7 @@ export function CleaningShiftCard({
             signedByName={record?.maintenanceSignedByName ?? null}
             signedAt={record?.maintenanceSignedAt ?? null}
             currentUserLabel={currentUserLabel}
+            dict={dict}
           />
         </div>
       </div>

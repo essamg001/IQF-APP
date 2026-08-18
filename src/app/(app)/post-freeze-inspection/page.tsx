@@ -5,12 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { PostFreezeInspectionForm } from "./post-freeze-form";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function PostFreezeInspectionPage() {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
+  const dict = getDictionary(await resolveLocale()).postFreezeInspection;
 
   const lots = await prisma.productionLot.findMany({
     orderBy: { createdAt: "desc" },
@@ -31,10 +34,8 @@ export default async function PostFreezeInspectionPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Post-Freeze Inspection</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Final Product (Frozen) checks — STR03111 / STR03116, logged against the lot it came from.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       <div className="max-w-3xl">
@@ -42,16 +43,18 @@ export default async function PostFreezeInspectionPage() {
       </div>
 
       <Card className="max-w-3xl overflow-x-auto p-0">
-        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Today&apos;s Log ({todaysChecks.length})</h2>
-        <table className="w-full text-left text-sm">
+        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">
+          {dict.todaysLogTitle.replace("{count}", String(todaysChecks.length))}
+        </h2>
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Time</th>
-              <th className="px-4 py-2 font-medium">Lot</th>
-              <th className="px-4 py-2 font-medium">Pallet</th>
-              <th className="px-4 py-2 font-medium">Brix</th>
-              <th className="px-4 py-2 font-medium">Total Defects</th>
-              <th className="px-4 py-2 font-medium">Decision</th>
+              <th className="px-4 py-2 font-medium">{dict.colTime}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLot}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPallet}</th>
+              <th className="px-4 py-2 font-medium">{dict.colBrix}</th>
+              <th className="px-4 py-2 font-medium">{dict.colTotalDefects}</th>
+              <th className="px-4 py-2 font-medium">{dict.colDecision}</th>
             </tr>
           </thead>
           <tbody>
@@ -63,7 +66,7 @@ export default async function PostFreezeInspectionPage() {
                 <td className="px-4 py-2">{c.lot?.lotNumber ?? "—"}</td>
                 <td className="px-4 py-2">
                   <Link href={`/quality-check/${c.id}`} className="text-emerald-700 hover:underline">
-                    {c.pallet?.palletNumber ?? "Lot-level"}
+                    {c.pallet?.palletNumber ?? dict.lotLevel}
                   </Link>
                 </td>
                 <td className="px-4 py-2">{c.brix}</td>
@@ -72,7 +75,9 @@ export default async function PostFreezeInspectionPage() {
                 </td>
                 <td className="px-4 py-2">
                   {c.decision ? (
-                    <Badge color={c.decision === "ACCEPTED" ? "green" : "red"}>{c.decision}</Badge>
+                    <Badge color={c.decision === "ACCEPTED" ? "green" : "red"}>
+                      {c.decision === "ACCEPTED" ? dict.acceptable : dict.unacceptable}
+                    </Badge>
                   ) : (
                     "—"
                   )}
@@ -82,7 +87,7 @@ export default async function PostFreezeInspectionPage() {
             {todaysChecks.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                  Nothing logged yet today.
+                  {dict.nothingLoggedToday}
                 </td>
               </tr>
             )}

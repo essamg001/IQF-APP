@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 import { FieldsExplorer } from "./fields-explorer";
 
 export default async function FieldsPage() {
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).fields;
+
   // Only MS1 ("Mafa Strawberry — Festival") is actually strawberry -- the
   // farm's GIS map also codes other crops (e.g. MO = Mafa Oranges) under
   // similar-looking variety names, which don't belong here.
@@ -13,10 +18,11 @@ export default async function FieldsPage() {
   return (
     <div>
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Fields</h1>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Mafa Strawberry (Festival variety) plots, from the farm&apos;s GIS map — {fields.length} plots across{" "}
-          {new Set(fields.map((f) => f.farmName)).size} farm(s). Click a plot for details.
+          {dict.subtitle
+            .replace("{count}", String(fields.length))
+            .replace("{farms}", String(new Set(fields.map((f) => f.farmName)).size))}
         </p>
       </div>
 

@@ -11,14 +11,16 @@ import { ResultForm } from "./result-form";
 import { MrlResultForm } from "./mrl-result-form";
 import { ResolveHoldForm } from "./resolve-hold-form";
 import { TestDataBadge } from "@/components/test-data-badge";
-
-const LAB_LABEL = { IN_HOUSE: "In-House", EXTERNAL: "External" } as const;
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function LabPage() {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
+  const dict = getDictionary(await resolveLocale()).lab;
+  const LAB_LABEL = { IN_HOUSE: dict.labInHouse, EXTERNAL: dict.labExternal } as const;
 
   const [onHoldShifts, results, mrlResults] = await Promise.all([
     prisma.shiftLog.findMany({
@@ -49,28 +51,28 @@ export default async function LabPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Lab</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Every lot is sampled to both our in-house lab and an external lab. A lot can&apos;t ship until both come back
-          Approved — and if the two disagree, every lot from that shift goes on hold until further testing resolves it.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       {onHoldShifts.length > 0 && (
         <Card className="border-red-300 bg-red-50">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-red-800">Shifts On Hold — Split Microbiology Result</h2>
+            <h2 className="text-sm font-semibold text-red-800">{dict.shiftsOnHoldTitle}</h2>
             <Badge color="red">{onHoldShifts.length}</Badge>
           </div>
           <div className="mt-3 space-y-3">
             {onHoldShifts.map((shift) => (
               <div key={shift.id} className="rounded-md border border-red-200 bg-white p-3">
                 <p className="text-sm font-medium text-slate-900">
-                  {shift.factory.name} — {format(shift.date, "dd MMM yyyy")} {shift.shiftType} shift
+                  {dict.factoryDateShiftLine
+                    .replace("{factory}", shift.factory.name)
+                    .replace("{date}", format(shift.date, "dd MMM yyyy"))
+                    .replace("{shiftType}", shift.shiftType === "DAY" ? dict.dayShift : dict.nightShift)}
                 </p>
                 <p className="mt-1 text-sm text-red-700">{shift.holdReason}</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  On hold since {shift.holdSince ? format(shift.holdSince, "dd MMM yyyy HH:mm") : "—"}
+                  {dict.onHoldSince.replace("{date}", shift.holdSince ? format(shift.holdSince, "dd MMM yyyy HH:mm") : "—")}
                 </p>
                 <ResolveHoldForm shiftId={shift.id} />
               </div>
@@ -81,14 +83,14 @@ export default async function LabPage() {
 
       <Card>
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Awaiting Dispatch</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.awaitingDispatchTitle}</h2>
           <Badge color="slate">{awaitingDispatch.length}</Badge>
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {awaitingDispatch.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — Grade {r.lot.grade}{" "}
+                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>
                 {(r.isTestData || r.lot.isTestData) && (
                   <>
@@ -98,38 +100,38 @@ export default async function LabPage() {
                 )}
               </summary>
               <form action={markSentToLabAction.bind(null, r.id)} className="mt-3 flex flex-wrap items-end gap-3">
-                <FieldGroup label="Lab Name">
+                <FieldGroup label={dict.labNameLabel}>
                   <Input name="labName" className="w-64" />
                 </FieldGroup>
-                <FieldGroup label="Sent Date">
+                <FieldGroup label={dict.sentDateLabel}>
                   <Input name="sentDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
                 </FieldGroup>
                 <Button type="submit" variant="secondary">
-                  Mark sent to lab
+                  {dict.markSentToLab}
                 </Button>
               </form>
             </details>
           ))}
-          {awaitingDispatch.length === 0 && <p className="py-2 text-sm text-slate-400">Nothing waiting to be sent.</p>}
+          {awaitingDispatch.length === 0 && <p className="py-2 text-sm text-slate-400">{dict.nothingWaitingToBeSent}</p>}
         </div>
       </Card>
 
       <Card>
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Sent — Awaiting Result</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.sentAwaitingResultTitle}</h2>
           <Badge color="amber">{awaitingResult.length}</Badge>
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {awaitingResult.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — Grade {r.lot.grade}{" "}
+                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>
                 {r.sentDate && (
-                  <span className="ml-2 font-normal text-slate-400">
-                    sent {format(r.sentDate, "dd MMM yyyy")}
-                    {r.labName ? ` to ${r.labName}` : ""}
-                    {r.sentBy ? ` by ${r.sentBy.name}` : ""}
+                  <span className="ms-2 font-normal text-slate-400">
+                    {dict.sentDateInline.replace("{date}", format(r.sentDate, "dd MMM yyyy"))}
+                    {r.labName ? dict.toLabSuffix.replace("{lab}", r.labName) : ""}
+                    {r.sentBy ? dict.byPersonSuffix.replace("{name}", r.sentBy.name) : ""}
                   </span>
                 )}
                 {(r.isTestData || r.lot.isTestData) && (
@@ -142,38 +144,42 @@ export default async function LabPage() {
               <ResultForm resultId={r.id} labType={r.labType} result={r} />
             </details>
           ))}
-          {awaitingResult.length === 0 && <p className="py-2 text-sm text-slate-400">Nothing currently at the lab.</p>}
+          {awaitingResult.length === 0 && <p className="py-2 text-sm text-slate-400">{dict.nothingCurrentlyAtLab}</p>}
         </div>
       </Card>
 
       <Card>
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Resolved</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.resolvedTitle}</h2>
           <Badge color="slate">{resolved.length}</Badge>
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {resolved.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — Grade {r.lot.grade}{" "}
+                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>{" "}
                 <Badge color={r.status === "APPROVED" ? "green" : r.status === "FAILED_MINOR" ? "amber" : "red"}>
-                  {r.status.replace(/_/g, " ")}
+                  {r.status === "APPROVED"
+                    ? dict.statusApproved
+                    : r.status === "FAILED_MINOR"
+                      ? dict.statusFailedMinor
+                      : dict.statusFailedSevere}
                 </Badge>
                 {r.certificateFileName && (
                   <a
                     href={`/api/files/certificates/${r.certificateFileName}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 text-xs text-emerald-700 hover:underline"
+                    className="ms-2 text-xs text-emerald-700 hover:underline"
                   >
-                    View certificate
+                    {dict.viewCertificate}
                   </a>
                 )}
                 {(r.status === "FAILED_MINOR" || r.status === "FAILED_SEVERE") && r.rejectionReason && (
-                  <span className="ml-2 font-normal text-red-700">
+                  <span className="ms-2 font-normal text-red-700">
                     {r.rejectionReason}
-                    {r.rejectedQuantityTonnes ? ` — ${r.rejectedQuantityTonnes}t` : ""}
+                    {r.rejectedQuantityTonnes ? dict.rejectedQuantitySuffix.replace("{qty}", String(r.rejectedQuantityTonnes)) : ""}
                   </span>
                 )}
                 {(r.isTestData || r.lot.isTestData) && (
@@ -186,28 +192,25 @@ export default async function LabPage() {
               <ResultForm resultId={r.id} labType={r.labType} result={r} />
             </details>
           ))}
-          {resolved.length === 0 && <p className="py-2 text-sm text-slate-400">No results recorded yet.</p>}
+          {resolved.length === 0 && <p className="py-2 text-sm text-slate-400">{dict.noResultsRecordedYet}</p>}
         </div>
       </Card>
 
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-slate-900">MRL — Pesticide Residue Testing</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Every lot also needs its own MRL result, tested externally, before it can load out — same hard gate as
-          microbiology, added even though the farms run a biological-control program with no synthetic spraying.
-        </p>
+        <h2 className="text-lg font-semibold text-slate-900">{dict.mrlSectionTitle}</h2>
+        <p className="mt-1 text-sm text-slate-500">{dict.mrlSectionSubtitle}</p>
       </div>
 
       <Card>
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Awaiting Dispatch</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.awaitingDispatchTitle}</h2>
           <Badge color="slate">{mrlAwaitingDispatch.length}</Badge>
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {mrlAwaitingDispatch.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — Grade {r.lot.grade}
+                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
                 {(r.isTestData || r.lot.isTestData) && (
                   <>
                     {" "}
@@ -216,37 +219,37 @@ export default async function LabPage() {
                 )}
               </summary>
               <form action={markMrlSentToLabAction.bind(null, r.id)} className="mt-3 flex flex-wrap items-end gap-3">
-                <FieldGroup label="Lab Name">
+                <FieldGroup label={dict.labNameLabel}>
                   <Input name="labName" className="w-64" />
                 </FieldGroup>
-                <FieldGroup label="Sent Date">
+                <FieldGroup label={dict.sentDateLabel}>
                   <Input name="sentDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
                 </FieldGroup>
                 <Button type="submit" variant="secondary">
-                  Mark sent to lab
+                  {dict.markSentToLab}
                 </Button>
               </form>
             </details>
           ))}
-          {mrlAwaitingDispatch.length === 0 && <p className="py-2 text-sm text-slate-400">Nothing waiting to be sent.</p>}
+          {mrlAwaitingDispatch.length === 0 && <p className="py-2 text-sm text-slate-400">{dict.nothingWaitingToBeSent}</p>}
         </div>
       </Card>
 
       <Card>
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Sent — Awaiting Result</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.sentAwaitingResultTitle}</h2>
           <Badge color="amber">{mrlAwaitingResult.length}</Badge>
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {mrlAwaitingResult.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — Grade {r.lot.grade}
+                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
                 {r.sentDate && (
-                  <span className="ml-2 font-normal text-slate-400">
-                    sent {format(r.sentDate, "dd MMM yyyy")}
-                    {r.labName ? ` to ${r.labName}` : ""}
-                    {r.sentBy ? ` by ${r.sentBy.name}` : ""}
+                  <span className="ms-2 font-normal text-slate-400">
+                    {dict.sentDateInline.replace("{date}", format(r.sentDate, "dd MMM yyyy"))}
+                    {r.labName ? dict.toLabSuffix.replace("{lab}", r.labName) : ""}
+                    {r.sentBy ? dict.byPersonSuffix.replace("{name}", r.sentBy.name) : ""}
                   </span>
                 )}
                 {(r.isTestData || r.lot.isTestData) && (
@@ -259,33 +262,35 @@ export default async function LabPage() {
               <MrlResultForm resultId={r.id} result={r} />
             </details>
           ))}
-          {mrlAwaitingResult.length === 0 && <p className="py-2 text-sm text-slate-400">Nothing currently at the lab.</p>}
+          {mrlAwaitingResult.length === 0 && <p className="py-2 text-sm text-slate-400">{dict.nothingCurrentlyAtLab}</p>}
         </div>
       </Card>
 
       <Card>
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Resolved</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.resolvedTitle}</h2>
           <Badge color="slate">{mrlResolved.length}</Badge>
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {mrlResolved.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — Grade {r.lot.grade}{" "}
-                <Badge color={r.status === "APPROVED" ? "green" : "red"}>{r.status}</Badge>
+                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
+                <Badge color={r.status === "APPROVED" ? "green" : "red"}>
+                  {r.status === "APPROVED" ? dict.statusApproved : dict.statusFailed}
+                </Badge>
                 {r.certificateFileName && (
                   <a
                     href={`/api/files/certificates/${r.certificateFileName}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-2 text-xs text-emerald-700 hover:underline"
+                    className="ms-2 text-xs text-emerald-700 hover:underline"
                   >
-                    View certificate
+                    {dict.viewCertificate}
                   </a>
                 )}
                 {r.status === "FAILED" && r.rejectionReason && (
-                  <span className="ml-2 font-normal text-red-700">{r.rejectionReason}</span>
+                  <span className="ms-2 font-normal text-red-700">{r.rejectionReason}</span>
                 )}
                 {(r.isTestData || r.lot.isTestData) && (
                   <>
@@ -297,7 +302,7 @@ export default async function LabPage() {
               <MrlResultForm resultId={r.id} result={r} />
             </details>
           ))}
-          {mrlResolved.length === 0 && <p className="py-2 text-sm text-slate-400">No results recorded yet.</p>}
+          {mrlResolved.length === 0 && <p className="py-2 text-sm text-slate-400">{dict.noResultsRecordedYet}</p>}
         </div>
       </Card>
     </div>

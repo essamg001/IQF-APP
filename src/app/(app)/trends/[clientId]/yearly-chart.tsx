@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 const SERIES_BLUE = "#2a78d6";
 
@@ -13,8 +14,11 @@ export function YearlyChart({
   dataKey: string;
   unit: "usd" | "pallets";
 }) {
+  const dict = useTranslations().trends;
   const format = (v: number | string | undefined) =>
-    unit === "usd" ? `$${Number(v ?? 0).toLocaleString()}` : `${v ?? 0} pallets`;
+    unit === "usd"
+      ? `$${Number(v ?? 0).toLocaleString()}`
+      : dict.formatPalletsValue.replace("{value}", String(v ?? 0));
 
   return (
     <ResponsiveContainer width="100%" height={220}>

@@ -7,6 +7,7 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { isTemperatureOutOfLimit, type TemperatureLocation } from "@/lib/dailyReportLocations";
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 // One small box per location so a full round of readings can be typed in
 // and logged in a single submit, instead of picking one location at a time
@@ -21,6 +22,8 @@ export function LogTemperatureForm({
   factoryCode: string | null;
   locations: TemperatureLocation[];
 }) {
+  const fullDict = useTranslations();
+  const dict = fullDict.dailyReport;
   const [state, formAction, pending] = useActionState(logTemperatureBatchAction, undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
   const [values, setValues] = useState<Record<string, string>>({});
@@ -30,14 +33,14 @@ export function LogTemperatureForm({
       <input type="hidden" name="factoryId" value={factoryId} />
       <input type="hidden" name="factoryCode" value={factoryCode ?? ""} />
       <div className="flex flex-wrap items-end gap-3">
-        <FieldGroup label="Time (defaults to now)">
+        <FieldGroup label={dict.timeDefaultsNowLabel}>
           <Input name="recordedAt" type="datetime-local" className="w-48" />
         </FieldGroup>
-        <FieldGroup label="Notes (optional, applies to this round)">
-          <Input name="notes" placeholder="optional" className="w-56" />
+        <FieldGroup label={dict.notesOptionalRoundLabel}>
+          <Input name="notes" placeholder={dict.notesPlaceholder} className="w-56" />
         </FieldGroup>
         <Button type="submit" variant="secondary" disabled={pending}>
-          {pending ? "Logging…" : "Log readings"}
+          {pending ? dict.loggingButton : dict.logReadingsButton}
         </Button>
       </div>
       <div className="flex flex-wrap gap-2">

@@ -7,6 +7,8 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { canSignAsHeadOfProduction, canSignAsHeadOfMaintenance } from "@/lib/roles";
 import { CleaningShiftCard } from "./cleaning-shift-card";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function CleaningPage({
   searchParams,
@@ -15,6 +17,8 @@ export default async function CleaningPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/");
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.cleaningMode;
 
   const { date: dateParam } = await searchParams;
   const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
@@ -35,23 +39,20 @@ export default async function CleaningPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Cleaning Mode</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Between-shift cleaning and drying — a 0-10 score per area from both Head of Production and Head of
-            Maintenance, and a dual sign-off before the next shift starts.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <div className="flex items-end gap-3">
           <form className="flex items-end gap-2">
-            <FieldGroup label="Date">
+            <FieldGroup label={fullDict.common.date}>
               <Input name="date" type="date" defaultValue={dateStr} />
             </FieldGroup>
             <Button type="submit" variant="secondary">
-              Go
+              {fullDict.common.go}
             </Button>
           </form>
           <LinkButton href="/cleaning/history" variant="secondary">
-            View History
+            {dict.viewHistory}
           </LinkButton>
         </div>
       </div>
@@ -65,29 +66,33 @@ export default async function CleaningPage({
 
         return (
           <Card key={f.id}>
-            <h3 className="text-sm font-semibold text-slate-900">{factoryName} — Cleaning</h3>
+            <h3 className="text-sm font-semibold text-slate-900">
+              {factoryName} — {dict.cleaningSuffix}
+            </h3>
             <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
               <CleaningShiftCard
                 factoryId={f.id}
                 date={dateStr}
                 shiftType="DAY"
-                shiftLabel="Shift 1 (Day)"
+                shiftLabel={dict.shift1Day}
                 scores={daySc}
                 record={dayRec}
                 canScoreProduction={canScoreProduction}
                 canScoreMaintenance={canScoreMaintenance}
                 currentUserLabel={currentUserLabel}
+                dict={dict}
               />
               <CleaningShiftCard
                 factoryId={f.id}
                 date={dateStr}
                 shiftType="NIGHT"
-                shiftLabel="Shift 2 (Night)"
+                shiftLabel={dict.shift2Night}
                 scores={nightSc}
                 record={nightRec}
                 canScoreProduction={canScoreProduction}
                 canScoreMaintenance={canScoreMaintenance}
                 currentUserLabel={currentUserLabel}
+                dict={dict}
               />
             </div>
           </Card>
@@ -96,7 +101,7 @@ export default async function CleaningPage({
 
       {factories.length === 0 && (
         <Card>
-          <p className="text-sm text-slate-400">No factories set up yet.</p>
+          <p className="text-sm text-slate-400">{dict.noFactoriesYet}</p>
         </Card>
       )}
     </div>

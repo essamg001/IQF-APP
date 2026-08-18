@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import { updateDailyChecklistSectionScoresAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { dailyChecklistScoreColor } from "@/lib/dailyChecklist";
+import { useTranslations } from "@/lib/i18n/locale-context";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 type Item = { key: string; text: string };
 type Score = { itemKey: string; score: number };
@@ -16,6 +18,7 @@ export function ChecklistSectionForm({
   items,
   scores,
   canEdit,
+  dict,
 }: {
   factoryId: string;
   date: string;
@@ -24,7 +27,9 @@ export function ChecklistSectionForm({
   items: Item[];
   scores: Score[];
   canEdit: boolean;
+  dict: Dictionary["dailyChecklist"];
 }) {
+  const { common } = useTranslations();
   const boundAction = updateDailyChecklistSectionScoresAction.bind(null, factoryId, date, shiftType, sectionKey);
   const [state, formAction, pending] = useActionState(boundAction, undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
@@ -58,7 +63,7 @@ export function ChecklistSectionForm({
       {canEdit && (
         <div className="mt-2 flex items-center gap-2">
           <Button type="submit" variant="secondary" className="text-xs" disabled={pending}>
-            {pending ? "Saving…" : "Save section"}
+            {pending ? common.saving : dict.saveSection}
           </Button>
           {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
         </div>

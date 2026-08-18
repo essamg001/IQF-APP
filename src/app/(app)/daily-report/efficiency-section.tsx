@@ -1,9 +1,12 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { DowntimeEntryForm } from "./downtime-entry-form";
 import { EfficiencyForm } from "./efficiency-form";
 import { removeDowntimeEventAction } from "./actions";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 type DowntimeEvent = { id: string; shiftType: string; reason: string; fromTime: Date; toTime: Date };
 type Efficiency = {
@@ -40,11 +43,13 @@ function ShiftBlock({
       ? (efficiency.uptimeTo.getTime() - efficiency.uptimeFrom.getTime()) / 60000
       : null;
   const actualRunTimeMin = uptimeMin != null ? uptimeMin - totalDowntimeMin : null;
+  const fullDict = useTranslations();
+  const dict = fullDict.dailyReport;
 
   return (
     <div className="rounded-md border border-slate-200 p-3">
       <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {shiftType === "DAY" ? "Shift 1 (Day)" : "Shift 2 (Night)"}
+        {shiftType === "DAY" ? dict.shift1Day : dict.shift2Night}
       </h4>
 
       <div className="mt-2">
@@ -53,36 +58,41 @@ function ShiftBlock({
 
       <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
         <div>
-          <dt className="text-slate-400">Total downtime</dt>
+          <dt className="text-slate-400">{dict.totalDowntimeLabel}</dt>
           <dd className="font-medium text-slate-800">{formatDuration(totalDowntimeMin)}</dd>
         </div>
         <div>
-          <dt className="text-slate-400">Actual run time</dt>
+          <dt className="text-slate-400">{dict.actualRunTimeLabel}</dt>
           <dd className="font-medium text-slate-800">{actualRunTimeMin != null ? formatDuration(actualRunTimeMin) : "—"}</dd>
         </div>
         <div>
-          <dt className="text-slate-400">Expected vs actual</dt>
+          <dt className="text-slate-400">{dict.expectedVsActualLabel}</dt>
           <dd className="font-medium text-slate-800">
-            {efficiency?.expectedQuantityTon ?? "—"} / {efficiency?.actualQuantityTon ?? "—"} t
+            {dict.expectedVsActualValue
+              .replace("{expected}", String(efficiency?.expectedQuantityTon ?? "—"))
+              .replace("{actual}", String(efficiency?.actualQuantityTon ?? "—"))}
           </dd>
         </div>
       </dl>
 
       <div className="mt-3 border-t border-slate-100 pt-3">
-        <p className="mb-1 text-xs font-medium text-slate-500">Downtime events</p>
+        <p className="mb-1 text-xs font-medium text-slate-500">{dict.downtimeEventsLabel}</p>
         {events.length > 0 && (
           <ul className="mb-2 space-y-1 text-xs">
             {events.map((e) => (
               <li key={e.id} className="flex items-center justify-between">
                 <span>
-                  {e.fromTime.toTimeString().slice(0, 5)}–{e.toTime.toTimeString().slice(0, 5)} · {e.reason}
+                  {dict.downtimeEventLine
+                    .replace("{from}", e.fromTime.toTimeString().slice(0, 5))
+                    .replace("{to}", e.toTime.toTimeString().slice(0, 5))
+                    .replace("{reason}", e.reason)}
                 </span>
                 <form action={removeDowntimeEventAction.bind(null, e.id)}>
                   <ConfirmSubmitButton
-                    confirmMessage={`Remove this downtime event (${e.reason})?`}
+                    confirmMessage={dict.removeDowntimeConfirm.replace("{reason}", e.reason)}
                     className="text-red-600 hover:underline"
                   >
-                    Remove
+                    {fullDict.common.remove}
                   </ConfirmSubmitButton>
                 </form>
               </li>
@@ -108,11 +118,16 @@ export function EfficiencySection({
   events: DowntimeEvent[];
   efficiencyByShift: Record<string, Efficiency | null>;
 }) {
+  const fullDict = useTranslations();
+  const dict = fullDict.dailyReport;
+
   return (
     <Card>
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-slate-900">{factoryName} — Line Efficiency &amp; Downtime</h3>
-        <Badge color="slate">{events.length} events</Badge>
+        <h3 className="text-sm font-semibold text-slate-900">
+          {dict.efficiencySectionTitle.replace("{factory}", factoryName)}
+        </h3>
+        <Badge color="slate">{dict.eventsCountBadge.replace("{count}", String(events.length))}</Badge>
       </div>
       <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
         <ShiftBlock

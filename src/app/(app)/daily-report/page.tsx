@@ -11,6 +11,8 @@ import { EfficiencySection } from "./efficiency-section";
 import { TemperatureSection } from "./temperature-section";
 import { DecapEfficiencySection } from "./decap-efficiency-section";
 import { LabourSection } from "./labour-section";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function DailyReportPage({
   searchParams,
@@ -22,6 +24,8 @@ export default async function DailyReportPage({
     redirect("/");
   }
 
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.dailyReport;
   const { date: dateParam } = await searchParams;
   const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
   const dayStart = parseLocalDateOnly(dateStr) ?? new Date();
@@ -77,17 +81,15 @@ export default async function DailyReportPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Daily Report</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Frozen Strawberry Production Report — quantities, packing, line efficiency, and temperature logs.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <form className="flex items-end gap-2">
-          <FieldGroup label="Date">
+          <FieldGroup label={fullDict.common.date}>
             <Input name="date" type="date" defaultValue={dateStr} />
           </FieldGroup>
           <Button type="submit" variant="secondary">
-            Go
+            {fullDict.common.go}
           </Button>
         </form>
       </div>
@@ -139,7 +141,7 @@ export default async function DailyReportPage({
 
       {factories.length === 0 && (
         <Card>
-          <p className="text-sm text-slate-400">No factories set up yet — add one in Setup first.</p>
+          <p className="text-sm text-slate-400">{dict.noFactoriesYet}</p>
         </Card>
       )}
     </div>

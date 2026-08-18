@@ -8,6 +8,8 @@ import { FORMAT_LABEL } from "@/lib/format";
 import { CAPACITY_TONNES } from "@/lib/logistics";
 import Link from "next/link";
 import { differenceInDays } from "date-fns";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function LogisticsPage({
   searchParams,
@@ -18,6 +20,17 @@ export default async function LogisticsPage({
   const isLoadOutStation = session?.user.station === "LOAD_OUT";
   const { q } = await searchParams;
   const query = q?.trim();
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.logistics;
+  const ordersDict = fullDict.orders;
+  const STAGE_LABEL: Record<string, string> = {
+    CONFIRMED: ordersDict.stageConfirmed,
+    IN_PRODUCTION: ordersDict.stageInProduction,
+    PACKED: ordersDict.stagePacked,
+    SHIPPED: ordersDict.stageShipped,
+    DELIVERED: ordersDict.stageDelivered,
+    PAID: ordersDict.stagePaid,
+  };
 
   // A search looks across every container ever created, not just the recent
   // 200 shown by default -- finding an old container's historical record is
@@ -51,11 +64,9 @@ export default async function LogisticsPage({
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">{isLoadOutStation ? "Load-Out" : "Logistics"}</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{isLoadOutStation ? dict.titleLoadOut : dict.titleLogistics}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {isLoadOutStation
-              ? "Containers awaiting load-out. Open one to fill the manifest and sign off."
-              : "Container tracking: departure, transit, and current location."}
+            {isLoadOutStation ? dict.subtitleLoadOut : dict.subtitleLogistics}
           </p>
         </div>
       </div>
@@ -63,34 +74,34 @@ export default async function LogisticsPage({
       <Card className="mt-4 p-3">
         <form className="flex items-end gap-3">
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-slate-700">Search any container</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">{dict.searchLabel}</label>
             <Input
               name="q"
               defaultValue={query ?? ""}
-              placeholder="Container #, seal #, B/L #, order #, or client name"
+              placeholder={dict.searchPlaceholder}
             />
           </div>
           <Button type="submit" variant="secondary">
-            Search
+            {dict.searchButton}
           </Button>
         </form>
       </Card>
 
       <Card className="mt-4 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Container #</th>
-              <th className="px-4 py-2 font-medium">Client</th>
-              <th className="px-4 py-2 font-medium">Spec</th>
-              <th className="px-4 py-2 font-medium">Departure</th>
-              <th className="px-4 py-2 font-medium">Destination</th>
-              <th className="px-4 py-2 font-medium">Expected Transit</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Current Location</th>
-              <th className="px-4 py-2 font-medium">Load Type</th>
-              <th className="px-4 py-2 font-medium">Load-Out</th>
-              <th className="px-4 py-2 font-medium">Bolsa Permit</th>
+              <th className="px-4 py-2 font-medium">{dict.colContainerNo}</th>
+              <th className="px-4 py-2 font-medium">{dict.colClient}</th>
+              <th className="px-4 py-2 font-medium">{dict.colSpec}</th>
+              <th className="px-4 py-2 font-medium">{dict.colDeparture}</th>
+              <th className="px-4 py-2 font-medium">{dict.colDestination}</th>
+              <th className="px-4 py-2 font-medium">{dict.colExpectedTransit}</th>
+              <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCurrentLocation}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLoadType}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLoadOut}</th>
+              <th className="px-4 py-2 font-medium">{dict.colBolsaPermit}</th>
             </tr>
           </thead>
           <tbody>
@@ -112,20 +123,22 @@ export default async function LogisticsPage({
                   </td>
                   <td className="px-4 py-2">{c.order.client.name}</td>
                   <td className="px-4 py-2">
-                    <Badge color={c.order.grade === "A" ? "green" : "amber"}>Grade {c.order.grade}</Badge>{" "}
+                    <Badge color={c.order.grade === "A" ? "green" : "amber"}>{dict.gradeLabel.replace("{grade}", c.order.grade)}</Badge>{" "}
                     <span className="text-slate-500">{FORMAT_LABEL[c.order.format]}</span>
                   </td>
                   <td className="px-4 py-2">{c.departurePort ?? "—"}</td>
                   <td className="px-4 py-2">{c.destinationPort ?? "—"}</td>
-                  <td className="px-4 py-2">{c.expectedTransitDays ? `${c.expectedTransitDays} days` : "—"}</td>
                   <td className="px-4 py-2">
-                    {overdue ? <Badge color="red">Overdue</Badge> : <Badge color="blue">{c.order.stage.replace("_", " ")}</Badge>}
+                    {c.expectedTransitDays ? dict.daysSuffix.replace("{days}", String(c.expectedTransitDays)) : "—"}
+                  </td>
+                  <td className="px-4 py-2">
+                    {overdue ? <Badge color="red">{dict.overdue}</Badge> : <Badge color="blue">{STAGE_LABEL[c.order.stage] ?? c.order.stage}</Badge>}
                   </td>
                   <td className="px-4 py-2">{c.currentLocation ?? "—"}</td>
                   <td className="px-4 py-2">
                     {c.loadType ? (
                       <Badge color={c.loadType === "PALLETISED" ? "blue" : "amber"}>
-                        {c.loadType === "PALLETISED" ? "Palletised" : "Unpalletised"}
+                        {c.loadType === "PALLETISED" ? dict.palletised : dict.unpalletised}
                       </Badge>
                     ) : (
                       "—"
@@ -133,20 +146,22 @@ export default async function LogisticsPage({
                   </td>
                   <td className="px-4 py-2">
                     {loadedTonnes === 0 ? (
-                      <Badge color="slate">Not started</Badge>
+                      <Badge color="slate">{dict.notStarted}</Badge>
                     ) : capacity && loadedTonnes >= capacity - 0.5 ? (
-                      <Badge color="green">{loadedTonnes.toFixed(1)}t — Full</Badge>
+                      <Badge color="green">{dict.fullSuffix.replace("{loaded}", loadedTonnes.toFixed(1))}</Badge>
                     ) : (
                       <Badge color="amber">
-                        {loadedTonnes.toFixed(1)}t{capacity ? ` / ${capacity}t` : ""}
+                        {dict.loadedOfCapacity
+                          .replace("{loaded}", loadedTonnes.toFixed(1))
+                          .replace("{capacitySuffix}", capacity ? ` / ${capacity}t` : "")}
                       </Badge>
                     )}
                   </td>
                   <td className="px-4 py-2">
                     {c.bolsaPermitNumber ? (
-                      <Badge color="green">On file</Badge>
+                      <Badge color="green">{dict.onFile}</Badge>
                     ) : loadedTonnes > 0 ? (
-                      <Badge color="red">Missing</Badge>
+                      <Badge color="red">{dict.missing}</Badge>
                     ) : (
                       "—"
                     )}
@@ -157,7 +172,7 @@ export default async function LogisticsPage({
             {containers.length === 0 && (
               <tr>
                 <td colSpan={11} className="px-4 py-8 text-center text-slate-400">
-                  {query ? `No container matches "${query}".` : "No containers yet. Create one from an order's page."}
+                  {query ? dict.noContainerMatches.replace("{query}", query) : dict.noContainersYet}
                 </td>
               </tr>
             )}

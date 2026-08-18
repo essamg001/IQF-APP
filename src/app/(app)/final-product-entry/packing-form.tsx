@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { CARTON_LOGO_OPTIONS } from "@/lib/cartonLogo";
 import { FULL_PALLET_WEIGHT_TONNES, FULL_PALLET_CARTON_COUNT } from "@/lib/logistics";
 import type { ProductionLot, Field, ColdRoom, QualityCheck, Pallet } from "@prisma/client";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 type LotWithField = ProductionLot & { field: Field };
 type PostFreezeCheck = QualityCheck & { pallet: Pallet | null };
@@ -22,6 +23,8 @@ export function PackingForm({
   postFreezeChecks: PostFreezeCheck[];
 }) {
   const [state, formAction, pending] = useActionState(createPackedPalletAction, undefined);
+  const fullDict = useTranslations();
+  const dict = fullDict.finalProductEntry;
 
   // Header fields carry over between consecutive pallets in the same packing run.
   const [packingDate, setPackingDate] = useState(new Date().toISOString().slice(0, 10));
@@ -39,15 +42,15 @@ export function PackingForm({
   );
 
   if (lots.length === 0) {
-    return <p className="text-sm text-slate-500">No production lots yet — nothing to pack against.</p>;
+    return <p className="text-sm text-slate-500">{dict.noLotsYet}</p>;
   }
 
   return (
     <form action={formAction} className="space-y-4">
       <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">Identification of Packed Pallets — GEN03115</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.formTitle}</h2>
         <div className="grid grid-cols-4 gap-3">
-          <FieldGroup label="Packing Date">
+          <FieldGroup label={dict.packingDate}>
             <Input
               name="packingDate"
               type="date"
@@ -55,22 +58,22 @@ export function PackingForm({
               onChange={(e) => setPackingDate(e.target.value)}
             />
           </FieldGroup>
-          <FieldGroup label="Packing Location">
+          <FieldGroup label={dict.packingLocation}>
             <Select name="packingLocation" value={packingLocation} onChange={(e) => setPackingLocation(e.target.value)}>
               <option value="">—</option>
               <option value="IQF 1">IQF 1</option>
               <option value="IQF 2">IQF 2</option>
             </Select>
           </FieldGroup>
-          <FieldGroup label="Supervisor">
+          <FieldGroup label={dict.supervisor}>
             <Input name="packingSupervisor" value={packingSupervisor} onChange={(e) => setPackingSupervisor(e.target.value)} />
           </FieldGroup>
-          <FieldGroup label="Lot number">
+          <FieldGroup label={dict.lotNumber}>
             <Input
               name="lotNumber"
               required
               list="lot-suggestions"
-              placeholder="e.g. M41126146-1"
+              placeholder={dict.lotNumberPlaceholder}
               value={lotNumber}
               onChange={(e) => setLotNumber(e.target.value)}
             />
@@ -92,9 +95,9 @@ export function PackingForm({
       />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
-      {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — pallet recorded.</p>}
+      {isSuccess && <p className="text-sm font-medium text-emerald-700">{dict.saved}</p>}
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "Saving…" : "Record pallet"}
+        {pending ? fullDict.common.saving : dict.recordPallet}
       </Button>
     </form>
   );
@@ -115,6 +118,7 @@ function PalletFields({
   const [palletNumber, setPalletNumber] = useState("");
   const [parcelStatus, setParcelStatus] = useState<"FULL" | "PARTIAL">("FULL");
   const isFull = parcelStatus === "FULL";
+  const dict = useTranslations().finalProductEntry;
 
   // Post-Freeze Inspection is the first stage that ties produce to this
   // pallet number, so its variety, client, full/partial call, and fruit
@@ -136,7 +140,7 @@ function PalletFields({
   return (
     <Card className="space-y-4">
       <div className="grid grid-cols-4 gap-3">
-        <FieldGroup label="Pallet No.">
+        <FieldGroup label={dict.palletNo}>
           <Input
             name="palletNumber"
             required
@@ -153,7 +157,7 @@ function PalletFields({
               ))}
           </datalist>
         </FieldGroup>
-        <FieldGroup label="Carton Logo">
+        <FieldGroup label={dict.cartonLogo}>
           <Select name="cartonLogo" defaultValue="">
             <option value="">—</option>
             {CARTON_LOGO_OPTIONS.map((o) => (
@@ -163,58 +167,62 @@ function PalletFields({
             ))}
           </Select>
         </FieldGroup>
-        <FieldGroup label="Size">
+        <FieldGroup label={dict.size}>
           <Input name="cartonSize" />
         </FieldGroup>
-        <FieldGroup label="Variety">
+        <FieldGroup label={dict.variety}>
           <Input key={matchedCheck?.id ?? "none-variety"} name="variety" defaultValue={matchedCheck?.varietyName ?? ""} />
         </FieldGroup>
-        <FieldGroup label="Client">
+        <FieldGroup label={dict.client}>
           <Input
             key={matchedCheck?.id ?? "none-client"}
             name="clientSpecNote"
-            placeholder="Client name, if known"
+            placeholder={dict.clientPlaceholder}
             defaultValue={matchedCheck?.clientName ?? ""}
           />
         </FieldGroup>
-        <FieldGroup label="Quality Grade">
+        <FieldGroup label={dict.qualityGrade}>
           <Select name="qualityGrade" defaultValue={lotGrade ?? ""}>
             <option value="">—</option>
-            <option value="A">Grade A</option>
-            <option value="B">Grade B</option>
+            <option value="A">{dict.gradeA}</option>
+            <option value="B">{dict.gradeB}</option>
           </Select>
         </FieldGroup>
-        <FieldGroup label="Parcels">
+        <FieldGroup label={dict.parcels}>
           <Select
             name="parcelStatus"
             value={parcelStatus}
             onChange={(e) => setParcelStatus(e.target.value as "FULL" | "PARTIAL")}
           >
-            <option value="FULL">Full pallet</option>
-            <option value="PARTIAL">Partial</option>
+            <option value="FULL">{dict.fullPallet}</option>
+            <option value="PARTIAL">{dict.partial}</option>
           </Select>
         </FieldGroup>
-        <FieldGroup label="Total No. of Cartons">
+        <FieldGroup label={dict.totalCartons}>
           {isFull ? (
             <>
               <input type="hidden" name="totalCartons" value={FULL_PALLET_CARTON_COUNT} />
-              <p className="flex h-9 items-center text-sm text-slate-600">{FULL_PALLET_CARTON_COUNT} (full pallet)</p>
+              <p className="flex h-9 items-center text-sm text-slate-600">
+                {dict.totalCartonsFullNote.replace("{count}", String(FULL_PALLET_CARTON_COUNT))}
+              </p>
             </>
           ) : (
             <Input name="totalCartons" type="number" min="1" />
           )}
         </FieldGroup>
-        <FieldGroup label="Weight (tonnes)">
+        <FieldGroup label={dict.weightTonnes}>
           {isFull ? (
             <>
               <input type="hidden" name="weightTonnes" value={FULL_PALLET_WEIGHT_TONNES} />
-              <p className="flex h-9 items-center text-sm text-slate-600">{FULL_PALLET_WEIGHT_TONNES} t (full pallet)</p>
+              <p className="flex h-9 items-center text-sm text-slate-600">
+                {dict.weightTonnesFullNote.replace("{weight}", String(FULL_PALLET_WEIGHT_TONNES))}
+              </p>
             </>
           ) : (
             <Input name="weightTonnes" type="number" step="0.01" min="0" required />
           )}
         </FieldGroup>
-        <FieldGroup label="Cold Room">
+        <FieldGroup label={dict.coldRoom}>
           <Select name="coldRoomId" defaultValue="">
             <option value="">—</option>
             {coldRooms.map((c) => (
@@ -224,29 +232,29 @@ function PalletFields({
             ))}
           </Select>
         </FieldGroup>
-        <FieldGroup label="Product">
+        <FieldGroup label={dict.product}>
           <Select
             name="isMixedVariety"
             value={isMixedVariety ? "on" : "off"}
             onChange={(e) => setIsMixedVariety(e.target.value === "on")}
           >
-            <option value="off">One variety</option>
-            <option value="on">Mixed varieties</option>
+            <option value="off">{dict.oneVariety}</option>
+            <option value="on">{dict.mixedVarieties}</option>
           </Select>
         </FieldGroup>
-        <FieldGroup label="Beginning of Palletization">
+        <FieldGroup label={dict.palletizationStart}>
           <Input name="palletizationStart" type="datetime-local" />
         </FieldGroup>
-        <FieldGroup label="End of Palletization">
+        <FieldGroup label={dict.palletizationEnd}>
           <Input name="palletizationEnd" type="datetime-local" />
         </FieldGroup>
       </div>
 
       <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-        <p className="mb-2 text-xs font-semibold text-slate-600">Fruit Diameter</p>
+        <p className="mb-2 text-xs font-semibold text-slate-600">{dict.fruitDiameterTitle}</p>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" name="fruitDiameterCalibrated" className="h-4 w-4 rounded border-slate-300" />
-          Calibrated (unchecked = Uncalibrated)
+          {dict.fruitDiameterCalibrated}
         </label>
       </div>
     </Card>

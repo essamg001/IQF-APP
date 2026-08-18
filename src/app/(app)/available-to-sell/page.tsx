@@ -1,16 +1,27 @@
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FORMAT_LABEL } from "@/lib/format";
 import type { Grade, Format } from "@prisma/client";
 import { bothLabsApprovedFilter, notBothLabsApprovedFilter } from "@/lib/microbiology";
 import { isMrlCleared } from "@/lib/mrl";
 import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const GRADES: Grade[] = ["A", "B"];
 const FORMATS: Format[] = ["WHOLE", "SLICED", "DICED"];
 
 export default async function AvailableToSellPage() {
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.availableToSell;
+  const orders = fullDict.orders;
+  const FORMAT_LABEL: Record<Format, string> = {
+    WHOLE: orders.formatWhole,
+    SLICED: orders.formatSliced,
+    DICED: orders.formatDiced,
+  };
+
   const [readyPallets, pendingMicroPallets, pendingOrders] = await Promise.all([
     prisma.pallet.findMany({
       where: {
@@ -64,57 +75,64 @@ export default async function AvailableToSellPage() {
   return (
     <div>
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Available to Sell</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          What can be promised to a client right now — approved stock in storage, minus what&apos;s already committed
-          to pending orders.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Grade / Format</th>
-              <th className="px-4 py-2 font-medium">Ready to Sell</th>
-              <th className="px-4 py-2 font-medium">Committed to Pending Orders</th>
-              <th className="px-4 py-2 font-medium">Available to Sell</th>
-              <th className="px-4 py-2 font-medium">Pending Microbiology</th>
+              <th className="px-4 py-2 font-medium">{dict.colGradeFormat}</th>
+              <th className="px-4 py-2 font-medium">{dict.colReadyToSell}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCommitted}</th>
+              <th className="px-4 py-2 font-medium">{dict.title}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPendingMicro}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={`${r.grade}-${r.format}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                 <td className="px-4 py-2">
-                  <Badge color={r.grade === "A" ? "green" : "amber"}>Grade {r.grade}</Badge>{" "}
+                  <Badge color={r.grade === "A" ? "green" : "amber"}>{orders.gradeLabel.replace("{grade}", r.grade)}</Badge>{" "}
                   <span className="text-slate-700">{FORMAT_LABEL[r.format]}</span>
                 </td>
                 <td className="px-4 py-2">
-                  {r.readyPalletCount} pallets <span className="text-slate-400">({r.readyTonnes.toFixed(1)}t)</span>
+                  {r.readyPalletCount} {orders.palletsSuffix} <span className="text-slate-400">({r.readyTonnes.toFixed(1)}t)</span>
                 </td>
-                <td className="px-4 py-2">{r.committed} pallets</td>
+                <td className="px-4 py-2">
+                  {r.committed} {orders.palletsSuffix}
+                </td>
                 <td className="px-4 py-2">
                   {r.availablePallets < 0 ? (
                     <Badge color="red">
-                      Short by {Math.abs(r.availablePallets)} pallets ({Math.abs(r.availableTonnes).toFixed(1)}t)
+                      {dict.shortBySuffix
+                        .replace("{count}", String(Math.abs(r.availablePallets)))
+                        .replace("{tonnes}", Math.abs(r.availableTonnes).toFixed(1))}
                     </Badge>
                   ) : r.availablePallets === 0 ? (
-                    <Badge color="slate">Fully committed</Badge>
+                    <Badge color="slate">{dict.fullyCommitted}</Badge>
                   ) : (
                     <Badge color="green">
-                      {r.availablePallets} pallets ({r.availableTonnes.toFixed(1)}t)
+                      {dict.availableSuffix
+                        .replace("{count}", String(r.availablePallets))
+                        .replace("{tonnes}", r.availableTonnes.toFixed(1))}
                     </Badge>
                   )}
                 </td>
                 <td className="px-4 py-2 text-slate-500">
-                  {r.pendingMicroCount > 0 ? `${r.pendingMicroCount} pallets (${r.pendingMicroTonnes.toFixed(1)}t)` : "—"}
+                  {r.pendingMicroCount > 0
+                    ? dict.availableSuffix
+                        .replace("{count}", String(r.pendingMicroCount))
+                        .replace("{tonnes}", r.pendingMicroTonnes.toFixed(1))
+                    : "—"}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  No stock or pending orders to show yet.
+                  {dict.noStockOrOrders}
                 </td>
               </tr>
             )}
@@ -122,11 +140,7 @@ export default async function AvailableToSellPage() {
         </table>
       </Card>
 
-      <p className="mt-4 text-xs text-slate-400">
-        &quot;Ready to sell&quot; counts pallets currently in storage whose lot has passed microbiology approval.
-        &quot;Committed&quot; is the remaining unallocated quantity on orders that are Confirmed, In Production, or
-        Packed. &quot;Pending microbiology&quot; is stock physically in storage but not yet cleared to sell.
-      </p>
+      <p className="mt-4 text-xs text-slate-400">{dict.footnote}</p>
     </div>
   );
 }

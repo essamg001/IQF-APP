@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import type { Role, Station } from "@prisma/client";
+import type { Role, Station, Locale } from "@prisma/client";
 
 declare module "next-auth" {
   interface Session {
@@ -16,6 +16,7 @@ declare module "next-auth" {
       isHeadOfMaintenance: boolean;
       isHeadOfPurchasing: boolean;
       station: Station | null;
+      locale: Locale;
     };
   }
   interface User {
@@ -25,6 +26,7 @@ declare module "next-auth" {
     isHeadOfMaintenance: boolean;
     isHeadOfPurchasing: boolean;
     station: Station | null;
+    locale: Locale;
   }
 }
 
@@ -58,6 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           isHeadOfMaintenance: user.isHeadOfMaintenance,
           isHeadOfPurchasing: user.isHeadOfPurchasing,
           station: user.station,
+          locale: user.locale,
         };
       },
     }),
@@ -72,6 +75,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.isHeadOfMaintenance = user.isHeadOfMaintenance;
         token.isHeadOfPurchasing = user.isHeadOfPurchasing;
         token.station = user.station;
+        token.locale = user.locale;
       }
       return token;
     },
@@ -84,6 +88,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.isHeadOfMaintenance = token.isHeadOfMaintenance as boolean;
         session.user.isHeadOfPurchasing = token.isHeadOfPurchasing as boolean;
         session.user.station = (token.station as Station | null) ?? null;
+        session.user.locale = (token.locale as Locale) ?? "EN";
       }
       return session;
     },

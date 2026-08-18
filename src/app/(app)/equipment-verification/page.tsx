@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { MetalDetectorSection } from "./metal-detector-section";
 import { ChlorineDosingSection } from "./chlorine-dosing-section";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function EquipmentVerificationPage({
   searchParams,
@@ -17,6 +19,8 @@ export default async function EquipmentVerificationPage({
   if (!session?.user || !["OWNER", "QUALITY", "PRODUCTION"].includes(session.user.role)) {
     redirect("/");
   }
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.equipmentVerification;
 
   const { date: dateParam } = await searchParams;
   const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
@@ -43,20 +47,15 @@ export default async function EquipmentVerificationPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Equipment Verification</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Metal Detector (CAL03607) — a sealed carton is passed through the packaging-room detector before
-            palletisation, tested hourly against three metal test kits (Ferrous/Non-Ferrous/Stainless steel).
-            Dosing Pump / Chlorine (STR03117) — the hourly manual free-chlorine reading in the wash tank checked
-            against the dosing machine&apos;s set point.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <form className="flex items-end gap-2">
-          <FieldGroup label="Date">
+          <FieldGroup label={fullDict.common.date}>
             <Input name="date" type="date" defaultValue={dateStr} />
           </FieldGroup>
           <Button type="submit" variant="secondary">
-            Go
+            {fullDict.common.go}
           </Button>
         </form>
       </div>
@@ -70,7 +69,7 @@ export default async function EquipmentVerificationPage({
               {(["DAY", "NIGHT"] as const).map((shiftType) => (
                 <div key={shiftType} className="space-y-4">
                   <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {shiftType === "DAY" ? "Shift 1 (Day)" : "Shift 2 (Night)"}
+                    {shiftType === "DAY" ? dict.shift1Day : dict.shift2Night}
                   </h4>
                   <MetalDetectorSection
                     factoryId={f.id}
@@ -100,7 +99,7 @@ export default async function EquipmentVerificationPage({
 
       {factories.length === 0 && (
         <Card>
-          <p className="text-sm text-slate-400">No factories set up yet.</p>
+          <p className="text-sm text-slate-400">{dict.noFactoriesYet}</p>
         </Card>
       )}
     </div>

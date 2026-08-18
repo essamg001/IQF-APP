@@ -182,6 +182,13 @@ enum Station {
   LAB
 }
 
+// Chosen at login (and changeable any time from the sidebar); drives which
+// dictionary the whole app renders from and sets dir="rtl" for Arabic.
+enum Locale {
+  EN
+  AR
+}
+
 enum QualityDecision {
   ACCEPTED
   REJECTED
@@ -221,6 +228,7 @@ model User {
   // Not tied to a Role since there's no dedicated "Purchasing" role either.
   isHeadOfPurchasing Boolean @default(false)
   station            Station?
+  locale             Locale   @default(EN)
   createdAt          DateTime @default(now())
 
   qualityChecks            QualityCheck[]
@@ -257,6 +265,16 @@ model User {
   confirmedStructuralIssues StructuralIssue[] @relation("StructuralIssueConfirmedBy")
   completedStructuralIssues StructuralIssue[] @relation("StructuralIssueCompletedBy")
   uploadedStructuralIssuePhotos StructuralIssuePhoto[] @relation("StructuralIssuePhotoUploadedBy")
+
+  reportedNonConformanceReports  NonConformanceReport[] @relation("NonConformanceReportedBy")
+  verifiedNonConformanceReports  NonConformanceReport[] @relation("NonConformanceVerifiedBy")
+  uploadedNonConformanceReportPhotos NonConformanceReportPhoto[] @relation("NonConformanceReportPhotoUploadedBy")
+
+
+  personalItemChecksCheckedIn  PersonalItemShiftCheck[] @relation("PersonalItemCheckedInBy")
+  personalItemChecksCheckedOut PersonalItemShiftCheck[] @relation("PersonalItemCheckedOutBy")
+
+  recordedInjuryRecords InjuryRecord[]
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -389,6 +407,15 @@ model Factory {
   metalDetectorMaintenanceChecks MetalDetectorMaintenanceCheck[]
   chlorineDosingChecks ChlorineDosingCheck[]
   masterCleaningTaskLogs MasterCleaningTaskLog[]
+  personalItemShiftChecks PersonalItemShiftCheck[]
+  monthlyFirstAidSupplyLogs MonthlyFirstAidSupplyLog[]
+  injuryRecords             InjuryRecord[]
+  bladeEquipmentChecks      BladeEquipmentCheck[]
+  bladeIssueRecords         BladeIssueRecord[]
+  bladeIncidentReports      BladeIncidentReport[]
+  packagingMaterialsDailyLogs PackagingMaterialsDailyLog[]
+  forkliftEquipment           ForkliftEquipment[]
+  nonConformanceReports       NonConformanceReport[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -575,7 +602,11 @@ model ShiftLog {
   // automatically once the day's Daily Report records this shift's line
   // uptime (see updateLineEfficiencyAction), or entered by hand if known.
   endTime     DateTime?
-  workerCount Int
+  // Optional -- the real per-role headcount lives in the Daily Report's
+  // Labour Distribution breakdown. Null when a shift is auto-created (e.g.
+  // by logging a Production Lot before anyone opened the shift by hand);
+  // still asked for on the manual Log Shift form.
+  workerCount Int?
   createdAt   DateTime  @default(now())
 
   // Set when a lot from this shift gets a split microbiology result (one lab
@@ -2170,3 +2201,387 @@ model StructuralIssuePhoto {
 
   @@index([structuralIssueId])
 }
+
+// Which named employees, by job/station, are allowed to carry a phone/pen/
+// calculator/stapler in the packhouse (HSE03290/91) -- Owner or Quality
+// manages this list; isActive rather than deleting so shift-check history
+// stays linked to a real name even after someone's authorization is revoked.
+model PersonalItemAuthorization {
+  id               String   @id @default(cuid())
+  name             String
+  job              String?
+  location         String?
+  allowsMobile     Boolean  @default(false)
+  allowsPens       Boolean  @default(false)
+  allowsCalculator Boolean  @default(false)
+  allowsOther      Boolean  @default(false)
+  otherNote        String?
+  notes            String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  checks PersonalItemShiftCheck[]
+}
+
+// One row per authorized person per shift -- created at check-in (item
+// confirmed present), completed at check-out (item confirmed returned).
+// Same open-then-close pattern as ShiftLog.endTime: checkedOutAt starts
+// null and is only ever filled in, never overwritten.
+// HSE03291's condition codes -- 1=Intact, 2=Cracked, 3=Broken, 4=Lost. A
+// Broken/Lost reading is exactly when HSE03291 says to file a GEN03108
+// non-conformance report (see the standalone Non-Conformance Report page).
+enum PersonalItemCondition {
+  INTACT
+  CRACKED
+  BROKEN
+  LOST
+}
+
+model PersonalItemShiftCheck {
+  id              String                    @id @default(cuid())
+  authorizationId String
+  authorization   PersonalItemAuthorization @relation(fields: [authorizationId], references: [id])
+  factoryId       String
+  factory         Factory                   @relation(fields: [factoryId], references: [id])
+  date            DateTime
+  shiftType       ShiftType
+
+  checkedInAt       DateTime @default(now())
+  checkedInByName   String
+  checkedInByUserId String?
+  checkedInByUser   User?    @relation("PersonalItemCheckedInBy", fields: [checkedInByUserId], references: [id])
+
+  // Condition at start of work, per item type -- only the ones the person
+  // is actually authorized for get filled in (see PersonalItemAuthorization
+  // .allowsX). Combines HSE03291's condition tracking into the same
+  // check-in/check-out row this page already had, rather than a second
+  // parallel record -- one sheet gives you everything both forms did.
+  mobileStatusStart     PersonalItemCondition?
+  pensStatusStart       PersonalItemCondition?
+  calculatorStatusStart PersonalItemCondition?
+  otherStatusStart      PersonalItemCondition?
+
+  checkedOutAt       DateTime?
+  checkedOutByName   String?
+  checkedOutByUserId String?
+  checkedOutByUser   User?     @relation("PersonalItemCheckedOutBy", fields: [checkedOutByUserId], references: [id])
+
+  mobileStatusEnd     PersonalItemCondition?
+  pensStatusEnd       PersonalItemCondition?
+  calculatorStatusEnd PersonalItemCondition?
+  otherStatusEnd      PersonalItemCondition?
+
+  actionTaken String?
+  notes       String?
+
+  @@unique([authorizationId, factoryId, date, shiftType])
+  @@index([factoryId, date, shiftType])
+}
+
+// The month-level facts on HSE03203's header -- who runs the first-aid box,
+// the blue plaster lot number (passed through the metal detector so a torn
+// piece stays detectable), and the month's opening stock. Created/edited via
+// upsert on first save, same as LaundryDailySignOff's header fields.
+model MonthlyFirstAidSupplyLog {
+  id                        String   @id @default(cuid())
+  factoryId                 String
+  factory                   Factory  @relation(fields: [factoryId], references: [id])
+  month                     Int
+  year                      Int
+  supervisorName            String?
+  alternateSupervisorName   String?
+  bluePlasterLotNumber      String?
+  bluePlasterOpeningBalance Int?
+  glovesOpeningBalance      Int?
+  createdAt                 DateTime @default(now())
+
+  @@unique([factoryId, month, year])
+}
+
+// One row per injury. Blue plaster/glove "current balance" is deliberately
+// not stored -- it's derived from the month's opening balance minus the
+// running total of itemsReleased across rows in order (see injuryLog.ts),
+// same reasoning as isStructuralIssueOverdue: a typed balance can drift from
+// reality, a computed one can't.
+model InjuryRecord {
+  id                  String   @id @default(cuid())
+  factoryId           String
+  factory             Factory  @relation(fields: [factoryId], references: [id])
+  date                DateTime
+  employeeName        String
+  packingGroupNumber  String?
+  injuryDescription   String
+  occurredInWork      Boolean
+  sickLeaveDays       Int?
+  returnToWorkDate    DateTime?
+  referredToPhysician Boolean  @default(false)
+
+  bluePlasterReleaseTime   String?
+  bluePlasterItemsReleased Int?
+  glovesReleaseTime        String?
+  glovesItemsReleased      Int?
+
+  endOfDayConfirmed     Boolean @default(false)
+  endOfDayConfirmedTime String?
+  correctiveAction      String?
+  firstAidSupervisorSignature String?
+
+  recordedByUserId String?
+  recordedByUser   User?   @relation(fields: [recordedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  @@index([factoryId, date])
+}
+
+// Part 1 of HSE03210 -- a machine's built-in blade, checked for a sound
+// (intact) blade at installation and at end of operation, washed/sanitized
+// an open-ended number of times through the shift (see BladeWashEvent) --
+// not a fixed hourly grid, since wash timing isn't tied to the clock.
+model BladeEquipmentCheck {
+  id                     String   @id @default(cuid())
+  factoryId              String
+  factory                Factory  @relation(fields: [factoryId], references: [id])
+  date                   DateTime
+  shiftType              ShiftType
+  equipmentName          String
+  bladeType              String?
+  replaceableBladeCount  Int?
+  soundAtInstallation    Boolean  @default(false)
+  soundAtEndOfOperation  Boolean  @default(false)
+  notes                  String?
+  createdAt              DateTime @default(now())
+
+  washEvents BladeWashEvent[]
+
+  @@index([factoryId, date])
+}
+
+model BladeWashEvent {
+  id                    String              @id @default(cuid())
+  equipmentCheckId      String
+  equipmentCheck        BladeEquipmentCheck @relation(fields: [equipmentCheckId], references: [id], onDelete: Cascade)
+  recordedAt            DateTime            @default(now())
+
+  @@index([equipmentCheckId])
+}
+
+// Part 2 -- a numbered knife issued to a worker at shift start, and the same
+// number must come back at shift end (piece count checked too). Same
+// open-then-close pattern as ShiftLog.endTime / PersonalItemShiftCheck:
+// returnedAt starts null, filled in once, never overwritten. A mismatched
+// receipt number or missing piece is exactly the gap Part 3 exists to catch.
+model BladeIssueRecord {
+  id                 String    @id @default(cuid())
+  factoryId          String
+  factory            Factory   @relation(fields: [factoryId], references: [id])
+  date               DateTime
+  shiftType          ShiftType
+  workerName         String
+  packingGroupNumber String?
+
+  issuedAt         DateTime @default(now())
+  issueKnifeNumber String
+
+  returnedAt         DateTime?
+  receiptKnifeNumber String?
+  pieceCount         Int?
+  notes              String?
+
+  createdAt DateTime @default(now())
+
+  @@index([factoryId, date])
+}
+
+// Part 3 -- reporting a broken blade or a missing replaceable piece, from
+// either a hand knife (Part 2) or a machine (Part 1). reportedByName is free
+// text, not session-derived -- the reporter is often a line worker with no
+// app login (same reasoning as StaffTrainingRecord.supervisorName).
+model BladeIncidentReport {
+  id               String   @id @default(cuid())
+  factoryId        String
+  factory          Factory  @relation(fields: [factoryId], references: [id])
+  date             DateTime
+  reportedAt       DateTime @default(now())
+  reportedByName   String
+  report           String
+  relatedReference String?
+  correctiveAction String?
+  createdAt        DateTime @default(now())
+
+  @@index([factoryId, date])
+}
+
+// STO02421 -- the day-level header (what's being packed, who signed).
+// Created/edited via upsert on first save, same as MonthlyFirstAidSupplyLog.
+// storeName is STO02408's separate "store name" header field -- the specific
+// storage room/warehouse, which can differ from the factory/farm itself.
+model PackagingMaterialsDailyLog {
+  id                     String   @id @default(cuid())
+  factoryId              String
+  factory                Factory  @relation(fields: [factoryId], references: [id])
+  date                   DateTime
+  finalProduct           String?
+  storeName              String?
+  packhouseManagerName   String?
+  storeSupervisorName    String?
+  createdAt              DateTime @default(now())
+
+  items PackagingMaterialItem[]
+
+  @@unique([factoryId, date])
+}
+
+// One row per item per day -- combines STO02421's daily reconciliation
+// (opening/used/damaged/closing) with STO02408's stock-card fields (code,
+// unit, min/max level, expiry, storage location, receipt/voucher #, supply
+// or issue destination, store keeper) so one sheet carries everything both
+// forms did. Closing balance is deliberately not stored, it's opening plus
+// received minus used minus damaged (see packagingMaterials.ts), same
+// "derived, not typed" reasoning as isStructuralIssueOverdue. Item name is
+// free text (owner's call) -- opening balance AND the code/unit/min/max
+// fields are all suggested from yesterday's entry for the same name (see
+// page.tsx), matched case-insensitively, but stay editable.
+model PackagingMaterialItem {
+  id                      String                     @id @default(cuid())
+  dailyLogId              String
+  dailyLog                PackagingMaterialsDailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  itemName                String
+  productCode             String?
+  productUnit             String?
+  minLevel                Int?
+  maxLevel                Int?
+  openingBalance          Int?
+  quantityReceived        Int?
+  quantityUsed            Int?
+  quantityDamaged         Int?
+  receiptOrVoucherNumber  String?
+  supplyOrIssueDestination String?
+  expiryDate              DateTime?
+  storageLocation         String?
+  lotNumber               String?
+  storeKeeperName         String?
+  createdAt               DateTime                   @default(now())
+
+  @@index([dailyLogId])
+}
+
+enum ForkliftEquipmentType {
+  DIESEL_CLARK
+  ELECTRIC_CLARK
+  POWER_PALLET
+}
+
+// HSE03298 -- one sheet per piece of equipment, registering its glass/
+// plastic part count so daily checks below know what they're inspecting for
+// (a food-safety concern: a broken glass/plastic fragment falling into
+// product).
+model ForkliftEquipment {
+  id                            String                @id @default(cuid())
+  factoryId                     String
+  factory                       Factory               @relation(fields: [factoryId], references: [id])
+  equipmentType                 ForkliftEquipmentType
+  equipmentNumber                String
+  glassPlasticPartsCount         Int?
+  glassPlasticPartsDescription   String?
+  createdAt                      DateTime              @default(now())
+
+  checks ForkliftConditionCheck[]
+
+  @@unique([factoryId, equipmentNumber])
+}
+
+// One row per equipment per day -- glass/plastic condition, cleaning
+// materials/concentration used, and who cleaned vs. who verified (two
+// different people, matching the printed form's two signature columns).
+model ForkliftConditionCheck {
+  id                    String            @id @default(cuid())
+  equipmentId           String
+  equipment             ForkliftEquipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  date                  DateTime
+  glassPlasticIntact    Boolean
+  cleaningMaterialsUsed String?
+  concentrationUsed     String?
+  cleanedByName         String?
+  checkedByName         String?
+  notes                 String?
+  createdAt             DateTime          @default(now())
+
+  @@unique([equipmentId, date])
+}
+
+// GEN03108 -- the general-purpose escalation form. Deliberately separate
+// from Quality Issues / Blade Incident Report / Structural Issues (each of
+// those stays its own domain-specific record); this is the company-wide
+// non-conformance mechanism other forms point to when something needs
+// formal root-cause + CAPA tracking outside of a specific workflow.
+enum NonConformanceType {
+  PRODUCT
+  PROCESS
+  EQUIPMENT
+  DOCUMENTATION
+  SUPPLIER
+  OTHER
+}
+
+enum NonConformanceSource {
+  INTERNAL_AUDIT
+  EXTERNAL_AUDIT
+  CUSTOMER_COMPLAINT
+  INSPECTION
+  STAFF_REPORT
+  OTHER
+}
+
+model NonConformanceReport {
+  id        String  @id @default(cuid())
+  factoryId String
+  factory   Factory @relation(fields: [factoryId], references: [id])
+
+  date               DateTime
+  location           String
+  productOrReference String?
+  ncType             NonConformanceType
+  source             NonConformanceSource
+  description        String
+
+  reportedByName   String
+  reportedByUserId String?
+  reportedByUser   User?    @relation("NonConformanceReportedBy", fields: [reportedByUserId], references: [id])
+  reportedAt       DateTime @default(now())
+
+  // CAPA fields -- same shape as Quality Issues' root-cause/verification
+  // skeleton (src/app/(app)/quality-issues/actions.ts), reused here rather
+  // than reinvented.
+  rootCause        String?
+  correctiveAction String?
+  preventiveAction String?
+
+  verifiedByName    String?
+  verifiedByUserId  String?
+  verifiedByUser    User?     @relation("NonConformanceVerifiedBy", fields: [verifiedByUserId], references: [id])
+  verifiedAt        DateTime?
+  verificationNotes String?
+
+  photos NonConformanceReportPhoto[]
+
+  isTestData Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([factoryId])
+  @@index([ncType])
+}
+
+model NonConformanceReportPhoto {
+  id                     String               @id @default(cuid())
+  nonConformanceReportId String
+  nonConformanceReport   NonConformanceReport @relation(fields: [nonConformanceReportId], references: [id], onDelete: Cascade)
+  fileName               String
+  originalName           String
+  caption                String?
+  uploadedByUserId       String?
+  uploadedBy             User?                @relation("NonConformanceReportPhotoUploadedBy", fields: [uploadedByUserId], references: [id])
+  createdAt              DateTime             @default(now())
+
+  @@index([nonConformanceReportId])
+}
+

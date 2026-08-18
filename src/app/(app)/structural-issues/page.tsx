@@ -3,8 +3,10 @@ import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dates";
 import { isStructuralIssueOverdue } from "@/lib/structuralIssues";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const STATUS_COLOR = {
   REPORTED: "amber",
@@ -12,13 +14,16 @@ const STATUS_COLOR = {
   COMPLETED: "green",
 } as const;
 
-const STATUS_LABEL = {
-  REPORTED: "Reported",
-  PLANNED: "Planned",
-  COMPLETED: "Completed",
-} as const;
-
 export default async function StructuralIssuesPage() {
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).structuralIssues;
+
+  const STATUS_LABEL = {
+    REPORTED: dict.statusReported,
+    PLANNED: dict.statusPlanned,
+    COMPLETED: dict.statusCompleted,
+  } as const;
+
   const issues = await prisma.structuralIssue.findMany({
     include: { factory: true, _count: { select: { photos: true } } },
     orderBy: { reportedAt: "desc" },
@@ -31,29 +36,31 @@ export default async function StructuralIssuesPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Structural Issues</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Physical damage in the factory — reported, confirmed, planned, and tracked to completion.
+            {dict.subtitle}
             {overdueCount > 0 && (
-              <span className="ml-2">
-                <Badge color="red">{overdueCount} overdue</Badge>
+              <span className="ms-2">
+                <Badge color="red">
+                  {overdueCount} {dict.overdue}
+                </Badge>
               </span>
             )}
           </p>
         </div>
-        <LinkButton href="/structural-issues/new">Report Issue</LinkButton>
+        <LinkButton href="/structural-issues/new">{dict.reportIssue}</LinkButton>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Location</th>
-              <th className="px-4 py-2 font-medium">Factory</th>
-              <th className="px-4 py-2 font-medium">Reported By</th>
-              <th className="px-4 py-2 font-medium">Reported</th>
-              <th className="px-4 py-2 font-medium">Target Completion</th>
-              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">{dict.colLocation}</th>
+              <th className="px-4 py-2 font-medium">{dict.colFactory}</th>
+              <th className="px-4 py-2 font-medium">{dict.colReportedBy}</th>
+              <th className="px-4 py-2 font-medium">{dict.colReported}</th>
+              <th className="px-4 py-2 font-medium">{dict.colTargetCompletion}</th>
+              <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
             </tr>
           </thead>
           <tbody>
@@ -63,24 +70,24 @@ export default async function StructuralIssuesPage() {
                 <tr key={i.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2">
                     <Link href={`/structural-issues/${i.id}`} className="font-medium text-emerald-700 hover:underline">
-                      {i.location}
+                      {dict.knownLocationLabels[i.location] ?? i.location}
                     </Link>
                     {i._count.photos > 0 && (
-                      <span className="ml-1.5 text-xs text-slate-400">
+                      <span className="ms-1.5 text-xs text-slate-400">
                         ({i._count.photos} photo{i._count.photos === 1 ? "" : "s"})
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-2 text-slate-600">{i.factory.name}</td>
-                  <td className="px-4 py-2 text-slate-600">{i.reportedByName}</td>
-                  <td className="px-4 py-2 text-slate-500">{format(i.reportedAt, "dd MMM yyyy")}</td>
+                  <td className="px-4 py-2 text-slate-600">{dict.knownReporterLabels[i.reportedByName] ?? i.reportedByName}</td>
+                  <td className="px-4 py-2 text-slate-500">{formatDate(i.reportedAt, "dd MMM yyyy", locale)}</td>
                   <td className="px-4 py-2 text-slate-500">
-                    {i.proposedCompletionDate ? format(i.proposedCompletionDate, "dd MMM yyyy") : "—"}
+                    {i.proposedCompletionDate ? formatDate(i.proposedCompletionDate, "dd MMM yyyy", locale) : "—"}
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-1.5">
                       <Badge color={STATUS_COLOR[i.status]}>{STATUS_LABEL[i.status]}</Badge>
-                      {overdue && <Badge color="red">Overdue</Badge>}
+                      {overdue && <Badge color="red">{dict.overdueBadge}</Badge>}
                     </div>
                   </td>
                 </tr>
@@ -89,7 +96,7 @@ export default async function StructuralIssuesPage() {
             {issues.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                  No structural issues reported yet.
+                  {dict.noIssues}
                 </td>
               </tr>
             )}

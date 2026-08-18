@@ -1,3 +1,16 @@
+import { format } from "date-fns";
+import { arEG } from "date-fns/locale/ar-EG";
+import type { Locale as AppLocale } from "@prisma/client";
+
+/**
+ * Locale-aware date formatting -- ar-EG gives Arabic month/day names with
+ * Western digits (0-9), matching how dates are actually written day-to-day
+ * in Egypt (as opposed to ar-SA's Eastern Arabic numerals).
+ */
+export function formatDate(date: Date, pattern: string, locale: AppLocale): string {
+  return format(date, pattern, locale === "AR" ? { locale: arEG } : undefined);
+}
+
 /**
  * Parses a date/datetime-local input value, returning undefined for anything
  * that doesn't produce a valid Date (locale/keyboard quirks on some devices

@@ -23,3 +23,7 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+html[lang="ar"] body {
+  font-family: var(--font-arabic), Arial, Helvetica, sans-serif;
+}

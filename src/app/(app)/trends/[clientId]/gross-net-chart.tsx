@@ -1,11 +1,13 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 const GROSS_COLOR = "#2a78d6";
 const NET_COLOR = "#1baf7a";
 
 export function GrossNetChart({ data }: { data: { year: string; gross: number; net: number }[] }) {
+  const dict = useTranslations().trends;
   const format = (v: number | string | undefined) => `$${Number(v ?? 0).toLocaleString()}`;
 
   return (
@@ -19,8 +21,8 @@ export function GrossNetChart({ data }: { data: { year: string; gross: number; n
           contentStyle={{ borderRadius: 8, borderColor: "#e1e0d9", fontSize: 13 }}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="gross" name="Gross" fill={GROSS_COLOR} radius={[4, 4, 0, 0]} maxBarSize={36} />
-        <Bar dataKey="net" name="Net (after claims)" fill={NET_COLOR} radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="gross" name={dict.grossSeriesLabel} fill={GROSS_COLOR} radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="net" name={dict.netSeriesLabel} fill={NET_COLOR} radius={[4, 4, 0, 0]} maxBarSize={36} />
       </BarChart>
     </ResponsiveContainer>
   );

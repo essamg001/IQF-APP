@@ -14,6 +14,8 @@ import {
 } from "@/lib/timezone";
 import { FieldQualityTable, type Period, type PeriodSection, type FieldRow, type TicketCheck } from "./field-quality-table";
 import type { Field } from "@prisma/client";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const CHECK_SELECT = {
   id: true,
@@ -209,6 +211,8 @@ export default async function FieldQualityPage() {
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).fieldQuality;
 
   const fields = await prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } });
   const fieldById = new Map(fields.map((f) => [f.id, f]));
@@ -234,7 +238,7 @@ export default async function FieldQualityPage() {
       checks,
       fieldById,
       (d) => formatYMD(startOfWeek(egyptDateOnly(d), { weekStartsOn: 1 })),
-      (key) => `Week of ${format(parseDateKey(key), "dd MMM yyyy")}`,
+      (key) => dict.weekOfLabel.replace("{date}", format(parseDateKey(key), "dd MMM yyyy")),
       (key) => parseDateKey(key).getTime(),
       8
     ),
@@ -250,7 +254,7 @@ export default async function FieldQualityPage() {
       checks,
       fieldById,
       (d) => egyptSeasonKey(d),
-      (key) => egyptSeasonLabel(key),
+      (key) => egyptSeasonLabel(key, locale),
       (key) => Number(key.split("-")[0]),
       SEASON_BUCKET_COUNT
     ),
@@ -259,13 +263,8 @@ export default async function FieldQualityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Field Quality</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Pre-Decap Arrival quality rolled up per field/plot — the last checkpoint before fruit from multiple fields
-          gets mixed at the decap facility. Trend compares each period to the one immediately before it; a season
-          runs Nov 1 – Jun 30. Expand a field row to see every individual inspection behind it, cross-referenced to
-          the harvest ticket it came from where one was recorded.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       <FieldQualityTable dataByPeriod={dataByPeriod} />

@@ -3,12 +3,18 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
+import { useTranslations } from "@/lib/i18n/locale-context";
+
+function MapLoading() {
+  const { fields: dict } = useTranslations();
+  return <p className="py-8 text-center text-sm text-slate-400">{dict.loadingMap}</p>;
+}
 
 // Leaflet touches `window` at module load time, so it can't be part of the
 // server-rendered pass even inside a client component tree.
 const FieldsLeafletMap = dynamic(() => import("./fields-leaflet-map").then((m) => m.FieldsLeafletMap), {
   ssr: false,
-  loading: () => <p className="py-8 text-center text-sm text-slate-400">Loading map…</p>,
+  loading: MapLoading,
 });
 
 export type FieldRow = {
@@ -30,6 +36,7 @@ export type FieldRow = {
 export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const { fields: dict } = useTranslations();
 
   const farmLabel = useMemo(() => {
     const names = new Set(fields.map((f) => f.farmName));
@@ -53,30 +60,36 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
         <Card className="col-span-2 p-3">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900">
-              {farmLabel} layout — {fields.length} plots, {totalArea.toFixed(1)} feddans
+              {dict.layoutTitle
+                .replace("{farm}", farmLabel)
+                .replace("{count}", String(fields.length))
+                .replace("{area}", totalArea.toFixed(1))}
             </h2>
-            <span className="text-xs text-slate-400">Click a plot for details</span>
+            <span className="text-xs text-slate-400">{dict.clickPlotHint}</span>
           </div>
           {hasGeometry ? (
             <FieldsLeafletMap fields={fields} selectedFieldId={selectedFieldId} onSelect={setSelectedFieldId} />
           ) : (
-            <p className="py-8 text-center text-sm text-slate-400">No boundary geometry.</p>
+            <p className="py-8 text-center text-sm text-slate-400">{dict.noGeometry}</p>
           )}
         </Card>
 
         <Card className="p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Field details</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.fieldDetailsTitle}</h2>
           {selectedField ? (
             <dl className="mt-3 space-y-2 text-sm">
-              <Row label="Name" value={selectedField.name} />
-              <Row label="Farm" value={selectedField.farmName} />
-              <Row label="Station" value={selectedField.station} />
-              <Row label="Valve" value={selectedField.valve} />
-              <Row label="Area" value={selectedField.areaFeddans ? `${selectedField.areaFeddans} feddans` : null} />
-              <Row label="Planting date" value={selectedField.plantingDate} />
+              <Row label={dict.rowName} value={selectedField.name} />
+              <Row label={dict.rowFarm} value={selectedField.farmName} />
+              <Row label={dict.rowStation} value={selectedField.station} />
+              <Row label={dict.rowValve} value={selectedField.valve} />
               <Row
-                label="Avg yield"
-                value={selectedField.avgTonPerFeddan ? `${selectedField.avgTonPerFeddan} ton/feddan` : null}
+                label={dict.rowArea}
+                value={selectedField.areaFeddans ? `${selectedField.areaFeddans} ${dict.feddansSuffix}` : null}
+              />
+              <Row label={dict.rowPlantingDate} value={selectedField.plantingDate} />
+              <Row
+                label={dict.rowAvgYield}
+                value={selectedField.avgTonPerFeddan ? `${selectedField.avgTonPerFeddan} ${dict.tonPerFeddanSuffix}` : null}
               />
               {selectedField.googleMapsUrl && (
                 <div className="pt-2">
@@ -86,36 +99,38 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
                     rel="noopener noreferrer"
                     className="text-emerald-700 hover:underline"
                   >
-                    Open in Google Maps →
+                    {dict.openInGoogleMaps}
                   </a>
                 </div>
               )}
             </dl>
           ) : (
-            <p className="mt-3 text-sm text-slate-400">Click a plot on the map, or a row in the table below.</p>
+            <p className="mt-3 text-sm text-slate-400">{dict.clickPlotOrRow}</p>
           )}
         </Card>
       </div>
 
       <Card className="overflow-x-auto p-0">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">All plots ({filteredFields.length})</h2>
+          <h2 className="text-sm font-semibold text-slate-900">
+            {dict.allPlotsTitle.replace("{count}", String(filteredFields.length))}
+          </h2>
           <input
             type="text"
-            placeholder="Search name or valve…"
+            placeholder={dict.searchPlaceholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-56 rounded-md border border-slate-300 px-2 py-1 text-sm"
           />
         </div>
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Name</th>
-              <th className="px-4 py-2 font-medium">Area (feddans)</th>
-              <th className="px-4 py-2 font-medium">Planting Date</th>
-              <th className="px-4 py-2 font-medium">Avg ton/fed</th>
-              <th className="px-4 py-2 font-medium">Maps</th>
+              <th className="px-4 py-2 font-medium">{dict.rowName}</th>
+              <th className="px-4 py-2 font-medium">{dict.colAreaFeddans}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPlantingDate}</th>
+              <th className="px-4 py-2 font-medium">{dict.colAvgTonFed}</th>
+              <th className="px-4 py-2 font-medium">{dict.colMaps}</th>
             </tr>
           </thead>
           <tbody>
@@ -140,7 +155,7 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
                       onClick={(e) => e.stopPropagation()}
                       className="text-emerald-700 hover:underline"
                     >
-                      Open
+                      {dict.openLink}
                     </a>
                   ) : (
                     "—"
@@ -151,7 +166,7 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
             {filteredFields.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  No plots match.
+                  {dict.noPlotsMatch}
                 </td>
               </tr>
             )}
@@ -166,7 +181,7 @@ function Row({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2">
       <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right font-medium text-slate-800">{value || "—"}</dd>
+      <dd className="text-end font-medium text-slate-800">{value || "—"}</dd>
     </div>
   );
 }

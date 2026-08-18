@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/lib/i18n/locale-context";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 export type TicketCheck = {
   id: string;
@@ -61,58 +63,60 @@ export type PeriodSection = { key: string; label: string; rows: FieldRow[] };
 
 export type Period = "DAILY" | "WEEKLY" | "MONTHLY" | "SEASON";
 
-const PERIOD_LABEL: Record<Period, string> = { DAILY: "Daily", WEEKLY: "Weekly", MONTHLY: "Monthly", SEASON: "Season" };
+type FQDict = Dictionary["fieldQuality"];
 
-const METRICS: { key: keyof FieldRow; label: string; suffix: string }[] = [
-  { key: "brix", label: "Brix (≥7)", suffix: "" },
-  { key: "fruitColorPct", label: "Berry Colour (≥85%)", suffix: "%" },
-  { key: "internalQualityPct", label: "Internal Quality (≤10%)", suffix: "%" },
-  { key: "cratesOkPct", label: "Crates OK", suffix: "%" },
-  { key: "overmaturePct", label: "Over Maturity (≤50%)", suffix: "%" },
-  { key: "diameterUnder22mmPct", label: "Diameter <22mm (≤10%)", suffix: "%" },
-  { key: "botrytisPct", label: "Botrytis (≤10%)", suffix: "%" },
-  { key: "pestDiseasePct", label: "Pest/Disease (≤10%)", suffix: "%" },
-  { key: "wormEatenPct", label: "Worm-Eaten (≤10%)", suffix: "%" },
-  { key: "bruisesPct", label: "Bruises (≤20%)", suffix: "%" },
-  { key: "shapeDeformitiesPct", label: "Mishape (≤50%)", suffix: "%" },
-  { key: "sandDustPct", label: "Sand (≤15%)", suffix: "%" },
-  { key: "foreignBodiesPct", label: "Foreign Bodies (0%)", suffix: "%" },
-];
+function metricsFor(dict: FQDict): { key: keyof FieldRow; label: string; suffix: string }[] {
+  return [
+    { key: "brix", label: dict.metricBrix, suffix: "" },
+    { key: "fruitColorPct", label: dict.metricBerryColour, suffix: "%" },
+    { key: "internalQualityPct", label: dict.metricInternalQuality, suffix: "%" },
+    { key: "cratesOkPct", label: dict.metricCratesOk, suffix: "%" },
+    { key: "overmaturePct", label: dict.metricOverMaturity, suffix: "%" },
+    { key: "diameterUnder22mmPct", label: dict.metricDiameterUnder22mm, suffix: "%" },
+    { key: "botrytisPct", label: dict.metricBotrytis, suffix: "%" },
+    { key: "pestDiseasePct", label: dict.metricPestDisease, suffix: "%" },
+    { key: "wormEatenPct", label: dict.metricWormEaten, suffix: "%" },
+    { key: "bruisesPct", label: dict.metricBruises, suffix: "%" },
+    { key: "shapeDeformitiesPct", label: dict.metricMishape, suffix: "%" },
+    { key: "sandDustPct", label: dict.metricSand, suffix: "%" },
+    { key: "foreignBodiesPct", label: dict.metricForeignBodies, suffix: "%" },
+  ];
+}
 
 // Same metrics as above minus cratesOkPct -- that's an aggregate-only concept
 // (% of checks with crates OK) that doesn't apply to a single check; see the
 // dedicated "Crates OK" column in the drill-down instead.
-const CHECK_METRICS: { key: keyof TicketCheck; label: string; suffix: string }[] = [
-  { key: "brix", label: "Brix (≥7)", suffix: "" },
-  { key: "fruitColorPct", label: "Berry Colour (≥85%)", suffix: "%" },
-  { key: "internalQualityPct", label: "Internal Quality (≤10%)", suffix: "%" },
-  { key: "overmaturePct", label: "Over Maturity (≤50%)", suffix: "%" },
-  { key: "diameterUnder22mmPct", label: "Diameter <22mm (≤10%)", suffix: "%" },
-  { key: "botrytisPct", label: "Botrytis (≤10%)", suffix: "%" },
-  { key: "pestDiseasePct", label: "Pest/Disease (≤10%)", suffix: "%" },
-  { key: "wormEatenPct", label: "Worm-Eaten (≤10%)", suffix: "%" },
-  { key: "bruisesPct", label: "Bruises (≤20%)", suffix: "%" },
-  { key: "shapeDeformitiesPct", label: "Mishape (≤50%)", suffix: "%" },
-  { key: "sandDustPct", label: "Sand (≤15%)", suffix: "%" },
-  { key: "foreignBodiesPct", label: "Foreign Bodies (0%)", suffix: "%" },
-];
-
-const TOTAL_COLS = 4 + METRICS.length; // Field, Checks, Rejected, Trend + metrics
-const DRILLDOWN_COLS = 8 + CHECK_METRICS.length; // Date, Ticket#, Harvest Date, Station/Plot, Cut#, Weight/Crates, Decision, Crates OK + metrics
+function checkMetricsFor(dict: FQDict): { key: keyof TicketCheck; label: string; suffix: string }[] {
+  return [
+    { key: "brix", label: dict.metricBrix, suffix: "" },
+    { key: "fruitColorPct", label: dict.metricBerryColour, suffix: "%" },
+    { key: "internalQualityPct", label: dict.metricInternalQuality, suffix: "%" },
+    { key: "overmaturePct", label: dict.metricOverMaturity, suffix: "%" },
+    { key: "diameterUnder22mmPct", label: dict.metricDiameterUnder22mm, suffix: "%" },
+    { key: "botrytisPct", label: dict.metricBotrytis, suffix: "%" },
+    { key: "pestDiseasePct", label: dict.metricPestDisease, suffix: "%" },
+    { key: "wormEatenPct", label: dict.metricWormEaten, suffix: "%" },
+    { key: "bruisesPct", label: dict.metricBruises, suffix: "%" },
+    { key: "shapeDeformitiesPct", label: dict.metricMishape, suffix: "%" },
+    { key: "sandDustPct", label: dict.metricSand, suffix: "%" },
+    { key: "foreignBodiesPct", label: dict.metricForeignBodies, suffix: "%" },
+  ];
+}
 
 function TrendBadge({ row }: { row: FieldRow }) {
-  if (row.prevRejectionRate == null) return <span className="text-xs text-slate-400">no prior data</span>;
+  const dict = useTranslations().fieldQuality;
+  if (row.prevRejectionRate == null) return <span className="text-xs text-slate-400">{dict.noPriorData}</span>;
   const delta = row.rejectionRate - row.prevRejectionRate;
-  if (Math.abs(delta) < 1) return <span className="text-xs text-slate-400">flat</span>;
+  if (Math.abs(delta) < 1) return <span className="text-xs text-slate-400">{dict.flat}</span>;
   const worsening = delta > 0;
   return (
     <span className={cn("text-xs font-medium", worsening ? "text-red-600" : "text-emerald-600")}>
-      {worsening ? "▲" : "▼"} {Math.abs(delta).toFixed(1)} pts vs prior period
+      {worsening ? "▲" : "▼"} {Math.abs(delta).toFixed(1)} {dict.ptsVsPriorPeriod}
     </span>
   );
 }
 
-function FieldRowCells({ row }: { row: FieldRow }) {
+function FieldRowCells({ row, metrics }: { row: FieldRow; metrics: { key: keyof FieldRow; label: string; suffix: string }[] }) {
   return (
     <>
       <td className="px-4 py-2">{row.count}</td>
@@ -124,7 +128,7 @@ function FieldRowCells({ row }: { row: FieldRow }) {
       <td className="px-4 py-2">
         <TrendBadge row={row} />
       </td>
-      {METRICS.map((m) => {
+      {metrics.map((m) => {
         const value = row[m.key] as number | null;
         return (
           <td key={m.key} className="whitespace-nowrap px-4 py-2 text-slate-700">
@@ -136,22 +140,25 @@ function FieldRowCells({ row }: { row: FieldRow }) {
   );
 }
 
-function CheckDrilldown({ checks }: { checks: TicketCheck[] }) {
+function CheckDrilldown({ checks, totalCols }: { checks: TicketCheck[]; totalCols: number }) {
+  const dict = useTranslations().fieldQuality;
+  const checkMetrics = checkMetricsFor(dict);
+  const drilldownCols = 8 + checkMetrics.length;
   return (
     <tr className="bg-slate-50/60">
-      <td colSpan={TOTAL_COLS} className="px-4 py-3">
-        <table className="w-full text-left text-xs">
+      <td colSpan={totalCols} className="px-4 py-3">
+        <table className="w-full text-start text-xs">
           <thead className="text-slate-400">
             <tr>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Date/Time</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Ticket #</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Harvest Date</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Station/Plot</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Cut #</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Weight/Crates</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Decision</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Crates OK</th>
-              {CHECK_METRICS.map((m) => (
+              <th className="whitespace-nowrap px-2 py-1 font-medium">{dict.colDateTime}</th>
+              <th className="whitespace-nowrap px-2 py-1 font-medium">{dict.colTicketNo}</th>
+              <th className="whitespace-nowrap px-2 py-1 font-medium">{dict.colHarvestDate}</th>
+              <th className="whitespace-nowrap px-2 py-1 font-medium">{dict.colStationPlot}</th>
+              <th className="whitespace-nowrap px-2 py-1 font-medium">{dict.colCutNo}</th>
+              <th className="whitespace-nowrap px-2 py-1 font-medium">{dict.colWeightCrates}</th>
+              <th className="whitespace-nowrap px-2 py-1 font-medium">{dict.colDecision}</th>
+              <th className="whitespace-nowrap px-2 py-1 font-medium">{dict.colCratesOkShort}</th>
+              {checkMetrics.map((m) => (
                 <th key={m.key} className="whitespace-nowrap px-2 py-1 font-medium">
                   {m.label}
                 </th>
@@ -174,27 +181,27 @@ function CheckDrilldown({ checks }: { checks: TicketCheck[] }) {
                     <td className="whitespace-nowrap px-2 py-1 text-slate-700">{c.ticket.cutNo ?? "—"}</td>
                     <td className="whitespace-nowrap px-2 py-1 text-slate-700">
                       {c.ticket.weightKg != null ? `${c.ticket.weightKg} kg` : "—"}
-                      {c.ticket.cratesCount != null ? ` / ${c.ticket.cratesCount} crates` : ""}
+                      {c.ticket.cratesCount != null ? ` / ${c.ticket.cratesCount} ${dict.cratesSuffix}` : ""}
                     </td>
                   </>
                 ) : (
                   <td colSpan={5} className="whitespace-nowrap px-2 py-1 italic text-slate-400">
-                    No harvest ticket linked — logged directly against field
+                    {dict.noHarvestTicketLinked}
                   </td>
                 )}
                 <td className="whitespace-nowrap px-2 py-1">
                   {c.decision === "REJECTED" ? (
-                    <Badge color="red">Rejected</Badge>
+                    <Badge color="red">{dict.decisionRejected}</Badge>
                   ) : c.decision === "ACCEPTED" ? (
-                    <Badge color="green">Accepted</Badge>
+                    <Badge color="green">{dict.decisionAccepted}</Badge>
                   ) : (
                     "—"
                   )}
                 </td>
                 <td className="whitespace-nowrap px-2 py-1 text-slate-700">
-                  {c.cleaningGoodCratesOk == null ? "—" : c.cleaningGoodCratesOk ? "OK" : "Not OK"}
+                  {c.cleaningGoodCratesOk == null ? "—" : c.cleaningGoodCratesOk ? dict.cratesOkYes : dict.cratesOkNo}
                 </td>
-                {CHECK_METRICS.map((m) => {
+                {checkMetrics.map((m) => {
                   const value = c[m.key] as number | null;
                   return (
                     <td key={m.key} className="whitespace-nowrap px-2 py-1 text-slate-700">
@@ -206,8 +213,8 @@ function CheckDrilldown({ checks }: { checks: TicketCheck[] }) {
             ))}
             {checks.length === 0 && (
               <tr>
-                <td colSpan={DRILLDOWN_COLS} className="px-2 py-3 text-center text-slate-400">
-                  No inspections in this period.
+                <td colSpan={drilldownCols} className="px-2 py-3 text-center text-slate-400">
+                  {dict.noInspectionsInPeriod}
                 </td>
               </tr>
             )}
@@ -220,6 +227,9 @@ function CheckDrilldown({ checks }: { checks: TicketCheck[] }) {
 
 function SectionTable({ section }: { section: PeriodSection }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const dict = useTranslations().fieldQuality;
+  const metrics = metricsFor(dict);
+  const totalCols = 4 + metrics.length;
 
   const toggle = (fieldKey: string) => {
     setExpanded((prev) => {
@@ -234,14 +244,14 @@ function SectionTable({ section }: { section: PeriodSection }) {
     <div>
       <p className="mb-1 text-xs font-semibold text-slate-500">{section.label}</p>
       <Card className="overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="sticky left-0 bg-slate-50 px-4 py-2 font-medium">Field</th>
-              <th className="px-4 py-2 font-medium">Checks</th>
-              <th className="px-4 py-2 font-medium">Rejected</th>
-              <th className="px-4 py-2 font-medium">Trend</th>
-              {METRICS.map((m) => (
+              <th className="sticky start-0 bg-slate-50 px-4 py-2 font-medium">{dict.colField}</th>
+              <th className="px-4 py-2 font-medium">{dict.colChecks}</th>
+              <th className="px-4 py-2 font-medium">{dict.colRejected}</th>
+              <th className="px-4 py-2 font-medium">{dict.colTrend}</th>
+              {metrics.map((m) => (
                 <th key={m.key} className="whitespace-nowrap px-4 py-2 font-medium">
                   {m.label}
                 </th>
@@ -252,22 +262,24 @@ function SectionTable({ section }: { section: PeriodSection }) {
             {section.rows.map((row) => (
               <Fragment key={row.key}>
                 <tr className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="sticky left-0 bg-white px-4 py-2 font-medium text-slate-800">
+                  <td className="sticky start-0 bg-white px-4 py-2 font-medium text-slate-800">
                     <button type="button" onClick={() => toggle(row.key)} className="flex items-center gap-1.5 hover:underline">
                       <span className="text-slate-400">{expanded.has(row.key) ? "▾" : "▸"}</span>
                       {row.label}
-                      <span className="text-xs font-normal text-slate-400">({row.checks.length} checks)</span>
+                      <span className="text-xs font-normal text-slate-400">
+                        ({row.checks.length} {dict.checksSuffix})
+                      </span>
                     </button>
                   </td>
-                  <FieldRowCells row={row} />
+                  <FieldRowCells row={row} metrics={metrics} />
                 </tr>
-                {expanded.has(row.key) && <CheckDrilldown checks={row.checks} />}
+                {expanded.has(row.key) && <CheckDrilldown checks={row.checks} totalCols={totalCols} />}
               </Fragment>
             ))}
             {section.rows.length === 0 && (
               <tr>
-                <td colSpan={TOTAL_COLS} className="px-4 py-8 text-center text-slate-400">
-                  No Pre-Decap Arrival checks logged against a field in this period.
+                <td colSpan={totalCols} className="px-4 py-8 text-center text-slate-400">
+                  {dict.noChecksInPeriod}
                 </td>
               </tr>
             )}
@@ -281,6 +293,13 @@ function SectionTable({ section }: { section: PeriodSection }) {
 export function FieldQualityTable({ dataByPeriod }: { dataByPeriod: Record<Period, PeriodSection[]> }) {
   const [period, setPeriod] = useState<Period>("DAILY");
   const sections = dataByPeriod[period];
+  const dict = useTranslations().fieldQuality;
+  const PERIOD_LABEL: Record<Period, string> = {
+    DAILY: dict.periodDaily,
+    WEEKLY: dict.periodWeekly,
+    MONTHLY: dict.periodMonthly,
+    SEASON: dict.periodSeason,
+  };
 
   return (
     <div>
@@ -304,9 +323,7 @@ export function FieldQualityTable({ dataByPeriod }: { dataByPeriod: Record<Perio
         {sections.map((s) => (
           <SectionTable key={s.key} section={s} />
         ))}
-        {sections.length === 0 && (
-          <p className="py-8 text-center text-sm text-slate-400">No Pre-Decap Arrival checks logged yet.</p>
-        )}
+        {sections.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{dict.noChecksLoggedYet}</p>}
       </div>
     </div>
   );

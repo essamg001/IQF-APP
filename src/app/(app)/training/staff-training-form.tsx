@@ -4,6 +4,7 @@ import { useActionState, useRef } from "react";
 import { addStaffTrainingAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 export function StaffTrainingForm({
   knownNames,
@@ -21,6 +22,7 @@ export function StaffTrainingForm({
   const [state, formAction, pending] = useActionState(addStaffTrainingAction, undefined);
   const formRef = useRef<HTMLFormElement>(null);
   const errorMessage = state && state !== "ok" ? state : undefined;
+  const { staffTraining: dict, common } = useTranslations();
 
   return (
     <form
@@ -31,13 +33,13 @@ export function StaffTrainingForm({
       }}
       className="grid grid-cols-2 gap-3 sm:grid-cols-4"
     >
-      <FieldGroup label="Tier">
+      <FieldGroup label={dict.formTier}>
         <Select name="tier" defaultValue="WORKER">
-          <option value="SUPERVISOR">Supervisor / Management</option>
-          <option value="WORKER">Worker</option>
+          <option value="SUPERVISOR">{dict.optionSupervisor}</option>
+          <option value="WORKER">{dict.optionWorker}</option>
         </Select>
       </FieldGroup>
-      <FieldGroup label="Name">
+      <FieldGroup label={dict.formName}>
         <Input name="attendeeName" list="staff-training-names" required />
         <datalist id="staff-training-names">
           {knownNames.map((n) => (
@@ -45,7 +47,7 @@ export function StaffTrainingForm({
           ))}
         </datalist>
       </FieldGroup>
-      <FieldGroup label="Job Title">
+      <FieldGroup label={dict.formJobTitle}>
         <Input name="jobTitle" list="staff-training-job-titles" />
         <datalist id="staff-training-job-titles">
           {knownJobTitles.map((t) => (
@@ -53,14 +55,14 @@ export function StaffTrainingForm({
           ))}
         </datalist>
       </FieldGroup>
-      <FieldGroup label="Gender">
+      <FieldGroup label={dict.formGender}>
         <Select name="gender" defaultValue="">
           <option value="">—</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
+          <option value="Male">{dict.genderMale}</option>
+          <option value="Female">{dict.genderFemale}</option>
         </Select>
       </FieldGroup>
-      <FieldGroup label="Training Type">
+      <FieldGroup label={dict.formTrainingType}>
         <Input name="trainingType" list="staff-training-types" required />
         <datalist id="staff-training-types">
           {knownTypes.map((t) => (
@@ -68,13 +70,13 @@ export function StaffTrainingForm({
           ))}
         </datalist>
       </FieldGroup>
-      <FieldGroup label="Trained Date">
+      <FieldGroup label={dict.formTrainedDate}>
         <Input name="trainedDate" type="date" required />
       </FieldGroup>
-      <FieldGroup label="Expiry Date (if applicable)">
+      <FieldGroup label={dict.formExpiryDate}>
         <Input name="expiryDate" type="date" />
       </FieldGroup>
-      <FieldGroup label="Provider">
+      <FieldGroup label={dict.formProvider}>
         <Input name="provider" list="staff-training-providers" />
         <datalist id="staff-training-providers">
           {knownProviders.map((p) => (
@@ -82,7 +84,7 @@ export function StaffTrainingForm({
           ))}
         </datalist>
       </FieldGroup>
-      <FieldGroup label="Trainer">
+      <FieldGroup label={dict.formTrainer}>
         <Input name="trainerName" list="staff-training-trainers" />
         <datalist id="staff-training-trainers">
           {knownTrainers.map((t) => (
@@ -90,12 +92,12 @@ export function StaffTrainingForm({
           ))}
         </datalist>
       </FieldGroup>
-      <FieldGroup label="Notes">
+      <FieldGroup label={common.notes}>
         <Input name="notes" />
       </FieldGroup>
       <div className="col-span-2 flex items-end gap-2 sm:col-span-4">
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Add Training Record"}
+          {pending ? common.saving : dict.addRecord}
         </Button>
         {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
       </div>

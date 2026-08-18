@@ -2,6 +2,7 @@
 
 import { toggleCleaningFoamAction } from "./actions";
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 export function FoamToggleForm({
   factoryId,
@@ -16,6 +17,7 @@ export function FoamToggleForm({
   cleanedWithFoam: boolean;
   disabled: boolean;
 }) {
+  const dict = useTranslations().cleaningMode;
   return (
     <form action={toggleCleaningFoamAction.bind(null, factoryId, date, shiftType)}>
       <button
@@ -29,7 +31,7 @@ export function FoamToggleForm({
         )}
       >
         <span>{cleanedWithFoam ? "☑" : "☐"}</span>
-        Cleaned with foam washer this shift
+        {dict.cleanedWithFoam}
       </button>
     </form>
   );

@@ -6,6 +6,7 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SHIFT_HOURS } from "@/lib/shiftHours";
+import { useTranslations } from "@/lib/i18n/locale-context";
 import type { Factory } from "@prisma/client";
 
 // Derived from the same fixed schedule (Day 7:00 AM-7:00 PM, Night 7:00 PM-
@@ -35,6 +36,7 @@ export function ShiftForm({
   efficiencyLookup: EfficiencyLookupRow[];
 }) {
   const [error, formAction, pending] = useActionState(createShiftAction, undefined);
+  const dict = useTranslations().shifts;
 
   const options = useMemo(
     () =>
@@ -43,10 +45,10 @@ export function ShiftForm({
           value: `${f.id}::${shiftType}`,
           factoryId: f.id,
           shiftType,
-          label: `IQF${i + 1} — Shift ${shiftType === "DAY" ? "1 (Day)" : "2 (Night)"}`,
+          label: `IQF${i + 1} — ${shiftType === "DAY" ? dict.shift1Day : dict.shift2Night}`,
         }))
       ),
-    [factories]
+    [factories, dict]
   );
 
   const prefilledValue = initial?.factoryId && initial?.shiftType ? `${initial.factoryId}::${initial.shiftType}` : undefined;
@@ -102,7 +104,7 @@ export function ShiftForm({
       <Card className="space-y-4">
         <input type="hidden" name="factoryId" value={factoryId ?? ""} />
         <input type="hidden" name="shiftType" value={shiftType ?? ""} />
-        <FieldGroup label="Shift">
+        <FieldGroup label={dict.shiftLabel}>
           <Select value={selection} onChange={(e) => setSelection(e.target.value)} required>
             {options.map((o) => (
               <option key={o.value} value={o.value}>
@@ -111,11 +113,11 @@ export function ShiftForm({
             ))}
           </Select>
         </FieldGroup>
-        <FieldGroup label="Date">
+        <FieldGroup label={dict.dateLabel}>
           <Input name="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
         </FieldGroup>
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Start time">
+          <FieldGroup label={dict.startTimeLabel}>
             <Input
               name="startTime"
               type="time"
@@ -127,7 +129,7 @@ export function ShiftForm({
               }}
             />
           </FieldGroup>
-          <FieldGroup label="End time (optional)">
+          <FieldGroup label={dict.endTimeOptionalLabel}>
             <Input
               name="endTime"
               type="time"
@@ -140,21 +142,16 @@ export function ShiftForm({
           </FieldGroup>
         </div>
         {match && (match.uptimeFrom || match.uptimeTo) ? (
-          <p className="text-xs text-slate-500">
-            Prefilled from this shift&apos;s line uptime in Daily Report — edit if the actual start/end differs.
-          </p>
+          <p className="text-xs text-slate-500">{dict.prefilledFromUptimeNote}</p>
         ) : (
-          <p className="text-xs text-slate-500">
-            Leave end time blank if the shift hasn&apos;t finished yet — it fills in automatically once today&apos;s
-            Daily Report records this shift&apos;s line uptime.
-          </p>
+          <p className="text-xs text-slate-500">{dict.leaveEndBlankNote}</p>
         )}
-        <FieldGroup label="Number of workers">
+        <FieldGroup label={dict.numberOfWorkersLabel}>
           <Input name="workerCount" type="number" min="1" required />
         </FieldGroup>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Log shift"}
+          {pending ? dict.saving : dict.logShiftButton}
         </Button>
       </Card>
     </form>

@@ -4,12 +4,14 @@ import { auth } from "@/lib/auth";
 import { Card, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { canSeePricing, canManagePurchasing, canSignAsHeadOfProduction, canSignAsHeadOfMaintenance } from "@/lib/roles";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 type OpenItemRow = { label: string; count: number; href: string };
 
-function OpenItemsList({ rows }: { rows: OpenItemRow[] }) {
+function OpenItemsList({ rows, nothingLabel }: { rows: OpenItemRow[]; nothingLabel: string }) {
   const visible = rows.filter((r) => r.count > 0);
-  if (visible.length === 0) return <p className="mt-3 text-sm text-slate-400">Nothing needs your attention.</p>;
+  if (visible.length === 0) return <p className="mt-3 text-sm text-slate-400">{nothingLabel}</p>;
   return (
     <ul className="mt-3 divide-y divide-slate-100">
       {visible.map((r) => (
@@ -28,6 +30,7 @@ export default async function DashboardPage() {
   const session = await auth();
   const role = session?.user.role;
   const user = session?.user;
+  const dict = getDictionary(await resolveLocale()).dashboard;
 
   const [
     clientCount,
@@ -60,25 +63,25 @@ export default async function DashboardPage() {
   let revenueHint: string | undefined;
   if (canSeePricing(role)) {
     const value = await prisma.order.aggregate({ _sum: { valueUsd: true } });
-    revenueHint = `$${(value._sum.valueUsd ?? 0).toLocaleString()} total order value`;
+    revenueHint = dict.revenueHint.replace("{value}", `$${(value._sum.valueUsd ?? 0).toLocaleString()}`);
   }
 
   const purchasingRows: OpenItemRow[] = canManagePurchasing(user)
     ? [
-        { label: "Purchase requests awaiting your review", count: purchaseRequestsToReview, href: "/purchase-requests" },
-        { label: "Approved requests ready to order", count: purchaseRequestsToOrder, href: "/purchase-requests" },
+        { label: dict.purchaseRequestsAwaitingReview, count: purchaseRequestsToReview, href: "/purchase-requests" },
+        { label: dict.approvedRequestsReadyToOrder, count: purchaseRequestsToOrder, href: "/purchase-requests" },
       ]
     : [];
   if (canSignAsHeadOfProduction(user)) {
     purchasingRows.push({
-      label: "Orders awaiting receipt confirmation",
+      label: dict.ordersAwaitingReceiptConfirmation,
       count: purchaseRequestsAwaitingReceipt,
       href: "/purchase-requests",
     });
   }
   if (canManagePurchasing(user) || canSignAsHeadOfProduction(user)) {
     purchasingRows.push({
-      label: "Items awaiting working confirmation",
+      label: dict.itemsAwaitingWorkingConfirmation,
       count: purchaseRequestsAwaitingWorkingCheck,
       href: "/purchase-requests",
     });
@@ -87,46 +90,46 @@ export default async function DashboardPage() {
   const structuralRows: OpenItemRow[] = [];
   if (canSignAsHeadOfMaintenance(user)) {
     structuralRows.push({
-      label: "Structural issues awaiting your confirmation",
+      label: dict.structuralIssuesAwaitingConfirmation,
       count: structuralIssuesToConfirm,
       href: "/structural-issues",
     });
   }
   if (role === "OWNER" || canSignAsHeadOfMaintenance(user) || canSignAsHeadOfProduction(user)) {
     structuralRows.push({
-      label: "Structural issues overdue on their repair plan",
+      label: dict.structuralIssuesOverdue,
       count: structuralIssuesOverdue,
       href: "/structural-issues",
     });
   }
 
-  const alertRows: OpenItemRow[] = [{ label: "Unread alerts", count: unreadAlerts, href: "/alerts" }];
+  const alertRows: OpenItemRow[] = [{ label: dict.unreadAlerts, count: unreadAlerts, href: "/alerts" }];
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
-      <p className="mt-1 text-sm text-slate-500">Overview across clients, production, storage, and logistics.</p>
+      <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+      <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
 
       <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
-        <StatCard label="Clients" value={String(clientCount)} hint={revenueHint} />
-        <StatCard label="Active Orders" value={String(activeOrders)} />
-        <StatCard label="Pallets in Storage" value={String(palletsInStorage)} />
-        <StatCard label="Open Claims" value={String(openClaims)} />
-        <StatCard label="Pending Microbiology" value={String(pendingMicro)} />
+        <StatCard label={dict.statClients} value={String(clientCount)} hint={revenueHint} />
+        <StatCard label={dict.statActiveOrders} value={String(activeOrders)} />
+        <StatCard label={dict.statPalletsInStorage} value={String(palletsInStorage)} />
+        <StatCard label={dict.statOpenClaims} value={String(openClaims)} />
+        <StatCard label={dict.statPendingMicrobiology} value={String(pendingMicro)} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Alerts</h2>
-          <OpenItemsList rows={alertRows} />
+          <h2 className="text-sm font-semibold text-slate-900">{dict.alertsTitle}</h2>
+          <OpenItemsList rows={alertRows} nothingLabel={dict.nothingNeedsAttention} />
         </Card>
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Purchasing</h2>
-          <OpenItemsList rows={purchasingRows} />
+          <h2 className="text-sm font-semibold text-slate-900">{dict.purchasingTitle}</h2>
+          <OpenItemsList rows={purchasingRows} nothingLabel={dict.nothingNeedsAttention} />
         </Card>
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Structural Issues</h2>
-          <OpenItemsList rows={structuralRows} />
+          <h2 className="text-sm font-semibold text-slate-900">{dict.structuralIssuesTitle}</h2>
+          <OpenItemsList rows={structuralRows} nothingLabel={dict.nothingNeedsAttention} />
         </Card>
       </div>
     </div>

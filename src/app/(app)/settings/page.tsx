@@ -6,17 +6,9 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
-import { ROLE_LABELS } from "@/lib/roles";
 import { getCompanySettings } from "@/lib/companySettings";
-import type { Station } from "@prisma/client";
-
-const STATION_LABELS: Record<Station, string> = {
-  ARRIVAL_INSPECTION: "Arrival Inspection only",
-  POST_FREEZE_INSPECTION: "Post-Freeze Inspection only",
-  LOAD_OUT: "Load-Out only",
-  FINAL_PRODUCT_ENTRY: "Final Product Entry only",
-  LAB: "Lab only",
-};
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 import {
   addFactoryAction,
   updateFactoryAccreditationAction,
@@ -40,6 +32,22 @@ export default async function SettingsPage({
   const session = await auth();
   const isOwner = session?.user.role === "OWNER";
   const { error } = await searchParams;
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.settings;
+  const ROLE_LABELS = {
+    OWNER: fullDict.common.roleOwner,
+    SALES: fullDict.common.roleSales,
+    QUALITY: fullDict.common.roleQuality,
+    PRODUCTION: fullDict.common.roleProduction,
+    LOGISTICS: fullDict.common.roleLogistics,
+  } as const;
+  const STATION_LABELS = {
+    ARRIVAL_INSPECTION: dict.stationArrivalInspection,
+    POST_FREEZE_INSPECTION: dict.stationPostFreezeInspection,
+    LOAD_OUT: dict.stationLoadOut,
+    FINAL_PRODUCT_ENTRY: dict.stationFinalProductEntry,
+    LAB: dict.stationLab,
+  } as const;
 
   const [factories, coldRooms, fields, users, companySettings] = await Promise.all([
     prisma.factory.findMany({ orderBy: { name: "asc" } }),
@@ -53,17 +61,17 @@ export default async function SettingsPage({
     <div className="space-y-6">
       {error === "field-in-use" && (
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          Can&apos;t delete this field — it still has production lots on file. Those need to be resolved first.
+          {dict.fieldInUseError}
         </p>
       )}
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Setup</h1>
-        <p className="mt-1 text-sm text-slate-500">Factories, cold rooms, fields, and users.</p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       {isOwner && (
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Users</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.usersTitle}</h2>
           <ul className="mt-3 divide-y divide-slate-100">
             {users.map((u) => (
               <li key={u.id} className="flex items-center justify-between py-2 text-sm">
@@ -75,65 +83,65 @@ export default async function SettingsPage({
                   {u.station && <Badge color="amber">{STATION_LABELS[u.station]}</Badge>}
                   {u.role === "SALES" &&
                     (u.isHeadOfSales ? (
-                      <Badge color="green">Head of Sales</Badge>
+                      <Badge color="green">{dict.headOfSalesBadge}</Badge>
                     ) : (
                       <form action={toggleHeadOfSalesAction.bind(null, u.id)}>
                         <ConfirmSubmitButton
-                          confirmMessage={`Make ${u.name} Head of Sales? This grants pricing/margin visibility and other sales-lead permissions.`}
+                          confirmMessage={dict.makeHeadOfSalesConfirm.replace("{name}", u.name)}
                           className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                         >
-                          Make head of sales?
+                          {dict.makeHeadOfSalesLink}
                         </ConfirmSubmitButton>
                       </form>
                     ))}
                   {u.role === "PRODUCTION" &&
                     (u.isHeadOfProduction ? (
-                      <Badge color="green">Head of Production</Badge>
+                      <Badge color="green">{dict.headOfProductionBadge}</Badge>
                     ) : (
                       <form action={toggleHeadOfProductionAction.bind(null, u.id)}>
                         <ConfirmSubmitButton
-                          confirmMessage={`Make ${u.name} Head of Production? This grants authority to sign off out-of-spec loads.`}
+                          confirmMessage={dict.makeHeadOfProductionConfirm.replace("{name}", u.name)}
                           className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                         >
-                          Make head of production?
+                          {dict.makeHeadOfProductionLink}
                         </ConfirmSubmitButton>
                       </form>
                     ))}
                   {u.isHeadOfMaintenance ? (
-                    <Badge color="green">Head of Maintenance</Badge>
+                    <Badge color="green">{dict.headOfMaintenanceBadge}</Badge>
                   ) : (
                     <form action={toggleHeadOfMaintenanceAction.bind(null, u.id)}>
                       <ConfirmSubmitButton
-                        confirmMessage={`Make ${u.name} Head of Maintenance? This grants authority to sign off Cleaning Mode shift records. There's no dedicated Maintenance role, so this can be granted to any user.`}
+                        confirmMessage={dict.makeHeadOfMaintenanceConfirm.replace("{name}", u.name)}
                         className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                       >
-                        Make head of maintenance?
+                        {dict.makeHeadOfMaintenanceLink}
                       </ConfirmSubmitButton>
                     </form>
                   )}
                   {u.isHeadOfPurchasing ? (
-                    <Badge color="green">Head of Purchasing</Badge>
+                    <Badge color="green">{dict.headOfPurchasingBadge}</Badge>
                   ) : (
                     <form action={toggleHeadOfPurchasingAction.bind(null, u.id)}>
                       <ConfirmSubmitButton
-                        confirmMessage={`Make ${u.name} Head of Purchasing? This grants authority to approve, order, and track Purchase Requests. There's no dedicated Purchasing role, so this can be granted to any user.`}
+                        confirmMessage={dict.makeHeadOfPurchasingConfirm.replace("{name}", u.name)}
                         className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                       >
-                        Make head of purchasing?
+                        {dict.makeHeadOfPurchasingLink}
                       </ConfirmSubmitButton>
                     </form>
                   )}
                   {u.id !== session?.user.id && (
                     <form action={deleteUserAction.bind(null, u.id)}>
-                      <ConfirmSubmitButton confirmMessage={`Remove ${u.name}'s login? They will no longer be able to sign in.`}>
-                        Remove
+                      <ConfirmSubmitButton confirmMessage={dict.removeUserConfirm.replace("{name}", u.name)}>
+                        {dict.removeButton}
                       </ConfirmSubmitButton>
                     </form>
                   )}
                 </span>
               </li>
             ))}
-            {users.length === 0 && <li className="py-2 text-sm text-slate-400">No users yet.</li>}
+            {users.length === 0 && <li className="py-2 text-sm text-slate-400">{dict.noUsersYet}</li>}
           </ul>
           <AddUserForm />
         </Card>
@@ -141,17 +149,13 @@ export default async function SettingsPage({
 
       {isOwner && companySettings && (
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Farm Accreditation</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            GlobalG.A.P. certification — every field currently shares the same one, so it&apos;s recorded once here
-            rather than per field. An expiring/expired certificate raises an Alert to Owner and Quality, since a
-            client can reject a shipment on paperwork grounds alone.
-          </p>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.farmAccreditationTitle}</h2>
+          <p className="mt-1 text-xs text-slate-500">{dict.farmAccreditationSubtitle}</p>
           <form action={updateFarmAccreditationAction} className="mt-3 flex flex-wrap items-end gap-3">
-            <FieldGroup label="GlobalG.A.P. number">
+            <FieldGroup label={dict.globalGapNumberLabel}>
               <Input name="globalGapNumber" defaultValue={companySettings.globalGapNumber ?? ""} className="w-48" />
             </FieldGroup>
-            <FieldGroup label="Expiry date">
+            <FieldGroup label={dict.expiryDateLabel}>
               <Input
                 name="globalGapExpiry"
                 type="date"
@@ -162,7 +166,7 @@ export default async function SettingsPage({
               />
             </FieldGroup>
             <Button type="submit" variant="secondary">
-              Save
+              {dict.saveButton}
             </Button>
           </form>
         </Card>
@@ -170,44 +174,43 @@ export default async function SettingsPage({
 
       {isOwner && (
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Factories</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            CAPQ/NFSA accreditation is standing export eligibility for the packing house itself — produce from an
-            un-coded facility can&apos;t legally be exported.
-          </p>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.factoriesTitle}</h2>
+          <p className="mt-1 text-xs text-slate-500">{dict.factoriesSubtitle}</p>
           <ul className="mt-3 divide-y divide-slate-100">
             {factories.map((f) => (
               <li key={f.id} className="py-2 text-sm">
                 <div className="flex justify-between">
                   <span>{f.name}</span>
-                  <span className="text-slate-500">{f.capacityTonnesPerHour} t/hr</span>
+                  <span className="text-slate-500">
+                    {f.capacityTonnesPerHour} {dict.tPerHourSuffix}
+                  </span>
                 </div>
                 <form
                   action={updateFactoryAccreditationAction.bind(null, f.id)}
                   className="mt-2 flex flex-wrap items-end gap-2"
                 >
-                  <FieldGroup label="CAPQ export code">
+                  <FieldGroup label={dict.capqExportCodeLabel}>
                     <Input name="capqExportCode" defaultValue={f.capqExportCode ?? ""} className="w-40 text-xs" />
                   </FieldGroup>
-                  <FieldGroup label="NFSA accreditation code">
+                  <FieldGroup label={dict.nfsaAccreditationCodeLabel}>
                     <Input name="nfsaAccreditationCode" defaultValue={f.nfsaAccreditationCode ?? ""} className="w-40 text-xs" />
                   </FieldGroup>
                   <Button type="submit" variant="secondary" className="text-xs">
-                    Save
+                    {dict.saveButton}
                   </Button>
                 </form>
               </li>
             ))}
           </ul>
           <form action={addFactoryAction} className="mt-4 flex items-end gap-3">
-            <FieldGroup label="Name">
+            <FieldGroup label={dict.addFactoryNameLabel}>
               <Input name="name" required className="w-56" />
             </FieldGroup>
-            <FieldGroup label="Capacity (t/hr)">
+            <FieldGroup label={dict.addFactoryCapacityLabel}>
               <Input name="capacityTonnesPerHour" type="number" step="0.1" required className="w-32" />
             </FieldGroup>
             <Button type="submit" variant="secondary">
-              Add
+              {dict.addButton}
             </Button>
           </form>
         </Card>
@@ -215,44 +218,52 @@ export default async function SettingsPage({
 
       {isOwner && (
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Cold Rooms</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.coldRoomsTitle}</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Capacity is derived from the room&apos;s physical layout (rounds × racks × levels), matching the storage
-            map exactly — see the <Link href="/storage/map" className="text-emerald-700 hover:underline">Storage Map</Link> to
-            view or assign individual slots.
+            {dict.coldRoomsSubtitle.split("{storageMapLink}")[0]}
+            <Link href="/storage/map" className="text-emerald-700 hover:underline">
+              {dict.storageMapLinkText}
+            </Link>
+            {dict.coldRoomsSubtitle.split("{storageMapLink}")[1]}
           </p>
           <ul className="mt-3 divide-y divide-slate-100">
             {coldRooms.map((c) => (
               <li key={c.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="flex items-center gap-2">
                   {c.name}
-                  <Badge color={c.isNew ? "green" : "slate"}>{c.isNew ? "New" : "Old"}</Badge>
+                  <Badge color={c.isNew ? "green" : "slate"}>{c.isNew ? dict.newBadge : dict.oldBadge}</Badge>
                 </span>
                 <span className="text-slate-500">
-                  {c.capacityPallets} pallets ({c.rounds} round{c.rounds === 1 ? "" : "s"} × {c.rackCount} rack
-                  {c.rackCount === 1 ? "" : "s"} × {c.levelCount} level{c.levelCount === 1 ? "" : "s"})
+                  {dict.coldRoomSummary
+                    .replace("{count}", String(c.capacityPallets))
+                    .replace("{rounds}", String(c.rounds))
+                    .replace("{roundsPlural}", c.rounds === 1 ? "" : "s")
+                    .replace("{racks}", String(c.rackCount))
+                    .replace("{racksPlural}", c.rackCount === 1 ? "" : "s")
+                    .replace("{levels}", String(c.levelCount))
+                    .replace("{levelsPlural}", c.levelCount === 1 ? "" : "s")}
                 </span>
               </li>
             ))}
           </ul>
           <form action={addColdRoomAction} className="mt-4 flex flex-wrap items-end gap-3">
-            <FieldGroup label="Name">
+            <FieldGroup label={dict.addColdRoomNameLabel}>
               <Input name="name" required placeholder="Cold Store 6" className="w-40" />
             </FieldGroup>
-            <FieldGroup label="Rounds">
+            <FieldGroup label={dict.roundsLabel}>
               <Input name="rounds" type="number" min="1" required defaultValue={2} className="w-20" />
             </FieldGroup>
-            <FieldGroup label="Racks">
+            <FieldGroup label={dict.racksLabel}>
               <Input name="rackCount" type="number" min="1" required defaultValue={11} className="w-20" />
             </FieldGroup>
-            <FieldGroup label="Levels">
+            <FieldGroup label={dict.levelsLabel}>
               <Input name="levelCount" type="number" min="1" required defaultValue={14} className="w-20" />
             </FieldGroup>
             <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" name="isNew" /> New room
+              <input type="checkbox" name="isNew" /> {dict.newRoomLabel}
             </label>
             <Button type="submit" variant="secondary">
-              Add
+              {dict.addButton}
             </Button>
           </form>
         </Card>
@@ -260,28 +271,30 @@ export default async function SettingsPage({
 
       {isOwner && (
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Fields</h2>
-          <p className="text-xs text-slate-500">Used to trace pallets back to the source field for farm-to-pallet traceability.</p>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.fieldsTitle}</h2>
+          <p className="text-xs text-slate-500">{dict.fieldsSubtitle}</p>
           <ul className="mt-3 divide-y divide-slate-100">
             {fields.map((f) => (
               <li key={f.id} className="flex items-center justify-between py-2 text-sm">
                 <span>{f.name}</span>
                 <form action={deleteFieldAction.bind(null, f.id)}>
-                  <ConfirmSubmitButton confirmMessage={`Remove field "${f.name}"?`}>Remove</ConfirmSubmitButton>
+                  <ConfirmSubmitButton confirmMessage={dict.removeFieldConfirm.replace("{name}", f.name)}>
+                    {dict.removeButton}
+                  </ConfirmSubmitButton>
                 </form>
               </li>
             ))}
-            {fields.length === 0 && <li className="py-2 text-sm text-slate-400">No fields yet.</li>}
+            {fields.length === 0 && <li className="py-2 text-sm text-slate-400">{dict.noFieldsYet}</li>}
           </ul>
           <form action={addFieldAction} className="mt-4 flex items-end gap-3">
-            <FieldGroup label="Field name">
+            <FieldGroup label={dict.addFieldNameLabel}>
               <Input name="name" required className="w-56" />
             </FieldGroup>
-            <FieldGroup label="Map reference (optional)">
+            <FieldGroup label={dict.mapReferenceLabel}>
               <Input name="mapReference" className="w-64" />
             </FieldGroup>
             <Button type="submit" variant="secondary">
-              Add
+              {dict.addButton}
             </Button>
           </form>
         </Card>

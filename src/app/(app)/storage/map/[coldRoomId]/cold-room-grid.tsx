@@ -15,6 +15,7 @@ import { cfuTierFor } from "@/lib/cfuTier";
 import { rackLetter } from "@/lib/coldStorage";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 type SlotPallet = {
   id: string;
@@ -67,6 +68,7 @@ export function ColdRoomGrid({
   suggestedSlotId: string | null;
   unassignedPallets: UnassignedPallet[];
 }) {
+  const dict = useTranslations().storage;
   const suggestedSlot = useMemo(() => slots.find((s) => s.id === suggestedSlotId) ?? null, [slots, suggestedSlotId]);
   const [round, setRound] = useState(suggestedSlot?.round ?? 1);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
@@ -88,8 +90,11 @@ export function ColdRoomGrid({
         {suggestedSlot && (
           <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
             <span>
-              <strong>Suggested next slot:</strong> Round {suggestedSlot.round} · Rack {suggestedSlot.rack} · Level{" "}
-              {suggestedSlot.level}
+              <strong>{dict.suggestedNextSlot}</strong>{" "}
+              {dict.suggestedNextSlotText
+                .replace("{round}", String(suggestedSlot.round))
+                .replace("{rack}", suggestedSlot.rack)
+                .replace("{level}", String(suggestedSlot.level))}
             </span>
             <button
               onClick={() => {
@@ -98,7 +103,7 @@ export function ColdRoomGrid({
               }}
               className="shrink-0 rounded-md bg-amber-600 px-2 py-1 font-medium text-white hover:bg-amber-700"
             >
-              Jump to it
+              {dict.jumpToIt}
             </button>
           </div>
         )}
@@ -112,7 +117,7 @@ export function ColdRoomGrid({
                   r === round ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
-                Round {r}
+                {dict.roundLabel.replace("{round}", String(r))}
               </button>
             ))}
           </div>
@@ -152,7 +157,7 @@ export function ColdRoomGrid({
             onClose={() => setSelectedSlotId(null)}
           />
         ) : (
-          <Card className="text-sm text-slate-400">Click a slot to assign a pallet or view what&apos;s stored there.</Card>
+          <Card className="text-sm text-slate-400">{dict.clickSlotHint}</Card>
         )}
       </div>
     </div>
@@ -176,6 +181,7 @@ function RowFragment({
   suggestedSlotId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const dict = useTranslations().storage;
   return (
     <>
       <div className="flex items-center justify-end pr-1 text-xs text-slate-400">{level}</div>
@@ -195,12 +201,12 @@ function RowFragment({
         }
         const isSuggested = !occupied && slot.id === suggestedSlotId;
         const title = occupied
-          ? `${slot.pallet!.palletNumber} — Lot ${slot.pallet!.lotNumber}${
-              cfuValue != null ? ` — ${cfuValue.toLocaleString("en-US")} cfu/g` : ""
-            }${slot.pallet!.isTestData ? " — TEST DATA" : ""}`
+          ? `${slot.pallet!.palletNumber} — ${dict.lotHashLabel} ${slot.pallet!.lotNumber}${
+              cfuValue != null ? dict.cfuPerGramSuffix.replace("{value}", cfuValue.toLocaleString("en-US")) : ""
+            }${slot.pallet!.isTestData ? dict.testDataSuffix : ""}`
           : isSuggested
-            ? `${rack}${level} — empty (suggested next slot)`
-            : `${rack}${level} — empty`;
+            ? dict.emptySuggestedSlotTitle.replace("{rackLevel}", `${rack}${level}`)
+            : dict.emptySlotTitle.replace("{rackLevel}", `${rack}${level}`);
         return (
           <button
             key={rack}
@@ -228,15 +234,19 @@ function SlotDetail({
   onClose: () => void;
 }) {
   const [error, formAction, pending] = useActionState(assignPalletToSlotAction, undefined);
+  const dict = useTranslations().storage;
 
   return (
     <Card className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900">
-          Rack {slot.rack} · Level {slot.level} · Round {slot.round}
+          {dict.rackLevelRound
+            .replace("{rack}", slot.rack)
+            .replace("{level}", String(slot.level))
+            .replace("{round}", String(slot.round))}
         </h2>
         <button onClick={onClose} className="text-xs text-slate-400 hover:text-slate-600">
-          Close
+          {dict.closeLabel}
         </button>
       </div>
 
@@ -249,62 +259,66 @@ function SlotDetail({
           )}
           <dl className="space-y-1 text-sm">
             <Row
-              label="Pallet #"
+              label={dict.palletHashLabel}
               value={slot.pallet.palletNumber}
               className={slot.pallet.isTestData ? TEST_DATA_TEXT_CLASS : undefined}
             />
             <Row
-              label="Lot"
+              label={dict.lotHashLabel}
               value={slot.pallet.lotNumber}
               className={slot.pallet.isTestData ? TEST_DATA_TEXT_CLASS : undefined}
             />
-            <Row label="Field" value={slot.pallet.fieldName} />
-            <Row label="Client" value={slot.pallet.clientName ?? "—"} />
-            <Row label="Grade" value={slot.pallet.quality ? `Grade ${slot.pallet.quality.grade}` : "—"} />
+            <Row label={dict.fieldHashLabel} value={slot.pallet.fieldName} />
+            <Row label={dict.clientHashLabel} value={slot.pallet.clientName ?? "—"} />
+            <Row label={dict.gradeFieldLabel} value={slot.pallet.quality ? dict.gradeLabel.replace("{grade}", slot.pallet.quality.grade) : "—"} />
             <Row
-              label="Lab clearance"
+              label={dict.labClearanceLabel}
               value={slot.pallet.quality?.microbiologyStatus.replace(/_/g, " ") ?? "—"}
             />
             <div className="flex justify-between gap-4">
-              <dt className="text-slate-500">Total Plate Count</dt>
-              <dd className="text-right">
+              <dt className="text-slate-500">{dict.totalPlateCountLabel}</dt>
+              <dd className="text-end">
                 <CfuTierBadge cfuValue={slot.pallet.quality?.cfuValue ?? null} />
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-slate-500">MRL</dt>
-              <dd className="text-right">
+              <dt className="text-slate-500">{dict.colMrl}</dt>
+              <dd className="text-end">
                 <MrlStatusBadge status={slot.pallet.quality?.mrlStatus ?? "PENDING"} />
               </dd>
             </div>
             <Row
-              label="Brix"
+              label={dict.brixHashLabel}
               value={slot.pallet.quality?.brix != null ? String(slot.pallet.quality.brix) : "—"}
             />
             <Row
-              label="Mould %"
+              label={dict.mouldPctLabel}
               value={slot.pallet.quality?.mouldPct != null ? `${slot.pallet.quality.mouldPct}%` : "—"}
             />
             <Row
-              label="Internal quality %"
+              label={dict.internalQualityPctLabel}
               value={
                 slot.pallet.quality?.internalQualityPct != null ? `${slot.pallet.quality.internalQualityPct}%` : "—"
               }
             />
           </dl>
           {slot.pallet.quality?.source === "lot" && (
-            <p className="text-xs text-slate-400">Quality shown is the lot&apos;s latest check — no check logged against this specific pallet yet.</p>
+            <p className="text-xs text-slate-400">{dict.qualityShownIsLotNote}</p>
           )}
           <div className="flex gap-2">
             <LinkButton href={`/storage/${slot.pallet.id}`} variant="secondary" className="flex-1 text-center">
-              View pallet
+              {dict.viewPallet}
             </LinkButton>
             <form action={unassignSlotAction.bind(null, slot.id)}>
               <ConfirmSubmitButton
-                confirmMessage={`Unassign ${slot.pallet.palletNumber} from Round ${slot.round} / Rack ${slot.rack} / Level ${slot.level}?`}
+                confirmMessage={dict.unassignConfirm
+                  .replace("{pallet}", slot.pallet.palletNumber)
+                  .replace("{round}", String(slot.round))
+                  .replace("{rack}", slot.rack)
+                  .replace("{level}", String(slot.level))}
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
               >
-                Unassign
+                {dict.unassign}
               </ConfirmSubmitButton>
             </form>
           </div>
@@ -312,24 +326,24 @@ function SlotDetail({
       ) : (
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="slotId" value={slot.id} />
-          <FieldGroup label="Assign pallet to this slot">
+          <FieldGroup label={dict.assignPalletToSlot}>
             <Select name="palletId" required defaultValue="">
               <option value="" disabled>
-                Select a pallet…
+                {dict.selectPalletPlaceholder}
               </option>
               {unassignedPallets.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.palletNumber} — Lot {p.lotNumber} ({p.fieldName}){p.isTestData ? " — TEST DATA" : ""}
+                  {p.palletNumber} — {dict.lotHashLabel} {p.lotNumber} ({p.fieldName}){p.isTestData ? dict.testDataSuffix : ""}
                 </option>
               ))}
             </Select>
           </FieldGroup>
           {unassignedPallets.length === 0 && (
-            <p className="text-xs text-slate-400">No unassigned pallets available right now.</p>
+            <p className="text-xs text-slate-400">{dict.noUnassignedPallets}</p>
           )}
           {error && <p className="text-xs text-red-600">{error}</p>}
           <Button type="submit" disabled={pending || unassignedPallets.length === 0} className="w-full">
-            {pending ? "Assigning…" : "Assign"}
+            {pending ? dict.assigning : dict.assign}
           </Button>
         </form>
       )}
@@ -341,7 +355,7 @@ function Row({ label, value, className }: { label: string; value: string; classN
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-slate-500">{label}</dt>
-      <dd className={cn("text-right text-slate-800", className)}>{value}</dd>
+      <dd className={cn("text-end text-slate-800", className)}>{value}</dd>
     </div>
   );
 }

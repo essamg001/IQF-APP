@@ -2,10 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-
-const FORMAT_LABEL: Record<string, string> = { WHOLE: "Whole", SLICED: "Sliced", DICED: "Diced" };
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function StorageMapPage() {
+  const dict = getDictionary(await resolveLocale()).storage;
+  const FORMAT_LABEL: Record<string, string> = { WHOLE: dict.formatWhole, SLICED: dict.formatSliced, DICED: dict.formatDiced };
   const [coldRooms, occupiedSlots] = await Promise.all([
     prisma.coldRoom.findMany({ orderBy: { name: "asc" } }),
     prisma.coldRoomSlot.findMany({
@@ -29,10 +31,8 @@ export default async function StorageMapPage() {
   return (
     <div>
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Storage Map</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Exact rack/level position of every pallet, matching the physical storage layout.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.storageMapTitle}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.storageMapSubtitle}</p>
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-4">
@@ -44,22 +44,26 @@ export default async function StorageMapPage() {
           const distinctTypes = new Set(pallets.map((p) => `${p.grade}::${p.format}`));
           const composition =
             occupied === 0
-              ? "Empty"
+              ? dict.empty
               : distinctTypes.size === 1
-                ? `Grade ${pallets[0].grade} · ${FORMAT_LABEL[pallets[0].format] ?? pallets[0].format}`
-                : "Mixed";
+                ? `${dict.gradeLabel.replace("{grade}", pallets[0].grade)} · ${FORMAT_LABEL[pallets[0].format] ?? pallets[0].format}`
+                : dict.mixed;
           return (
             <Link key={c.id} href={`/storage/map/${c.id}`}>
               <Card className="transition hover:border-emerald-300 hover:shadow">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-slate-900">{c.name}</h2>
-                  <Badge color={pct > 90 ? "red" : pct > 60 ? "amber" : "green"}>{pct}% full</Badge>
+                  <Badge color={pct > 90 ? "red" : pct > 60 ? "amber" : "green"}>{dict.pctFull.replace("{pct}", String(pct))}</Badge>
                 </div>
                 <p className="mt-2 text-sm text-slate-500">
-                  {occupied} / {capacity} pallets
+                  {dict.palletsOfCapacity.replace("{occupied}", String(occupied)).replace("{capacity}", String(capacity))}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {c.rounds} round{c.rounds === 1 ? "" : "s"} × {c.rackCount} racks × {c.levelCount} levels
+                  {dict.roundsRacksLevels
+                    .replace("{rounds}", String(c.rounds))
+                    .replace("{roundsPlural}", c.rounds === 1 ? "" : "s")
+                    .replace("{racks}", String(c.rackCount))
+                    .replace("{levels}", String(c.levelCount))}
                 </p>
                 <p className="mt-1 text-xs font-medium text-slate-500">{composition}</p>
               </Card>

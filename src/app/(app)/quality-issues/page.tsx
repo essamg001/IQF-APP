@@ -4,8 +4,22 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function QualityIssuesPage() {
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.qualityIssues;
+  const REASON_LABEL: Record<string, string> = {
+    QUALITY: fullDict.orders.claimReasonQuality,
+    PACKAGING: fullDict.orders.claimReasonPackaging,
+    FOREIGN_MATERIAL: fullDict.orders.claimReasonForeignMaterial,
+    TRANSPORT: fullDict.orders.claimReasonTransport,
+  };
+  const STATUS_LABEL: Record<string, string> = {
+    OPEN: dict.statusOpen,
+    RESOLVED: dict.statusResolved,
+  };
   const issues = await prisma.qualityIssue.findMany({
     include: { client: true },
     orderBy: { issueDate: "desc" },
@@ -16,23 +30,21 @@ export default async function QualityIssuesPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Quality Issues</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Quality problems reported without a financial claim — logged for process improvement, not compensation.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/quality-issues/new">Report Issue</LinkButton>
+        <LinkButton href="/quality-issues/new">{dict.reportIssue}</LinkButton>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Client</th>
-              <th className="px-4 py-2 font-medium">Reference</th>
-              <th className="px-4 py-2 font-medium">Reason</th>
-              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">{dict.colDate}</th>
+              <th className="px-4 py-2 font-medium">{dict.colClient}</th>
+              <th className="px-4 py-2 font-medium">{dict.colReference}</th>
+              <th className="px-4 py-2 font-medium">{dict.colReason}</th>
+              <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
             </tr>
           </thead>
           <tbody>
@@ -45,16 +57,16 @@ export default async function QualityIssuesPage() {
                 </td>
                 <td className="px-4 py-2">{i.client?.name ?? "—"}</td>
                 <td className="px-4 py-2">{i.relatedReference ?? "—"}</td>
-                <td className="px-4 py-2">{i.reason.replace("_", " ")}</td>
+                <td className="px-4 py-2">{REASON_LABEL[i.reason] ?? i.reason}</td>
                 <td className="px-4 py-2">
-                  <Badge color={i.status === "OPEN" ? "amber" : "green"}>{i.status}</Badge>
+                  <Badge color={i.status === "OPEN" ? "amber" : "green"}>{STATUS_LABEL[i.status] ?? i.status}</Badge>
                 </td>
               </tr>
             ))}
             {issues.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  No quality issues logged.
+                  {dict.noIssuesLogged}
                 </td>
               </tr>
             )}

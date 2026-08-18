@@ -5,13 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { limitsFor } from "@/lib/qualityLimits";
 import { format } from "date-fns";
-
-const CHECKPOINT_LABEL: Record<string, string> = {
-  PRE_DECAP: "Pre-Decap Arrival (STR03101)",
-  RAW_MATERIAL: "Arrival Inspection at Factory (STR03110)",
-  POST_DECAP: "Post-Decap Quality (STR03107)",
-  POST_PACKAGING: "Post-Freeze Inspection (STR03111 / STR03116)",
-};
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function QualityCheckDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,6 +14,14 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
   if (!session?.user || !["QUALITY", "OWNER", "PRODUCTION"].includes(session.user.role)) {
     redirect("/");
   }
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.qualityCheckDetail;
+  const CHECKPOINT_LABEL: Record<string, string> = {
+    PRE_DECAP: dict.checkpointPreDecap,
+    RAW_MATERIAL: dict.checkpointRawMaterial,
+    POST_DECAP: dict.checkpointPostDecap,
+    POST_PACKAGING: dict.checkpointPostPackaging,
+  };
 
   const check = await prisma.qualityCheck.findUnique({
     where: { id },
@@ -43,35 +46,35 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
   });
 
   const identityFields: { label: string; value: string | number | null | undefined }[] = [
-    { label: "Sample No.", value: check.sampleNo },
-    { label: "Receipt Note No.", value: check.receiptNoteNo },
-    { label: "Field / Plot", value: check.field?.name },
-    { label: "Variety", value: check.varietyName },
-    { label: "Client", value: check.clientName },
-    { label: "Lot", value: check.lot?.lotNumber },
-    { label: "Pallet", value: check.pallet?.palletNumber },
-    { label: "Shift #", value: check.shiftNumber },
-    { label: "Farm Code", value: check.farmCode },
-    { label: "Raw Material Source", value: check.rawMaterialSource },
-    { label: "Decapping Pack House", value: check.decapPackHouse },
-    { label: "QC Approver (Pack House)", value: check.decapQcApprover },
-    { label: "Processing Line", value: check.processingLine },
-    { label: "Transport Vehicle No.", value: check.transportVehicleNo },
-    { label: "Number of Boxes/Pallets Received", value: check.numberOfBoxesReceived },
-    { label: "Harvest Supervisor", value: check.harvestSupervisor },
-    { label: "Sample Collection Time", value: check.sampleCollectionTime ? format(check.sampleCollectionTime, "dd MMM yyyy HH:mm") : null },
-    { label: "Sample Weight (kg)", value: check.sampleWeightKg },
-    { label: "Crate/Carton Weight (kg)", value: check.crateWeightKg },
-    { label: "Size Caliber", value: check.sizeCaliber },
-    { label: "Product Temperature (°C)", value: check.productTemperatureC },
-    { label: "PH", value: check.acidityPh },
-    { label: "Cleaning / Good Crates OK", value: check.cleaningGoodCratesOk == null ? null : check.cleaningGoodCratesOk ? "Yes" : "No" },
-    { label: "Foreign Odor", value: check.foreignOdor },
-    { label: "Foreign Taste", value: check.foreignTaste },
-    { label: "Whole-Delivery Rejection", value: check.appliesToWholeDelivery ? "Yes" : null },
-    { label: "Compliance Level", value: check.complianceLevel },
-    { label: "Diverted To", value: check.divertedTo },
-    { label: "Inspector", value: check.inspector?.name },
+    { label: dict.sampleNo, value: check.sampleNo },
+    { label: dict.receiptNoteNo, value: check.receiptNoteNo },
+    { label: dict.fieldPlot, value: check.field?.name },
+    { label: dict.variety, value: check.varietyName },
+    { label: dict.client, value: check.clientName },
+    { label: dict.lot, value: check.lot?.lotNumber },
+    { label: dict.pallet, value: check.pallet?.palletNumber },
+    { label: dict.shiftNumber, value: check.shiftNumber },
+    { label: dict.farmCode, value: check.farmCode },
+    { label: dict.rawMaterialSource, value: check.rawMaterialSource },
+    { label: dict.decapPackHouse, value: check.decapPackHouse },
+    { label: dict.qcApprover, value: check.decapQcApprover },
+    { label: dict.processingLine, value: check.processingLine },
+    { label: dict.transportVehicleNo, value: check.transportVehicleNo },
+    { label: dict.numberOfBoxesPalletsReceived, value: check.numberOfBoxesReceived },
+    { label: dict.harvestSupervisor, value: check.harvestSupervisor },
+    { label: dict.sampleCollectionTime, value: check.sampleCollectionTime ? format(check.sampleCollectionTime, "dd MMM yyyy HH:mm") : null },
+    { label: dict.sampleWeightKg, value: check.sampleWeightKg },
+    { label: dict.crateCartonWeightKg, value: check.crateWeightKg },
+    { label: dict.sizeCaliber, value: check.sizeCaliber },
+    { label: dict.productTemperatureC, value: check.productTemperatureC },
+    { label: dict.ph, value: check.acidityPh },
+    { label: dict.cleaningGoodCratesOk, value: check.cleaningGoodCratesOk == null ? null : check.cleaningGoodCratesOk ? fullDict.common.yes : fullDict.common.no },
+    { label: dict.foreignOdor, value: check.foreignOdor },
+    { label: dict.foreignTaste, value: check.foreignTaste },
+    { label: dict.wholeDeliveryRejection, value: check.appliesToWholeDelivery ? fullDict.common.yes : null },
+    { label: dict.complianceLevel, value: check.complianceLevel },
+    { label: dict.divertedTo, value: check.divertedTo },
+    { label: dict.inspector, value: check.inspector?.name },
   ].filter((f) => f.value != null && f.value !== "");
 
   return (
@@ -83,7 +86,7 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
 
       <Card>
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-900">Decision</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.decision}</h2>
           {check.decision && <Badge color={check.decision === "ACCEPTED" ? "green" : "red"}>{check.decision}</Badge>}
         </div>
         {check.notes && <p className="mt-2 text-sm text-slate-600">{check.notes}</p>}
@@ -105,12 +108,12 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
 
       {identityFields.length > 0 && (
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Delivery Identity</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.deliveryIdentity}</h2>
           <dl className="mt-3 grid grid-cols-3 gap-x-6 gap-y-2 text-sm">
             {identityFields.map((f) => (
               <div key={f.label} className="flex justify-between gap-4">
                 <dt className="text-slate-500">{f.label}</dt>
-                <dd className="text-right text-slate-800">{f.value}</dd>
+                <dd className="text-end text-slate-800">{f.value}</dd>
               </div>
             ))}
           </dl>
@@ -119,16 +122,16 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
 
       <Card className="overflow-x-auto p-0">
         <div className="px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">Physical Measurements &amp; Defects — Band by Band</h2>
-          <p className="text-xs text-slate-500">Every metric this checkpoint measures, against its own printed limit.</p>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.physicalMeasurementsDefects}</h2>
+          <p className="text-xs text-slate-500">{dict.bandByBandSubtitle}</p>
         </div>
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Band</th>
-              <th className="px-4 py-2 font-medium">Recorded Value</th>
-              <th className="px-4 py-2 font-medium">Limit</th>
-              <th className="px-4 py-2 font-medium">Result</th>
+              <th className="px-4 py-2 font-medium">{dict.colBand}</th>
+              <th className="px-4 py-2 font-medium">{dict.colRecordedValue}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLimit}</th>
+              <th className="px-4 py-2 font-medium">{dict.colResult}</th>
             </tr>
           </thead>
           <tbody>
@@ -141,7 +144,7 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
                   {r.pass == null ? (
                     <span className="text-slate-400">—</span>
                   ) : (
-                    <Badge color={r.pass ? "green" : "red"}>{r.pass ? "Pass" : "Fail"}</Badge>
+                    <Badge color={r.pass ? "green" : "red"}>{r.pass ? dict.pass : dict.fail}</Badge>
                   )}
                 </td>
               </tr>

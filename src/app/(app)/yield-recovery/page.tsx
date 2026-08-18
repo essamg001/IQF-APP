@@ -14,6 +14,8 @@ import {
 } from "@/lib/timezone";
 import { YieldRecoveryTable, type Period, type PeriodSection, type FieldYieldRow } from "./yield-recovery-table";
 import type { Field } from "@prisma/client";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const SEASON_BUCKET_COUNT = 3;
 
@@ -132,6 +134,8 @@ export default async function YieldRecoveryPage() {
   if (!session?.user || !["OWNER", "QUALITY", "PRODUCTION"].includes(session.user.role)) {
     redirect("/");
   }
+  const locale = await resolveLocale();
+  const dict = getDictionary(locale).yieldRecovery;
 
   const fields = await prisma.field.findMany({ where: { variety: "MS1" }, orderBy: { name: "asc" } });
   const fieldById = new Map(fields.map((f) => [f.id, f]));
@@ -182,7 +186,7 @@ export default async function YieldRecoveryPage() {
       finished,
       fieldById,
       (d) => formatYMD(startOfWeek(egyptDateOnly(d), { weekStartsOn: 1 })),
-      (key) => `Week of ${format(parseDateKey(key), "dd MMM yyyy")}`,
+      (key) => dict.weekOfLabel.replace("{date}", format(parseDateKey(key), "dd MMM yyyy")),
       (key) => parseDateKey(key).getTime(),
       8
     ),
@@ -200,7 +204,7 @@ export default async function YieldRecoveryPage() {
       finished,
       fieldById,
       (d) => egyptSeasonKey(d),
-      (key) => egyptSeasonLabel(key),
+      (key) => egyptSeasonLabel(key, locale),
       (key) => Number(key.split("-")[0]),
       SEASON_BUCKET_COUNT
     ),
@@ -209,15 +213,8 @@ export default async function YieldRecoveryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Yield &amp; Recovery</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Raw fruit received per field (Harvest Ticket plot lines) against finished, packed weight attributed back to
-          that field (via its production lots) — the recovery rate processing actually achieves, independent of Field
-          Quality's defect-based score. A field can score well on quality and still recover poorly, or vice versa.
-          Raw and finished weight can fall in different periods due to processing lag, so weekly/monthly/season views
-          read more reliably than daily. Rows with no raw weight logged this period have nothing to compare against
-          and sink to the bottom.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       <YieldRecoveryTable dataByPeriod={dataByPeriod} />

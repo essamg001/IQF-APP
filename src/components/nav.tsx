@@ -3,88 +3,101 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/lib/i18n/locale-context";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import type { Role, Station } from "@prisma/client";
 
-const NAV_ITEMS: { href: string; label: string; roles?: Role[]; requiresHeadOfSales?: boolean }[] = [
+type NavKey = keyof Dictionary["nav"];
+
+const NAV_ITEMS: { href: string; labelKey: NavKey; roles?: Role[]; requiresHeadOfSales?: boolean }[] = [
   // Overview
-  { href: "/", label: "Dashboard" },
-  { href: "/our-process", label: "Our Process" },
+  { href: "/", labelKey: "dashboard" },
+  { href: "/our-process", labelKey: "ourProcess" },
 
   // Reference data
-  { href: "/fields", label: "Fields" },
-  { href: "/clients", label: "Clients" },
+  { href: "/fields", labelKey: "fields" },
+  { href: "/clients", labelKey: "clients" },
 
   // Field & Decap stage
-  { href: "/harvest-tickets", label: "Harvest Tickets", roles: ["OWNER", "QUALITY"] },
-  { href: "/pre-decap-inspection", label: "Decap: Pre-Decap Arrivals", roles: ["OWNER", "QUALITY"] },
-  { href: "/post-decap-quality", label: "Decap: Post-Decap Quality", roles: ["OWNER", "QUALITY"] },
-  { href: "/field-quality", label: "Field Quality", roles: ["OWNER", "QUALITY"] },
-  { href: "/yield-recovery", label: "Yield & Recovery", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+  { href: "/harvest-tickets", labelKey: "harvestTickets", roles: ["OWNER", "QUALITY"] },
+  { href: "/pre-decap-inspection", labelKey: "preDecapArrivals", roles: ["OWNER", "QUALITY"] },
+  { href: "/post-decap-quality", labelKey: "postDecapQuality", roles: ["OWNER", "QUALITY"] },
+  { href: "/field-quality", labelKey: "fieldQuality", roles: ["OWNER", "QUALITY"] },
+  { href: "/yield-recovery", labelKey: "yieldRecovery", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
 
   // Factory: intake -> freeze -> pack
-  { href: "/arrival-inspection", label: "Arrival Inspection at Factory", roles: ["OWNER", "QUALITY"] },
-  { href: "/shifts", label: "Shifts" },
-  { href: "/production", label: "Production" },
-  { href: "/post-freeze-inspection", label: "Post-Freeze Inspection", roles: ["OWNER", "QUALITY"] },
-  { href: "/final-product-entry", label: "Final Product Entry", roles: ["OWNER", "PRODUCTION"] },
-  { href: "/waste", label: "Waste" },
-  { href: "/daily-report", label: "Daily Report", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/cleaning", label: "Cleaning Mode" },
-  { href: "/cleaning-schedule", label: "Cleaning Schedule" },
-  { href: "/daily-checklist", label: "Daily Checklist" },
-  { href: "/equipment-verification", label: "Equipment Verification", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/laundry", label: "Laundry", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/training", label: "Staff Training", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/purchase-requests", label: "Purchase Requests" },
-  { href: "/structural-issues", label: "Structural Issues" },
+  { href: "/arrival-inspection", labelKey: "arrivalInspection", roles: ["OWNER", "QUALITY"] },
+  { href: "/shifts", labelKey: "shifts" },
+  { href: "/production", labelKey: "production" },
+  { href: "/post-freeze-inspection", labelKey: "postFreezeInspection", roles: ["OWNER", "QUALITY"] },
+  { href: "/final-product-entry", labelKey: "finalProductEntry", roles: ["OWNER", "PRODUCTION"] },
+  { href: "/waste", labelKey: "waste" },
+  { href: "/daily-report", labelKey: "dailyReport", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+  { href: "/cleaning", labelKey: "cleaningMode" },
+  { href: "/cleaning-schedule", labelKey: "cleaningSchedule" },
+  { href: "/daily-checklist", labelKey: "dailyChecklist" },
+  { href: "/equipment-verification", labelKey: "equipmentVerification", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+  { href: "/laundry", labelKey: "laundry", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+  { href: "/training", labelKey: "staffTraining", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+  { href: "/purchase-requests", labelKey: "purchaseRequests" },
+  { href: "/structural-issues", labelKey: "structuralIssues" },
+  { href: "/personal-items", labelKey: "personalItems" },
+  { href: "/injury-log", labelKey: "injuryLog" },
+  { href: "/blade-control", labelKey: "bladeControl" },
+  { href: "/packaging-materials", labelKey: "packagingMaterials" },
+  { href: "/forklift-condition", labelKey: "forkliftCondition" },
+  { href: "/non-conformance", labelKey: "nonConformance" },
 
   // Storage & Lab (gates before a pallet can ship)
-  { href: "/storage", label: "Storage" },
-  { href: "/lab", label: "Lab", roles: ["OWNER", "QUALITY"] },
+  { href: "/storage", labelKey: "storage" },
+  { href: "/lab", labelKey: "lab", roles: ["OWNER", "QUALITY"] },
 
   // Sales
-  { href: "/orders", label: "Orders" },
-  { href: "/active-orders", label: "Active Orders" },
-  { href: "/available-to-sell", label: "Available to Sell" },
+  { href: "/orders", labelKey: "orders" },
+  { href: "/active-orders", labelKey: "activeOrders" },
+  { href: "/available-to-sell", labelKey: "availableToSell" },
 
   // Shipping
-  { href: "/load-out", label: "Load Out" },
-  { href: "/logistics", label: "Logistics" },
+  { href: "/load-out", labelKey: "loadOut" },
+  { href: "/logistics", labelKey: "logistics" },
 
   // Sales reporting
-  { href: "/trends", label: "Historical Trends", requiresHeadOfSales: true },
+  { href: "/trends", labelKey: "historicalTrends", requiresHeadOfSales: true },
 
   // Quality oversight & post-shipment issues
-  { href: "/quality", label: "Quality" },
-  { href: "/quality-issues", label: "Quality Issues" },
-  { href: "/traceability", label: "Traceability / Recall Lookup", roles: ["OWNER", "QUALITY"] },
-  { href: "/claims", label: "Claims" },
+  { href: "/quality", labelKey: "quality" },
+  { href: "/quality-issues", labelKey: "qualityIssues" },
+  { href: "/traceability", labelKey: "traceability", roles: ["OWNER", "QUALITY"] },
+  { href: "/claims", labelKey: "claims" },
 
   // System
-  { href: "/alerts", label: "Alerts" },
-  { href: "/activity-log", label: "Activity Log", roles: ["OWNER"] },
-  { href: "/settings", label: "Setup" },
+  { href: "/alerts", labelKey: "alerts" },
+  { href: "/activity-log", labelKey: "activityLog", roles: ["OWNER"] },
+  { href: "/settings", labelKey: "settings" },
 ];
 
 // A single-purpose entry point for a station-locked user — proxy.ts already
 // bounces them off any other route, this just keeps the sidebar honest.
-const STATION_ITEM: Record<Station, { href: string; label: string }> = {
-  ARRIVAL_INSPECTION: { href: "/arrival-inspection", label: "Arrival Inspection at Factory" },
-  POST_FREEZE_INSPECTION: { href: "/post-freeze-inspection", label: "Post-Freeze Inspection" },
-  LOAD_OUT: { href: "/logistics", label: "Load-Out" },
-  FINAL_PRODUCT_ENTRY: { href: "/final-product-entry", label: "Final Product Entry" },
-  LAB: { href: "/lab", label: "Lab" },
+const STATION_ITEM: Record<Station, { href: string; labelKey: NavKey }> = {
+  ARRIVAL_INSPECTION: { href: "/arrival-inspection", labelKey: "arrivalInspection" },
+  POST_FREEZE_INSPECTION: { href: "/post-freeze-inspection", labelKey: "postFreezeInspection" },
+  LOAD_OUT: { href: "/logistics", labelKey: "loadOut" },
+  FINAL_PRODUCT_ENTRY: { href: "/final-product-entry", labelKey: "finalProductEntry" },
+  LAB: { href: "/lab", labelKey: "lab" },
 };
 
 export function Nav({ role, isHeadOfSales, station }: { role: Role; isHeadOfSales: boolean; station: Station | null }) {
   const pathname = usePathname();
+  const dict = useTranslations();
   const canSeeTrends = role === "OWNER" || isHeadOfSales;
 
   if (station) {
     const item = STATION_ITEM[station];
     return (
       <nav className="space-y-1">
-        <span className="block rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white">{item.label}</span>
+        <span className="block rounded-md bg-emerald-700 px-3 py-2 text-sm font-medium text-white">
+          {dict.nav[item.labelKey]}
+        </span>
       </nav>
     );
   }
@@ -104,7 +117,7 @@ export function Nav({ role, isHeadOfSales, station }: { role: Role; isHeadOfSale
               active ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-100"
             )}
           >
-            {item.label}
+            {dict.nav[item.labelKey]}
           </Link>
         );
       })}

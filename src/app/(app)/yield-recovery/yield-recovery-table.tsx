@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 export type FieldYieldRow = {
   key: string; // fieldId
@@ -27,8 +28,6 @@ export type PeriodSection = {
 
 export type Period = "DAILY" | "WEEKLY" | "MONTHLY" | "SEASON";
 
-const PERIOD_LABEL: Record<Period, string> = { DAILY: "Daily", WEEKLY: "Weekly", MONTHLY: "Monthly", SEASON: "Season" };
-
 function recoveryColor(pct: number | null): "slate" | "green" | "amber" | "red" {
   if (pct == null) return "slate";
   if (pct >= 80) return "green";
@@ -41,39 +40,42 @@ function formatKg(kg: number): string {
 }
 
 function TrendBadge({ row }: { row: FieldYieldRow }) {
-  if (row.recoveryPct == null || row.prevRecoveryPct == null) return <span className="text-xs text-slate-400">no prior data</span>;
+  const dict = useTranslations().yieldRecovery;
+  if (row.recoveryPct == null || row.prevRecoveryPct == null)
+    return <span className="text-xs text-slate-400">{dict.noPriorData}</span>;
   const delta = row.recoveryPct - row.prevRecoveryPct;
-  if (Math.abs(delta) < 1) return <span className="text-xs text-slate-400">flat</span>;
+  if (Math.abs(delta) < 1) return <span className="text-xs text-slate-400">{dict.flat}</span>;
   const improving = delta > 0;
   return (
     <span className={cn("text-xs font-medium", improving ? "text-emerald-600" : "text-red-600")}>
-      {improving ? "▲" : "▼"} {Math.abs(delta).toFixed(1)} pts vs prior period
+      {improving ? "▲" : "▼"} {Math.abs(delta).toFixed(1)} {dict.ptsVsPriorPeriod}
     </span>
   );
 }
 
 function SectionTable({ section }: { section: PeriodSection }) {
+  const dict = useTranslations().yieldRecovery;
   return (
     <div>
       <div className="mb-1 flex items-center gap-3">
         <p className="text-xs font-semibold text-slate-500">{section.label}</p>
         {section.overallRecoveryPct != null && (
           <span className="text-xs text-slate-500">
-            Overall:{" "}
+            {dict.overallLabel}:{" "}
             <Badge color={recoveryColor(section.overallRecoveryPct)}>{section.overallRecoveryPct.toFixed(1)}%</Badge>{" "}
-            ({formatKg(section.overallFinishedKg)} finished / {formatKg(section.overallRawKg)} raw)
+            ({formatKg(section.overallFinishedKg)} {dict.finishedLabel} / {formatKg(section.overallRawKg)} {dict.rawLabel})
           </span>
         )}
       </div>
       <Card className="overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Field</th>
-              <th className="px-4 py-2 font-medium">Raw In</th>
-              <th className="px-4 py-2 font-medium">Finished Out</th>
-              <th className="px-4 py-2 font-medium">Recovery</th>
-              <th className="px-4 py-2 font-medium">Trend</th>
+              <th className="px-4 py-2 font-medium">{dict.colField}</th>
+              <th className="px-4 py-2 font-medium">{dict.colRawIn}</th>
+              <th className="px-4 py-2 font-medium">{dict.colFinishedOut}</th>
+              <th className="px-4 py-2 font-medium">{dict.colRecovery}</th>
+              <th className="px-4 py-2 font-medium">{dict.colTrend}</th>
             </tr>
           </thead>
           <tbody>
@@ -82,17 +84,21 @@ function SectionTable({ section }: { section: PeriodSection }) {
                 <td className="px-4 py-2 font-medium text-slate-800">{row.label}</td>
                 <td className="px-4 py-2 text-slate-700">
                   {formatKg(row.rawKg)}
-                  <span className="ml-1 text-xs font-normal text-slate-400">({row.rawLineCount} lines)</span>
+                  <span className="ms-1 text-xs font-normal text-slate-400">
+                    ({row.rawLineCount} {dict.linesSuffix})
+                  </span>
                 </td>
                 <td className="px-4 py-2 text-slate-700">
                   {formatKg(row.finishedKg)}
-                  <span className="ml-1 text-xs font-normal text-slate-400">({row.palletCount} pallets)</span>
+                  <span className="ms-1 text-xs font-normal text-slate-400">
+                    ({row.palletCount} {dict.palletsSuffix})
+                  </span>
                 </td>
                 <td className="px-4 py-2">
                   {row.recoveryPct != null ? (
                     <Badge color={recoveryColor(row.recoveryPct)}>{row.recoveryPct.toFixed(1)}%</Badge>
                   ) : (
-                    <span className="text-xs text-slate-400">no raw weight logged</span>
+                    <span className="text-xs text-slate-400">{dict.noRawWeightLogged}</span>
                   )}
                 </td>
                 <td className="px-4 py-2">
@@ -103,7 +109,7 @@ function SectionTable({ section }: { section: PeriodSection }) {
             {section.rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  No raw weight or finished pallets logged against a field in this period.
+                  {dict.noRowsInPeriod}
                 </td>
               </tr>
             )}
@@ -117,6 +123,13 @@ function SectionTable({ section }: { section: PeriodSection }) {
 export function YieldRecoveryTable({ dataByPeriod }: { dataByPeriod: Record<Period, PeriodSection[]> }) {
   const [period, setPeriod] = useState<Period>("WEEKLY");
   const sections = dataByPeriod[period];
+  const dict = useTranslations().yieldRecovery;
+  const PERIOD_LABEL: Record<Period, string> = {
+    DAILY: dict.periodDaily,
+    WEEKLY: dict.periodWeekly,
+    MONTHLY: dict.periodMonthly,
+    SEASON: dict.periodSeason,
+  };
 
   return (
     <div>
@@ -140,9 +153,7 @@ export function YieldRecoveryTable({ dataByPeriod }: { dataByPeriod: Record<Peri
         {sections.map((s) => (
           <SectionTable key={s.key} section={s} />
         ))}
-        {sections.length === 0 && (
-          <p className="py-8 text-center text-sm text-slate-400">No raw weight or finished pallets logged yet.</p>
-        )}
+        {sections.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{dict.noDataYet}</p>}
       </div>
     </div>
   );

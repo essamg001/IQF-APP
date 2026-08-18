@@ -11,6 +11,7 @@ import { useDefectTotal } from "@/lib/useDefectTotal";
 import { DECAP_SHARED_DEFECT_FIELDS } from "@/lib/defectFields";
 import { QC_NUMBERS } from "@/lib/qc";
 import { cn } from "@/lib/cn";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 const TOTAL_DEFECTS_LIMIT = limitsFor("POST_DECAP").find((r) => r.field === "totalDefectsPct")!.max!;
 
@@ -42,6 +43,7 @@ export function PostDecapForm({
   fieldByReceiptNote: Record<string, string>;
 }) {
   const [state, formAction, pending] = useActionState(createPostDecapCheckAction, undefined);
+  const dict = useTranslations().postDecapQuality;
 
   const [receiptNoteNo, setReceiptNoteNo] = useState("");
 
@@ -54,43 +56,47 @@ export function PostDecapForm({
   return (
     <form action={formAction} className="space-y-4">
       <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">Traceability (not on STR03107, kept for field tracing)</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.traceabilityTitle}</h2>
         <div className="grid grid-cols-3 gap-3">
-          <FieldGroup label="Harvest Ticket Serial Number">
+          <FieldGroup label={dict.harvestTicketSerial}>
             <Input
               name="receiptNoteNo"
               value={receiptNoteNo}
               onChange={(e) => setReceiptNoteNo(e.target.value)}
-              placeholder="Same as the pre-decap arrival"
+              placeholder={dict.harvestTicketSerialPlaceholder}
             />
           </FieldGroup>
-          <FieldGroup label="Field / Plot (auto-filled from Serial Number, editable)">
-            <FieldNameInput key={matchedFieldName || "manual"} defaultValue={matchedFieldName} fields={fields} />
+          <FieldGroup label={dict.fieldPlot}>
+            <FieldNameInput key={matchedFieldName || "manual"} defaultValue={matchedFieldName} fields={fields} placeholder={dict.fieldPlotPlaceholder} />
           </FieldGroup>
         </div>
-        {receiptNoteNo && !matchedFieldName && (
-          <p className="text-xs text-amber-600">
-            No pre-decap arrival found yet for this receipt note — type the field in manually, or leave blank.
-          </p>
-        )}
+        {receiptNoteNo && !matchedFieldName && <p className="text-xs text-amber-600">{dict.noArrivalFound}</p>}
       </Card>
 
       <SampleFields key={isSuccess ? state : "initial"} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       {decoded && <QualityLimitWarning violations={decoded.violations} />}
-      {isSuccess && <p className="text-sm font-medium text-emerald-700">Saved — logged.</p>}
+      {isSuccess && <p className="text-sm font-medium text-emerald-700">{dict.saved}</p>}
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "Saving…" : "Log check"}
+        {pending ? dict.saving : dict.logCheck}
       </Button>
     </form>
   );
 }
 
-function FieldNameInput({ defaultValue, fields }: { defaultValue: string; fields: FieldOption[] }) {
+function FieldNameInput({
+  defaultValue,
+  fields,
+  placeholder,
+}: {
+  defaultValue: string;
+  fields: FieldOption[];
+  placeholder: string;
+}) {
   return (
     <>
-      <Input name="fieldName" list="field-suggestions" defaultValue={defaultValue} placeholder="e.g. MAFA 4 · ST1 · A1" />
+      <Input name="fieldName" list="field-suggestions" defaultValue={defaultValue} placeholder={placeholder} />
       <datalist id="field-suggestions">
         {fields.map((f) => (
           <option key={f.id} value={f.name} />
@@ -103,90 +109,91 @@ function FieldNameInput({ defaultValue, fields }: { defaultValue: string; fields
 function SampleFields() {
   const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
   const { total: defectTotal, bind } = useDefectTotal(DECAP_SHARED_DEFECT_FIELDS);
+  const dict = useTranslations().postDecapQuality;
 
   return (
     <>
       <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">Delivery Identity</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.deliveryIdentityTitle}</h2>
         <div className="grid grid-cols-4 gap-3">
-          <FieldGroup label="Variety">
+          <FieldGroup label={dict.variety}>
             <Input name="varietyName" />
           </FieldGroup>
-          <FieldGroup label="Client">
+          <FieldGroup label={dict.client}>
             <Input name="clientName" />
           </FieldGroup>
-          <FieldGroup label="Sample No.">
+          <FieldGroup label={dict.sampleNo}>
             <Input name="sampleNo" required />
           </FieldGroup>
-          <FieldGroup label="Processing Line">
+          <FieldGroup label={dict.processingLine}>
             <Input name="processingLine" />
           </FieldGroup>
-          <FieldGroup label="Time of Sample">
+          <FieldGroup label={dict.sampleCollectionTime}>
             <Input name="sampleCollectionTime" type="datetime-local" />
           </FieldGroup>
         </div>
       </Card>
 
       <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">Physical Measurements</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.physicalMeasurementsTitle}</h2>
         <div className="grid grid-cols-4 gap-3">
-          <FieldGroup label="Plate Weight (kg, limit 3.3–3.7)">
+          <FieldGroup label={dict.plateWeight}>
             <Input name="crateWeightKg" type="number" step="0.01" />
           </FieldGroup>
-          <FieldGroup label="Fruit Diameter (limit 25-40mm)">
+          <FieldGroup label={dict.fruitDiameter}>
             <Input name="sizeCaliber" placeholder="25-40mm" />
           </FieldGroup>
-          <FieldGroup label="Brix (limit >7%)">
+          <FieldGroup label={dict.brix}>
             <Input name="brix" type="number" step="0.1" required />
           </FieldGroup>
-          <Pct name="fruitColorPct" label="Fruit Colour (limit ≥90% red)" />
-          <Pct name="internalQualityPct" label="Internal Quality (limit ≤3%)" />
-          <FieldGroup label="Foreign Odor (limit NIL)">
-            <Input name="foreignOdor" placeholder="NIL" />
+          <Pct name="fruitColorPct" label={dict.fruitColor} />
+          <Pct name="internalQualityPct" label={dict.internalQuality} />
+          <FieldGroup label={dict.foreignOdor}>
+            <Input name="foreignOdor" placeholder={dict.nilPlaceholder} />
           </FieldGroup>
-          <FieldGroup label="Foreign Taste (limit NIL)">
-            <Input name="foreignTaste" placeholder="NIL" />
+          <FieldGroup label={dict.foreignTaste}>
+            <Input name="foreignTaste" placeholder={dict.nilPlaceholder} />
           </FieldGroup>
         </div>
       </Card>
 
       <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">Defects</h2>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.defectsTitle}</h2>
         <div className="grid grid-cols-4 gap-3">
-          <Pct name="incompleteMaturityPct" label="Incomplete Maturity (limit ≤1%)" {...bind("incompleteMaturityPct")} />
-          <Pct name="moldSignsPct" label="Mold Signs (limit ≤1%)" {...bind("moldSignsPct")} />
-          <Pct name="mouldPct" label="Mould (limit 0%)" {...bind("mouldPct")} />
-          <Pct name="capsuleRemainsPct" label="Capsule Remains (limit ≤2%)" {...bind("capsuleRemainsPct")} />
-          <Pct name="birdFoodPct" label="Bird-Eaten (limit ≤2%)" {...bind("birdFoodPct")} />
-          <Pct name="overmaturePct" label="Over Maturity (limit ≤5%)" {...bind("overmaturePct")} />
-          <Pct name="skinDamagePct" label="Shell Deformities (limit ≤2%)" {...bind("skinDamagePct")} />
-          <Pct name="shapeDeformitiesPct" label="Shape Deformities (limit ≤3%)" {...bind("shapeDeformitiesPct")} />
-          <Pct name="seedClusteringPct" label="Seed Clustering (limit ≤1%)" {...bind("seedClusteringPct")} />
-          <Pct name="bruisesPct" label="Bruises (limit ≤1%)" {...bind("bruisesPct")} />
-          <Pct name="dryCavitiesPct" label="Dry Cavities (limit ≤1%)" {...bind("dryCavitiesPct")} />
-          <Pct name="overDecappingPct" label="Over-Decapping (limit ≤1%)" {...bind("overDecappingPct")} />
-          <Pct name="oxidationPct" label="Oxidation (limit ≤4%)" {...bind("oxidationPct")} />
-          <Pct name="sandDustPct" label="Sand / Light Soil (limit ≤1%)" {...bind("sandDustPct")} />
-          <Pct name="insectsLarvaePct" label="Insects / Larvae (limit 0%)" {...bind("insectsLarvaePct")} />
-          <Pct name="foreignBodiesPct" label="Foreign Bodies (limit 0%)" {...bind("foreignBodiesPct")} />
-          <FieldGroup label="Leaf/Stem Remains (limit 1 pc/1kg)">
+          <Pct name="incompleteMaturityPct" label={dict.incompleteMaturity} {...bind("incompleteMaturityPct")} />
+          <Pct name="moldSignsPct" label={dict.moldSigns} {...bind("moldSignsPct")} />
+          <Pct name="mouldPct" label={dict.mould} {...bind("mouldPct")} />
+          <Pct name="capsuleRemainsPct" label={dict.capsuleRemains} {...bind("capsuleRemainsPct")} />
+          <Pct name="birdFoodPct" label={dict.birdEaten} {...bind("birdFoodPct")} />
+          <Pct name="overmaturePct" label={dict.overmature} {...bind("overmaturePct")} />
+          <Pct name="skinDamagePct" label={dict.shellDeformities} {...bind("skinDamagePct")} />
+          <Pct name="shapeDeformitiesPct" label={dict.shapeDeformities} {...bind("shapeDeformitiesPct")} />
+          <Pct name="seedClusteringPct" label={dict.seedClustering} {...bind("seedClusteringPct")} />
+          <Pct name="bruisesPct" label={dict.bruises} {...bind("bruisesPct")} />
+          <Pct name="dryCavitiesPct" label={dict.dryCavities} {...bind("dryCavitiesPct")} />
+          <Pct name="overDecappingPct" label={dict.overDecapping} {...bind("overDecappingPct")} />
+          <Pct name="oxidationPct" label={dict.oxidation} {...bind("oxidationPct")} />
+          <Pct name="sandDustPct" label={dict.sandDust} {...bind("sandDustPct")} />
+          <Pct name="insectsLarvaePct" label={dict.insectsLarvae} {...bind("insectsLarvaePct")} />
+          <Pct name="foreignBodiesPct" label={dict.foreignBodies} {...bind("foreignBodiesPct")} />
+          <FieldGroup label={dict.leafStemRemains}>
             <Input name="leafStemRemainsCount" type="number" step="1" min="0" />
           </FieldGroup>
-          <Pct name="brokenUncleanPalletsPct" label="Broken/Unclean Pallets (limit 0%)" {...bind("brokenUncleanPalletsPct")} />
-          <Pct name="unfumigatedPalletsPct" label="Unfumigated Pallets (limit 0%)" {...bind("unfumigatedPalletsPct")} />
-          <Pct name="brokenUncleanCratesPct" label="Broken/Unclean Trays (limit 0%)" {...bind("brokenUncleanCratesPct")} />
+          <Pct name="brokenUncleanPalletsPct" label={dict.brokenUncleanPallets} {...bind("brokenUncleanPalletsPct")} />
+          <Pct name="unfumigatedPalletsPct" label={dict.unfumigatedPallets} {...bind("unfumigatedPalletsPct")} />
+          <Pct name="brokenUncleanCratesPct" label={dict.brokenUncleanCrates} {...bind("brokenUncleanCratesPct")} />
         </div>
         <p className={cn("text-xs font-medium", defectTotal > TOTAL_DEFECTS_LIMIT ? "text-red-600" : "text-slate-400")}>
-          Running total: {defectTotal.toFixed(1)}% (limit ≤{TOTAL_DEFECTS_LIMIT}%)
+          {dict.runningTotal.replace("{total}", defectTotal.toFixed(1)).replace("{limit}", String(TOTAL_DEFECTS_LIMIT))}
         </p>
       </Card>
 
       <Card className="space-y-4">
         <div className="grid grid-cols-3 gap-3">
-          <FieldGroup label="QC Approver">
+          <FieldGroup label={dict.qcApprover}>
             <Select name="decapQcApprover" required defaultValue="">
               <option value="" disabled>
-                Select QC…
+                {dict.qcApproverPlaceholder}
               </option>
               {QC_NUMBERS.map((qc) => (
                 <option key={qc} value={qc}>
@@ -195,34 +202,34 @@ function SampleFields() {
               ))}
             </Select>
           </FieldGroup>
-          <FieldGroup label="Conforming / Nonconforming to Specs">
+          <FieldGroup label={dict.decisionLabel}>
             <Select
               name="decision"
               required
               value={decision}
               onChange={(e) => setDecision(e.target.value as typeof decision)}
             >
-              <option value="ACCEPTED">Conforming</option>
-              <option value="REJECTED">Nonconforming</option>
+              <option value="ACCEPTED">{dict.conforming}</option>
+              <option value="REJECTED">{dict.nonconforming}</option>
             </Select>
           </FieldGroup>
-          <FieldGroup label={decision === "REJECTED" ? "Corrective Action" : "Corrective Action (optional)"}>
+          <FieldGroup label={decision === "REJECTED" ? dict.correctiveAction : dict.correctiveActionOptional}>
             <Input
               name="notes"
-              placeholder={decision === "REJECTED" ? "What corrective action was taken?" : undefined}
+              placeholder={decision === "REJECTED" ? dict.correctiveActionPlaceholder : undefined}
               required={decision === "REJECTED"}
             />
           </FieldGroup>
         </div>
         {decision === "REJECTED" && (
           <div className="grid grid-cols-2 gap-3">
-            <FieldGroup label="Diverted To">
-              <Input name="divertedTo" placeholder="e.g. Local market" />
+            <FieldGroup label={dict.divertedTo}>
+              <Input name="divertedTo" placeholder={dict.divertedToPlaceholder} />
             </FieldGroup>
-            <FieldGroup label="Packing Group Re-Training">
+            <FieldGroup label={dict.retraining}>
               <label className="flex h-9 items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" name="retrainingRequested" className="h-4 w-4 rounded border-slate-300" />
-                Requested
+                {dict.requested}
               </label>
             </FieldGroup>
           </div>

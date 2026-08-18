@@ -5,41 +5,57 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ReceiptForm } from "./receipt-form";
 import { format } from "date-fns";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary, type Dictionary } from "@/lib/i18n/getDictionary";
 
-const COMPLIANCE_LABEL: Record<string, string> = {
-  GLOBALGAP: "GlobalG.A.P.",
-  SPRING: "Spring",
-  LEAF: "Leaf",
-  NURTURE: "Nurture",
-  AH_DL_GROW: "AH/DL Grow",
-  FAIRTRADE: "Fairtrade",
-  ORGANIC_100: "100% Organic",
-  BIO_SUISSE: "Bio Suisse",
-  OTHER: "Other",
-};
+type HarvestTicketsDict = Dictionary["harvestTickets"];
 
-function Check({ label, ok }: { label: string; ok: boolean | null }) {
+function complianceLabel(dict: HarvestTicketsDict): Record<string, string> {
+  return {
+    GLOBALGAP: dict.complianceGlobalGap,
+    SPRING: dict.complianceSpring,
+    LEAF: dict.complianceLeaf,
+    NURTURE: dict.complianceNurture,
+    AH_DL_GROW: dict.complianceAhDlGrow,
+    FAIRTRADE: dict.complianceFairtrade,
+    ORGANIC_100: dict.complianceOrganic100,
+    BIO_SUISSE: dict.complianceBioSuisse,
+    OTHER: dict.complianceOtherOption,
+  };
+}
+
+function Check({ label, ok, dict }: { label: string; ok: boolean | null; dict: HarvestTicketsDict }) {
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-slate-600">{label}</span>
       {ok === null ? (
         <span className="text-slate-400">—</span>
       ) : (
-        <Badge color={ok ? "green" : "red"}>{ok ? "OK" : "Not OK"}</Badge>
+        <Badge color={ok ? "green" : "red"}>{ok ? dict.ok : dict.notOk}</Badge>
       )}
     </div>
   );
 }
 
-function Presence({ label, present, action }: { label: string; present: boolean | null; action: string | null }) {
+function Presence({
+  label,
+  present,
+  action,
+  dict,
+}: {
+  label: string;
+  present: boolean | null;
+  action: string | null;
+  dict: HarvestTicketsDict;
+}) {
   return (
     <div className="flex items-start justify-between text-sm">
       <span className="text-slate-600">{label}</span>
-      <div className="text-right">
+      <div className="text-end">
         {present === null ? (
           <span className="text-slate-400">—</span>
         ) : (
-          <Badge color={present ? "amber" : "slate"}>{present ? "Present" : "None"}</Badge>
+          <Badge color={present ? "amber" : "slate"}>{present ? dict.present : dict.none}</Badge>
         )}
         {present && action && <p className="mt-1 text-xs text-slate-500">{action}</p>}
       </div>
@@ -63,6 +79,8 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
   }
 
   const { id } = await params;
+  const dict = getDictionary(await resolveLocale()).harvestTickets;
+  const COMPLIANCE_LABEL = complianceLabel(dict);
   const ticket = await prisma.harvestTicket.findUnique({
     where: { id },
     include: { plotLines: { include: { field: true } } },
@@ -73,88 +91,118 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Harvest Ticket {ticket.serialNumber}</h1>
-          <p className="mt-1 text-sm text-slate-500">Product delivery sheet (GEN03107)</p>
+          <h1 className="text-xl font-semibold text-slate-900">
+            {dict.detailTitlePrefix}
+            {ticket.serialNumber}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.detailSubtitle}</p>
         </div>
         {ticket.receivedDate ? (
           <Badge color={ticket.acceptedAtPackhouse ? "green" : "red"}>
-            {ticket.acceptedAtPackhouse ? "Accepted at Packhouse" : "Rejected at Packhouse"}
+            {ticket.acceptedAtPackhouse ? dict.acceptedAtPackhouse : dict.rejectedAtPackhouse}
           </Badge>
         ) : (
-          <Badge color="amber">Awaiting Receipt</Badge>
+          <Badge color="amber">{dict.awaitingReceipt}</Badge>
         )}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="space-y-4">
-          <h2 className="text-sm font-semibold text-slate-900">Delivery Identity</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.deliveryIdentityTitle}</h2>
           <div className="grid grid-cols-2 gap-3">
-            <DetailRow label="GGN" value={ticket.ggn} />
+            <DetailRow label={dict.ggn} value={ticket.ggn} />
             <DetailRow
-              label="Compliance Level"
+              label={dict.complianceLevel}
               value={ticket.complianceLevel ? COMPLIANCE_LABEL[ticket.complianceLevel] : ticket.complianceOther}
             />
-            <DetailRow label="Product Type" value={ticket.productType} />
-            <DetailRow label="Rework Reason" value={ticket.reworkReason} />
+            <DetailRow
+              label={dict.productType}
+              value={
+                ticket.productType === "RAW"
+                  ? dict.productTypeRaw
+                  : ticket.productType === "FINAL"
+                    ? dict.productTypeFinal
+                    : ticket.productType === "REWORK"
+                      ? dict.productTypeRework
+                      : ticket.productType
+              }
+            />
+            <DetailRow label={dict.reworkReason} value={ticket.reworkReason} />
           </div>
         </Card>
 
         <Card className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-900">Conformity Checklist</h2>
-          <Check label="Fruit conformity" ok={ticket.fruitConformityOk} />
-          <Check label="Fruit safety" ok={ticket.fruitSafetyOk} />
-          <Check label="Crates cleanliness" ok={ticket.cratesCleanlinessOk} />
-          <Check label="Field cleanliness" ok={ticket.fieldCleanlinessOk} />
-          <Check label="Vehicle cleanliness" ok={ticket.vehicleCleanlinessOk} />
+          <h2 className="text-sm font-semibold text-slate-900">{dict.conformityChecklistTitle}</h2>
+          <Check label={dict.fruitConformity} ok={ticket.fruitConformityOk} dict={dict} />
+          <Check label={dict.fruitSafety} ok={ticket.fruitSafetyOk} dict={dict} />
+          <Check label={dict.cratesCleanliness} ok={ticket.cratesCleanlinessOk} dict={dict} />
+          <Check label={dict.fieldCleanliness} ok={ticket.fieldCleanlinessOk} dict={dict} />
+          <Check label={dict.vehicleCleanliness} ok={ticket.vehicleCleanlinessOk} dict={dict} />
         </Card>
 
         <Card className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-900">Presence Checklist</h2>
-          <Presence label="Pets present" present={ticket.petsPresent} action={ticket.petsPresentAction} />
+          <h2 className="text-sm font-semibold text-slate-900">{dict.presenceChecklistTitle}</h2>
+          <Presence label={dict.petsPresent} present={ticket.petsPresent} action={ticket.petsPresentAction} dict={dict} />
           <Presence
-            label="Animal production nearby"
+            label={dict.animalProductionNearby}
             present={ticket.animalProductionNearby}
             action={ticket.animalProductionNearbyAction}
+            dict={dict}
           />
           <Presence
-            label="Wild/domestic animal activity"
+            label={dict.wildDomesticAnimalActivity}
             present={ticket.wildDomesticAnimalActivity}
             action={ticket.wildDomesticAnimalActivityAction}
+            dict={dict}
           />
-          <Presence label="Rodent/dog activity" present={ticket.rodentDogActivity} action={ticket.rodentDogActivityAction} />
+          <Presence
+            label={dict.rodentDogActivity}
+            present={ticket.rodentDogActivity}
+            action={ticket.rodentDogActivityAction}
+            dict={dict}
+          />
         </Card>
 
         <Card className="space-y-4">
-          <h2 className="text-sm font-semibold text-slate-900">Delivery & Harvest Details</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.deliveryHarvestDetailsTitle}</h2>
           <div className="grid grid-cols-2 gap-3">
-            <DetailRow label="Loading Supervisor" value={ticket.loadingSupervisor} />
-            <DetailRow label="Loading Time" value={ticket.loadingTime ? format(ticket.loadingTime, "dd MMM yyyy HH:mm") : null} />
-            <DetailRow label="Transferred By" value={ticket.transferredBy} />
-            <DetailRow label="Vehicle No." value={ticket.vehicleNo} />
-            <DetailRow label="Authorized Grower" value={ticket.authorizedGrower} />
-            <DetailRow label="Crop Name" value={ticket.cropName} />
-            <DetailRow label="Harvest Time" value={ticket.harvestTime ? format(ticket.harvestTime, "dd MMM yyyy HH:mm") : null} />
-            <DetailRow label="Harvest Supervisor" value={ticket.harvestSupervisor} />
-            <DetailRow label="Harvest Date" value={ticket.harvestDate ? format(ticket.harvestDate, "dd MMM yyyy") : null} />
+            <DetailRow label={dict.loadingSupervisor} value={ticket.loadingSupervisor} />
+            <DetailRow
+              label={dict.loadingTime}
+              value={ticket.loadingTime ? format(ticket.loadingTime, "dd MMM yyyy HH:mm") : null}
+            />
+            <DetailRow label={dict.transferredBy} value={ticket.transferredBy} />
+            <DetailRow label={dict.vehicleNo} value={ticket.vehicleNo} />
+            <DetailRow label={dict.authorizedGrower} value={ticket.authorizedGrower} />
+            <DetailRow label={dict.cropName} value={ticket.cropName} />
+            <DetailRow
+              label={dict.harvestTime}
+              value={ticket.harvestTime ? format(ticket.harvestTime, "dd MMM yyyy HH:mm") : null}
+            />
+            <DetailRow label={dict.harvestSupervisor} value={ticket.harvestSupervisor} />
+            <DetailRow
+              label={dict.harvestDate}
+              value={ticket.harvestDate ? format(ticket.harvestDate, "dd MMM yyyy") : null}
+            />
           </div>
         </Card>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <h2 className="px-4 pt-4 text-sm font-semibold text-slate-900">Plots Supplying This Delivery</h2>
-        <table className="mt-3 w-full text-left text-sm">
+        <h2 className="px-4 pt-4 text-sm font-semibold text-slate-900">{dict.plotsSuppliedTitle}</h2>
+        <table className="mt-3 w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Station</th>
-              <th className="px-4 py-2 font-medium">Plot/Valve/GH</th>
-              <th className="px-4 py-2 font-medium">Matched Field</th>
-              <th className="px-4 py-2 font-medium">Variety</th>
-              <th className="px-4 py-2 font-medium">Cycle</th>
-              <th className="px-4 py-2 font-medium">Planting Year</th>
-              <th className="px-4 py-2 font-medium">Cut</th>
-              <th className="px-4 py-2 font-medium">Pallets</th>
-              <th className="px-4 py-2 font-medium">Crates</th>
-              <th className="px-4 py-2 font-medium">Weight (kg)</th>
+              <th className="px-4 py-2 font-medium">{dict.colStation}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPlotValveGh}</th>
+              <th className="px-4 py-2 font-medium">{dict.colMatchedField}</th>
+              <th className="px-4 py-2 font-medium">{dict.colVariety}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCycle}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPlantingYear}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCut}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPallets}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCrates}</th>
+              <th className="px-4 py-2 font-medium">{dict.colWeightKg}</th>
             </tr>
           </thead>
           <tbody>
@@ -166,7 +214,7 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
                   {l.field ? (
                     <Badge color="green">{l.field.name}</Badge>
                   ) : (
-                    <Badge color="slate">Unmatched</Badge>
+                    <Badge color="slate">{dict.unmatched}</Badge>
                   )}
                 </td>
                 <td className="px-4 py-2">{l.varietyName ?? "—"}</td>
@@ -181,7 +229,7 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
             {ticket.plotLines.length === 0 && (
               <tr>
                 <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
-                  No plots recorded.
+                  {dict.noPlotsRecorded}
                 </td>
               </tr>
             )}
@@ -191,23 +239,26 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
       </Card>
 
       <Card className="mt-6">
-        <h2 className="text-sm font-semibold text-slate-900">Packhouse Receipt</h2>
-        <p className="mt-1 text-sm text-slate-500">Completed by the decap facility once the tractor arrives.</p>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.packhouseReceiptTitle}</h2>
+        <p className="mt-1 text-sm text-slate-500">{dict.packhouseReceiptSubtitle}</p>
         <div className="mt-4">
           {ticket.receivedDate ? (
             <div className="grid grid-cols-4 gap-3">
-              <DetailRow label="Received Date" value={format(ticket.receivedDate, "dd MMM yyyy")} />
-              <DetailRow label="Received Time" value={ticket.receivedTime ? format(ticket.receivedTime, "HH:mm") : null} />
-              <DetailRow label="Delivery Number" value={ticket.deliveryNumber} />
-              <DetailRow label="Crates Received" value={ticket.cratesReceived} />
-              <DetailRow label="Pallets Received" value={ticket.palletsReceived} />
-              <DetailRow label="Gross Weight (kg)" value={ticket.grossWeightKg} />
-              <DetailRow label="Net Weight (kg)" value={ticket.netWeightKg} />
-              <DetailRow label="Electronic Weight Card No." value={ticket.electronicWeightCardNo} />
-              <DetailRow label="Product Temp (°C)" value={ticket.productTempC} />
-              <DetailRow label="Optimum Temp (°C)" value={ticket.optimumTempC} />
-              <DetailRow label="Cold Truck Temp (°C)" value={ticket.coldTruckTempC} />
-              <DetailRow label="Received By" value={ticket.receivedByName} />
+              <DetailRow label={dict.receivedDate} value={format(ticket.receivedDate, "dd MMM yyyy")} />
+              <DetailRow
+                label={dict.receivedTime}
+                value={ticket.receivedTime ? format(ticket.receivedTime, "HH:mm") : null}
+              />
+              <DetailRow label={dict.deliveryNumber} value={ticket.deliveryNumber} />
+              <DetailRow label={dict.cratesReceived} value={ticket.cratesReceived} />
+              <DetailRow label={dict.palletsReceived} value={ticket.palletsReceived} />
+              <DetailRow label={dict.grossWeightKg} value={ticket.grossWeightKg} />
+              <DetailRow label={dict.netWeightKg} value={ticket.netWeightKg} />
+              <DetailRow label={dict.electronicWeightCardNo} value={ticket.electronicWeightCardNo} />
+              <DetailRow label={dict.productTempC} value={ticket.productTempC} />
+              <DetailRow label={dict.optimumTempC} value={ticket.optimumTempC} />
+              <DetailRow label={dict.coldTruckTempC} value={ticket.coldTruckTempC} />
+              <DetailRow label={dict.receivedBy} value={ticket.receivedByName} />
             </div>
           ) : (
             <ReceiptForm ticketId={ticket.id} />

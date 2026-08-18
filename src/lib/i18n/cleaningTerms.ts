@@ -1,0 +1,235 @@
+// Term-level Arabic translations for the master sanitation schedule
+// (HSE03297 Packhouse 11 / HSE03312 Packhouse 13) and Cleaning Mode areas.
+// The underlying data in masterCleaningSchedule.ts and cleaning.ts stays
+// canonically in English (it's operational data, not UI chrome); these are
+// flat English->Arabic lookup tables the display layer uses when locale is
+// AR, sourced from the real bilingual/Arabic-only PDF pages. Unlike the main
+// dictionary, an unmatched key falls back to the English string rather than
+// erroring, since new schedule rows can be added without a matching i18n PR.
+import type { Locale } from "@prisma/client";
+
+const ITEM_AR: Record<string, string> = {
+  "AC Evaporators": "مبخرات التكييف",
+  "AC Units": "التكييفات",
+  "Air Conditioners": "تكييفات الهواء",
+  "Air Curtains": "ستائر الهواء",
+  "Air Extractor Fan": "شفاط هوائي",
+  "Aprons / Overalls": "جزامات",
+  Bathrooms: "الحمامات",
+  "Bird Nests": "أعشاش العصافير",
+  Bollards: "الصدادات",
+  "Boot Brush": "بوت",
+  Broom: "مكنسة",
+  Brushes: "فرش",
+  "CCTV Cameras": "كاميرات المراقبة",
+  "Cable Trays": "تريهات الكابلات",
+  "Carton-Taping Machine": "ماكينة لصق الكراتين",
+  Ceilings: "الأسقف",
+  Chairs: "الكراسي",
+  "Charging Equipment": "أجهزة الشحن",
+  "Chemical-Prep Suit (Laundered)": "بدلة تحضير مواد كيميائية",
+  "Clothing Stands": "استاندات الملابس",
+  Cloths: "فوط",
+  "Cold-Room Cooling Units": "وحدات تبريد الثلاجات",
+  "Cold-Room Corridor": "ممر الثلاجات",
+  "Cold-Room Unit/Machine": "ماكينة الثلاجات",
+  "Cold-Water Wash Basins": "أحواض الغسيل بالماء البارد",
+  "Conveyor Belts": "السيور الناقلة",
+  "Crate & Pallet Collection Areas": "أماكن تجميع الصناديق والباليتات",
+  "Crate-Washing Suit (Laundered)": "بدلة غسيل الصناديق",
+  "Cutting Machine": "ماكينة التقطيع",
+  "Cutting Machine Blades": "سكاكين ماكينة التقطيع",
+  Desks: "المكاتب",
+  "Diesel & Electric Forklifts": "الكلاركات الديزل والكهرباء",
+  "Dining Tables & Seats": "ترابيزات الطعام + المقاعد",
+  "Door Frames": "أوكر الأبواب",
+  Doors: "الأبواب",
+  "Doors & Windows": "الأبواب والشبابيك",
+  Drains: "البلاعات",
+  "Drinking-Water Filters": "فلاتر مياه الشرب",
+  Dryer: "المجفف",
+  Duster: "زعافة",
+  "Electrical Panel Covers": "أغطية اللوحات الكهربائية",
+  "Electrical Panels & Sockets": "لوحات وفيش الكهرباء",
+  "Emergency Signs": "علامات الطوارئ",
+  "Fire Extinguisher Boxes": "صناديق الإطفاء",
+  "Fire Extinguishers & Boxes": "طفايات وصناديق الإطفاء",
+  "Fire-Line Pipes": "مواسير خط المطافئ",
+  "Floor-Cleaning Machine": "ماكينة نظافة الأرضيات",
+  Floors: "الأرضيات",
+  "Floors & Ashtrays": "الأرضيات والطفايات",
+  "Foot-Disinfection Basins": "أحواض تعقيم الأرجل",
+  "Freezing Hall Disinfection": "تعقيم صالة مصنع التجميد",
+  "Freezing Tunnel": "نفق التجميد",
+  "Freezing Tunnel (Foam)": "نفق التجميد (فوم)",
+  "Freezing Tunnel Conveyor Belt": "سير ناقل نفق التجميد",
+  "Freezing Tunnel Stairs": "سلالم نفق التجميد",
+  Generators: "المولدات",
+  "Grading Belt": "سير التدرج",
+  "Hand Dryers": "مجففات الأيدي",
+  "Hand Sprayer": "رشاش يدوي",
+  "Hangers & Garment Racks": "شماعات وحوامل الملابس",
+  "Ice-Lifting Shovel": "جاروف رفع الثلج",
+  "Internal Drainage Channel": "مجرى الصرف الداخلي",
+  Iron: "المكواة",
+  "Karcher & Wash Pumps": "الكارشر وطلمبات الغسيل",
+  "Karcher Unit": "وحدة الكارشر",
+  Ladder: "سلم",
+  "Light Covers": "أغطية لمبات الإضاءة",
+  "Light Traps": "المصائد الضوئية",
+  "Loading Bay Houses": "منازل التحميل",
+  "Loading Bay Houses (Karcher)": "منازل التحميل (كارشر)",
+  "Loading Dock Plate": "طبلية التحميل",
+  Lockers: "دواليب",
+  "Manual Forklift / Pallet Jack": "الكلارك اليدوي",
+  "Metal Detector": "جهاز كشف المعادن",
+  "Packing Area Disinfection": "تعقيم منطقة التعبئة",
+  "Packing Scales": "موازين التعبئة",
+  "Packing Shovels": "جواريف التعبئة",
+  "Packing Supplies Stands": "استاندات مهمات التعبئة",
+  "Packing Tables": "ترابيزات التعبئة",
+  "Plastic Bags": "الأكياس البلاستيك",
+  "Plastic Curtains": "الستائر البلاستيك",
+  "Plastic Pallets": "الباليتات البلاستيك",
+  "Post-Maintenance Cleaning": "النظافة بعد الصيانة",
+  "Pre-Cooling Disinfection": "تعقيم صالة التبريد المسبق",
+  "Product Crates": "صناديق المنتج",
+  "Production Lines": "خطوط التشغيل",
+  "Production Lines & Conveyor Belts (Foam)": "خطوط التشغيل والسيور الناقلة (فوم)",
+  "Pump Room": "غرفة الطلمبات",
+  "Pump Room Door": "باب غرفة الطلمبات",
+  "Raw Material Dump Tank": "حوض تفريغ الخامات",
+  "Receiving Room": "غرفة الاستلام",
+  "Receiving Tables": "ترابيزات الاستلام",
+  "Regular-Water Wash Basins": "أحواض الغسيل بالماء العادي",
+  "Rodent Bait Stations": "محطات مصائد القوارض",
+  "Rodent Bait Stations (Cloth)": "محطات مصائد القوارض (فوطة)",
+  "Scissors / Knives": "السكاكين",
+  Scraper: "جاروف",
+  Shelves: "الأرفف",
+  "Soap & Disinfectant Dispensers": "أجهزة الصابون والتعقيم",
+  "Sorting Bins": "سلات الفرزة",
+  "Spider Nests": "أعشاش العناكب",
+  "Spill-Containment Basins": "أحواض إحتواء الانسكاب",
+  Squeegee: "مساحة",
+  "Storage Shelving": "أرفف التخزين",
+  "Table Covers": "مفارش الترابيزات",
+  Tables: "الترابيزات",
+  "Tanks & Upper Surfaces": "التاندات والأسطح العلوية",
+  "Tanks - Exterior": "الخزانات من الخارج",
+  "Tanks - Interior": "الخزانات من الداخل",
+  "Toilets & Urinals": "المراحيض والمباول",
+  "Tomra Machine": "ماكينة Tomra",
+  "Tool Shelves & Cabinets": "الأرفف والدواليب الخاصة بالعدد",
+  Transformers: "المحولات",
+  Walkway: "الممشى",
+  Walls: "الحوائط",
+  "Walls + Floors (Foam)": "الحوائط + الأرضيات (فوم)",
+  "Walls + Floors + Lines (Foam)": "الحوائط + الأرضيات + خطوط التشغيل (فوم)",
+  "Wash Basin": "حوض الغسيل",
+  "Wash Basins": "أحواض الغسيل",
+  "Wash Basins & Taps": "أحواض الغسيل والحنفيات",
+  "Wash-Basin Water Motors": "مواتير مياه أحواض الغسيل",
+  "Wash/Drinking Water Pipes": "مواسير مياه الغسيل والشرب",
+  "Washing Machine": "الغسالة",
+  "Waste Bins": "سلات المهملات",
+  "Waste Bins (Own)": "سلات المهملات (الخاصة)",
+  "Waste Collection": "جمع المخلفات",
+  "Waste Collection Points & Bins": "أماكن ومقاطير المخلفات",
+  "Water Chiller - Exterior": "شيلر المياه من الخارج",
+  "Water Chiller - Interior": "شيلر المياه من الداخل",
+  "Water Heaters": "سخانات المياه",
+  "Water Pipes": "مواسير المياه",
+  "Water Suction Unit": "شفاط المياه",
+};
+
+const TOOL_WORD_AR: Record<string, string> = {
+  Broom: "مكنسة",
+  Scraper: "جاروف",
+  Brush: "فرشاة",
+  Squeegee: "مساحة",
+  Cloth: "فوطة",
+  "Wet Cloth": "فوطة مبللة",
+  "Dry Cloth": "فوطة جافة",
+  Karcher: "كارشر",
+  Duster: "زعافة",
+  Ladder: "سلم",
+  Gloves: "جوانتي",
+  Suction: "شفاط",
+  "Water Hose": "خرطوم مياه",
+  "Foam Machine": "ماكينة الفوم",
+  "Disinfection Machine": "ماكينة التعقيم",
+  "Hand Sprayer": "رشاش يدوي",
+  "Steel Wool": "ليفة سلك",
+  Laundry: "غسيل",
+  Manual: "يدوي",
+  "Electric Air Blower": "بلور هواء كهربي",
+  Tissues: "مناديل ورقية",
+  Cleaner: "منظف",
+  "Foam Device": "جهاز الفوم",
+  "As required": "حسب الحاجة",
+  "—": "—",
+};
+
+const FREQUENCY_AR: Record<string, string> = {
+  Daily: "يومي",
+  Weekly: "أسبوعي",
+  Monthly: "شهري",
+  Quarterly: "ربع سنوي",
+  Biannual: "نصف سنوي",
+  Periodic: "دوري",
+  "Every 15 days": "كل 15 يوم",
+  "Every shift": "كل وردية",
+  "As needed": "عند الحاجة",
+  "As needed during the day": "دوري خلال اليوم",
+  "After maintenance": "بعد الصيانة",
+  "1x/week (winter), 2x/week (summer)": "مرة واحدة أسبوعيًا شتاءً، مرتين أسبوعيًا صيفًا",
+};
+
+const ZONE_TITLE_AR: Record<string, string> = {
+  "Outside the Packhouse": "خارج محطة التعبئة",
+  "Transformers & Generators": "المحولات والمولدات",
+  "Water Tanks": "خزانات المياه",
+  "Inside the Packhouse — Pre-Cooling": "داخل محطة التعبئة — التبريد المسبق",
+  "Operation Hall / Freezing Line": "صالة التشغيل",
+  "Packing Area": "منطقة التعبئة",
+  "Cold Rooms": "الثلاجات",
+  "Loading Rooms": "غرف التحميل",
+  "Forklift Charging Room": "غرفة شحن الكلاركات",
+  "Packing Supplies Store + Double-Door Entry": "مخزن مهمات التعبئة + دبل دور دخول مهمات",
+  "Maintenance Room": "غرفة الصيانة",
+  Offices: "غرف المكاتب",
+  "Laundry Room": "مغسلة الملابس",
+  "Employee Entry Area": "منطقة دخول العاملين",
+  "Dining Halls": "صالات الطعام",
+  "Changing Rooms": "غرف خلع الملابس",
+  Bathrooms: "الحمامات",
+  "Cleaning Equipment (Own Tools)": "مهمات النظافة",
+  "Cleaning Tools Storage": "مخزن أدوات ومهمات النظافة",
+  "Smoking Areas": "أماكن التدخين",
+};
+
+function translate(term: string, table: Record<string, string>, locale: Locale): string {
+  if (locale !== "AR") return term;
+  return table[term] ?? term;
+}
+
+export function translateCleaningItem(item: string, locale: Locale): string {
+  return translate(item, ITEM_AR, locale);
+}
+
+export function translateCleaningTools(tools: string, locale: Locale): string {
+  if (locale !== "AR") return tools;
+  return tools
+    .split(", ")
+    .map((t) => TOOL_WORD_AR[t] ?? t)
+    .join("، ");
+}
+
+export function translateCleaningFrequency(frequency: string, locale: Locale): string {
+  return translate(frequency, FREQUENCY_AR, locale);
+}
+
+export function translateCleaningZoneTitle(title: string, locale: Locale): string {
+  return translate(title, ZONE_TITLE_AR, locale);
+}

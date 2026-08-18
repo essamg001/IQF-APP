@@ -4,6 +4,8 @@ import { limitsFor } from "@/lib/qualityLimits";
 import { format, startOfWeek } from "date-fns";
 import { egyptDateKey, egyptDateOnly, egyptMonthKey, formatYMD, parseDateKey } from "@/lib/timezone";
 import { QualityPeriodTable, type MetricDef, type Period, type PeriodRow } from "./quality-period-table";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const RAW_MATERIAL_METRICS: MetricDef[] = [
   { key: "brix", label: "Brix", suffix: "" },
@@ -91,6 +93,7 @@ function byMonth(rows: Check[], metrics: MetricDef[], take: number): PeriodRow[]
 }
 
 export default async function QualityPage() {
+  const dict = getDictionary(await resolveLocale()).qualityReports;
   // Both checkpoints are filled in automatically from their own dedicated
   // fast-entry screens -- Raw Material Intake from Arrival Inspection at
   // Factory, Post-Packaging/Final Product from Post-Freeze Inspection.
@@ -162,30 +165,27 @@ export default async function QualityPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Quality Reports</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Shift, daily, weekly, and monthly averages — filled in automatically from Arrival Inspection at Factory
-            and Post-Freeze Inspection. Pallet-by-pallet results are on those two screens.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <div className="flex gap-2">
           <LinkButton href="/arrival-inspection" variant="secondary">
-            Log Arrival Inspection
+            {dict.logArrivalInspection}
           </LinkButton>
-          <LinkButton href="/post-freeze-inspection">Log Post-Freeze Inspection</LinkButton>
+          <LinkButton href="/post-freeze-inspection">{dict.logPostFreezeInspection}</LinkButton>
         </div>
       </div>
 
       <QualityPeriodTable
-        title="Raw Material Intake (STR03110)"
-        description="Averages of fruit arriving at the factory from the decap facility, before freezing."
+        title={dict.rawMaterialTitle}
+        description={dict.rawMaterialDescription}
         dataByPeriod={rawByPeriod}
         metrics={RAW_MATERIAL_METRICS}
       />
 
       <QualityPeriodTable
-        title="Post-Packaging / Final Product (STR03111 / STR03116)"
-        description="Averages of frozen product at the end of the line, tied to the production lot/shift it came from."
+        title={dict.postPackagingTitle}
+        description={dict.postPackagingDescription}
         dataByPeriod={postByPeriod}
         metrics={POST_PACKAGING_METRICS}
       />

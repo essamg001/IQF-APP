@@ -10,6 +10,9 @@ import { format } from "date-fns";
 import { FORMAT_LABEL } from "@/lib/format";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 const PALLET_STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -18,6 +21,16 @@ const PALLET_STATUS_COLOR = {
   WASTE: "red",
   DISCOUNT_OFFERED: "amber",
 } as const;
+
+function palletStatusLabel(storageDict: Dictionary["storage"], status: keyof typeof PALLET_STATUS_COLOR) {
+  return {
+    IN_STORAGE: storageDict.statusInStorage,
+    ALLOCATED: storageDict.statusAllocated,
+    SHIPPED: storageDict.statusShipped,
+    WASTE: storageDict.statusWaste,
+    DISCOUNT_OFFERED: storageDict.statusDiscountOffered,
+  }[status];
+}
 
 export default async function TraceabilityPage({
   searchParams,
@@ -29,6 +42,9 @@ export default async function TraceabilityPage({
     redirect("/");
   }
 
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.traceability;
+
   const { field: fieldName } = await searchParams;
 
   const fields = await prisma.field.findMany({
@@ -37,7 +53,8 @@ export default async function TraceabilityPage({
   });
 
   const field = fieldName ? fields.find((f) => f.name === fieldName.trim()) : undefined;
-  const notFoundMessage = fieldName && !field ? `Plot "${fieldName}" not found — pick one from the list.` : undefined;
+  const notFoundMessage =
+    fieldName && !field ? dict.notFoundMessage.replace("{field}", fieldName) : undefined;
 
   let directLots: Awaited<ReturnType<typeof loadDirectLots>> = [];
   let possibleLots: Awaited<ReturnType<typeof loadDirectLots>> = [];
@@ -87,25 +104,27 @@ export default async function TraceabilityPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Traceability / Recall Lookup</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Given a field, find every Lot, Pallet, and Order it could have touched — the reverse of the field-level
-          quality reports. Use this to scope a recall or a client inquiry to exactly what&apos;s affected.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       <Card>
         <form className="flex items-end gap-3">
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-slate-700">Field / Plot</label>
-            <Input name="field" defaultValue={fieldName ?? ""} list="traceability-field-suggestions" placeholder="e.g. MAFA 4 · ST1 · A1" />
+            <label className="mb-1 block text-sm font-medium text-slate-700">{dict.fieldPlotLabel}</label>
+            <Input
+              name="field"
+              defaultValue={fieldName ?? ""}
+              list="traceability-field-suggestions"
+              placeholder={dict.fieldPlaceholder}
+            />
             <datalist id="traceability-field-suggestions">
               {fields.map((f) => (
                 <option key={f.id} value={f.name} />
               ))}
             </datalist>
           </div>
-          <Button type="submit">Look up</Button>
+          <Button type="submit">{dict.lookUp}</Button>
         </form>
         {notFoundMessage && <p className="mt-2 text-sm text-red-600">{notFoundMessage}</p>}
       </Card>
@@ -113,53 +132,55 @@ export default async function TraceabilityPage({
       {field && (
         <>
           <Card>
-            <h2 className="text-sm font-semibold text-slate-900">Summary — {field.name}</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {dict.summaryTitle.replace("{field}", field.name)}
+            </h2>
             <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-600">
               <span>
-                <strong className="text-slate-900">{affectedLots.length}</strong> lots affected
+                <strong className="text-slate-900">{affectedLots.length}</strong> {dict.lotsAffected}
               </span>
               <span>
-                <strong className="text-slate-900">{allPallets.length}</strong> pallets affected
+                <strong className="text-slate-900">{allPallets.length}</strong> {dict.palletsAffectedLabel}
               </span>
               <span>
-                <strong className="text-slate-900">{inStoragePallets.length}</strong> still in storage / allocated
+                <strong className="text-slate-900">{inStoragePallets.length}</strong> {dict.stillInStorageAllocated}
               </span>
               <span>
-                <strong className="text-slate-900">{affectedClients.length}</strong> clients touched
+                <strong className="text-slate-900">{affectedClients.length}</strong> {dict.clientsTouchedLabel}
               </span>
             </div>
           </Card>
 
           <Card>
-            <h2 className="text-sm font-semibold text-slate-900">Pre-Decap Arrival Records</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Direct deliveries logged from this field, before decapping and mixing.
-            </p>
+            <h2 className="text-sm font-semibold text-slate-900">{dict.preDecapTitle}</h2>
+            <p className="mt-1 text-xs text-slate-500">{dict.preDecapSubtitle}</p>
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead className="border-b border-slate-200 text-slate-500">
                   <tr>
-                    <th className="py-2 pr-4 font-medium">Date</th>
-                    <th className="py-2 pr-4 font-medium">Sample</th>
-                    <th className="py-2 pr-4 font-medium">Receipt Note</th>
-                    <th className="py-2 pr-4 font-medium">Decision</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colDate}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colSample}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colReceiptNote}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colDecision}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {preDecapRecords.map((r) => (
                     <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pr-4">{format(r.createdAt, "dd MMM yyyy HH:mm")}</td>
-                      <td className="py-2 pr-4">{r.sampleNo ?? "—"}</td>
-                      <td className="py-2 pr-4">{r.receiptNoteNo ?? "—"}</td>
-                      <td className="py-2 pr-4">
-                        <Badge color={r.decision === "ACCEPTED" ? "green" : "red"}>{r.decision}</Badge>
+                      <td className="py-2 pe-4">{format(r.createdAt, "dd MMM yyyy HH:mm")}</td>
+                      <td className="py-2 pe-4">{r.sampleNo ?? "—"}</td>
+                      <td className="py-2 pe-4">{r.receiptNoteNo ?? "—"}</td>
+                      <td className="py-2 pe-4">
+                        <Badge color={r.decision === "ACCEPTED" ? "green" : "red"}>
+                          {r.decision === "ACCEPTED" ? fullDict.preDecapInspection.acceptable : fullDict.preDecapInspection.unacceptable}
+                        </Badge>
                       </td>
                     </tr>
                   ))}
                   {preDecapRecords.length === 0 && (
                     <tr>
                       <td colSpan={4} className="py-4 text-center text-slate-400">
-                        No Pre-Decap records for this field.
+                        {dict.noPreDecapRecords}
                       </td>
                     </tr>
                   )}
@@ -169,60 +190,60 @@ export default async function TraceabilityPage({
           </Card>
 
           <Card>
-            <h2 className="text-sm font-semibold text-slate-900">Affected Lots</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Fruit is mixed at the decap facility, so a lot isn&apos;t traceable to one exact field. &quot;Direct&quot;
-              lots were nominally assigned to this field; &quot;Possible&quot; lots had this field&apos;s fruit clear
-              Post-Decap Quality during their shift window, so it may be present in the mix.
-            </p>
+            <h2 className="text-sm font-semibold text-slate-900">{dict.affectedLotsTitle}</h2>
+            <p className="mt-1 text-xs text-slate-500">{dict.affectedLotsSubtitle}</p>
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead className="border-b border-slate-200 text-slate-500">
                   <tr>
-                    <th className="py-2 pr-4 font-medium">Lot</th>
-                    <th className="py-2 pr-4 font-medium">Factory</th>
-                    <th className="py-2 pr-4 font-medium">Shift Date</th>
-                    <th className="py-2 pr-4 font-medium">Grade</th>
-                    <th className="py-2 pr-4 font-medium">Format</th>
-                    <th className="py-2 pr-4 font-medium">Pallets</th>
-                    <th className="py-2 pr-4 font-medium">Link</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colLot}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colFactory}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colShiftDate}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colGrade}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colFormat}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colPallets}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colLink}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {directLots.map((lot) => (
                     <tr key={lot.id} className="border-b border-slate-100 last:border-0">
-                      <td className={cn("py-2 pr-4", lot.isTestData && TEST_DATA_TEXT_CLASS)}>
+                      <td className={cn("py-2 pe-4", lot.isTestData && TEST_DATA_TEXT_CLASS)}>
                         {lot.lotNumber} {lot.isTestData && <TestDataBadge />}
                       </td>
-                      <td className="py-2 pr-4">{lot.factory.name}</td>
-                      <td className="py-2 pr-4">{format(lot.shift.date, "dd MMM yyyy")}</td>
-                      <td className="py-2 pr-4">
-                        <Badge color={lot.grade === "A" ? "green" : "amber"}>Grade {lot.grade}</Badge>
+                      <td className="py-2 pe-4">{lot.factory.name}</td>
+                      <td className="py-2 pe-4">{format(lot.shift.date, "dd MMM yyyy")}</td>
+                      <td className="py-2 pe-4">
+                        <Badge color={lot.grade === "A" ? "green" : "amber"}>
+                          {fullDict.storage.gradeLabel.replace("{grade}", lot.grade)}
+                        </Badge>
                       </td>
-                      <td className="py-2 pr-4">{FORMAT_LABEL[lot.format]}</td>
-                      <td className="py-2 pr-4">{lot.pallets.length}</td>
-                      <td className="py-2 pr-4">
+                      <td className="py-2 pe-4">{FORMAT_LABEL[lot.format]}</td>
+                      <td className="py-2 pe-4">{lot.pallets.length}</td>
+                      <td className="py-2 pe-4">
                         <Link href={`/production/${lot.id}`} className="text-emerald-700 hover:underline">
-                          <Badge color="blue">Direct</Badge>
+                          <Badge color="blue">{dict.directBadge}</Badge>
                         </Link>
                       </td>
                     </tr>
                   ))}
                   {possibleLots.map((lot) => (
                     <tr key={lot.id} className="border-b border-slate-100 last:border-0">
-                      <td className={cn("py-2 pr-4", lot.isTestData && TEST_DATA_TEXT_CLASS)}>
+                      <td className={cn("py-2 pe-4", lot.isTestData && TEST_DATA_TEXT_CLASS)}>
                         {lot.lotNumber} {lot.isTestData && <TestDataBadge />}
                       </td>
-                      <td className="py-2 pr-4">{lot.factory.name}</td>
-                      <td className="py-2 pr-4">{format(lot.shift.date, "dd MMM yyyy")}</td>
-                      <td className="py-2 pr-4">
-                        <Badge color={lot.grade === "A" ? "green" : "amber"}>Grade {lot.grade}</Badge>
+                      <td className="py-2 pe-4">{lot.factory.name}</td>
+                      <td className="py-2 pe-4">{format(lot.shift.date, "dd MMM yyyy")}</td>
+                      <td className="py-2 pe-4">
+                        <Badge color={lot.grade === "A" ? "green" : "amber"}>
+                          {fullDict.storage.gradeLabel.replace("{grade}", lot.grade)}
+                        </Badge>
                       </td>
-                      <td className="py-2 pr-4">{FORMAT_LABEL[lot.format]}</td>
-                      <td className="py-2 pr-4">{lot.pallets.length}</td>
-                      <td className="py-2 pr-4">
+                      <td className="py-2 pe-4">{FORMAT_LABEL[lot.format]}</td>
+                      <td className="py-2 pe-4">{lot.pallets.length}</td>
+                      <td className="py-2 pe-4">
                         <Link href={`/production/${lot.id}`} className="text-emerald-700 hover:underline">
-                          <Badge color="amber">Possible</Badge>
+                          <Badge color="amber">{dict.possibleBadge}</Badge>
                         </Link>
                       </td>
                     </tr>
@@ -230,7 +251,7 @@ export default async function TraceabilityPage({
                   {affectedLots.length === 0 && (
                     <tr>
                       <td colSpan={7} className="py-4 text-center text-slate-400">
-                        No lots affected by this field.
+                        {dict.noLotsAffected}
                       </td>
                     </tr>
                   )}
@@ -240,15 +261,15 @@ export default async function TraceabilityPage({
           </Card>
 
           <Card>
-            <h2 className="text-sm font-semibold text-slate-900">Affected Pallets</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{dict.affectedPalletsTitle}</h2>
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-start text-sm">
                 <thead className="border-b border-slate-200 text-slate-500">
                   <tr>
-                    <th className="py-2 pr-4 font-medium">Pallet</th>
-                    <th className="py-2 pr-4 font-medium">Lot</th>
-                    <th className="py-2 pr-4 font-medium">Status</th>
-                    <th className="py-2 pr-4 font-medium">Client</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colPallet}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colLot}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colStatus}</th>
+                    <th className="py-2 pe-4 font-medium">{dict.colClient}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -256,21 +277,23 @@ export default async function TraceabilityPage({
                     const isTest = p.isTestData || p.lotIsTestData;
                     return (
                       <tr key={p.id} className="border-b border-slate-100 last:border-0">
-                        <td className={cn("py-2 pr-4", isTest && TEST_DATA_TEXT_CLASS)}>{p.palletNumber}</td>
-                        <td className={cn("py-2 pr-4", isTest && TEST_DATA_TEXT_CLASS)}>
+                        <td className={cn("py-2 pe-4", isTest && TEST_DATA_TEXT_CLASS)}>{p.palletNumber}</td>
+                        <td className={cn("py-2 pe-4", isTest && TEST_DATA_TEXT_CLASS)}>
                           {p.lotNumber} {isTest && <TestDataBadge />}
                         </td>
-                        <td className="py-2 pr-4">
-                          <Badge color={PALLET_STATUS_COLOR[p.status]}>{p.status.replace("_", " ")}</Badge>
+                        <td className="py-2 pe-4">
+                          <Badge color={PALLET_STATUS_COLOR[p.status]}>
+                            {palletStatusLabel(fullDict.storage, p.status)}
+                          </Badge>
                         </td>
-                        <td className="py-2 pr-4">{p.client?.name ?? "—"}</td>
+                        <td className="py-2 pe-4">{p.client?.name ?? "—"}</td>
                       </tr>
                     );
                   })}
                   {allPallets.length === 0 && (
                     <tr>
                       <td colSpan={4} className="py-4 text-center text-slate-400">
-                        No pallets affected.
+                        {dict.noPalletsAffected}
                       </td>
                     </tr>
                   )}
@@ -280,14 +303,14 @@ export default async function TraceabilityPage({
           </Card>
 
           <Card>
-            <h2 className="text-sm font-semibold text-slate-900">Clients Touched</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{dict.clientsTouchedTitle}</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {affectedClients.map((name) => (
                 <Badge key={name} color="slate">
                   {name}
                 </Badge>
               ))}
-              {affectedClients.length === 0 && <p className="text-sm text-slate-400">No clients touched yet.</p>}
+              {affectedClients.length === 0 && <p className="text-sm text-slate-400">{dict.noClientsTouchedYet}</p>}
             </div>
           </Card>
         </>

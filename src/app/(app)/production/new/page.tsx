@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { LotForm } from "./lot-form";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function NewLotPage() {
+  const dict = getDictionary(await resolveLocale()).production;
   const [factories, fields, recentPostDecap] = await Promise.all([
     prisma.factory.findMany({ orderBy: { name: "asc" } }),
     prisma.field.findMany({ orderBy: { name: "asc" } }),
@@ -24,7 +27,7 @@ export default async function NewLotPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Log Production Lot</h1>
+      <h1 className="text-xl font-semibold text-slate-900">{dict.logProductionLot}</h1>
       <div className="mt-6 max-w-xl">
         <LotForm factories={factories} fields={fields} recentFieldNames={recentFieldNames} />
       </div>

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { updateMrlResultAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 type MrlResultData = {
   status: string;
@@ -23,34 +24,35 @@ const dateInputValue = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "
 export function MrlResultForm({ resultId, result }: { resultId: string; result: MrlResultData }) {
   const [state, formAction, pending] = useActionState(updateMrlResultAction.bind(null, resultId), undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
+  const dict = useTranslations().lab;
 
   return (
     <form action={formAction} className="mt-3 space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <FieldGroup label="Status">
+        <FieldGroup label={dict.statusFieldLabel}>
           <Select name="status" defaultValue={result?.status ?? "PENDING"}>
-            <option value="PENDING">Pending</option>
-            <option value="SENT_TO_LAB">Sent to Lab</option>
-            <option value="APPROVED">Approved</option>
-            <option value="FAILED">Failed</option>
+            <option value="PENDING">{dict.statusPending}</option>
+            <option value="SENT_TO_LAB">{dict.statusSentToLab}</option>
+            <option value="APPROVED">{dict.statusApproved}</option>
+            <option value="FAILED">{dict.statusFailed}</option>
           </Select>
         </FieldGroup>
-        <FieldGroup label="Lab Name">
+        <FieldGroup label={dict.labNameLabel}>
           <Input name="labName" defaultValue={result?.labName ?? ""} />
         </FieldGroup>
-        <FieldGroup label="Certificate/Result No.">
+        <FieldGroup label={dict.certificateResultNoLabel}>
           <Input name="certificateNumber" defaultValue={result?.certificateNumber ?? ""} />
         </FieldGroup>
-        <FieldGroup label="Sample Code">
+        <FieldGroup label={dict.sampleCodeLabel}>
           <Input name="sampleCode" defaultValue={result?.sampleCode ?? ""} />
         </FieldGroup>
-        <FieldGroup label="Report Date">
+        <FieldGroup label={dict.reportDateLabel}>
           <Input name="reportDate" type="date" defaultValue={dateInputValue(result?.reportDate ?? null)} />
         </FieldGroup>
-        <FieldGroup label="Analysis Date">
+        <FieldGroup label={dict.analysisDateLabel}>
           <Input name="analysisDate" type="date" defaultValue={dateInputValue(result?.analysisDate ?? null)} />
         </FieldGroup>
-        <FieldGroup label="Certificate File (PDF/JPG/PNG)">
+        <FieldGroup label={dict.certificateFileMrlLabel}>
           <Input name="certificateFile" type="file" accept=".pdf,.jpg,.jpeg,.png" />
         </FieldGroup>
       </div>
@@ -61,18 +63,18 @@ export function MrlResultForm({ resultId, result }: { resultId: string; result: 
           rel="noopener noreferrer"
           className="text-xs text-emerald-700 hover:underline"
         >
-          View current certificate ({result.certificateFileOriginalName ?? "file"})
+          {dict.viewCurrentCertificate.replace("{name}", result.certificateFileOriginalName ?? dict.fileFallback)}
         </a>
       )}
-      <FieldGroup label="Notes">
+      <FieldGroup label={dict.notesLabel}>
         <Input name="notes" defaultValue={result?.notes ?? ""} />
       </FieldGroup>
-      <FieldGroup label="Rejection reason (if Failed)">
+      <FieldGroup label={dict.rejectionReasonIfFailedLabel}>
         <Input name="rejectionReason" defaultValue={result?.rejectionReason ?? ""} />
       </FieldGroup>
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save"}
+          {pending ? dict.saving : dict.save}
         </Button>
         {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
       </div>

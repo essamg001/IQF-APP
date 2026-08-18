@@ -4,8 +4,11 @@ import { useActionState } from "react";
 import { addDowntimeEventAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 export function DowntimeEntryForm({ factoryId, date }: { factoryId: string; date: string }) {
+  const fullDict = useTranslations();
+  const dict = fullDict.dailyReport;
   const [state, formAction, pending] = useActionState(addDowntimeEventAction, undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
 
@@ -13,23 +16,23 @@ export function DowntimeEntryForm({ factoryId, date }: { factoryId: string; date
     <form action={formAction} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="factoryId" value={factoryId} />
       <input type="hidden" name="date" value={date} />
-      <FieldGroup label="Shift">
+      <FieldGroup label={dict.shift}>
         <Select name="shiftType" required className="w-28">
-          <option value="DAY">Shift 1</option>
-          <option value="NIGHT">Shift 2</option>
+          <option value="DAY">{dict.shift1Short}</option>
+          <option value="NIGHT">{dict.shift2Short}</option>
         </Select>
       </FieldGroup>
-      <FieldGroup label="From">
+      <FieldGroup label={dict.fromLabel}>
         <Input name="fromTime" type="time" required className="w-28" />
       </FieldGroup>
-      <FieldGroup label="To">
+      <FieldGroup label={dict.toLabel}>
         <Input name="toTime" type="time" required className="w-28" />
       </FieldGroup>
-      <FieldGroup label="Reason">
-        <Input name="reason" required placeholder="e.g. Line Washing" className="w-48" />
+      <FieldGroup label={dict.reasonLabel}>
+        <Input name="reason" required placeholder={dict.reasonPlaceholder} className="w-48" />
       </FieldGroup>
       <Button type="submit" variant="secondary" disabled={pending}>
-        {pending ? "Saving…" : "Add"}
+        {pending ? fullDict.common.saving : fullDict.common.add}
       </Button>
       {errorMessage && <p className="w-full text-sm text-red-600">{errorMessage}</p>}
     </form>

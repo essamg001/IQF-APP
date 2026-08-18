@@ -4,9 +4,11 @@ import { useActionState } from "react";
 import { importHistoricalOrdersAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 export function ImportForm() {
   const [result, formAction, pending] = useActionState(importHistoricalOrdersAction, undefined);
+  const dict = useTranslations().trends;
 
   return (
     <form action={formAction}>
@@ -14,7 +16,7 @@ export function ImportForm() {
         <input type="file" name="file" accept=".csv,text/csv" required className="block text-sm" />
         {result && <p className="text-sm text-slate-700">{result}</p>}
         <Button type="submit" disabled={pending}>
-          {pending ? "Importing…" : "Import"}
+          {pending ? dict.importingButton : dict.importButton}
         </Button>
       </Card>
     </form>

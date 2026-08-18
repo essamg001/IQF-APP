@@ -5,7 +5,9 @@ import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/dates";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const STATUS_COLOR = {
   REQUESTED: "amber",
@@ -16,23 +18,28 @@ const STATUS_COLOR = {
   CONFIRMED_WORKING: "green",
 } as const;
 
-const STATUS_LABEL = {
-  REQUESTED: "Requested",
-  APPROVED: "Approved",
-  REJECTED: "Rejected",
-  ORDERED: "Ordered",
-  RECEIVED: "Received",
-  CONFIRMED_WORKING: "Confirmed Working",
-} as const;
-
-const CATEGORY_LABEL = {
-  CLEANING_MATERIALS: "Cleaning Materials",
-  EQUIPMENT: "Equipment",
-  SPARE_PARTS: "Spare Parts",
-  OTHER: "Other",
-} as const;
-
 export default async function PurchaseRequestsPage() {
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.purchaseRequests;
+  const common = fullDict.common;
+
+  const STATUS_LABEL = {
+    REQUESTED: dict.statusRequested,
+    APPROVED: dict.statusApproved,
+    REJECTED: dict.statusRejected,
+    ORDERED: dict.statusOrdered,
+    RECEIVED: dict.statusReceived,
+    CONFIRMED_WORKING: dict.statusConfirmedWorking,
+  } as const;
+
+  const CATEGORY_LABEL = {
+    CLEANING_MATERIALS: dict.categoryCleaningMaterials,
+    EQUIPMENT: dict.categoryEquipment,
+    SPARE_PARTS: dict.categorySpareParts,
+    OTHER: common.other,
+  } as const;
+
   const session = await auth();
   const canManage = canManagePurchasing(session?.user);
 
@@ -48,31 +55,32 @@ export default async function PurchaseRequestsPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Purchase Requests</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Anything the factory needs — cleaning materials, equipment, spare parts — tracked from request through
-            to confirmed working.
+            {dict.subtitle}
             {pendingCount > 0 && canManage && (
-              <span className="ml-2">
-                <Badge color="amber">{pendingCount} awaiting review</Badge>
+              <span className="ms-2">
+                <Badge color="amber">
+                  {pendingCount} {dict.awaitingReview}
+                </Badge>
               </span>
             )}
           </p>
         </div>
-        <LinkButton href="/purchase-requests/new">New Request</LinkButton>
+        <LinkButton href="/purchase-requests/new">{dict.newRequest}</LinkButton>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Item</th>
-              <th className="px-4 py-2 font-medium">Category</th>
-              <th className="px-4 py-2 font-medium">Factory</th>
-              <th className="px-4 py-2 font-medium">Requested By</th>
-              <th className="px-4 py-2 font-medium">Requested</th>
-              <th className="px-4 py-2 font-medium">Expected Delivery</th>
-              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">{dict.colItem}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCategory}</th>
+              <th className="px-4 py-2 font-medium">{common.factory}</th>
+              <th className="px-4 py-2 font-medium">{dict.colRequestedBy}</th>
+              <th className="px-4 py-2 font-medium">{dict.requestedLabel}</th>
+              <th className="px-4 py-2 font-medium">{dict.colExpectedDelivery}</th>
+              <th className="px-4 py-2 font-medium">{common.status}</th>
             </tr>
           </thead>
           <tbody>
@@ -82,14 +90,18 @@ export default async function PurchaseRequestsPage() {
                   <Link href={`/purchase-requests/${r.id}`} className="font-medium text-emerald-700 hover:underline">
                     {r.itemDescription}
                   </Link>
-                  {r._count.photos > 0 && <span className="ml-1.5 text-xs text-slate-400">({r._count.photos} photo{r._count.photos === 1 ? "" : "s"})</span>}
+                  {r._count.photos > 0 && (
+                    <span className="ms-1.5 text-xs text-slate-400">
+                      ({r._count.photos} {dict.photoCountSuffix})
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-slate-600">{CATEGORY_LABEL[r.category]}</td>
                 <td className="px-4 py-2 text-slate-600">{r.factory.name}</td>
                 <td className="px-4 py-2 text-slate-600">{r.requestedByName}</td>
-                <td className="px-4 py-2 text-slate-500">{format(r.requestedAt, "dd MMM yyyy")}</td>
+                <td className="px-4 py-2 text-slate-500">{formatDate(r.requestedAt, "dd MMM yyyy", locale)}</td>
                 <td className="px-4 py-2 text-slate-500">
-                  {r.expectedDeliveryDate ? format(r.expectedDeliveryDate, "dd MMM yyyy") : "—"}
+                  {r.expectedDeliveryDate ? formatDate(r.expectedDeliveryDate, "dd MMM yyyy", locale) : "—"}
                 </td>
                 <td className="px-4 py-2">
                   <Badge color={STATUS_COLOR[r.status]}>{STATUS_LABEL[r.status]}</Badge>
@@ -99,7 +111,7 @@ export default async function PurchaseRequestsPage() {
             {requests.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                  No purchase requests yet.
+                  {dict.noRequests}
                 </td>
               </tr>
             )}

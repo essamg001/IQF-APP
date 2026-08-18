@@ -5,6 +5,8 @@ import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function ClientsPage() {
   const [session, clients] = await Promise.all([
@@ -15,26 +17,29 @@ export default async function ClientsPage() {
     }),
   ]);
   const canManage = canManageClients(session?.user.role);
+  const dict = getDictionary(await resolveLocale()).clients;
 
   return (
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Clients</h1>
-          <p className="mt-1 text-sm text-slate-500">{clients.length} client(s) on file.</p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {clients.length} {dict.clientCountSuffix}
+          </p>
         </div>
-        {canManage && <LinkButton href="/clients/new">New Client</LinkButton>}
+        {canManage && <LinkButton href="/clients/new">{dict.newClient}</LinkButton>}
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Name</th>
-              <th className="px-4 py-2 font-medium">Country</th>
-              <th className="px-4 py-2 font-medium">Specs</th>
-              <th className="px-4 py-2 font-medium">Payment Terms</th>
-              <th className="px-4 py-2 font-medium">Incoterms</th>
+              <th className="px-4 py-2 font-medium">{dict.colName}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCountry}</th>
+              <th className="px-4 py-2 font-medium">{dict.colSpecs}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPaymentTerms}</th>
+              <th className="px-4 py-2 font-medium">{dict.colIncoterms}</th>
             </tr>
           </thead>
           <tbody>
@@ -63,7 +68,7 @@ export default async function ClientsPage() {
             {clients.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  No clients yet.
+                  {dict.noClientsYet}
                 </td>
               </tr>
             )}

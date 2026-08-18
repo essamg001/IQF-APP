@@ -4,6 +4,8 @@ import { canManageClients } from "@/lib/roles";
 import { notFound, redirect } from "next/navigation";
 import { ClientForm } from "../../client-form";
 import { updateClientAction } from "../../actions";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,14 +15,15 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
   ]);
   if (!client) notFound();
   if (!canManageClients(session?.user.role)) redirect(`/clients/${id}`);
+  const dict = getDictionary(await resolveLocale()).clients;
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Edit {client.name}</h1>
+      <h1 className="text-xl font-semibold text-slate-900">{dict.editTitlePrefix.replace("{name}", client.name)}</h1>
       <div className="mt-6 max-w-4xl">
         <ClientForm
           action={updateClientAction.bind(null, client.id)}
-          submitLabel="Save changes"
+          submitLabel={dict.saveChanges}
           initial={{
             name: client.name,
             country: client.country,

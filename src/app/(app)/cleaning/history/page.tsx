@@ -6,6 +6,8 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
 import { parseLocalDateOnly, toDateOnlyString } from "@/lib/dates";
 import { FactoryHistorySection } from "./factory-history-section";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const DEFAULT_RANGE_DAYS = 30;
 
@@ -16,6 +18,8 @@ export default async function CleaningHistoryPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/");
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.cleaningHistory;
 
   const { from: fromParam, to: toParam } = await searchParams;
   const today = new Date();
@@ -51,15 +55,15 @@ export default async function CleaningHistoryPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Cleaning History</h1>
-          <p className="mt-1 text-sm text-slate-500">Day-by-day results, low-score flags, and score trends per area.</p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <div className="flex items-end gap-3">
           <form className="flex items-end gap-2">
-            <FieldGroup label="From">
+            <FieldGroup label={dict.from}>
               <Input name="from" type="date" defaultValue={fromStr} />
             </FieldGroup>
-            <FieldGroup label="To">
+            <FieldGroup label={dict.to}>
               <Input name="to" type="date" defaultValue={toStr} />
             </FieldGroup>
             <Button type="submit" variant="secondary">
@@ -67,7 +71,7 @@ export default async function CleaningHistoryPage({
             </Button>
           </form>
           <LinkButton href="/cleaning" variant="secondary">
-            Back to Cleaning Mode
+            {dict.backToCleaningMode}
           </LinkButton>
         </div>
       </div>
@@ -78,12 +82,14 @@ export default async function CleaningHistoryPage({
           factoryName={`${f.name}${f.code ? ` (${f.code})` : ""}`}
           scores={scores.filter((s) => s.factoryId === f.id)}
           records={records.filter((r) => r.factoryId === f.id)}
+          dict={dict}
+          areaDict={fullDict.cleaningMode}
         />
       ))}
 
       {factories.length === 0 && (
         <Card>
-          <p className="text-sm text-slate-400">No factories set up yet.</p>
+          <p className="text-sm text-slate-400">{dict.noFactoriesYet}</p>
         </Card>
       )}
     </div>

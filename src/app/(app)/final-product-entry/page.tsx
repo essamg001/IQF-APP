@@ -5,12 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { PackingForm } from "./packing-form";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function FinalProductEntryPage() {
   const session = await auth();
   if (!session?.user || !["PRODUCTION", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
+  const dict = getDictionary(await resolveLocale()).finalProductEntry;
 
   const [lots, coldRooms] = await Promise.all([
     prisma.productionLot.findMany({ orderBy: { createdAt: "desc" }, take: 50, include: { field: true } }),
@@ -41,29 +44,29 @@ export default async function FinalProductEntryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Final Product Entry</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Identification of Packed Pallets (GEN03115) — record every pallet as it&apos;s wrapped and sent to storage.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
-      <Badge color="slate">{todaysPallets.length} pallets recorded today</Badge>
+      <Badge color="slate">
+        {todaysPallets.length} {dict.palletsRecordedTodaySuffix}
+      </Badge>
 
       <div className="max-w-4xl">
         <PackingForm lots={lots} coldRooms={coldRooms} postFreezeChecks={postFreezeChecks} />
       </div>
 
       <Card className="max-w-4xl overflow-x-auto p-0">
-        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Today&apos;s Log</h2>
-        <table className="w-full text-left text-sm">
+        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">{dict.todaysLogTitle}</h2>
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Time</th>
-              <th className="px-4 py-2 font-medium">Pallet #</th>
-              <th className="px-4 py-2 font-medium">Lot</th>
-              <th className="px-4 py-2 font-medium">Cold Room</th>
-              <th className="px-4 py-2 font-medium">Cartons</th>
-              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">{dict.colTime}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPalletNo}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLot}</th>
+              <th className="px-4 py-2 font-medium">{dict.colColdRoom}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCartons}</th>
+              <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
             </tr>
           </thead>
           <tbody>
@@ -81,14 +84,14 @@ export default async function FinalProductEntryPage() {
                 <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>
                 <td className="px-4 py-2">{p.totalCartons ?? "—"}</td>
                 <td className="px-4 py-2">
-                  <Badge color={p.fullPallet ? "green" : "amber"}>{p.fullPallet ? "Full" : "Partial"}</Badge>
+                  <Badge color={p.fullPallet ? "green" : "amber"}>{p.fullPallet ? dict.full : dict.partial}</Badge>
                 </td>
               </tr>
             ))}
             {todaysPallets.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                  Nothing recorded yet today.
+                  {dict.nothingRecordedToday}
                 </td>
               </tr>
             )}

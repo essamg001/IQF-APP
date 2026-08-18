@@ -9,6 +9,9 @@ import { CfuTierLegend } from "@/components/cfu-tier-legend";
 import { MrlStatusBadge } from "@/components/mrl-status-badge";
 import { TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 const STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -18,12 +21,23 @@ const STATUS_COLOR = {
   DISCOUNT_OFFERED: "amber",
 } as const;
 
+function statusLabel(dict: Dictionary["storage"], status: keyof typeof STATUS_COLOR) {
+  return {
+    IN_STORAGE: dict.statusInStorage,
+    ALLOCATED: dict.statusAllocated,
+    SHIPPED: dict.statusShipped,
+    WASTE: dict.statusWaste,
+    DISCOUNT_OFFERED: dict.statusDiscountOffered,
+  }[status];
+}
+
 export default async function StoragePage({
   searchParams,
 }: {
   searchParams: Promise<{ status?: string; coldRoomId?: string }>;
 }) {
   const { status, coldRoomId } = await searchParams;
+  const dict = getDictionary(await resolveLocale()).storage;
 
   const [pallets, coldRooms, counts] = await Promise.all([
     prisma.pallet.findMany({
@@ -46,18 +60,18 @@ export default async function StoragePage({
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Storage</h1>
-          <p className="mt-1 text-sm text-slate-500">Pallet-level view of what&apos;s in cold storage — sold vs. unsold, by room.</p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <LinkButton href="/storage/map" variant="secondary">
-          Storage Map
+          {dict.storageMapLink}
         </LinkButton>
       </div>
 
       <div className="mt-4 grid grid-cols-5 gap-3">
         {(["IN_STORAGE", "ALLOCATED", "SHIPPED", "DISCOUNT_OFFERED", "WASTE"] as const).map((s) => (
           <Card key={s} className="p-3 text-center">
-            <p className="text-xs text-slate-500">{s.replace("_", " ")}</p>
+            <p className="text-xs text-slate-500">{statusLabel(dict, s)}</p>
             <p className="text-lg font-semibold text-slate-900">{countMap[s] ?? 0}</p>
           </Card>
         ))}
@@ -65,37 +79,37 @@ export default async function StoragePage({
 
       <form className="mt-4 flex gap-3" method="get">
         <select name="status" defaultValue={status ?? ""} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
-          <option value="">All statuses</option>
-          <option value="IN_STORAGE">In Storage (unsold)</option>
-          <option value="ALLOCATED">Allocated (sold)</option>
-          <option value="SHIPPED">Shipped</option>
-          <option value="DISCOUNT_OFFERED">Discount Offered</option>
-          <option value="WASTE">Waste</option>
+          <option value="">{dict.allStatuses}</option>
+          <option value="IN_STORAGE">{dict.statusInStorageOption}</option>
+          <option value="ALLOCATED">{dict.statusAllocatedOption}</option>
+          <option value="SHIPPED">{dict.statusShipped}</option>
+          <option value="DISCOUNT_OFFERED">{dict.statusDiscountOffered}</option>
+          <option value="WASTE">{dict.statusWaste}</option>
         </select>
         <select name="coldRoomId" defaultValue={coldRoomId ?? ""} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
-          <option value="">All cold rooms</option>
+          <option value="">{dict.allColdRooms}</option>
           {coldRooms.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </select>
-        <button className="rounded-md bg-emerald-700 px-3.5 py-2 text-sm font-medium text-white">Filter</button>
+        <button className="rounded-md bg-emerald-700 px-3.5 py-2 text-sm font-medium text-white">{dict.filterButton}</button>
       </form>
 
       <Card className="mt-4 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Pallet #</th>
-              <th className="px-4 py-2 font-medium">Lot</th>
-              <th className="px-4 py-2 font-medium">Field</th>
-              <th className="px-4 py-2 font-medium">Factory</th>
-              <th className="px-4 py-2 font-medium">Cold Room</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Client</th>
-              <th className="px-4 py-2 font-medium">Total Plate Count</th>
-              <th className="px-4 py-2 font-medium">MRL</th>
+              <th className="px-4 py-2 font-medium">{dict.colPalletNumber}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLot}</th>
+              <th className="px-4 py-2 font-medium">{dict.colField}</th>
+              <th className="px-4 py-2 font-medium">{dict.colFactory}</th>
+              <th className="px-4 py-2 font-medium">{dict.colColdRoom}</th>
+              <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
+              <th className="px-4 py-2 font-medium">{dict.colClient}</th>
+              <th className="px-4 py-2 font-medium">{dict.colTotalPlateCount}</th>
+              <th className="px-4 py-2 font-medium">{dict.colMrl}</th>
             </tr>
           </thead>
           <tbody>
@@ -114,7 +128,7 @@ export default async function StoragePage({
                 <td className="px-4 py-2">{p.lot.factory.name}</td>
                 <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>
                 <td className="px-4 py-2">
-                  <Badge color={STATUS_COLOR[p.status]}>{p.status.replace("_", " ")}</Badge>
+                  <Badge color={STATUS_COLOR[p.status]}>{statusLabel(dict, p.status)}</Badge>
                 </td>
                 <td className="px-4 py-2">{p.client?.name ?? "—"}</td>
                 <td className="px-4 py-2">
@@ -128,7 +142,7 @@ export default async function StoragePage({
             {pallets.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                  No pallets match this filter.
+                  {dict.noPalletsMatch}
                 </td>
               </tr>
             )}

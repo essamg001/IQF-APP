@@ -9,12 +9,16 @@ import { DEFAULT_LAUNDRY_PACKHOUSE } from "@/lib/laundry";
 import { RegisterSection } from "./register-section";
 import { WashCycleSection } from "./wash-cycle-section";
 import { SignOffSection } from "./sign-off-section";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function LaundryPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const session = await auth();
   if (!session?.user || !["OWNER", "QUALITY", "PRODUCTION"].includes(session.user.role)) {
     redirect("/");
   }
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.laundry;
 
   const { date: dateParam } = await searchParams;
   const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
@@ -49,19 +53,15 @@ export default async function LaundryPage({ searchParams }: { searchParams: Prom
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Laundry</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Uniform laundering for the shared washroom serving Packhouse 11 &amp; 13 — HSE03296 tracks which garment
-            piece each worker was issued; HSE03293 logs each wash cycle&apos;s parameters and the day&apos;s
-            cleanliness sign-off.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <form className="flex items-end gap-2">
-          <FieldGroup label="Date">
+          <FieldGroup label={fullDict.common.date}>
             <Input name="date" type="date" defaultValue={dateStr} />
           </FieldGroup>
           <Button type="submit" variant="secondary">
-            Go
+            {fullDict.common.go}
           </Button>
         </form>
       </div>

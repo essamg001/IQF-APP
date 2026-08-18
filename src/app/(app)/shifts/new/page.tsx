@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import { ShiftForm } from "./shift-form";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function NewShiftPage({
   searchParams,
@@ -20,6 +22,7 @@ export default async function NewShiftPage({
     }),
   ]);
   const { factoryId, shiftType, date } = await searchParams;
+  const dict = getDictionary(await resolveLocale()).shifts;
 
   const efficiencyLookup = efficiencyRows.map((r) => ({
     factoryId: r.factoryId,
@@ -31,7 +34,7 @@ export default async function NewShiftPage({
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Log Shift</h1>
+      <h1 className="text-xl font-semibold text-slate-900">{dict.logShift}</h1>
       <div className="mt-6 max-w-lg">
         <ShiftForm factories={factories} initial={{ factoryId, shiftType, date }} efficiencyLookup={efficiencyLookup} />
       </div>

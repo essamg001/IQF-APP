@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 import { getPalletQualitySnapshots } from "@/lib/palletQuality";
 import { buildRackOrder, nextAvailableSlot } from "@/lib/coldStorage";
 import { ColdRoomGrid } from "./cold-room-grid";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function ColdRoomMapPage({ params }: { params: Promise<{ coldRoomId: string }> }) {
   const { coldRoomId } = await params;
+  const dict = getDictionary(await resolveLocale()).storage;
 
   const coldRoom = await prisma.coldRoom.findUnique({ where: { id: coldRoomId } });
   if (!coldRoom) notFound();
@@ -61,10 +64,16 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
   return (
     <div>
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">{coldRoom.name} — Storage Map</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          {coldRoom.name}
+          {dict.coldRoomMapTitleSuffix}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          {coldRoom.rounds} round{coldRoom.rounds === 1 ? "" : "s"} × {coldRoom.rackCount} racks × {coldRoom.levelCount}{" "}
-          levels · click a slot to assign, view, or unassign a pallet.
+          {dict.coldRoomMapSubtitle
+            .replace("{rounds}", String(coldRoom.rounds))
+            .replace("{roundsPlural}", coldRoom.rounds === 1 ? "" : "s")
+            .replace("{racks}", String(coldRoom.rackCount))
+            .replace("{levels}", String(coldRoom.levelCount))}
         </p>
       </div>
 

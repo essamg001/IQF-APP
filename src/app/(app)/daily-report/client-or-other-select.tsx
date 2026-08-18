@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Input, Select } from "@/components/ui/field";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 const OTHER = "__other__";
 
@@ -12,6 +13,7 @@ const OTHER = "__other__";
 // rather than an opaque string value.
 export function ClientOrOtherSelect({ clients }: { clients: { id: string; name: string }[] }) {
   const [mode, setMode] = useState<string>("");
+  const dict = useTranslations().dailyReport;
 
   return (
     <div className="space-y-1">
@@ -22,10 +24,10 @@ export function ClientOrOtherSelect({ clients }: { clients: { id: string; name: 
             {c.name}
           </option>
         ))}
-        <option value={OTHER}>Other (lab/quality samples…)</option>
+        <option value={OTHER}>{dict.otherClientOption}</option>
       </Select>
       <input type="hidden" name="clientId" value={mode === OTHER ? "" : mode} />
-      {mode === OTHER && <Input name="clientOther" placeholder="e.g. Lab Samples" className="w-48" />}
+      {mode === OTHER && <Input name="clientOther" placeholder={dict.otherClientPlaceholder} className="w-48" />}
     </div>
   );
 }

@@ -101,9 +101,13 @@ export function egyptSeasonKey(date: Date): string {
 }
 
 /** Human label for a season key, e.g. "2025-26" -> "2025/26 Season (Nov 2025 - Jun 2026)". */
-export function egyptSeasonLabel(key: string): string {
+export function egyptSeasonLabel(key: string, locale: "EN" | "AR" = "EN"): string {
   const startYear = Number(key.split("-")[0]);
-  return `${startYear}/${String((startYear + 1) % 100).padStart(2, "0")} Season (Nov ${startYear} - Jun ${startYear + 1})`;
+  const shortYear = String((startYear + 1) % 100).padStart(2, "0");
+  if (locale === "AR") {
+    return `موسم ${startYear}/${shortYear} (نوفمبر ${startYear} - يونيو ${startYear + 1})`;
+  }
+  return `${startYear}/${shortYear} Season (Nov ${startYear} - Jun ${startYear + 1})`;
 }
 
 /**

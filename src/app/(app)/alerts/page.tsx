@@ -7,26 +7,35 @@ import { Button } from "@/components/ui/button";
 import { markAlertReadAction } from "./actions";
 import { QualityOverrideActions } from "./quality-override-actions";
 import { canSignSpecException } from "@/lib/roles";
-import { format } from "date-fns";
-
-const TYPE_LABEL = {
-  SPEC_MISMATCH: "Spec Mismatch",
-  CONTAINER_OVERDUE: "Container Overdue",
-  LOW_STOCK: "Low Stock",
-  MICROBIOLOGY_PENDING: "Microbiology Pending",
-  MICROBIOLOGY_LOAD_ATTEMPT: "Blocked Load Attempt",
-  MRL_LOAD_ATTEMPT: "Blocked Load Attempt (MRL)",
-  MICROBIOLOGY_REJECTED: "Lab Rejection",
-  QUALITY_LIMIT_EXCEEDED: "Quality Limit Exceeded",
-  QUALITY_OVERRIDE_APPROVED: "Risk Approved",
-  EARLY_WARNING: "Early Warning — Trend",
-  SHIFT_ON_HOLD: "Shift On Hold",
-  TEMPERATURE_EXCURSION: "Temperature Excursion",
-  GLOBALGAP_EXPIRING: "GlobalG.A.P. Expiring",
-} as const;
+import { formatDate } from "@/lib/dates";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function AlertsPage() {
   await generateAlerts();
+
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.alerts;
+  const common = fullDict.common;
+
+  const TYPE_LABEL = {
+    SPEC_MISMATCH: dict.typeSpecMismatch,
+    CONTAINER_OVERDUE: dict.typeContainerOverdue,
+    LOW_STOCK: dict.typeLowStock,
+    MICROBIOLOGY_PENDING: dict.typeMicrobiologyPending,
+    MICROBIOLOGY_LOAD_ATTEMPT: dict.typeMicrobiologyLoadAttempt,
+    MRL_LOAD_ATTEMPT: dict.typeMrlLoadAttempt,
+    MICROBIOLOGY_REJECTED: dict.typeMicrobiologyRejected,
+    QUALITY_LIMIT_EXCEEDED: dict.typeQualityLimitExceeded,
+    QUALITY_OVERRIDE_APPROVED: dict.typeQualityOverrideApproved,
+    EARLY_WARNING: dict.typeEarlyWarning,
+    SHIFT_ON_HOLD: dict.typeShiftOnHold,
+    TEMPERATURE_EXCURSION: dict.typeTemperatureExcursion,
+    GLOBALGAP_EXPIRING: dict.typeGlobalgapExpiring,
+  } as const;
+
+  const STATUS_LABEL = { UNREAD: dict.statusUnread, READ: dict.statusRead } as const;
 
   const session = await auth();
   const role = session!.user.role;
@@ -46,21 +55,18 @@ export default async function AlertsPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Alerts</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Automatically flags spec mismatches, overdue containers, low stock, pending microbiology, and out-of-spec
-        quality checks — checked in-app and emailed.
-      </p>
+      <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+      <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Type</th>
-              <th className="px-4 py-2 font-medium">Message</th>
-              <th className="px-4 py-2 font-medium">Raised</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Decision</th>
+              <th className="px-4 py-2 font-medium">{dict.colType}</th>
+              <th className="px-4 py-2 font-medium">{dict.colMessage}</th>
+              <th className="px-4 py-2 font-medium">{dict.colRaised}</th>
+              <th className="px-4 py-2 font-medium">{common.status}</th>
+              <th className="px-4 py-2 font-medium">{dict.colDecision}</th>
               <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
@@ -73,24 +79,24 @@ export default async function AlertsPage() {
                     <Badge color={a.status === "UNREAD" ? "amber" : "slate"}>{TYPE_LABEL[a.type]}</Badge>
                   </td>
                   <td className="px-4 py-2">{a.message}</td>
-                  <td className="px-4 py-2">{format(a.createdAt, "dd MMM yyyy HH:mm")}</td>
-                  <td className="px-4 py-2">{a.status}</td>
+                  <td className="px-4 py-2">{formatDate(a.createdAt, "dd MMM yyyy HH:mm", locale)}</td>
+                  <td className="px-4 py-2">{STATUS_LABEL[a.status]}</td>
                   <td className="px-4 py-2">
                     {check?.overrideStatus === "PENDING" && canOverride && <QualityOverrideActions checkId={check.id} />}
                     {check?.overrideStatus === "PENDING" && !canOverride && (
-                      <span className="text-xs text-slate-400">Owner or Head of Production only</span>
+                      <span className="text-xs text-slate-400">{dict.ownerOrProductionOnly}</span>
                     )}
                     {check?.overrideStatus === "REJECTED" && (
                       <div>
-                        <Badge color="red">Rejected</Badge>
-                        <p className="mt-1 text-xs text-slate-500">by {check.overrideByName}</p>
+                        <Badge color="red">{dict.rejected}</Badge>
+                        <p className="mt-1 text-xs text-slate-500">{dict.rejectedBySuffix.replace("{name}", check.overrideByName ?? "")}</p>
                       </div>
                     )}
                     {check?.overrideStatus === "APPROVED_AT_RISK" && (
                       <div>
-                        <Badge color="amber">Approved at Risk</Badge>
+                        <Badge color="amber">{dict.approvedAtRisk}</Badge>
                         <p className="mt-1 text-xs text-slate-500">
-                          Signed by {check.overrideByName}
+                          {dict.signedBySuffix.replace("{name}", check.overrideByName ?? "")}
                           {check.overrideNote ? ` — ${check.overrideNote}` : ""}
                         </p>
                       </div>
@@ -100,7 +106,7 @@ export default async function AlertsPage() {
                     {a.status === "UNREAD" && !check && (
                       <form action={markAlertReadAction.bind(null, a.id)}>
                         <Button type="submit" variant="ghost" className="text-xs">
-                          Mark read
+                          {dict.markRead}
                         </Button>
                       </form>
                     )}
@@ -111,7 +117,7 @@ export default async function AlertsPage() {
             {alerts.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                  No alerts for your role right now.
+                  {dict.noAlerts}
                 </td>
               </tr>
             )}

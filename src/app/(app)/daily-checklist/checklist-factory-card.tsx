@@ -4,6 +4,7 @@ import {
   DAILY_CHECKLIST_SECTION_LABOUR_DEPARTMENT,
   totalDailyChecklistItemCount,
 } from "@/lib/dailyChecklist";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 import { ChecklistSectionForm } from "./checklist-section-form";
 
 type Score = { itemKey: string; score: number };
@@ -17,6 +18,7 @@ export function ChecklistFactoryCard({
   scores,
   supervisorsByDepartment,
   canEdit,
+  dict,
 }: {
   factoryId: string;
   factoryName: string;
@@ -25,6 +27,7 @@ export function ChecklistFactoryCard({
   scores: Score[];
   supervisorsByDepartment: SupervisorEntry[];
   canEdit: boolean;
+  dict: Dictionary["dailyChecklist"];
 }) {
   const total = totalDailyChecklistItemCount();
   const scoredCount = scores.length;
@@ -32,14 +35,12 @@ export function ChecklistFactoryCard({
   return (
     <Card>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">{factoryName} — Daily Checklist</h3>
+        <h3 className="text-sm font-semibold text-slate-900">{dict.factoryCardTitle.replace("{factory}", factoryName)}</h3>
         <span className="text-xs text-slate-500">
-          {scoredCount}/{total} scored
+          {scoredCount}/{total} {dict.scoredSuffix}
         </span>
       </div>
-      {!canEdit && (
-        <p className="mt-1 text-xs text-slate-400">Only the Owner or Head of Production can score this checklist.</p>
-      )}
+      {!canEdit && <p className="mt-1 text-xs text-slate-400">{dict.onlyProduction}</p>}
       <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
         {DAILY_CHECKLIST_SECTIONS.map((section) => {
           const sectionScores = scores.filter((s) => section.items.some((i) => i.key === s.itemKey));
@@ -51,7 +52,7 @@ export function ChecklistFactoryCard({
             <div key={section.key} className="rounded-md border border-slate-200 p-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-red-600">
                 {section.letter}. {section.label}
-                {supervisorName && <span className="ml-1 font-normal normal-case text-slate-500">({supervisorName})</span>}
+                {supervisorName && <span className="ms-1 font-normal normal-case text-slate-500">({supervisorName})</span>}
               </h4>
               <div className="mt-1">
                 <ChecklistSectionForm
@@ -63,6 +64,7 @@ export function ChecklistFactoryCard({
                   items={section.items}
                   scores={sectionScores}
                   canEdit={canEdit}
+                  dict={dict}
                 />
               </div>
             </div>

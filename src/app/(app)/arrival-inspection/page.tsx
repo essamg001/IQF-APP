@@ -5,12 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ArrivalInspectionForm } from "./arrival-form";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function ArrivalInspectionPage() {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
+  const dict = getDictionary(await resolveLocale()).arrivalInspection;
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -51,17 +54,20 @@ export default async function ArrivalInspectionPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Arrival Inspection at Factory</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Raw material intake (STR03110) — fruit arriving at the factory from the decap facility, before
-          freezing. Log every incoming sample, then accept or reject it.
-        </p>
+        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
       </div>
 
       <div className="flex gap-4">
-        <Badge color="slate">{todaysChecks.length} logged today</Badge>
-        <Badge color="green">{accepted} accepted</Badge>
-        <Badge color="red">{rejected} rejected</Badge>
+        <Badge color="slate">
+          {todaysChecks.length} {dict.loggedTodaySuffix}
+        </Badge>
+        <Badge color="green">
+          {accepted} {dict.acceptedSuffix}
+        </Badge>
+        <Badge color="red">
+          {rejected} {dict.rejectedSuffix}
+        </Badge>
       </div>
 
       <div className="max-w-3xl">
@@ -75,16 +81,16 @@ export default async function ArrivalInspectionPage() {
       </div>
 
       <Card className="max-w-3xl overflow-x-auto p-0">
-        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">Today&apos;s Log</h2>
-        <table className="w-full text-left text-sm">
+        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">{dict.todaysLogTitle}</h2>
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Time</th>
-              <th className="px-4 py-2 font-medium">Sample / Pallet</th>
-              <th className="px-4 py-2 font-medium">Vehicle</th>
-              <th className="px-4 py-2 font-medium">Brix</th>
-              <th className="px-4 py-2 font-medium">Total Defects</th>
-              <th className="px-4 py-2 font-medium">Decision</th>
+              <th className="px-4 py-2 font-medium">{dict.colTime}</th>
+              <th className="px-4 py-2 font-medium">{dict.colSamplePallet}</th>
+              <th className="px-4 py-2 font-medium">{dict.colVehicle}</th>
+              <th className="px-4 py-2 font-medium">{dict.colBrix}</th>
+              <th className="px-4 py-2 font-medium">{dict.colTotalDefects}</th>
+              <th className="px-4 py-2 font-medium">{dict.colDecision}</th>
             </tr>
           </thead>
           <tbody>
@@ -95,7 +101,7 @@ export default async function ArrivalInspectionPage() {
                 </td>
                 <td className="px-4 py-2">
                   <Link href={`/quality-check/${c.id}`} className="text-emerald-700 hover:underline">
-                    {c.appliesToWholeDelivery ? "Whole delivery" : c.sampleNo ?? "—"}
+                    {c.appliesToWholeDelivery ? dict.wholeDelivery : c.sampleNo ?? "—"}
                   </Link>
                 </td>
                 <td className="px-4 py-2">{c.transportVehicleNo ?? "—"}</td>
@@ -108,14 +114,16 @@ export default async function ArrivalInspectionPage() {
                   )}
                 </td>
                 <td className="px-4 py-2">
-                  <Badge color={c.decision === "ACCEPTED" ? "green" : "red"}>{c.decision}</Badge>
+                  <Badge color={c.decision === "ACCEPTED" ? "green" : "red"}>
+                    {c.decision === "ACCEPTED" ? dict.acceptable : dict.unacceptable}
+                  </Badge>
                 </td>
               </tr>
             ))}
             {todaysChecks.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                  Nothing logged yet today.
+                  {dict.nothingLoggedToday}
                 </td>
               </tr>
             )}

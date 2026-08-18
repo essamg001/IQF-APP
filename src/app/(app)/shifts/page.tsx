@@ -3,8 +3,11 @@ import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function ShiftsPage() {
+  const dict = getDictionary(await resolveLocale()).shifts;
   const shifts = await prisma.shiftLog.findMany({
     include: { factory: true, _count: { select: { lots: true } }, waste: { select: { quantity: true } } },
     orderBy: { date: "desc" },
@@ -15,27 +18,25 @@ export default async function ShiftsPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Shifts</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Open a shift before logging production lots against it — timing, worker counts, and linked production.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/shifts/new">Log Shift</LinkButton>
+        <LinkButton href="/shifts/new">{dict.logShift}</LinkButton>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Factory</th>
-              <th className="px-4 py-2 font-medium">Shift</th>
-              <th className="px-4 py-2 font-medium">Start</th>
-              <th className="px-4 py-2 font-medium">End</th>
-              <th className="px-4 py-2 font-medium">Hours</th>
-              <th className="px-4 py-2 font-medium">Workers</th>
-              <th className="px-4 py-2 font-medium">Lots Produced</th>
-              <th className="px-4 py-2 font-medium">Reject Waste</th>
+              <th className="px-4 py-2 font-medium">{dict.colDate}</th>
+              <th className="px-4 py-2 font-medium">{dict.colFactory}</th>
+              <th className="px-4 py-2 font-medium">{dict.colShift}</th>
+              <th className="px-4 py-2 font-medium">{dict.colStart}</th>
+              <th className="px-4 py-2 font-medium">{dict.colEnd}</th>
+              <th className="px-4 py-2 font-medium">{dict.colHours}</th>
+              <th className="px-4 py-2 font-medium">{dict.colWorkers}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLotsProduced}</th>
+              <th className="px-4 py-2 font-medium">{dict.colRejectWaste}</th>
             </tr>
           </thead>
           <tbody>
@@ -52,22 +53,24 @@ export default async function ShiftsPage() {
                   <td className="px-4 py-2">{s.factory.name}</td>
                   <td className="px-4 py-2">
                     <Badge color={s.shiftType === "DAY" ? "amber" : "blue"}>
-                      {s.shiftType === "DAY" ? "Shift 1 (Day)" : "Shift 2 (Night)"}
+                      {s.shiftType === "DAY" ? dict.shift1Day : dict.shift2Night}
                     </Badge>
                   </td>
                   <td className="px-4 py-2">{format(s.startTime, "HH:mm")}</td>
                   <td className="px-4 py-2">
-                    {s.endTime ? format(s.endTime, "HH:mm") : <span className="text-slate-400">In progress</span>}
+                    {s.endTime ? format(s.endTime, "HH:mm") : <span className="text-slate-400">{dict.inProgress}</span>}
                   </td>
                   <td className="px-4 py-2">{hours != null ? hours.toFixed(1) : "—"}</td>
-                  <td className="px-4 py-2">{s.workerCount}</td>
+                  <td className="px-4 py-2">
+                    {s.workerCount ?? <span className="text-slate-400">{dict.seeDailyReport}</span>}
+                  </td>
                   <td className="px-4 py-2">{s._count.lots}</td>
                   <td className="px-4 py-2">
                     {s.waste.length > 0 ? (
                       `${rejectWasteKg.toFixed(0)} kg`
                     ) : (
                       <a href={`/shifts/${s.id}`} className="text-xs text-slate-400 hover:text-emerald-700 hover:underline">
-                        Log
+                        {dict.logLink}
                       </a>
                     )}
                   </td>
@@ -77,7 +80,7 @@ export default async function ShiftsPage() {
             {shifts.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                  No shifts logged yet.
+                  {dict.noShiftsLoggedYet}
                 </td>
               </tr>
             )}

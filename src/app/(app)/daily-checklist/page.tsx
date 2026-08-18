@@ -5,6 +5,8 @@ import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { canSignAsHeadOfProduction } from "@/lib/roles";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 import { ChecklistFactoryCard } from "./checklist-factory-card";
 
 export default async function DailyChecklistPage({
@@ -13,6 +15,10 @@ export default async function DailyChecklistPage({
   searchParams: Promise<{ date?: string; shiftType?: string }>;
 }) {
   const session = await auth();
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.dailyChecklist;
+  const common = fullDict.common;
   const { date: dateParam, shiftType: shiftParam } = await searchParams;
   const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
   const shiftType = shiftParam === "NIGHT" ? "NIGHT" : "DAY";
@@ -36,24 +42,21 @@ export default async function DailyChecklistPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Daily Checklist</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            The Head of Production&apos;s per-shift plant walkthrough — a 0-10 score per item across arrivals,
-            pre-cooling, production, packaging, cold stores, loading, warehouse, and services areas.
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <form className="flex items-end gap-2">
-          <FieldGroup label="Date">
+          <FieldGroup label={common.date}>
             <Input name="date" type="date" defaultValue={dateStr} />
           </FieldGroup>
-          <FieldGroup label="Shift">
+          <FieldGroup label={fullDict.dailyReport.shift}>
             <Select name="shiftType" defaultValue={shiftType}>
-              <option value="DAY">Shift 1 (Day)</option>
-              <option value="NIGHT">Shift 2 (Night)</option>
+              <option value="DAY">{dict.shift1Day}</option>
+              <option value="NIGHT">{dict.shift2Night}</option>
             </Select>
           </FieldGroup>
           <Button type="submit" variant="secondary">
-            Go
+            {common.go}
           </Button>
         </form>
       </div>
@@ -68,12 +71,13 @@ export default async function DailyChecklistPage({
           scores={scores.filter((s) => s.factoryId === f.id)}
           supervisorsByDepartment={supervisorEntries.filter((e) => e.factoryId === f.id)}
           canEdit={canEdit}
+          dict={dict}
         />
       ))}
 
       {factories.length === 0 && (
         <Card>
-          <p className="text-sm text-slate-400">No factories set up yet.</p>
+          <p className="text-sm text-slate-400">{dict.noFactories}</p>
         </Card>
       )}
     </div>

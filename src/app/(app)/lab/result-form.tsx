@@ -5,6 +5,7 @@ import { updateLabResultAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
 type TestLine = {
   testName?: string | null;
@@ -62,26 +63,27 @@ function TestLineRow({
   onChange: (next: TestLine) => void;
   onRemove: () => void;
 }) {
+  const dict = useTranslations().lab;
   const set = (key: keyof TestLine, value: string) => onChange({ ...line, [key]: value });
   return (
     <div className="grid grid-cols-6 items-end gap-2">
-      <FieldGroup label="Test">
-        <Input value={line.testName ?? ""} onChange={(e) => set("testName", e.target.value)} placeholder="e.g. Aerobic total plate count 30°C" />
+      <FieldGroup label={dict.testLabel}>
+        <Input value={line.testName ?? ""} onChange={(e) => set("testName", e.target.value)} placeholder={dict.testPlaceholder} />
       </FieldGroup>
-      <FieldGroup label="Result">
-        <Input value={line.result ?? ""} onChange={(e) => set("result", e.target.value)} placeholder="e.g. 3000 cfu/g" />
+      <FieldGroup label={dict.resultLabel}>
+        <Input value={line.result ?? ""} onChange={(e) => set("result", e.target.value)} placeholder={dict.resultPlaceholder} />
       </FieldGroup>
-      <FieldGroup label="Unit">
-        <Input value={line.unit ?? ""} onChange={(e) => set("unit", e.target.value)} placeholder="CFU/gm" />
+      <FieldGroup label={dict.unitLabel}>
+        <Input value={line.unit ?? ""} onChange={(e) => set("unit", e.target.value)} placeholder={dict.unitPlaceholder} />
       </FieldGroup>
-      <FieldGroup label="MU">
-        <Input value={line.measurementUncertainty ?? ""} onChange={(e) => set("measurementUncertainty", e.target.value)} placeholder="± 0.015" />
+      <FieldGroup label={dict.muLabel}>
+        <Input value={line.measurementUncertainty ?? ""} onChange={(e) => set("measurementUncertainty", e.target.value)} placeholder={dict.muPlaceholder} />
       </FieldGroup>
-      <FieldGroup label="Method Ref">
-        <Input value={line.methodRef ?? ""} onChange={(e) => set("methodRef", e.target.value)} placeholder="ISO 4833-1:2013" />
+      <FieldGroup label={dict.methodRefLabel}>
+        <Input value={line.methodRef ?? ""} onChange={(e) => set("methodRef", e.target.value)} placeholder={dict.methodRefPlaceholder} />
       </FieldGroup>
       <button type="button" onClick={onRemove} className="mb-2 justify-self-start text-xs text-red-600 hover:underline">
-        Remove
+        {dict.removeLabel}
       </button>
     </div>
   );
@@ -100,19 +102,20 @@ export function ResultForm({
   const [cfuValue, setCfuValue] = useState<number | null>(result?.totalPlateCountCfuG ?? null);
   const [state, formAction, pending] = useActionState(updateLabResultAction.bind(null, resultId), undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
+  const dict = useTranslations().lab;
 
   return (
     <form action={formAction} className="mt-3 space-y-3">
       <div className="grid grid-cols-4 gap-3">
-        <FieldGroup label="Status">
+        <FieldGroup label={dict.statusFieldLabel}>
           <Select name="status" defaultValue={result?.status ?? "SENT_TO_LAB"}>
-            <option value="SENT_TO_LAB">Still awaiting result</option>
-            <option value="APPROVED">Approved</option>
-            <option value="FAILED_MINOR">Failed — Minor</option>
-            <option value="FAILED_SEVERE">Failed — Severe</option>
+            <option value="SENT_TO_LAB">{dict.statusStillAwaiting}</option>
+            <option value="APPROVED">{dict.statusApproved}</option>
+            <option value="FAILED_MINOR">{dict.statusFailedMinor}</option>
+            <option value="FAILED_SEVERE">{dict.statusFailedSevere}</option>
           </Select>
         </FieldGroup>
-        <FieldGroup label="Total Plate Count (cfu/g)">
+        <FieldGroup label={dict.totalPlateCountLabel}>
           <div className="flex items-center gap-2">
             <Input
               name="totalPlateCountCfuG"
@@ -125,83 +128,83 @@ export function ResultForm({
             <CfuTierBadge cfuValue={cfuValue} className="shrink-0" />
           </div>
         </FieldGroup>
-        <FieldGroup label="Person In Charge">
+        <FieldGroup label={dict.personInChargeLabel}>
           <Input name="personInCharge" defaultValue={result?.personInCharge ?? ""} />
         </FieldGroup>
-        <FieldGroup label={labType === "EXTERNAL" ? "Testing Date" : "Analysis Date"}>
+        <FieldGroup label={labType === "EXTERNAL" ? dict.testingDateLabel : dict.analysisDateLabel}>
           <Input name="analysisStartDate" type="date" defaultValue={result?.analysisStartDate?.toISOString().slice(0, 10) ?? ""} />
         </FieldGroup>
-        <FieldGroup label="Analysis Ended In">
+        <FieldGroup label={dict.analysisEndedInLabel}>
           <Input name="analysisEndDate" type="date" defaultValue={result?.analysisEndDate?.toISOString().slice(0, 10) ?? ""} />
         </FieldGroup>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        <FieldGroup label="Certificate Number">
+        <FieldGroup label={dict.certificateNumberLabel}>
           <Input name="certificateNumber" defaultValue={result?.certificateNumber ?? ""} />
         </FieldGroup>
-        <FieldGroup label="Lab Name">
+        <FieldGroup label={dict.labNameLabel}>
           <Input name="labName" defaultValue={result?.labName ?? (labType === "EXTERNAL" ? "" : "Magrabi Administration Labs (MAFA)")} />
         </FieldGroup>
-        <FieldGroup label="Client">
+        <FieldGroup label={dict.clientLabel}>
           <Input name="clientName" defaultValue={result?.clientName ?? "Magrabi Agriculture Company"} />
         </FieldGroup>
-        <FieldGroup label="Client Address">
+        <FieldGroup label={dict.clientAddressLabel}>
           <Input name="clientAddress" defaultValue={result?.clientAddress ?? ""} />
         </FieldGroup>
         {labType === "EXTERNAL" && (
-          <FieldGroup label="Attention">
+          <FieldGroup label={dict.attentionLabel}>
             <Input name="attentionTo" defaultValue={result?.attentionTo ?? ""} />
           </FieldGroup>
         )}
-        <FieldGroup label="Sample Code">
+        <FieldGroup label={dict.sampleCodeLabel}>
           <Input name="sampleCode" defaultValue={result?.sampleCode ?? ""} />
         </FieldGroup>
-        <FieldGroup label="Sample Type">
-          <Input name="sampleType" defaultValue={result?.sampleType ?? ""} placeholder="e.g. Strawberry Frozen, Lot, Sample Date" />
+        <FieldGroup label={dict.sampleTypeLabel}>
+          <Input name="sampleType" defaultValue={result?.sampleType ?? ""} placeholder={dict.sampleTypePlaceholder} />
         </FieldGroup>
         {labType === "EXTERNAL" && (
           <>
-            <FieldGroup label="Sample Size">
-              <Input name="sampleSize" defaultValue={result?.sampleSize ?? ""} placeholder="e.g. 1 kg" />
+            <FieldGroup label={dict.sampleSizeLabel}>
+              <Input name="sampleSize" defaultValue={result?.sampleSize ?? ""} placeholder={dict.sampleSizePlaceholder} />
             </FieldGroup>
-            <FieldGroup label="Sample Condition">
-              <Input name="sampleCondition" defaultValue={result?.sampleCondition ?? ""} placeholder="e.g. Kept frozen" />
+            <FieldGroup label={dict.sampleConditionLabel}>
+              <Input name="sampleCondition" defaultValue={result?.sampleCondition ?? ""} placeholder={dict.sampleConditionPlaceholder} />
             </FieldGroup>
           </>
         )}
         {labType === "IN_HOUSE" && (
           <>
-            <FieldGroup label="Data of Sample">
+            <FieldGroup label={dict.dataOfSampleLabel}>
               <Input name="sampleData" defaultValue={result?.sampleData ?? ""} />
             </FieldGroup>
-            <FieldGroup label="Other Data">
+            <FieldGroup label={dict.otherDataLabel}>
               <Input name="otherData" defaultValue={result?.otherData ?? ""} />
             </FieldGroup>
           </>
         )}
-        <FieldGroup label="Report Date">
+        <FieldGroup label={dict.reportDateLabel}>
           <Input name="reportDate" type="date" defaultValue={result?.reportDate?.toISOString().slice(0, 10) ?? ""} />
         </FieldGroup>
       </div>
 
       {labType === "EXTERNAL" && (
         <details className="text-xs text-slate-500">
-          <summary className="cursor-pointer">Residue/contaminant panel fields (older certificate format)</summary>
+          <summary className="cursor-pointer">{dict.residuePanelSummary}</summary>
           <div className="mt-2 grid grid-cols-4 gap-3">
-            <FieldGroup label="Sample ID">
+            <FieldGroup label={dict.sampleIdLabel}>
               <Input name="sampleId" defaultValue={result?.sampleId ?? ""} />
             </FieldGroup>
-            <FieldGroup label="Protocol Number">
+            <FieldGroup label={dict.protocolNumberLabel}>
               <Input name="protocolNumber" defaultValue={result?.protocolNumber ?? ""} />
             </FieldGroup>
-            <FieldGroup label="Sampling Bag Serial">
+            <FieldGroup label={dict.samplingBagSerialLabel}>
               <Input name="samplingBagSerial" defaultValue={result?.samplingBagSerial ?? ""} />
             </FieldGroup>
-            <FieldGroup label="Sampling Place">
+            <FieldGroup label={dict.samplingPlaceLabel}>
               <Input name="samplingPlace" defaultValue={result?.samplingPlace ?? ""} />
             </FieldGroup>
-            <FieldGroup label="Method Name">
+            <FieldGroup label={dict.methodNameLabel}>
               <Input name="methodName" defaultValue={result?.methodName ?? ""} />
             </FieldGroup>
           </div>
@@ -210,9 +213,9 @@ export function ResultForm({
 
       <div>
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-slate-700">Tests</p>
+          <p className="text-xs font-semibold text-slate-700">{dict.testsLabel}</p>
           <Button type="button" variant="secondary" className="text-xs" onClick={() => setLines([...lines, { ...EMPTY_LINE }])}>
-            Add test
+            {dict.addTest}
           </Button>
         </div>
         <div className="mt-2 space-y-2">
@@ -224,46 +227,46 @@ export function ResultForm({
               onRemove={() => setLines(lines.filter((_, j) => j !== i))}
             />
           ))}
-          {lines.length === 0 && <p className="text-sm text-slate-400">No tests added yet.</p>}
+          {lines.length === 0 && <p className="text-sm text-slate-400">{dict.noTestsAddedYet}</p>}
         </div>
         <input type="hidden" name="testLinesJson" value={JSON.stringify(lines)} />
       </div>
 
       {labType === "IN_HOUSE" && (
         <>
-          <FieldGroup label="Recommendation">
+          <FieldGroup label={dict.recommendationLabel}>
             <Input name="recommendation" defaultValue={result?.recommendation ?? ""} />
           </FieldGroup>
-          <FieldGroup label="Prepared By (Documents Section)">
+          <FieldGroup label={dict.preparedByLabel}>
             <Input name="preparedBy" defaultValue={result?.preparedBy ?? ""} />
           </FieldGroup>
         </>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <FieldGroup label={labType === "EXTERNAL" ? "Reviewed By (e.g. Quality Manager)" : "Reviewed By (Head Section Lab)"}>
+        <FieldGroup label={labType === "EXTERNAL" ? dict.reviewedByExternalLabel : dict.reviewedByInHouseLabel}>
           <Input name="reviewedBy" defaultValue={result?.reviewedBy ?? ""} />
         </FieldGroup>
-        <FieldGroup label={labType === "EXTERNAL" ? "Approved By (e.g. Lab Manager)" : "Approved By (Labs Director)"}>
+        <FieldGroup label={labType === "EXTERNAL" ? dict.approvedByExternalLabel : dict.approvedByInHouseLabel}>
           <Input name="approvedBy" defaultValue={result?.approvedBy ?? ""} />
         </FieldGroup>
       </div>
 
-      <FieldGroup label="Results Summary">
+      <FieldGroup label={dict.resultsSummaryLabel}>
         <Input
           name="resultsSummary"
-          placeholder="Free-text summary, if needed"
+          placeholder={dict.resultsSummaryPlaceholder}
           defaultValue={result?.resultsSummary ?? ""}
         />
       </FieldGroup>
-      <FieldGroup label="Notes">
+      <FieldGroup label={dict.notesLabel}>
         <Input name="notes" defaultValue={result?.notes ?? ""} />
       </FieldGroup>
 
       <div className="rounded-md border border-red-100 bg-red-50/50 p-3">
-        <p className="mb-2 text-xs font-semibold text-red-700">Rejected sample details (only if Failed — Minor/Severe)</p>
+        <p className="mb-2 text-xs font-semibold text-red-700">{dict.rejectedSampleDetailsTitle}</p>
         <div className="grid grid-cols-3 gap-3">
-          <FieldGroup label="Rejected quantity (tonnes)">
+          <FieldGroup label={dict.rejectedQuantityLabel}>
             <Input
               name="rejectedQuantityTonnes"
               type="number"
@@ -272,23 +275,27 @@ export function ResultForm({
               defaultValue={result?.rejectedQuantityTonnes ?? ""}
             />
           </FieldGroup>
-          <FieldGroup label="Reason">
-            <Input name="rejectionReason" placeholder="Why it failed spec" defaultValue={result?.rejectionReason ?? ""} />
+          <FieldGroup label={dict.reasonLabel}>
+            <Input name="rejectionReason" placeholder={dict.reasonPlaceholder} defaultValue={result?.rejectionReason ?? ""} />
           </FieldGroup>
-          <FieldGroup label="Corrective action">
-            <Input name="correctiveAction" placeholder="What was done about it" defaultValue={result?.correctiveAction ?? ""} />
+          <FieldGroup label={dict.correctiveActionLabel}>
+            <Input name="correctiveAction" placeholder={dict.correctiveActionPlaceholder} defaultValue={result?.correctiveAction ?? ""} />
           </FieldGroup>
         </div>
       </div>
-      <FieldGroup label={result?.certificateFileOriginalName ? `Certificate File (currently: ${result.certificateFileOriginalName})` : "Certificate File (PDF, JPG, or PNG)"}>
+      <FieldGroup
+        label={
+          result?.certificateFileOriginalName
+            ? dict.certificateFileCurrentLabel.replace("{name}", result.certificateFileOriginalName)
+            : dict.certificateFileNewLabel
+        }
+      >
         <input type="file" name="certificateFile" accept="application/pdf,image/jpeg,image/png" className="block text-sm" />
-        <p className="mt-1 text-xs text-slate-400">
-          Required, along with Certificate Number and Sample Code, before this result can be saved as Approved or Failed.
-        </p>
+        <p className="mt-1 text-xs text-slate-400">{dict.certificateFileHint}</p>
       </FieldGroup>
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       <Button type="submit" variant="secondary" disabled={pending}>
-        {pending ? "Saving…" : "Save result"}
+        {pending ? dict.saving : dict.saveResult}
       </Button>
     </form>
   );

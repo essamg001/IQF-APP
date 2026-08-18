@@ -6,10 +6,15 @@ import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { YearlyChart } from "./yearly-chart";
 import { GrossNetChart } from "./gross-net-chart";
+import { resolveLocale } from "@/lib/i18n/resolveLocale";
+import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export default async function ClientTrendPage({ params }: { params: Promise<{ clientId: string }> }) {
   const session = await auth();
   if (!canSeeHistoricalTrends(session?.user)) redirect("/");
+
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.trends;
 
   const { clientId } = await params;
   const client = await prisma.client.findUnique({
@@ -47,33 +52,36 @@ export default async function ClientTrendPage({ params }: { params: Promise<{ cl
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">{client.name} — Historical Trend</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          {dict.clientTrendTitle.replace("{client}", client.name)}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Lifetime gross value ${lifetimeValue.toLocaleString()} · Lifetime net value (after claims) $
-          {lifetimeNetValue.toLocaleString()}
+          {dict.lifetimeSummary
+            .replace("{gross}", `$${lifetimeValue.toLocaleString()}`)
+            .replace("{net}", `$${lifetimeNetValue.toLocaleString()}`)}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Order Value by Year — Gross vs. Net (USD)</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.orderValueByYearTitle}</h2>
           <GrossNetChart data={valueByYear} />
         </Card>
         <Card>
-          <h2 className="text-sm font-semibold text-slate-900">Volume by Year (pallets)</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.volumeByYearTitle}</h2>
           <YearlyChart data={volumeByYear} dataKey="value" unit="pallets" />
         </Card>
       </div>
 
       <Card className="overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Year</th>
-              <th className="px-4 py-2 font-medium">Gross Value (USD)</th>
-              <th className="px-4 py-2 font-medium">Credited Claims (USD)</th>
-              <th className="px-4 py-2 font-medium">Net Value (USD)</th>
-              <th className="px-4 py-2 font-medium">Volume (pallets)</th>
+              <th className="px-4 py-2 font-medium">{dict.colYear}</th>
+              <th className="px-4 py-2 font-medium">{dict.colGrossValueUsd}</th>
+              <th className="px-4 py-2 font-medium">{dict.colCreditedClaimsUsd}</th>
+              <th className="px-4 py-2 font-medium">{dict.colNetValueUsd}</th>
+              <th className="px-4 py-2 font-medium">{dict.colVolumePallets}</th>
             </tr>
           </thead>
           <tbody>

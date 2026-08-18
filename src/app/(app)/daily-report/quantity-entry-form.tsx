@@ -4,13 +4,26 @@ import { useActionState } from "react";
 import { addQuantityEntryAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "@/lib/i18n/locale-context";
 
-function PctPair({ label, tonName, pctName }: { label: string; tonName: string; pctName: string }) {
+function PctPair({
+  label,
+  tonName,
+  pctName,
+  tonPlaceholder,
+  pctPlaceholder,
+}: {
+  label: string;
+  tonName: string;
+  pctName: string;
+  tonPlaceholder: string;
+  pctPlaceholder: string;
+}) {
   return (
     <FieldGroup label={label}>
       <div className="flex gap-1">
-        <Input name={tonName} type="number" step="0.001" placeholder="ton" className="w-20" />
-        <Input name={pctName} type="number" step="0.1" placeholder="%" className="w-16" />
+        <Input name={tonName} type="number" step="0.001" placeholder={tonPlaceholder} className="w-20" />
+        <Input name={pctName} type="number" step="0.1" placeholder={pctPlaceholder} className="w-16" />
       </div>
     </FieldGroup>
   );
@@ -23,6 +36,8 @@ export function QuantityEntryForm({
   date: string;
   factories: { id: string; name: string; code: string | null }[];
 }) {
+  const fullDict = useTranslations();
+  const dict = fullDict.dailyReport;
   const [state, formAction, pending] = useActionState(addQuantityEntryAction, undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
 
@@ -30,7 +45,7 @@ export function QuantityEntryForm({
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="date" value={date} />
       <div className="flex flex-wrap items-end gap-3">
-        <FieldGroup label="Plant">
+        <FieldGroup label={dict.plant}>
           <Select name="factoryId" required className="w-40">
             <option value="">—</option>
             {factories.map((f) => (
@@ -40,33 +55,87 @@ export function QuantityEntryForm({
             ))}
           </Select>
         </FieldGroup>
-        <FieldGroup label="Shift">
+        <FieldGroup label={dict.shift}>
           <Select name="shiftType" required className="w-32">
-            <option value="DAY">Shift 1 (Day)</option>
-            <option value="NIGHT">Shift 2 (Night)</option>
+            <option value="DAY">{dict.shift1Day}</option>
+            <option value="NIGHT">{dict.shift2Night}</option>
           </Select>
         </FieldGroup>
-        <FieldGroup label="Variety">
+        <FieldGroup label={fullDict.common.variety}>
           <Input name="variety" required defaultValue="MS1" className="w-24" />
         </FieldGroup>
-        <FieldGroup label="First Balance (ton)">
+        <FieldGroup label={dict.firstBalanceTonLabel}>
           <Input name="firstBalanceTon" type="number" step="0.001" className="w-24" />
         </FieldGroup>
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <PctPair label="Raw Incoming" tonName="rawIncomingTon" pctName="rawIncomingPct" />
-        <PctPair label="Inlet for Operation" tonName="inletForOperationTon" pctName="inletForOperationPct" />
-        <PctPair label="End Balance" tonName="endBalanceTon" pctName="endBalancePct" />
-        <PctPair label="1st Class Whole" tonName="firstClassWholeTon" pctName="firstClassWholePct" />
+        <PctPair
+          label={dict.rawIncomingLabel}
+          tonName="rawIncomingTon"
+          pctName="rawIncomingPct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
+        <PctPair
+          label={dict.inletForOperationLabel}
+          tonName="inletForOperationTon"
+          pctName="inletForOperationPct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
+        <PctPair
+          label={dict.endBalanceLabel}
+          tonName="endBalanceTon"
+          pctName="endBalancePct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
+        <PctPair
+          label={dict.firstClassWholeLabel}
+          tonName="firstClassWholeTon"
+          pctName="firstClassWholePct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <PctPair label="2nd Class Whole" tonName="secondClassWholeTon" pctName="secondClassWholePct" />
-        <PctPair label="Rejected (before tunnel)" tonName="rejectedBeforeTunnelTon" pctName="rejectedBeforeTunnelPct" />
-        <PctPair label="Rejected (after tunnel)" tonName="rejectedAfterTunnelTon" pctName="rejectedAfterTunnelPct" />
-        <PctPair label="Total Packed" tonName="totalPackedTon" pctName="totalPackedPct" />
-        <PctPair label="Lost / reconciliation" tonName="lostTon" pctName="lostPct" />
+        <PctPair
+          label={dict.secondClassWholeLabel}
+          tonName="secondClassWholeTon"
+          pctName="secondClassWholePct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
+        <PctPair
+          label={dict.rejectedBeforeTunnelLabel}
+          tonName="rejectedBeforeTunnelTon"
+          pctName="rejectedBeforeTunnelPct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
+        <PctPair
+          label={dict.rejectedAfterTunnelLabel}
+          tonName="rejectedAfterTunnelTon"
+          pctName="rejectedAfterTunnelPct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
+        <PctPair
+          label={dict.totalPacked}
+          tonName="totalPackedTon"
+          pctName="totalPackedPct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
+        <PctPair
+          label={dict.lostReconciliationLabel}
+          tonName="lostTon"
+          pctName="lostPct"
+          tonPlaceholder={dict.tonPlaceholder}
+          pctPlaceholder={dict.pctPlaceholder}
+        />
         <Button type="submit" variant="secondary" disabled={pending}>
-          {pending ? "Saving…" : "Add row"}
+          {pending ? fullDict.common.saving : dict.addRow}
         </Button>
       </div>
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}

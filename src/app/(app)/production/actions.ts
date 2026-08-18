@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { generateLotNumber } from "@/lib/lotNumber";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { logActivity } from "@/lib/activityLog";
+import { shiftStartBlockedReason, scheduledShiftStartTime } from "@/lib/shifts";
 import { z } from "zod";
 
 const lotSchema = z.object({
@@ -42,12 +43,26 @@ export async function createLotAction(_prevState: string | undefined, formData: 
   if (!factory) return "Factory not found.";
   if (!factory.code) return `${factory.name} has no IQF unit code set — add one in Settings first.`;
 
-  const shift = await prisma.shiftLog.findFirst({
+  let shift = await prisma.shiftLog.findFirst({
     where: { factoryId: parsed.data.factoryId, shiftType: parsed.data.shiftType, date },
   });
   if (!shift) {
-    const shiftLabel = parsed.data.shiftType === "DAY" ? "Shift 1 (Day)" : "Shift 2 (Night)";
-    return `No shift logged for ${factory.name} — ${shiftLabel} on ${parsed.data.date}. Log the shift first.`;
+    // Nobody's opened this shift by hand yet -- create it here rather than
+    // blocking the lot on a trip to Log Shift, using the same fixed start
+    // time and cleaning-sign-off gate that page enforces. Worker count is
+    // left unset; the real headcount breakdown lives in the Daily Report.
+    const blockReason = await shiftStartBlockedReason(parsed.data.factoryId, parsed.data.shiftType, date);
+    if (blockReason) return blockReason;
+
+    shift = await prisma.shiftLog.create({
+      data: {
+        factoryId: parsed.data.factoryId,
+        shiftType: parsed.data.shiftType,
+        date,
+        startTime: scheduledShiftStartTime(date, parsed.data.shiftType),
+      },
+    });
+    revalidatePath("/shifts");
   }
 
   const farmCode = parsed.data.farmCode.trim().toUpperCase();
