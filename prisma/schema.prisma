@@ -988,6 +988,7 @@ model MicrobiologyResult {
   createdAt DateTime @default(now())
 
   @@unique([lotId, labType])
+  @@index([lotId, status])
 }
 
 // The repeatable "Tests" table shared by both certificates -- e.g. "Aerobic
@@ -1083,6 +1084,7 @@ model Order {
   qualityIssues QualityIssue[]
 
   @@index([clientId])
+  @@index([stage])
 }
 
 // A container holds ~25t loose-packed or ~24t palletised; since a pallet is
@@ -1208,6 +1210,8 @@ model Container {
   temperatureLogs ContainerTemperatureLog[]
   specExceptions  SpecException[]
   qualityIssues   QualityIssue[]
+
+  @@index([orderId])
 }
 
 // A named, signed record of a deliberate decision to load a pallet that fails
