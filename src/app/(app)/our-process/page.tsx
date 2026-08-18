@@ -50,7 +50,7 @@ export default async function OurProcessPage() {
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {dict.differentiators.map((f) => (
             <div key={f.title} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h3 className="text-sm font-semibold text-slate-900">{f.title}</h3>
+              <h3 className="min-h-[2.5rem] text-sm font-semibold text-slate-900">{f.title}</h3>
               <p className="mt-2.5 text-sm leading-relaxed text-slate-500">{f.body}</p>
             </div>
           ))}
@@ -95,7 +95,7 @@ export default async function OurProcessPage() {
             <li key={s.n} className="relative border-t-2 border-emerald-700 pt-4">
               {i > 0 && <span className="absolute -left-3 top-0 hidden h-0.5 w-3 bg-emerald-700 lg:block" aria-hidden />}
               <p className="font-mono text-xs font-semibold tracking-wider text-emerald-400">{s.n}</p>
-              <h3 className="mt-1.5 text-sm font-semibold text-white">{s.title}</h3>
+              <h3 className="mt-1.5 min-h-[2.5rem] text-sm font-semibold text-white">{s.title}</h3>
               <p className="mt-1 text-xs leading-relaxed text-emerald-200">{s.detail}</p>
             </li>
           ))}
