@@ -164,6 +164,7 @@ enum AlertType {
   SHIFT_ON_HOLD
   TEMPERATURE_EXCURSION
   GLOBALGAP_EXPIRING
+  SPRAY_RESTRICTION_BLOCKED
 }
 
 enum AlertStatus {
@@ -494,6 +495,29 @@ model Field {
   lots               ProductionLot[]
   qualityChecks      QualityCheck[]
   harvestTicketLines HarvestTicketPlotLine[]
+  sprayRecords       FieldSprayRecord[]
+}
+
+// A field sprayed with an anti-fungal (typically after rain) can't be
+// harvested again until noHarvestDays have passed -- checked against every
+// Harvest Ticket plot line that resolves to this field (see
+// src/lib/fieldSpray.ts + the hard-block in harvest-tickets/actions.ts).
+// noHarvestDays defaults to 12 but is editable per record since different
+// products can carry a different pre-harvest interval.
+model FieldSprayRecord {
+  id            String   @id @default(cuid())
+  fieldId       String
+  field         Field    @relation(fields: [fieldId], references: [id])
+  chemicalName  String
+  sprayDate     DateTime
+  noHarvestDays Int      @default(12)
+  sprayedByName String?
+  reason        String?
+  notes         String?
+  isTestData    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([fieldId])
 }
 
 enum HarvestProductType {

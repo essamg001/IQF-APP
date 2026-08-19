@@ -33,6 +33,7 @@ export default async function AlertsPage() {
     SHIFT_ON_HOLD: dict.typeShiftOnHold,
     TEMPERATURE_EXCURSION: dict.typeTemperatureExcursion,
     GLOBALGAP_EXPIRING: dict.typeGlobalgapExpiring,
+    SPRAY_RESTRICTION_BLOCKED: dict.typeSprayRestrictionBlocked,
   } as const;
 
   const STATUS_LABEL = { UNREAD: dict.statusUnread, READ: dict.statusRead } as const;

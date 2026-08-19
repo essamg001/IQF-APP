@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseDateSafe } from "@/lib/dates";
+import { activeRestriction, sprayClearDate } from "@/lib/fieldSpray";
+import { raiseSprayRestrictionBlockedAlert } from "@/lib/alerts";
 import { z } from "zod";
 
 const plotLineSchema = z.object({
@@ -103,6 +105,34 @@ export async function createHarvestTicketAction(_prevState: string | undefined, 
   };
 
   const { loadingTime, harvestTime, harvestDate, plotLines: lines, ...data } = parsed.data;
+
+  const filteredLines = lines.filter((l) => l.stationNo || l.plotValveGhNo || l.varietyName);
+  const resolvedFieldIds = [
+    ...new Set(
+      filteredLines.map((l) => resolveField(l.stationNo, l.plotValveGhNo)).filter((id): id is string => !!id)
+    ),
+  ];
+
+  if (resolvedFieldIds.length > 0) {
+    const sprays = await prisma.fieldSprayRecord.findMany({
+      where: { fieldId: { in: resolvedFieldIds } },
+      include: { field: true },
+    });
+    for (const fieldId of resolvedFieldIds) {
+      const restriction = activeRestriction(sprays.filter((s) => s.fieldId === fieldId));
+      if (!restriction) continue;
+      const clearDate = sprayClearDate(restriction);
+      await raiseSprayRestrictionBlockedAlert({
+        fieldId,
+        fieldName: restriction.field.name,
+        harvestTicketSerial: parsed.data.serialNumber,
+        chemicalName: restriction.chemicalName,
+        sprayDate: restriction.sprayDate,
+        clearDate,
+      });
+      return `Blocked: Field "${restriction.field.name}" is still inside its no-harvest window (sprayed with ${restriction.chemicalName} on ${restriction.sprayDate.toDateString()}, clear to harvest on ${clearDate.toDateString()}). Quality has been alerted.`;
+    }
+  }
 
   const created = await prisma.harvestTicket.create({
     data: {

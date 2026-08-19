@@ -20,6 +20,7 @@ const NAV_ITEMS: { href: string; labelKey: NavKey; roles?: Role[]; requiresHeadO
 
   // Field & Decap stage
   { href: "/harvest-tickets", labelKey: "harvestTickets", roles: ["OWNER", "QUALITY"] },
+  { href: "/field-spray-log", labelKey: "fieldSprayLog", roles: ["OWNER", "QUALITY"] },
   { href: "/pre-decap-inspection", labelKey: "preDecapArrivals", roles: ["OWNER", "QUALITY"] },
   { href: "/post-decap-quality", labelKey: "postDecapQuality", roles: ["OWNER", "QUALITY"] },
   { href: "/field-quality", labelKey: "fieldQuality", roles: ["OWNER", "QUALITY"] },

@@ -329,6 +329,37 @@ export async function raiseFieldTrendAlert(params: {
   }
 }
 
+/**
+ * Every blocked attempt is its own compliance event (not a static
+ * condition), so this always creates a fresh alert rather than deduping
+ * like upsertAlert does -- same convention as the MRL/microbiology
+ * load-attempt alerts.
+ */
+export async function raiseSprayRestrictionBlockedAlert(params: {
+  fieldId: string;
+  fieldName: string;
+  harvestTicketSerial: string;
+  chemicalName: string;
+  sprayDate: Date;
+  clearDate: Date;
+}) {
+  const message = `Blocked: Harvest Ticket ${params.harvestTicketSerial} includes field "${params.fieldName}", still inside its no-harvest window from a ${params.chemicalName} spray on ${params.sprayDate.toDateString()} -- clear to harvest on ${params.clearDate.toDateString()}.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "SPRAY_RESTRICTION_BLOCKED",
+        relatedEntityType: "SPRAY_RESTRICTION_BLOCKED",
+        relatedEntityId: params.fieldId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Blocked Harvest Ticket", message)));
+  }
+}
+
 async function checkSpecMismatch() {
   const pallets = await prisma.pallet.findMany({
     where: { status: "ALLOCATED" },
