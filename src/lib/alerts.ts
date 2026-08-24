@@ -360,6 +360,35 @@ export async function raiseSprayRestrictionBlockedAlert(params: {
   }
 }
 
+/**
+ * Every blade/knife return is checked against the number that went out, so a
+ * mismatch means a piece may be unaccounted for -- a foreign-object risk in
+ * frozen product. Fired the moment the mismatch is recorded (an event, not a
+ * static condition), same convention as the other load-attempt alerts.
+ */
+export async function raiseBladeKnifeMismatchAlert(params: {
+  recordId: string;
+  workerName: string;
+  issuedKnifeNumber: string;
+  returnedKnifeNumber: string;
+}) {
+  const message = `Blade/knife mismatch: ${params.workerName} issued knife #${params.issuedKnifeNumber} but returned #${params.returnedKnifeNumber} -- a piece may be unaccounted for.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "BLADE_KNIFE_MISMATCH",
+        relatedEntityType: "BLADE_KNIFE_MISMATCH",
+        relatedEntityId: params.recordId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Blade/Knife Mismatch", message)));
+  }
+}
+
 async function checkSpecMismatch() {
   const pallets = await prisma.pallet.findMany({
     where: { status: "ALLOCATED" },

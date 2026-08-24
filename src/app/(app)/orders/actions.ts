@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { suggestAllocation } from "@/lib/allocation";
+import { suggestAllocation, explainZeroAllocation } from "@/lib/allocation";
 import { logActivity } from "@/lib/activityLog";
 import { canSeePricing } from "@/lib/roles";
 import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
@@ -114,12 +114,12 @@ export async function updateOrderValueAction(orderId: string, formData: FormData
 }
 
 export async function allocatePalletsAction(orderId: string) {
-  const picks = await prisma.$transaction(
+  const { picks, remaining, grade, format } = await prisma.$transaction(
     async (tx) => {
       const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
       const alreadyAllocated = await tx.pallet.count({ where: { orderId } });
       const remaining = order.quantityPallets - alreadyAllocated;
-      if (remaining <= 0) return [];
+      if (remaining <= 0) return { picks: [], remaining, grade: order.grade, format: order.format };
 
       const picks = await suggestAllocation(
         {
@@ -138,12 +138,20 @@ export async function allocatePalletsAction(orderId: string) {
         });
       }
 
-      return picks;
+      return { picks, remaining, grade: order.grade, format: order.format };
     },
     { isolationLevel: "Serializable" }
   );
 
-  if (picks.length === 0) return;
+  // remaining <= 0 means the order was already fully allocated (e.g. a
+  // concurrent submission) -- nothing to explain, the button shouldn't even
+  // be visible in that state. Only a genuine zero-eligible-pallets result is
+  // worth surfacing a reason for.
+  if (picks.length === 0) {
+    if (remaining <= 0) return;
+    const reason = await explainZeroAllocation({ grade, format });
+    redirect(`/orders/${orderId}?allocError=${reason}`);
+  }
 
   const session = await auth();
   await logActivity({

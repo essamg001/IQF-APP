@@ -27,12 +27,30 @@ export async function assignPalletToSlotAction(_prevState: string | undefined, f
 
   const pallet = await prisma.pallet.findUniqueOrThrow({ where: { id: parsed.data.palletId } });
 
-  await prisma.$transaction([
-    // A pallet can only occupy one slot -- moving it here vacates wherever it was.
-    prisma.coldRoomSlot.updateMany({ where: { palletId: parsed.data.palletId }, data: { palletId: null } }),
-    prisma.coldRoomSlot.update({ where: { id: parsed.data.slotId }, data: { palletId: parsed.data.palletId } }),
-    prisma.pallet.update({ where: { id: parsed.data.palletId }, data: { coldRoomId: slot.coldRoomId } }),
-  ]);
+  // The palletId: null in this update's own where clause is the actual guard --
+  // the plain check above only protects against a slot that was ALREADY
+  // occupied when the page loaded, not one grabbed by someone else in the
+  // moments since. If two submissions race for the same empty slot, only the
+  // first update's where clause still matches; the second gets count: 0
+  // instead of silently overwriting the first assignment.
+  const claimed = await prisma.$transaction(async (tx) => {
+    // Claim the target slot BEFORE vacating the old one -- if the claim
+    // fails, the pallet must stay exactly where it already was rather than
+    // ending up vacated from its old slot with no new one to show for it.
+    const result = await tx.coldRoomSlot.updateMany({
+      where: { id: parsed.data.slotId, palletId: null },
+      data: { palletId: parsed.data.palletId },
+    });
+    if (result.count === 0) return false;
+    await tx.coldRoomSlot.updateMany({
+      where: { palletId: parsed.data.palletId, id: { not: parsed.data.slotId } },
+      data: { palletId: null },
+    });
+    await tx.pallet.update({ where: { id: parsed.data.palletId }, data: { coldRoomId: slot.coldRoomId } });
+    return true;
+  });
+
+  if (!claimed) return "Someone just took that slot — pick another.";
 
   await logActivity({
     actorId: session.user.id,

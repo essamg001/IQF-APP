@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activityLog";
+import { raiseBladeKnifeMismatchAlert } from "@/lib/alerts";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -146,16 +147,26 @@ export async function returnBladeAction(recordId: string, _prevState: string | u
     },
   });
 
+  const isMismatch = parsed.data.receiptKnifeNumber !== existing.issueKnifeNumber;
+
   await logActivity({
     actorId: session.user.id,
     action: "BLADE_RETURNED",
     entityType: "BladeIssueRecord",
     entityId: recordId,
-    detail:
-      parsed.data.receiptKnifeNumber === existing.issueKnifeNumber
-        ? undefined
-        : `MISMATCH: issued #${existing.issueKnifeNumber}, returned #${parsed.data.receiptKnifeNumber}`,
+    detail: isMismatch
+      ? `MISMATCH: issued #${existing.issueKnifeNumber}, returned #${parsed.data.receiptKnifeNumber}`
+      : undefined,
   });
+
+  if (isMismatch) {
+    await raiseBladeKnifeMismatchAlert({
+      recordId,
+      workerName: existing.workerName,
+      issuedKnifeNumber: existing.issueKnifeNumber,
+      returnedKnifeNumber: parsed.data.receiptKnifeNumber,
+    });
+  }
 
   revalidatePath("/blade-control");
   return "ok";

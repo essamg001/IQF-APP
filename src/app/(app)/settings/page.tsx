@@ -81,56 +81,70 @@ export default async function SettingsPage({
                 <span className="flex items-center gap-3">
                   <Badge color="slate">{ROLE_LABELS[u.role]}</Badge>
                   {u.station && <Badge color="amber">{STATION_LABELS[u.station]}</Badge>}
-                  {u.role === "SALES" &&
-                    (u.isHeadOfSales ? (
-                      <Badge color="green">{dict.headOfSalesBadge}</Badge>
-                    ) : (
+                  {u.role === "SALES" && (
+                    <span className="flex items-center gap-1">
+                      {u.isHeadOfSales && <Badge color="green">{dict.headOfSalesBadge}</Badge>}
                       <form action={toggleHeadOfSalesAction.bind(null, u.id)}>
                         <ConfirmSubmitButton
-                          confirmMessage={dict.makeHeadOfSalesConfirm.replace("{name}", u.name)}
+                          confirmMessage={
+                            u.isHeadOfSales
+                              ? dict.removeHeadOfSalesConfirm.replace("{name}", u.name)
+                              : dict.makeHeadOfSalesConfirm.replace("{name}", u.name)
+                          }
                           className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                         >
-                          {dict.makeHeadOfSalesLink}
+                          {u.isHeadOfSales ? dict.removeButton : dict.makeHeadOfSalesLink}
                         </ConfirmSubmitButton>
                       </form>
-                    ))}
-                  {u.role === "PRODUCTION" &&
-                    (u.isHeadOfProduction ? (
-                      <Badge color="green">{dict.headOfProductionBadge}</Badge>
-                    ) : (
+                    </span>
+                  )}
+                  {u.role === "PRODUCTION" && (
+                    <span className="flex items-center gap-1">
+                      {u.isHeadOfProduction && <Badge color="green">{dict.headOfProductionBadge}</Badge>}
                       <form action={toggleHeadOfProductionAction.bind(null, u.id)}>
                         <ConfirmSubmitButton
-                          confirmMessage={dict.makeHeadOfProductionConfirm.replace("{name}", u.name)}
+                          confirmMessage={
+                            u.isHeadOfProduction
+                              ? dict.removeHeadOfProductionConfirm.replace("{name}", u.name)
+                              : dict.makeHeadOfProductionConfirm.replace("{name}", u.name)
+                          }
                           className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                         >
-                          {dict.makeHeadOfProductionLink}
+                          {u.isHeadOfProduction ? dict.removeButton : dict.makeHeadOfProductionLink}
                         </ConfirmSubmitButton>
                       </form>
-                    ))}
-                  {u.isHeadOfMaintenance ? (
-                    <Badge color="green">{dict.headOfMaintenanceBadge}</Badge>
-                  ) : (
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    {u.isHeadOfMaintenance && <Badge color="green">{dict.headOfMaintenanceBadge}</Badge>}
                     <form action={toggleHeadOfMaintenanceAction.bind(null, u.id)}>
                       <ConfirmSubmitButton
-                        confirmMessage={dict.makeHeadOfMaintenanceConfirm.replace("{name}", u.name)}
+                        confirmMessage={
+                          u.isHeadOfMaintenance
+                            ? dict.removeHeadOfMaintenanceConfirm.replace("{name}", u.name)
+                            : dict.makeHeadOfMaintenanceConfirm.replace("{name}", u.name)
+                        }
                         className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                       >
-                        {dict.makeHeadOfMaintenanceLink}
+                        {u.isHeadOfMaintenance ? dict.removeButton : dict.makeHeadOfMaintenanceLink}
                       </ConfirmSubmitButton>
                     </form>
-                  )}
-                  {u.isHeadOfPurchasing ? (
-                    <Badge color="green">{dict.headOfPurchasingBadge}</Badge>
-                  ) : (
+                  </span>
+                  <span className="flex items-center gap-1">
+                    {u.isHeadOfPurchasing && <Badge color="green">{dict.headOfPurchasingBadge}</Badge>}
                     <form action={toggleHeadOfPurchasingAction.bind(null, u.id)}>
                       <ConfirmSubmitButton
-                        confirmMessage={dict.makeHeadOfPurchasingConfirm.replace("{name}", u.name)}
+                        confirmMessage={
+                          u.isHeadOfPurchasing
+                            ? dict.removeHeadOfPurchasingConfirm.replace("{name}", u.name)
+                            : dict.makeHeadOfPurchasingConfirm.replace("{name}", u.name)
+                        }
                         className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                       >
-                        {dict.makeHeadOfPurchasingLink}
+                        {u.isHeadOfPurchasing ? dict.removeButton : dict.makeHeadOfPurchasingLink}
                       </ConfirmSubmitButton>
                     </form>
-                  )}
+                  </span>
                   {u.id !== session?.user.id && (
                     <form action={deleteUserAction.bind(null, u.id)}>
                       <ConfirmSubmitButton confirmMessage={dict.removeUserConfirm.replace("{name}", u.name)}>

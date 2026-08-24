@@ -63,8 +63,15 @@ function claimStatusLabel(dict: Dictionary["orders"], status: "OPEN" | "UNDER_RE
   }[status];
 }
 
-export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ allocError?: string }>;
+}) {
   const { id } = await params;
+  const { allocError } = await searchParams;
   const session = await auth();
   const showPricing = canSeePricing(session?.user.role);
   const locale = await resolveLocale();
@@ -116,8 +123,22 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const nextStage = STAGE_ORDER[STAGE_ORDER.indexOf(order.stage) + 1];
 
+  const allocErrorMessage =
+    allocError === "NO_STOCK"
+      ? dict.allocateNoneNoStock
+      : allocError === "LAB_PENDING"
+        ? dict.allocateNoneLabPending
+        : allocError === "SPEC_FAIL"
+          ? dict.allocateNoneSpecFail.replace("{clientName}", order.client.name)
+          : null;
+
   return (
     <div className="space-y-6">
+      {allocErrorMessage && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {allocErrorMessage}
+        </p>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">

@@ -24,7 +24,15 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
       orderBy: [{ round: "asc" }, { rack: "asc" }, { level: "asc" }],
     }),
     prisma.pallet.findMany({
-      where: { slot: null, status: { notIn: ["SHIPPED", "WASTE"] } },
+      // Scoped to pallets nominally packed for THIS room (or never assigned
+      // a room at all, e.g. older data) -- otherwise every unshelved pallet
+      // in the factory shows up as assignable here regardless of which cold
+      // room its own packing record actually points to.
+      where: {
+        slot: null,
+        status: { notIn: ["SHIPPED", "WASTE"] },
+        OR: [{ coldRoomId }, { coldRoomId: null }],
+      },
       include: { lot: { include: { field: true } } },
       // Oldest not-yet-shelved pallet first -- matches the physical routine
       // of shelving pallets roughly in the order they come off the line.

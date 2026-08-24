@@ -34,6 +34,7 @@ export default async function AlertsPage() {
     TEMPERATURE_EXCURSION: dict.typeTemperatureExcursion,
     GLOBALGAP_EXPIRING: dict.typeGlobalgapExpiring,
     SPRAY_RESTRICTION_BLOCKED: dict.typeSprayRestrictionBlocked,
+    BLADE_KNIFE_MISMATCH: dict.typeBladeKnifeMismatch,
   } as const;
 
   const STATUS_LABEL = { UNREAD: dict.statusUnread, READ: dict.statusRead } as const;

@@ -123,3 +123,31 @@ export async function suggestAllocation(
 
   return scored.slice(0, quantity).map((s) => s.pallet);
 }
+
+/**
+ * suggestAllocation stays silent about *why* it found nothing -- a supervisor
+ * seeing "0 pallets allocated" has no way to tell "nothing's ready" apart from
+ * "something's broken". Re-runs the same filter stages one at a time, coarsest
+ * first, so the first one that comes up empty is the actual bottleneck.
+ */
+export async function explainZeroAllocation(
+  params: { grade: Grade; format: Format },
+  client: Prisma.TransactionClient | typeof prisma = prisma
+): Promise<"NO_STOCK" | "LAB_PENDING" | "SPEC_FAIL"> {
+  const { grade, format } = params;
+
+  const anyMatchingStock = await client.pallet.count({
+    where: { status: "IN_STORAGE", lot: { grade, format } },
+  });
+  if (anyMatchingStock === 0) return "NO_STOCK";
+
+  const labClearedStock = await client.pallet.count({
+    where: {
+      status: "IN_STORAGE",
+      lot: { grade, format, shift: { is: { onHold: false } }, mrlResult: { status: "APPROVED" }, ...bothLabsApprovedFilter },
+    },
+  });
+  if (labClearedStock === 0) return "LAB_PENDING";
+
+  return "SPEC_FAIL";
+}

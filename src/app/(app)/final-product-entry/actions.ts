@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 import { parseDateSafe } from "@/lib/dates";
 import { z } from "zod";
@@ -68,6 +70,15 @@ export async function createPackedPalletAction(_prevState: string | undefined, f
   const saved = existing
     ? await prisma.pallet.update({ where: { id: existing.id }, data: packingData })
     : await prisma.pallet.create({ data: packingData });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "PACKED_PALLET_RECORDED",
+    entityType: "Pallet",
+    entityId: saved.id,
+    detail: `${saved.palletNumber} — Lot ${lotNumber}`,
+  });
 
   revalidatePath("/final-product-entry");
   revalidatePath("/storage");
