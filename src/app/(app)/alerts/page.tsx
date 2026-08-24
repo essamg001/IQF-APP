@@ -35,6 +35,9 @@ export default async function AlertsPage() {
     GLOBALGAP_EXPIRING: dict.typeGlobalgapExpiring,
     SPRAY_RESTRICTION_BLOCKED: dict.typeSprayRestrictionBlocked,
     BLADE_KNIFE_MISMATCH: dict.typeBladeKnifeMismatch,
+    SCALE_OUT_OF_TOLERANCE: dict.typeScaleOutOfTolerance,
+    RODENT_DETECTED: dict.typeRodentDetected,
+    TOOL_INVENTORY_DISCREPANCY: dict.typeToolInventoryDiscrepancy,
   } as const;
 
   const STATUS_LABEL = { UNREAD: dict.statusUnread, READ: dict.statusRead } as const;

@@ -389,6 +389,95 @@ export async function raiseBladeKnifeMismatchAlert(params: {
   }
 }
 
+/**
+ * Fired the moment a scale's daily calibration check comes back outside its
+ * own registered tolerance -- every product weight recorded on that scale
+ * since its last good check is now suspect, a legal/compliance risk (net
+ * weight on the label), not just an internal accuracy concern.
+ */
+export async function raiseScaleOutOfToleranceAlert(params: {
+  scaleId: string;
+  scaleNumber: string;
+  deviationG: number;
+  maxPermissibleErrorG: number;
+}) {
+  const message = `Scale #${params.scaleNumber} is out of tolerance: deviation ${params.deviationG}g exceeds its ±${params.maxPermissibleErrorG}g limit -- weights recorded on this scale may be wrong.`;
+
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "SCALE_OUT_OF_TOLERANCE",
+        relatedEntityType: "SCALE_OUT_OF_TOLERANCE",
+        relatedEntityId: params.scaleId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Scale Out of Tolerance", message)));
+  }
+}
+
+/**
+ * Fired the moment a rodent trap/bait station check finds a live or dead
+ * rodent -- a food-safety event worth immediate attention, not something
+ * that should wait to be noticed on the next visit to this page.
+ */
+export async function raiseRodentDetectedAlert(params: {
+  trapId: string;
+  trapNumber: string;
+  trapType: "BAIT_STATION" | "GLUE_TRAP";
+  status: "LIVE_RODENT" | "DEAD_RODENT";
+}) {
+  const trapTypeLabel = params.trapType === "BAIT_STATION" ? "bait station" : "glue trap";
+  const findingLabel = params.status === "LIVE_RODENT" ? "a live rodent" : "a dead rodent";
+  const message = `Rodent ${trapTypeLabel} #${params.trapNumber} check found ${findingLabel}.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "RODENT_DETECTED",
+        relatedEntityType: "RODENT_DETECTED",
+        relatedEntityId: params.trapId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Rodent Detected", message)));
+  }
+}
+
+/**
+ * Fired at tool check-out when the counted total (intact + broken) is less
+ * than the registered count for that tool -- same "a piece may be
+ * unaccounted for" reasoning as the blade/knife mismatch alert, since a
+ * missing tool fragment is exactly the kind of foreign-material risk this
+ * register exists to catch.
+ */
+export async function raiseToolInventoryDiscrepancyAlert(params: {
+  checkId: string;
+  toolName: string;
+  registeredCount: number;
+  countedTotal: number;
+}) {
+  const message = `Tool inventory discrepancy: "${params.toolName}" — ${params.countedTotal} accounted for at check-out, but ${params.registeredCount} are registered. A piece may be unaccounted for.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "TOOL_INVENTORY_DISCREPANCY",
+        relatedEntityType: "TOOL_INVENTORY_DISCREPANCY",
+        relatedEntityId: params.checkId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Tool Inventory Discrepancy", message)));
+  }
+}
+
 async function checkSpecMismatch() {
   const pallets = await prisma.pallet.findMany({
     where: { status: "ALLOCATED" },

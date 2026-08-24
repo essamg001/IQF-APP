@@ -166,6 +166,9 @@ enum AlertType {
   GLOBALGAP_EXPIRING
   SPRAY_RESTRICTION_BLOCKED
   BLADE_KNIFE_MISMATCH
+  SCALE_OUT_OF_TOLERANCE
+  RODENT_DETECTED
+  TOOL_INVENTORY_DISCREPANCY
 }
 
 enum AlertStatus {
@@ -275,6 +278,9 @@ model User {
 
   personalItemChecksCheckedIn  PersonalItemShiftCheck[] @relation("PersonalItemCheckedInBy")
   personalItemChecksCheckedOut PersonalItemShiftCheck[] @relation("PersonalItemCheckedOutBy")
+
+  toolInventoryChecksCheckedIn  ToolInventoryShiftCheck[] @relation("ToolInventoryCheckedInBy")
+  toolInventoryChecksCheckedOut ToolInventoryShiftCheck[] @relation("ToolInventoryCheckedOutBy")
 
   recordedInjuryRecords InjuryRecord[]
 }
@@ -418,6 +424,10 @@ model Factory {
   packagingMaterialsDailyLogs PackagingMaterialsDailyLog[]
   forkliftEquipment           ForkliftEquipment[]
   nonConformanceReports       NonConformanceReport[]
+  weighingScales              WeighingScale[]
+  toolInventoryShiftChecks    ToolInventoryShiftCheck[]
+  lightTraps                  LightTrap[]
+  rodentTraps                 RodentTrap[]
 }
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
@@ -2612,5 +2622,174 @@ model NonConformanceReportPhoto {
   createdAt              DateTime             @default(now())
 
   @@index([nonConformanceReportId])
+}
+
+// CAL03602 -- one scale registered per physical device (target weight,
+// sensitivity, and its own max permissible error tolerance), checked once a
+// day against a reference weight. Deviation is stored as a signed value in
+// grams; a check is "in tolerance" whenever its absolute value doesn't
+// exceed the scale's own maxPermissibleErrorG -- computed at read time
+// rather than stored, so a scale's tolerance can be corrected later without
+// having to rewrite every past check's pass/fail state.
+model WeighingScale {
+  id                   String   @id @default(cuid())
+  factoryId            String
+  factory              Factory  @relation(fields: [factoryId], references: [id])
+  scaleNumber          String
+  location             String?
+  targetWeightKg       Float
+  sensitivity          String?
+  refValueKg           Float?
+  maxPermissibleErrorG Float
+  createdAt            DateTime @default(now())
+
+  checks ScaleCalibrationCheck[]
+
+  @@unique([factoryId, scaleNumber])
+}
+
+model ScaleCalibrationCheck {
+  id             String        @id @default(cuid())
+  scaleId        String
+  scale          WeighingScale @relation(fields: [scaleId], references: [id], onDelete: Cascade)
+  date           DateTime
+  deviationG     Float         @default(0)
+  verifiedByName String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  @@unique([scaleId, date])
+}
+
+// HSE03299 -- a station's shared tool count (crates, shovels, ladders,
+// storage boxes...), checked at both ends of a shift rather than once a
+// day: a piece going missing or breaking mid-shift is exactly what this
+// exists to catch, same reasoning as the hand-knife issue/return
+// accountability in Blade Control. Counts, not a single condition value,
+// since a "tool" here is really a registered quantity of one item type, not
+// one single physical unit like a phone in Personal Items.
+model ToolInventoryItem {
+  id        String   @id @default(cuid())
+  name      String
+  count     Int
+  location  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  checks ToolInventoryShiftCheck[]
+}
+
+model ToolInventoryShiftCheck {
+  id        String    @id @default(cuid())
+  toolId    String
+  tool      ToolInventoryItem @relation(fields: [toolId], references: [id])
+  factoryId String
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+  date      DateTime
+  shiftType ShiftType
+
+  checkedInAt       DateTime @default(now())
+  checkedInByName   String
+  checkedInByUserId String?
+  checkedInByUser   User?    @relation("ToolInventoryCheckedInBy", fields: [checkedInByUserId], references: [id])
+  startIntactCount  Int?
+  startBrokenCount  Int?
+
+  checkedOutAt       DateTime?
+  checkedOutByName   String?
+  checkedOutByUserId String?
+  checkedOutByUser   User?     @relation("ToolInventoryCheckedOutBy", fields: [checkedOutByUserId], references: [id])
+  endIntactCount     Int?
+  endBrokenCount     Int?
+  notes              String?
+
+  @@unique([toolId, factoryId, date, shiftType])
+}
+
+// HSE03207 / HSE03228 -- per-instrument pest control, replacing a single
+// weekly pass/fail checkbox (Cleaning Schedule's "Light Traps" /
+// "Rodent Bait Stations" tasks, which still track that the round happened)
+// with the actual per-trap counts and condition codes the printed forms
+// collect. Both registers share the same condition vocabulary in the
+// printed form (intact/wet/spoiled/missing/broken/displaced/live or dead
+// rodent found/good/not good), so one status enum covers bait stations and
+// glue traps alike rather than inventing two overlapping ones.
+model LightTrap {
+  id         String   @id @default(cuid())
+  factoryId  String
+  factory    Factory  @relation(fields: [factoryId], references: [id])
+  trapNumber String
+  location   String?
+  createdAt  DateTime @default(now())
+
+  checks LightTrapCheck[]
+
+  @@unique([factoryId, trapNumber])
+}
+
+model LightTrapCheck {
+  id               String    @id @default(cuid())
+  trapId           String
+  trap             LightTrap @relation(fields: [trapId], references: [id], onDelete: Cascade)
+  date             DateTime
+  fliesCount       Int       @default(0)
+  beesCount        Int       @default(0)
+  waspsCount       Int       @default(0)
+  mothsCount       Int       @default(0)
+  mosquitoesCount  Int       @default(0)
+  otherCount       Int       @default(0)
+  stickyPadChanged Boolean   @default(false)
+  checkedByName    String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+
+  @@unique([trapId, date])
+}
+
+enum RodentTrapType {
+  BAIT_STATION
+  GLUE_TRAP
+}
+
+enum RodentTrapStatus {
+  INTACT
+  WET
+  SPOILED
+  EATEN_TRACE
+  MISSING
+  BROKEN
+  DISPLACED
+  LIVE_RODENT
+  DEAD_RODENT
+  GOOD
+  NOT_GOOD
+  OTHER
+}
+
+model RodentTrap {
+  id         String         @id @default(cuid())
+  factoryId  String
+  factory    Factory        @relation(fields: [factoryId], references: [id])
+  trapNumber String
+  trapType   RodentTrapType
+  location   String?
+  createdAt  DateTime       @default(now())
+
+  checks RodentTrapCheck[]
+
+  @@unique([factoryId, trapNumber, trapType])
+}
+
+model RodentTrapCheck {
+  id            String           @id @default(cuid())
+  trapId        String
+  trap          RodentTrap       @relation(fields: [trapId], references: [id], onDelete: Cascade)
+  date          DateTime
+  status        RodentTrapStatus
+  checkedByName String?
+  notes         String?
+  createdAt     DateTime         @default(now())
+
+  @@unique([trapId, date])
 }
 

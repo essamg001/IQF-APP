@@ -47,6 +47,9 @@ const NAV_ITEMS: { href: string; labelKey: NavKey; roles?: Role[]; requiresHeadO
   { href: "/blade-control", labelKey: "bladeControl" },
   { href: "/packaging-materials", labelKey: "packagingMaterials" },
   { href: "/forklift-condition", labelKey: "forkliftCondition" },
+  { href: "/scale-calibration", labelKey: "scaleCalibration" },
+  { href: "/tool-inventory", labelKey: "toolInventory" },
+  { href: "/pest-control", labelKey: "pestControl" },
   { href: "/non-conformance", labelKey: "nonConformance" },
 
   // Storage & Lab (gates before a pallet can ship)
