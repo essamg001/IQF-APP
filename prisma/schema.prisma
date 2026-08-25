@@ -3045,3 +3045,25 @@ model ProtocolAcknowledgment {
   @@index([attendeeName])
 }
 
+// The factory's organizational chart -- prepared fresh every season per the
+// Factory Manager's own protocol ("prepare the organizational chart with
+// names and headcounts"). A real editable model, not static content, since
+// names/headcounts change without a code deploy. Ships as an empty skeleton
+// until the owner supplies real positions.
+model OrgPosition {
+  id            String        @id @default(cuid())
+  title         String
+  department    String?
+  reportsToId   String?
+  reportsTo     OrgPosition?  @relation("OrgReporting", fields: [reportsToId], references: [id])
+  directReports OrgPosition[] @relation("OrgReporting")
+  headcount     Int           @default(0)
+  // Null = vacant/placeholder position, filled in as real names arrive.
+  personName    String?
+  notes         String?
+  sortOrder     Int           @default(0)
+  isTestData    Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
