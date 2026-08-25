@@ -31,9 +31,9 @@ export function scheduledShiftStartTime(date: Date, shiftType: ShiftType): Date 
   return d;
 }
 
-// Shared find-or-create used by both Log Production Lot and Post-Decap
-// Quality, so "which shift is this" and its cleaning-sign-off gate can never
-// drift between the two call sites.
+// Used by Log Production Lot (and anywhere else a factory-specific shift is
+// needed) so "which shift is this" and its cleaning-sign-off gate can never
+// drift between call sites.
 export async function findOrCreateShift(
   factoryId: string,
   shiftType: ShiftType,
@@ -48,4 +48,13 @@ export async function findOrCreateShift(
     });
   }
   return { shift, blockReason: null };
+}
+
+// Decap's own shift, used only by Post-Decap Quality -- deliberately no
+// cleaning-sign-off gate here (that gate is a specific factory's between-
+// shift hygiene check, and decap isn't tied to one factory at all).
+export async function findOrCreateDecapShift(date: Date, shiftType: ShiftType) {
+  const existing = await prisma.decapShift.findFirst({ where: { date, shiftType } });
+  if (existing) return existing;
+  return prisma.decapShift.create({ data: { date, shiftType } });
 }

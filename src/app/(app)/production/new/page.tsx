@@ -23,21 +23,23 @@ export default async function NewLotPage({
   const date = parseLocalDateOnly(dateStr) ?? new Date();
   const factory = factories.find((f) => f.id === factoryId);
 
-  const [fields, shift] = await Promise.all([
-    prisma.field.findMany({ orderBy: { name: "asc" } }),
-    factoryId ? prisma.shiftLog.findFirst({ where: { factoryId, date, shiftType } }) : null,
-  ]);
+  const fields = await prisma.field.findMany({ orderBy: { name: "asc" } });
 
   // Fields with an accepted Post-Decap Quality check tied to this exact
-  // shift -- the authoritative "who supplied this shift" answer, replacing
-  // the old global "last 10 checks" heuristic.
-  const suggestedChecks = shift
-    ? await prisma.qualityCheck.findMany({
-        where: { checkpoint: "POST_DECAP", decision: "ACCEPTED", shiftId: shift.id, fieldId: { not: null } },
-        include: { field: true },
-        distinct: ["fieldId"],
-      })
-    : [];
+  // date+shift -- the authoritative "who supplied this shift" answer.
+  // Matched by decap shift (date+shiftType only, not factory), since decap
+  // is one shared facility feeding both IQF factories at once -- the same
+  // fields supply both factories' lots for the same shift.
+  const suggestedChecks = await prisma.qualityCheck.findMany({
+    where: {
+      checkpoint: "POST_DECAP",
+      decision: "ACCEPTED",
+      decapShift: { date, shiftType },
+      fieldId: { not: null },
+    },
+    include: { field: true },
+    distinct: ["fieldId"],
+  });
   const suggestedFieldNames = [...new Set(suggestedChecks.map((c) => c.field!.name))].sort();
 
   // Only prefill the farm code when every suggested field agrees on the same

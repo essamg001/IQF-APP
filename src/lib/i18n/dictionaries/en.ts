@@ -1923,7 +1923,7 @@ const en = {
   postDecapQuality: {
     title: "Decap — Post-Decap Quality",
     subtitle:
-      "Final product strawberry inspection (STR03107) — the greenlight for fruit to leave the decap facility for the factory. Enter the same Harvest Ticket Serial Number as the matching pre-decap arrival to auto-fill the field. Select the exact factory/date/shift this delivery is feeding so Log Production Lot can automatically pick up every field that supplied it.",
+      "Final product strawberry inspection (STR03107) — the greenlight for fruit to leave the decap facility for the factory. Enter the same Harvest Ticket Serial Number as the matching pre-decap arrival to auto-fill the field. Select the exact date/shift this delivery belongs to — decap serves both factories at once, so this isn't tied to one factory — and Log Production Lot at either factory can then automatically pick up every field that supplied that shift.",
     shiftLabel: "Shift",
     shiftDay: "Shift 1 (Day)",
     shiftNight: "Shift 2 (Night)",

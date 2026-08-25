@@ -13,7 +13,7 @@ import { getDictionary } from "@/lib/i18n/getDictionary";
 export default async function PostDecapQualityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ factoryId?: string; date?: string; shiftType?: string }>;
+  searchParams: Promise<{ date?: string; shiftType?: string }>;
 }) {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
@@ -22,9 +22,7 @@ export default async function PostDecapQualityPage({
   const fullDict = getDictionary(await resolveLocale());
   const dict = fullDict.postDecapQuality;
 
-  const { factoryId: factoryIdParam, date: dateParam, shiftType: shiftTypeParam } = await searchParams;
-  const factories = await prisma.factory.findMany({ orderBy: { code: "asc" } });
-  const factoryId = factoryIdParam ?? factories[0]?.id ?? "";
+  const { date: dateParam, shiftType: shiftTypeParam } = await searchParams;
   const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
   const shiftType = shiftTypeParam === "NIGHT" ? "NIGHT" : "DAY";
 
@@ -84,15 +82,6 @@ export default async function PostDecapQualityPage({
 
       <Card className="max-w-3xl">
         <form className="flex flex-wrap items-end gap-3">
-          <FieldGroup label={fullDict.common.factory}>
-            <Select name="factoryId" defaultValue={factoryId}>
-              {factories.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </Select>
-          </FieldGroup>
           <FieldGroup label={fullDict.common.date}>
             <Input name="date" type="date" defaultValue={dateStr} />
           </FieldGroup>
@@ -110,7 +99,6 @@ export default async function PostDecapQualityPage({
 
       <div className="max-w-3xl">
         <PostDecapForm
-          factoryId={factoryId}
           date={dateStr}
           shiftType={shiftType}
           fields={fields}

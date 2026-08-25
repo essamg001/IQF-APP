@@ -66,10 +66,16 @@ export async function createLotAction(_prevState: string | undefined, formData: 
   }
 
   // Fields that had an accepted Post-Decap Quality check tied to this exact
-  // shift, for telling apart automatically-confirmed suppliers from ones the
+  // date+shift (decap is factory-agnostic, so this doesn't filter by factory),
+  // for telling apart automatically-confirmed suppliers from ones the
   // grower/user typed in manually (the "add another field" escape hatch).
   const confirmedChecks = await prisma.qualityCheck.findMany({
-    where: { checkpoint: "POST_DECAP", decision: "ACCEPTED", shiftId: shift.id, fieldId: { not: null } },
+    where: {
+      checkpoint: "POST_DECAP",
+      decision: "ACCEPTED",
+      decapShift: { date, shiftType: parsed.data.shiftType },
+      fieldId: { not: null },
+    },
     select: { fieldId: true },
   });
   const confirmedFieldIds = new Set(confirmedChecks.map((c) => c.fieldId!));

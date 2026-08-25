@@ -27,7 +27,7 @@ type EfficiencyLookupRow = {
 };
 
 type LabourLookupRow = { factoryId: string; date: string; shiftType: string; totalHeadcount: number };
-type FieldsLookupRow = { factoryId: string; date: string; shiftType: string; fieldNames: string[] };
+type FieldsLookupRow = { date: string; shiftType: string; fieldNames: string[] };
 
 export function ShiftForm({
   factories,
@@ -88,14 +88,16 @@ export function ShiftForm({
 
   const fieldsByKey = useMemo(() => {
     const m = new Map<string, FieldsLookupRow>();
-    for (const row of fieldsLookup) m.set(`${row.factoryId}__${row.date}__${row.shiftType}`, row);
+    // Keyed by date+shiftType only, not factory -- decap is one shared
+    // facility, so the same fields supply both factories for a given shift.
+    for (const row of fieldsLookup) m.set(`${row.date}__${row.shiftType}`, row);
     return m;
   }, [fieldsLookup]);
 
   const key = `${factoryId}__${date}__${shiftType}`;
   const match = date ? efficiencyByKey.get(key) : undefined;
   const labourMatch = date ? labourByKey.get(key) : undefined;
-  const fieldsMatch = date ? fieldsByKey.get(key) : undefined;
+  const fieldsMatch = date ? fieldsByKey.get(`${date}__${shiftType}`) : undefined;
 
   // Start time defaults to the standard schedule (still editable); end time
   // only prefills if Daily Report already happens to have this shift's

@@ -666,12 +666,27 @@ model ShiftLog {
   holdResolvedBy     String?
   holdResolutionNote String?
 
-  lots          ProductionLot[]
-  waste         Waste[]
-  qualityChecks QualityCheck[]
+  lots  ProductionLot[]
+  waste Waste[]
 
   @@unique([factoryId, date, shiftType])
   @@index([factoryId, date])
+}
+
+// Decap's own shift -- deliberately NOT tied to a factory. Decap is a single
+// shared facility: fruit from every field arriving during a given date+shift
+// is mixed together there, and only afterward does the arrival office decide
+// which factory each pallet goes to. So "which fields supplied this shift"
+// is the same answer for both IQF1 and IQF2 -- one DecapShift row covers
+// both, unlike ShiftLog which is always factory-specific.
+model DecapShift {
+  id            String         @id @default(cuid())
+  date          DateTime
+  shiftType     ShiftType
+  qualityChecks QualityCheck[]
+  createdAt     DateTime       @default(now())
+
+  @@unique([date, shiftType])
 }
 
 // A singleton row (find-or-create on first access) for company-wide facts
@@ -825,12 +840,15 @@ model QualityCheck {
   lot                     ProductionLot?         @relation(fields: [lotId], references: [id])
   palletId                String?
   pallet                  Pallet?                @relation(fields: [palletId], references: [id])
-  // Which factory/date/shift this check belongs to -- only Post-Decap Quality
-  // populates this (see findOrCreateShift in src/lib/shifts.ts), so that
-  // "which fields supplied this shift" is one join through ShiftLog rather
-  // than a second, drift-prone factoryId/shiftType pair living here too.
-  shiftId                 String?
-  shift                   ShiftLog?              @relation(fields: [shiftId], references: [id])
+  // Which decap shift this check belongs to -- only Post-Decap Quality
+  // populates this. Decap is ONE shared facility serving both IQF factories:
+  // fruit from every field that arrives during a given date+shift gets mixed
+  // together there, and the arrival office only decides afterward which
+  // factory each pallet goes to (whichever has less stock). So "which fields
+  // supplied this shift" is the same answer for both factories -- a
+  // DecapShift is deliberately NOT tied to one factory, unlike ShiftLog.
+  decapShiftId            String?
+  decapShift              DecapShift?            @relation(fields: [decapShiftId], references: [id])
   // The specific field plot this batch came from, for checks that can be
   // tied to one field (Pre-Decap Inspection and Post-Decap Quality). A single
   // delivery can carry fruit from multiple fields per the harvest ticket, so

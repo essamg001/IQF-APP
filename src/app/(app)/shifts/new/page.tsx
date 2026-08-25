@@ -28,12 +28,13 @@ export default async function NewShiftPage({
       _sum: { headcount: true },
     }),
     // Which fields already have an accepted Post-Decap check tied to this
-    // shift -- read-only preview so opening a shift shows what's already
-    // known to be feeding it, same lookup Log Production Lot uses.
-    prisma.shiftLog.findMany({
+    // date+shift -- read-only preview so opening a shift shows what's
+    // already known to be feeding it, same lookup Log Production Lot uses.
+    // Keyed by date+shiftType only (not factory): decap is one shared
+    // facility, so the same fields supply both IQF1 and IQF2 for a shift.
+    prisma.decapShift.findMany({
       where: { qualityChecks: { some: { checkpoint: "POST_DECAP", decision: "ACCEPTED", fieldId: { not: null } } } },
       select: {
-        factoryId: true,
         date: true,
         shiftType: true,
         qualityChecks: {
@@ -65,7 +66,6 @@ export default async function NewShiftPage({
     }));
 
   const fieldsLookup = fieldShifts.map((s) => ({
-    factoryId: s.factoryId,
     date: format(s.date, "yyyy-MM-dd"),
     shiftType: s.shiftType,
     fieldNames: [...new Set(s.qualityChecks.map((c) => c.field!.name))].sort(),
