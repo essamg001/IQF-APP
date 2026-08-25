@@ -101,6 +101,7 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
       { href: "/non-conformance", labelKey: "nonConformance" },
       { href: "/laundry", labelKey: "laundry", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
       { href: "/training", labelKey: "staffTraining", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+      { href: "/certifications", labelKey: "certifications", roles: ["OWNER", "QUALITY"] },
       { href: "/purchase-requests", labelKey: "purchaseRequests" },
     ],
   },

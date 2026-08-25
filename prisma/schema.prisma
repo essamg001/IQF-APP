@@ -171,6 +171,7 @@ enum AlertType {
   RODENT_DETECTED
   TOOL_INVENTORY_DISCREPANCY
   SHIFT_MISSING_POST_DECAP_LINK
+  CERTIFICATION_EXPIRING
 }
 
 enum AlertStatus {
@@ -3087,5 +3088,21 @@ model OrgPosition {
   isTestData    Boolean       @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+}
+
+// Facility-level certifications (BRCGS, SMETA, FDA, Kosher, etc.) -- tracked
+// so renewal can happen well before expiry, via the same expiring-soon alert
+// pattern already used for GlobalG.A.P. (see CompanySettings.globalGapExpiry
+// and checkGlobalGapExpiry in src/lib/alerts.ts), kept separate since that
+// one is a farm-level accreditation rather than a facility certification.
+model Certification {
+  id         String   @id @default(cuid())
+  name       String
+  certNumber String?
+  validTo    DateTime
+  notes      String?
+  isTestData Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 

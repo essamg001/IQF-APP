@@ -96,6 +96,7 @@ const en = {
     equipmentVerification: "Equipment Verification",
     laundry: "Laundry",
     staffTraining: "Staff Training",
+    certifications: "Certifications",
     purchaseRequests: "Purchase Requests",
     structuralIssues: "Structural Issues",
     personalItems: "Personal Items",
@@ -3376,6 +3377,26 @@ const en = {
     formTrainer: "Trainer",
     addRecord: "Add Training Record",
   },
+  certifications: {
+    title: "Certifications",
+    subtitle:
+      "Facility-level accreditations — tracked so renewal happens well before expiry, never at risk of a lapse.",
+    colName: "Certificate",
+    colCertNumber: "Certificate No.",
+    colValidTo: "Valid To",
+    colStatus: "Status",
+    colNotes: "Notes",
+    statusValid: "Valid",
+    statusExpiringSoon: "Expiring soon",
+    statusExpired: "Expired",
+    noCertifications: "No certifications recorded yet.",
+    formName: "Certificate Name",
+    formNamePlaceholder: "e.g. BRCGS Global Standard for Food Safety V.9",
+    formCertNumber: "Certificate Number",
+    formValidTo: "Valid To",
+    formNotes: "Notes",
+    addCertification: "Add Certification",
+  },
   dailyChecklist: {
     title: "Daily Checklist",
     subtitle:
@@ -3522,6 +3543,7 @@ const en = {
     typeRodentDetected: "Rodent Detected",
     typeToolInventoryDiscrepancy: "Tool Inventory Discrepancy",
     typeShiftMissingPostDecapLink: "Lot Missing Post-Decap Link",
+    typeCertificationExpiring: "Certification Expiring",
     reject: "Reject",
     approveAtRiskButton: "Approve at Risk",
     signingOffWarning:

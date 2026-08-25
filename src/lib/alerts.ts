@@ -9,6 +9,7 @@ import { getCompanySettings } from "@/lib/companySettings";
 
 const MICRO_PENDING_DAYS_THRESHOLD = 3;
 const GLOBALGAP_EXPIRY_WARNING_DAYS = 30;
+const CERTIFICATION_EXPIRY_WARNING_DAYS = 30;
 
 async function upsertAlert(type: AlertType, relatedEntityId: string, targetRole: Role, message: string) {
   const existing = await prisma.alert.findFirst({
@@ -31,6 +32,7 @@ export async function generateAlerts() {
     checkLowStock(),
     checkMicrobiologyPending(),
     checkGlobalGapExpiry(),
+    checkCertificationExpiry(),
   ]);
 }
 
@@ -691,4 +693,23 @@ async function checkGlobalGapExpiry() {
 
   await upsertAlert("GLOBALGAP_EXPIRING", settings.id, "OWNER", message);
   await upsertAlert("GLOBALGAP_EXPIRING", settings.id, "QUALITY", message);
+}
+
+// Facility-level certifications (BRCGS, SMETA, FDA, Kosher, etc.) -- one
+// check per row, same warning window as GlobalG.A.P. above.
+async function checkCertificationExpiry() {
+  const certifications = await prisma.certification.findMany();
+
+  for (const cert of certifications) {
+    const daysLeft = differenceInDays(cert.validTo, new Date());
+    if (daysLeft > CERTIFICATION_EXPIRY_WARNING_DAYS) continue;
+
+    const message =
+      daysLeft < 0
+        ? `${cert.name} certification expired ${Math.abs(daysLeft)} day(s) ago.`
+        : `${cert.name} certification expires in ${daysLeft} day(s).`;
+
+    await upsertAlert("CERTIFICATION_EXPIRING", cert.id, "OWNER", message);
+    await upsertAlert("CERTIFICATION_EXPIRING", cert.id, "QUALITY", message);
+  }
 }
