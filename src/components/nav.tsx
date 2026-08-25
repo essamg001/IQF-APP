@@ -9,75 +9,104 @@ import type { Role, Station } from "@prisma/client";
 
 type NavKey = keyof Dictionary["nav"];
 
-const NAV_ITEMS: { href: string; labelKey: NavKey; roles?: Role[]; requiresHeadOfSales?: boolean }[] = [
-  // Overview
-  { href: "/", labelKey: "dashboard" },
-  { href: "/our-process", labelKey: "ourProcess" },
+type NavItem = { href: string; labelKey: NavKey; roles?: Role[]; requiresHeadOfSales?: boolean };
 
-  // Reference data
-  { href: "/fields", labelKey: "fields" },
-  { href: "/clients", labelKey: "clients" },
-
-  // Field & Decap stage
-  { href: "/harvest-tickets", labelKey: "harvestTickets", roles: ["OWNER", "QUALITY"] },
-  { href: "/field-spray-log", labelKey: "fieldSprayLog", roles: ["OWNER", "QUALITY"] },
-  { href: "/pre-decap-inspection", labelKey: "preDecapArrivals", roles: ["OWNER", "QUALITY"] },
-  { href: "/post-decap-quality", labelKey: "postDecapQuality", roles: ["OWNER", "QUALITY"] },
-  { href: "/field-quality", labelKey: "fieldQuality", roles: ["OWNER", "QUALITY"] },
-  { href: "/yield-recovery", labelKey: "yieldRecovery", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-
-  // Factory: intake -> freeze -> pack
-  { href: "/arrival-inspection", labelKey: "arrivalInspection", roles: ["OWNER", "QUALITY"] },
-  { href: "/shifts", labelKey: "shifts" },
-  { href: "/production", labelKey: "production" },
-  { href: "/post-freeze-inspection", labelKey: "postFreezeInspection", roles: ["OWNER", "QUALITY"] },
-  { href: "/final-product-entry", labelKey: "finalProductEntry", roles: ["OWNER", "PRODUCTION"] },
-  { href: "/waste", labelKey: "waste" },
-  { href: "/daily-report", labelKey: "dailyReport", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/cleaning", labelKey: "cleaningMode" },
-  { href: "/cleaning-schedule", labelKey: "cleaningSchedule" },
-  { href: "/daily-checklist", labelKey: "dailyChecklist" },
-  { href: "/equipment-verification", labelKey: "equipmentVerification", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/laundry", labelKey: "laundry", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/training", labelKey: "staffTraining", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
-  { href: "/purchase-requests", labelKey: "purchaseRequests" },
-  { href: "/structural-issues", labelKey: "structuralIssues" },
-  { href: "/personal-items", labelKey: "personalItems" },
-  { href: "/injury-log", labelKey: "injuryLog" },
-  { href: "/blade-control", labelKey: "bladeControl" },
-  { href: "/packaging-materials", labelKey: "packagingMaterials" },
-  { href: "/forklift-condition", labelKey: "forkliftCondition" },
-  { href: "/scale-calibration", labelKey: "scaleCalibration" },
-  { href: "/tool-inventory", labelKey: "toolInventory" },
-  { href: "/pest-control", labelKey: "pestControl" },
-  { href: "/non-conformance", labelKey: "nonConformance" },
-
-  // Storage & Lab (gates before a pallet can ship)
-  { href: "/storage", labelKey: "storage" },
-  { href: "/lab", labelKey: "lab", roles: ["OWNER", "QUALITY"] },
-
-  // Sales
-  { href: "/orders", labelKey: "orders" },
-  { href: "/active-orders", labelKey: "activeOrders" },
-  { href: "/available-to-sell", labelKey: "availableToSell" },
-
-  // Shipping
-  { href: "/load-out", labelKey: "loadOut" },
-  { href: "/logistics", labelKey: "logistics" },
-
-  // Sales reporting
-  { href: "/trends", labelKey: "historicalTrends", requiresHeadOfSales: true },
-
-  // Quality oversight & post-shipment issues
-  { href: "/quality", labelKey: "quality" },
-  { href: "/quality-issues", labelKey: "qualityIssues" },
-  { href: "/traceability", labelKey: "traceability", roles: ["OWNER", "QUALITY"] },
-  { href: "/claims", labelKey: "claims" },
-
-  // System
-  { href: "/alerts", labelKey: "alerts" },
-  { href: "/activity-log", labelKey: "activityLog", roles: ["OWNER"] },
-  { href: "/settings", labelKey: "settings" },
+// Two different kinds of section, deliberately kept apart: sections whose
+// items follow the strawberry's own physical journey (harvest -> decap ->
+// freeze -> pack -> store -> sell -> ship), in that order, vs. sections of
+// recurring checks/logs that run alongside the pipeline rather than as a
+// step within it (a cleaning log or a scale calibration isn't "between"
+// Final Product Entry and Storage, so it shouldn't visually sit between
+// them either). headerKey is omitted for the top cluster -- Dashboard,
+// Alerts, and Our Process read fine as unlabeled top-level items.
+const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
+  {
+    items: [
+      { href: "/", labelKey: "dashboard" },
+      { href: "/alerts", labelKey: "alerts" },
+      { href: "/our-process", labelKey: "ourProcess" },
+    ],
+  },
+  {
+    headerKey: "sectionReference",
+    items: [
+      { href: "/fields", labelKey: "fields" },
+      { href: "/clients", labelKey: "clients" },
+    ],
+  },
+  {
+    // The product's own journey, in physical order.
+    headerKey: "sectionPipeline",
+    items: [
+      { href: "/harvest-tickets", labelKey: "harvestTickets", roles: ["OWNER", "QUALITY"] },
+      { href: "/field-spray-log", labelKey: "fieldSprayLog", roles: ["OWNER", "QUALITY"] },
+      { href: "/pre-decap-inspection", labelKey: "preDecapArrivals", roles: ["OWNER", "QUALITY"] },
+      { href: "/post-decap-quality", labelKey: "postDecapQuality", roles: ["OWNER", "QUALITY"] },
+      { href: "/field-quality", labelKey: "fieldQuality", roles: ["OWNER", "QUALITY"] },
+      { href: "/yield-recovery", labelKey: "yieldRecovery", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+      { href: "/arrival-inspection", labelKey: "arrivalInspection", roles: ["OWNER", "QUALITY"] },
+      { href: "/shifts", labelKey: "shifts" },
+      { href: "/production", labelKey: "production" },
+      { href: "/post-freeze-inspection", labelKey: "postFreezeInspection", roles: ["OWNER", "QUALITY"] },
+      { href: "/final-product-entry", labelKey: "finalProductEntry", roles: ["OWNER", "PRODUCTION"] },
+      { href: "/storage", labelKey: "storage" },
+      { href: "/lab", labelKey: "lab", roles: ["OWNER", "QUALITY"] },
+    ],
+  },
+  {
+    headerKey: "sectionSalesShipping",
+    items: [
+      { href: "/orders", labelKey: "orders" },
+      { href: "/active-orders", labelKey: "activeOrders" },
+      { href: "/available-to-sell", labelKey: "availableToSell" },
+      { href: "/trends", labelKey: "historicalTrends", requiresHeadOfSales: true },
+      { href: "/load-out", labelKey: "loadOut" },
+      { href: "/logistics", labelKey: "logistics" },
+    ],
+  },
+  {
+    // Recurring checks and logs that run alongside the pipeline, not a step
+    // within it -- ordered as a group, not chronologically against the
+    // pipeline above.
+    headerKey: "sectionCompliance",
+    items: [
+      { href: "/waste", labelKey: "waste" },
+      { href: "/daily-report", labelKey: "dailyReport", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+      { href: "/cleaning", labelKey: "cleaningMode" },
+      { href: "/cleaning-schedule", labelKey: "cleaningSchedule" },
+      { href: "/daily-checklist", labelKey: "dailyChecklist" },
+      { href: "/equipment-verification", labelKey: "equipmentVerification", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+      { href: "/scale-calibration", labelKey: "scaleCalibration" },
+      { href: "/tool-inventory", labelKey: "toolInventory" },
+      { href: "/pest-control", labelKey: "pestControl" },
+      { href: "/forklift-condition", labelKey: "forkliftCondition" },
+      { href: "/blade-control", labelKey: "bladeControl" },
+      { href: "/personal-items", labelKey: "personalItems" },
+      { href: "/injury-log", labelKey: "injuryLog" },
+      { href: "/structural-issues", labelKey: "structuralIssues" },
+      { href: "/packaging-materials", labelKey: "packagingMaterials" },
+      { href: "/non-conformance", labelKey: "nonConformance" },
+      { href: "/laundry", labelKey: "laundry", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+      { href: "/training", labelKey: "staffTraining", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+      { href: "/purchase-requests", labelKey: "purchaseRequests" },
+    ],
+  },
+  {
+    headerKey: "sectionQualityPostShipment",
+    items: [
+      { href: "/quality", labelKey: "quality" },
+      { href: "/quality-issues", labelKey: "qualityIssues" },
+      { href: "/traceability", labelKey: "traceability", roles: ["OWNER", "QUALITY"] },
+      { href: "/claims", labelKey: "claims" },
+    ],
+  },
+  {
+    headerKey: "sectionSystem",
+    items: [
+      { href: "/activity-log", labelKey: "activityLog", roles: ["OWNER"] },
+      { href: "/settings", labelKey: "settings" },
+    ],
+  },
 ];
 
 // A single-purpose entry point for a station-locked user — proxy.ts already
@@ -108,21 +137,35 @@ export function Nav({ role, isHeadOfSales, station }: { role: Role; isHeadOfSale
 
   return (
     <nav className="space-y-1">
-      {NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(role))
-        .filter((item) => !item.requiresHeadOfSales || canSeeTrends)
-        .map((item) => {
-        const active = pathname === item.href;
+      {NAV_SECTIONS.map((section, sectionIndex) => {
+        const visibleItems = section.items
+          .filter((item) => !item.roles || item.roles.includes(role))
+          .filter((item) => !item.requiresHeadOfSales || canSeeTrends);
+        if (visibleItems.length === 0) return null;
+
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "block rounded-md px-3 py-2 text-sm font-medium",
-              active ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-100"
+          <div key={section.headerKey ?? `top-${sectionIndex}`} className={sectionIndex > 0 ? "pt-3" : undefined}>
+            {section.headerKey && (
+              <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                {dict.nav[section.headerKey]}
+              </p>
             )}
-          >
-            {dict.nav[item.labelKey]}
-          </Link>
+            {visibleItems.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "block rounded-md px-3 py-2 text-sm font-medium",
+                    active ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-100"
+                  )}
+                >
+                  {dict.nav[item.labelKey]}
+                </Link>
+              );
+            })}
+          </div>
         );
       })}
     </nav>

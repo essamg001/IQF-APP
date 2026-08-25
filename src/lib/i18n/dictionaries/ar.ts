@@ -61,6 +61,12 @@ const ar = {
     language: "اللغة",
   },
   nav: {
+    sectionReference: "بيانات مرجعية",
+    sectionPipeline: "من الحقل إلى الفريزر إلى الشاحنة",
+    sectionSalesShipping: "المبيعات والشحن",
+    sectionCompliance: "الامتثال والسلامة",
+    sectionQualityPostShipment: "الجودة وما بعد الشحن",
+    sectionSystem: "النظام",
     dashboard: "لوحة التحكم",
     ourProcess: "عملية الإنتاج",
     fields: "الحقول",

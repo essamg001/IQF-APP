@@ -62,6 +62,12 @@ const en = {
     language: "Language",
   },
   nav: {
+    sectionReference: "Reference",
+    sectionPipeline: "Field to Freezer to Truck",
+    sectionSalesShipping: "Sales & Shipping",
+    sectionCompliance: "Compliance & Safety",
+    sectionQualityPostShipment: "Quality & Post-Shipment",
+    sectionSystem: "System",
     dashboard: "Dashboard",
     ourProcess: "Our Process",
     fields: "Fields",
