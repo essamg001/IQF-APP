@@ -41,6 +41,7 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
     headerKey: "sectionProtocolsReference",
     items: [
       { href: "/crop-protection-plan", labelKey: "cropProtectionPlan", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+      { href: "/supervisor-roles", labelKey: "supervisorRoles" },
     ],
   },
   {

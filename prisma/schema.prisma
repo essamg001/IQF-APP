@@ -279,6 +279,7 @@ model User {
 
   recordedFactoryVisits         FactoryVisit[]
   uploadedAuditFindingPhotos     ClientAuditFindingPhoto[]
+  recordedProtocolAcknowledgments ProtocolAcknowledgment[]
 
 
   personalItemChecksCheckedIn  PersonalItemShiftCheck[] @relation("PersonalItemCheckedInBy")
@@ -3008,5 +3009,39 @@ model ClientAuditFindingPhoto {
   uploadedByUserId String?
   uploadedBy       User?              @relation(fields: [uploadedByUserId], references: [id])
   createdAt        DateTime           @default(now())
+}
+
+// The 9 granular floor-supervisor positions the owner has written protocols
+// for -- distinct from the app's own Role/Station enums, which are login
+// permission levels, not physical job titles.
+enum SupervisorProtocolRole {
+  COLD_STORAGE_LOADING
+  RAW_MATERIAL_FEED
+  GENERAL_ALL_SUPERVISORS
+  OPERATIONS_MANAGER
+  LINE_SORTING
+  HEALTH_AND_SAFETY
+  FACTORY_MANAGER
+  RECEIVING
+  PACKING
+}
+
+// A supervisor formally acknowledging they've read their role's protocol --
+// attendeeName is free text (not a User relation) since most floor
+// supervisors have no app login, same reasoning as StaffTrainingRecord.
+model ProtocolAcknowledgment {
+  id               String                 @id @default(cuid())
+  role             SupervisorProtocolRole
+  attendeeName     String
+  jobTitle         String?
+  acknowledgedDate DateTime
+  notes            String?
+  recordedByUserId String?
+  recordedByUser   User?    @relation(fields: [recordedByUserId], references: [id])
+  isTestData       Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([role])
+  @@index([attendeeName])
 }
 
