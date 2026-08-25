@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activityLog";
-import { raiseBladeKnifeMismatchAlert } from "@/lib/alerts";
+import { raiseBladeKnifeMismatchAlert, raiseBladeKnifeDamagedAlert } from "@/lib/alerts";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -119,13 +119,16 @@ export async function issueBladeAction(_prevState: string | undefined, formData:
 const returnSchema = z.object({
   receiptKnifeNumber: z.string().min(1),
   pieceCount: z.coerce.number().int().nonnegative().optional(),
+  returnCondition: z.enum(["INTACT", "DAMAGED", "PIECE_MISSING"]),
   notes: z.string().optional(),
 });
 
 // Only fills a still-open record -- same reasoning as ShiftLog.endTime. A
-// mismatched receipt number vs. the issued number is exactly what this
-// exists to catch, so it's recorded, not blocked -- Part 3 is where a real
-// mismatch gets escalated.
+// mismatched receipt number vs. the issued number, and a Damaged/Piece
+// Missing condition, are two independent things this exists to catch --
+// either raises its own alert immediately rather than being blocked, since
+// Part 3 is where a confirmed incident gets escalated with a corrective
+// action, not this check-in step.
 export async function returnBladeAction(recordId: string, _prevState: string | undefined, formData: FormData) {
   const session = await auth();
   if (!session?.user) return "You must be logged in.";
@@ -143,20 +146,25 @@ export async function returnBladeAction(recordId: string, _prevState: string | u
       returnedAt: new Date(),
       receiptKnifeNumber: parsed.data.receiptKnifeNumber,
       pieceCount: parsed.data.pieceCount,
+      returnCondition: parsed.data.returnCondition,
       notes: parsed.data.notes,
     },
   });
 
   const isMismatch = parsed.data.receiptKnifeNumber !== existing.issueKnifeNumber;
+  const isDamaged = parsed.data.returnCondition !== "INTACT";
+
+  const detailParts = [
+    isMismatch ? `MISMATCH: issued #${existing.issueKnifeNumber}, returned #${parsed.data.receiptKnifeNumber}` : null,
+    isDamaged ? `CONDITION: ${parsed.data.returnCondition}` : null,
+  ].filter(Boolean);
 
   await logActivity({
     actorId: session.user.id,
     action: "BLADE_RETURNED",
     entityType: "BladeIssueRecord",
     entityId: recordId,
-    detail: isMismatch
-      ? `MISMATCH: issued #${existing.issueKnifeNumber}, returned #${parsed.data.receiptKnifeNumber}`
-      : undefined,
+    detail: detailParts.length > 0 ? detailParts.join(" — ") : undefined,
   });
 
   if (isMismatch) {
@@ -165,6 +173,15 @@ export async function returnBladeAction(recordId: string, _prevState: string | u
       workerName: existing.workerName,
       issuedKnifeNumber: existing.issueKnifeNumber,
       returnedKnifeNumber: parsed.data.receiptKnifeNumber,
+    });
+  }
+
+  if (isDamaged) {
+    await raiseBladeKnifeDamagedAlert({
+      recordId,
+      workerName: existing.workerName,
+      knifeNumber: parsed.data.receiptKnifeNumber,
+      condition: parsed.data.returnCondition as "DAMAGED" | "PIECE_MISSING",
     });
   }
 

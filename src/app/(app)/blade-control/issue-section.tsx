@@ -2,22 +2,46 @@
 
 import { useActionState, useRef } from "react";
 import { issueBladeAction, returnBladeAction } from "./actions";
-import { Input, FieldGroup } from "@/components/ui/field";
+import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { format } from "date-fns";
 import { useTranslations } from "@/lib/i18n/locale-context";
-import type { BladeIssueRecord } from "@prisma/client";
+import type { BladeIssueRecord, BladeReturnCondition } from "@prisma/client";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+
+const CONDITION_LABEL_KEY: Record<BladeReturnCondition, keyof Dictionary["bladeControl"]> = {
+  INTACT: "conditionIntact",
+  DAMAGED: "conditionDamaged",
+  PIECE_MISSING: "conditionPieceMissing",
+};
+
+// Fills Part 3's report form from a flagged return row and scrolls it into
+// view, rather than making the worker retype what just happened -- these
+// are plain uncontrolled inputs (no React state of their own), so setting
+// .value directly and dispatching input is enough for their own form's
+// FormData to pick it up on submit.
+function reportAsIncident(text: string) {
+  const reportInput = document.getElementById("blade-incident-report") as HTMLInputElement | null;
+  if (!reportInput) return;
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")!.set!;
+  setter.call(reportInput, text);
+  reportInput.dispatchEvent(new Event("input", { bubbles: true }));
+  reportInput.scrollIntoView({ behavior: "smooth", block: "center" });
+  reportInput.focus();
+}
 
 function ReturnRow({ record }: { record: BladeIssueRecord }) {
   const [state, formAction, pending] = useActionState(returnBladeAction.bind(null, record.id), undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
   const mismatch = record.receiptKnifeNumber != null && record.receiptKnifeNumber !== record.issueKnifeNumber;
+  const flaggedCondition = record.returnCondition && record.returnCondition !== "INTACT" ? record.returnCondition : null;
   const dict = useTranslations();
   const t = dict.bladeControl;
 
   return (
-    <tr className={`border-b border-slate-100 last:border-0 align-top ${mismatch ? "bg-red-50" : ""}`}>
+    <tr className={`border-b border-slate-100 last:border-0 align-top ${mismatch || flaggedCondition ? "bg-red-50" : ""}`}>
       <td className="px-3 py-2">
         <p className="font-medium text-slate-900">{record.workerName}</p>
         {record.packingGroupNumber && (
@@ -33,6 +57,13 @@ function ReturnRow({ record }: { record: BladeIssueRecord }) {
           <form action={formAction} className="space-y-1">
             <FieldGroup label={t.receiptKnifeLabel}>
               <Input name="receiptKnifeNumber" required className="w-24 px-2 py-1 text-xs" />
+            </FieldGroup>
+            <FieldGroup label={t.conditionLabel}>
+              <Select name="returnCondition" defaultValue="INTACT" className="w-32 px-2 py-1 text-xs">
+                <option value="INTACT">{t.conditionIntact}</option>
+                <option value="DAMAGED">{t.conditionDamaged}</option>
+                <option value="PIECE_MISSING">{t.conditionPieceMissing}</option>
+              </Select>
             </FieldGroup>
             <FieldGroup label={t.pieceCountLabel}>
               <Input name="pieceCount" type="number" min="0" className="w-24 px-2 py-1 text-xs" />
@@ -59,7 +90,28 @@ function ReturnRow({ record }: { record: BladeIssueRecord }) {
               {format(record.returnedAt, "HH:mm")}
               {record.pieceCount != null && ` · ${record.pieceCount} ${t.piecesLabel}`}
             </p>
+            {record.returnCondition && (
+              <Badge color={flaggedCondition ? "red" : "green"} className="mt-1">
+                {t[CONDITION_LABEL_KEY[record.returnCondition]]}
+              </Badge>
+            )}
             {record.notes && <p className="text-xs text-slate-400">{record.notes}</p>}
+            {flaggedCondition && (
+              <button
+                type="button"
+                onClick={() =>
+                  reportAsIncident(
+                    t.incidentPrefillText
+                      .replace("{number}", record.receiptKnifeNumber ?? record.issueKnifeNumber)
+                      .replace("{name}", record.workerName)
+                      .replace("{condition}", t[CONDITION_LABEL_KEY[flaggedCondition]].toLowerCase())
+                  )
+                }
+                className="mt-1 block text-xs text-emerald-700 hover:underline"
+              >
+                {t.reportAsIncident}
+              </button>
+            )}
           </div>
         )}
       </td>

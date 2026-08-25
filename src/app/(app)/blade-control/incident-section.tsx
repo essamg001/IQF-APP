@@ -67,11 +67,17 @@ export function IncidentSection({
             <Input name="reportedByName" required className="px-2 py-1 text-xs" />
           </FieldGroup>
           <FieldGroup label={t.clientShipmentAffectedLabel}>
-            <Input name="relatedReference" className="px-2 py-1 text-xs" />
+            <Input id="blade-incident-related-reference" name="relatedReference" className="px-2 py-1 text-xs" />
           </FieldGroup>
         </div>
         <FieldGroup label={t.reportLabel}>
-          <Input name="report" required placeholder={t.reportPlaceholder} className="px-2 py-1 text-xs" />
+          <Input
+            id="blade-incident-report"
+            name="report"
+            required
+            placeholder={t.reportPlaceholder}
+            className="px-2 py-1 text-xs"
+          />
         </FieldGroup>
         <FieldGroup label={t.correctiveActionLabel}>
           <Input name="correctiveAction" className="px-2 py-1 text-xs" />

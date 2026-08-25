@@ -478,6 +478,36 @@ export async function raiseToolInventoryDiscrepancyAlert(params: {
   }
 }
 
+/**
+ * Fired the moment a returned knife is logged as Damaged or Piece Missing --
+ * independent of raiseBladeKnifeMismatchAlert above, since a knife can come
+ * back as the right number and still be damaged. Same "may be unaccounted
+ * for" food-safety reasoning either way.
+ */
+export async function raiseBladeKnifeDamagedAlert(params: {
+  recordId: string;
+  workerName: string;
+  knifeNumber: string;
+  condition: "DAMAGED" | "PIECE_MISSING";
+}) {
+  const conditionLabel = params.condition === "DAMAGED" ? "damaged" : "missing a piece";
+  const message = `Knife #${params.knifeNumber} returned by ${params.workerName} came back ${conditionLabel} -- a fragment may be unaccounted for.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "BLADE_KNIFE_DAMAGED",
+        relatedEntityType: "BLADE_KNIFE_DAMAGED",
+        relatedEntityId: params.recordId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Blade/Knife Damaged", message)));
+  }
+}
+
 async function checkSpecMismatch() {
   const pallets = await prisma.pallet.findMany({
     where: { status: "ALLOCATED" },

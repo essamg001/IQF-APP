@@ -166,6 +166,7 @@ enum AlertType {
   GLOBALGAP_EXPIRING
   SPRAY_RESTRICTION_BLOCKED
   BLADE_KNIFE_MISMATCH
+  BLADE_KNIFE_DAMAGED
   SCALE_OUT_OF_TOLERANCE
   RODENT_DETECTED
   TOOL_INVENTORY_DISCREPANCY
@@ -2409,6 +2410,12 @@ model BladeWashEvent {
 // open-then-close pattern as ShiftLog.endTime / PersonalItemShiftCheck:
 // returnedAt starts null, filled in once, never overwritten. A mismatched
 // receipt number or missing piece is exactly the gap Part 3 exists to catch.
+enum BladeReturnCondition {
+  INTACT
+  DAMAGED
+  PIECE_MISSING
+}
+
 model BladeIssueRecord {
   id                 String    @id @default(cuid())
   factoryId          String
@@ -2424,6 +2431,11 @@ model BladeIssueRecord {
   returnedAt         DateTime?
   receiptKnifeNumber String?
   pieceCount         Int?
+  // Recorded at the same moment as the return -- whether the knife itself
+  // came back damaged or missing a piece, independent of whether its number
+  // matched (receiptKnifeNumber above). Anything other than Intact raises
+  // an alert immediately, same reasoning as the number-mismatch case.
+  returnCondition    BladeReturnCondition?
   notes              String?
 
   createdAt DateTime @default(now())
