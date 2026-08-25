@@ -44,7 +44,7 @@ export default async function ProductionPage() {
     include: {
       shift: true,
       factory: true,
-      field: true,
+      fields: { include: { field: true } },
       microbiologyResults: true,
       _count: { select: { pallets: true } },
     },
@@ -99,7 +99,7 @@ export default async function ProductionPage() {
                 </td>
                 <td className="px-4 py-2">{formatDate(lot.shift.date, "dd MMM yyyy", locale)}</td>
                 <td className="px-4 py-2">{lot.factory.name}</td>
-                <td className="px-4 py-2">{lot.field.name}</td>
+                <td className="px-4 py-2">{lot.fields.map((f) => f.field.name).join(", ")}</td>
                 <td className="px-4 py-2">
                   <Badge color={lot.grade === "A" ? "green" : "amber"}>{dict.gradeLabel.replace("{grade}", lot.grade)}</Badge>
                 </td>

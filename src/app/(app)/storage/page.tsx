@@ -46,7 +46,7 @@ export default async function StoragePage({
         status: (status as never) || undefined,
         coldRoomId: coldRoomId || undefined,
       },
-      include: { lot: { include: { field: true, factory: true } }, coldRoom: true, client: true },
+      include: { lot: { include: { fields: { include: { field: true } }, factory: true } }, coldRoom: true, client: true },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
@@ -125,7 +125,7 @@ export default async function StoragePage({
                   </Link>
                 </td>
                 <td className={cn("px-4 py-2", p.lot.isTestData && TEST_DATA_TEXT_CLASS)}>{p.lot.lotNumber}</td>
-                <td className="px-4 py-2">{p.lot.field.name}</td>
+                <td className="px-4 py-2">{p.lot.fields.map((f) => f.field.name).join(", ")}</td>
                 <td className="px-4 py-2">{p.lot.factory.name}</td>
                 <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>
                 <td className="px-4 py-2">

@@ -1,35 +1,84 @@
 import { prisma } from "@/lib/prisma";
 import { LotForm } from "./lot-form";
+import { Card } from "@/components/ui/card";
+import { Input, Select, FieldGroup } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { parseLocalDateOnly } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
-export default async function NewLotPage() {
-  const dict = getDictionary(await resolveLocale()).production;
-  const [factories, fields, recentPostDecap] = await Promise.all([
-    prisma.factory.findMany({ orderBy: { name: "asc" } }),
+export default async function NewLotPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ factoryId?: string; date?: string; shiftType?: string }>;
+}) {
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.production;
+  const { factoryId: factoryIdParam, date: dateParam, shiftType: shiftTypeParam } = await searchParams;
+
+  const factories = await prisma.factory.findMany({ orderBy: { name: "asc" } });
+  const factoryId = factoryIdParam ?? factories[0]?.id ?? "";
+  const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
+  const shiftType = shiftTypeParam === "NIGHT" ? "NIGHT" : "DAY";
+  const date = parseLocalDateOnly(dateStr) ?? new Date();
+  const factory = factories.find((f) => f.id === factoryId);
+
+  const [fields, shift] = await Promise.all([
     prisma.field.findMany({ orderBy: { name: "asc" } }),
-    prisma.qualityCheck.findMany({
-      where: { checkpoint: "POST_DECAP", decision: "ACCEPTED", fieldId: { not: null } },
-      include: { field: true },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    }),
+    factoryId ? prisma.shiftLog.findFirst({ where: { factoryId, date, shiftType } }) : null,
   ]);
 
-  // Most-recent-first list of distinct fields that recently passed Post-Decap
-  // Quality -- the best available signal for which field is currently feeding
-  // the factory, since a lot number doesn't itself carry a receipt note to
-  // match against.
-  const recentFieldNames: string[] = [];
-  for (const c of recentPostDecap) {
-    if (c.field && !recentFieldNames.includes(c.field.name)) recentFieldNames.push(c.field.name);
-  }
+  // Fields with an accepted Post-Decap Quality check tied to this exact
+  // shift -- the authoritative "who supplied this shift" answer, replacing
+  // the old global "last 10 checks" heuristic.
+  const suggestedChecks = shift
+    ? await prisma.qualityCheck.findMany({
+        where: { checkpoint: "POST_DECAP", decision: "ACCEPTED", shiftId: shift.id, fieldId: { not: null } },
+        include: { field: true },
+        distinct: ["fieldId"],
+      })
+    : [];
+  const suggestedFieldNames = [...new Set(suggestedChecks.map((c) => c.field!.name))].sort();
 
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">{dict.logProductionLot}</h1>
+
+      <Card className="mt-6 max-w-xl">
+        <form className="flex flex-wrap items-end gap-3">
+          <FieldGroup label={fullDict.common.factory}>
+            <Select name="factoryId" defaultValue={factoryId}>
+              {factories.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </Select>
+          </FieldGroup>
+          <FieldGroup label={fullDict.common.date}>
+            <Input name="date" type="date" defaultValue={dateStr} />
+          </FieldGroup>
+          <FieldGroup label={dict.shiftLabel}>
+            <Select name="shiftType" defaultValue={shiftType}>
+              <option value="DAY">{dict.shiftDay}</option>
+              <option value="NIGHT">{dict.shiftNight}</option>
+            </Select>
+          </FieldGroup>
+          <Button type="submit" variant="secondary">
+            {fullDict.common.go}
+          </Button>
+        </form>
+      </Card>
+
       <div className="mt-6 max-w-xl">
-        <LotForm factories={factories} fields={fields} recentFieldNames={recentFieldNames} />
+        <LotForm
+          factoryId={factoryId}
+          factoryCode={factory?.code ?? null}
+          date={dateStr}
+          shiftType={shiftType}
+          fields={fields}
+          suggestedFieldNames={suggestedFieldNames}
+        />
       </div>
     </div>
   );

@@ -170,6 +170,7 @@ enum AlertType {
   SCALE_OUT_OF_TOLERANCE
   RODENT_DETECTED
   TOOL_INVENTORY_DISCREPANCY
+  SHIFT_MISSING_POST_DECAP_LINK
 }
 
 enum AlertStatus {
@@ -504,7 +505,7 @@ model Field {
   longitude      Float?
   boundaryLatLng Json? // one or more rings of [lat, lng] points
 
-  lots               ProductionLot[]
+  productionLots     ProductionLotField[]
   qualityChecks      QualityCheck[]
   harvestTicketLines HarvestTicketPlotLine[]
   sprayRecords       FieldSprayRecord[]
@@ -656,9 +657,11 @@ model ShiftLog {
   holdResolvedBy     String?
   holdResolutionNote String?
 
-  lots  ProductionLot[]
-  waste Waste[]
+  lots          ProductionLot[]
+  waste         Waste[]
+  qualityChecks QualityCheck[]
 
+  @@unique([factoryId, date, shiftType])
   @@index([factoryId, date])
 }
 
@@ -685,8 +688,6 @@ model ProductionLot {
   shift            ShiftLog @relation(fields: [shiftId], references: [id])
   factoryId        String
   factory          Factory  @relation(fields: [factoryId], references: [id])
-  fieldId          String
-  field            Field    @relation(fields: [fieldId], references: [id])
   grade            Grade
   format           Format
   isEndOfDayGradeB Boolean  @default(false)
@@ -697,6 +698,10 @@ model ProductionLot {
   // wherever the lot is shown so it's never mistaken for real production.
   isTestData Boolean @default(false)
 
+  // A shift's fruit genuinely comes from more than one field at once (e.g.
+  // two plots delivering the same day) -- this is a many-to-many join, not
+  // the single required fieldId this used to be. See ProductionLotField.
+  fields              ProductionLotField[]
   pallets             Pallet[]
   qualityChecks       QualityCheck[]
   microbiologyResults MicrobiologyResult[]
@@ -704,6 +709,22 @@ model ProductionLot {
   qualityIssues       QualityIssue[]
 
   @@index([factoryId, grade])
+}
+
+// Which field(s) supplied a given lot's shift -- the authoritative source for
+// "Fields Supplying" on the lot detail page and for direct traceability hits,
+// replacing the old single ProductionLot.fieldId column and the time-window
+// heuristics that used to approximate this.
+model ProductionLotField {
+  id        String        @id @default(cuid())
+  lotId     String
+  lot       ProductionLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  fieldId   String
+  field     Field         @relation(fields: [fieldId], references: [id])
+  createdAt DateTime      @default(now())
+
+  @@unique([lotId, fieldId])
+  @@index([fieldId])
 }
 
 // cartonLogo/cartonSize/variety are physical carton attributes fixed at packing.
@@ -795,6 +816,12 @@ model QualityCheck {
   lot                     ProductionLot?         @relation(fields: [lotId], references: [id])
   palletId                String?
   pallet                  Pallet?                @relation(fields: [palletId], references: [id])
+  // Which factory/date/shift this check belongs to -- only Post-Decap Quality
+  // populates this (see findOrCreateShift in src/lib/shifts.ts), so that
+  // "which fields supplied this shift" is one join through ShiftLog rather
+  // than a second, drift-prone factoryId/shiftType pair living here too.
+  shiftId                 String?
+  shift                   ShiftLog?              @relation(fields: [shiftId], references: [id])
   // The specific field plot this batch came from, for checks that can be
   // tied to one field (Pre-Decap Inspection and Post-Decap Quality). A single
   // delivery can carry fruit from multiple fields per the harvest ticket, so

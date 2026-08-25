@@ -80,6 +80,17 @@ export async function createShiftAction(_prevState: string | undefined, formData
     return `Cleaning sign-off for the previous shift (${priorLabel}) isn't complete — both Head of Production and Head of Maintenance must sign off in Cleaning Mode before this shift can start.`;
   }
 
+  // A shift may already have been auto-created (e.g. by logging a Production
+  // Lot or a Post-Decap Quality check before anyone opened it by hand here) --
+  // ShiftLog's unique (factoryId, date, shiftType) means a second create would
+  // otherwise throw a raw database error instead of this friendly message.
+  const existingShift = await prisma.shiftLog.findFirst({
+    where: { factoryId: parsed.data.factoryId, shiftType: parsed.data.shiftType, date },
+  });
+  if (existingShift) {
+    return "This shift has already been logged (it may have been created automatically by an earlier lot or quality check) — see it below.";
+  }
+
   await prisma.shiftLog.create({
     data: { factoryId: parsed.data.factoryId, shiftType: parsed.data.shiftType, workerCount: parsed.data.workerCount, date, startTime, endTime },
   });

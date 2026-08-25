@@ -21,7 +21,7 @@ import { getDictionary } from "@/lib/i18n/getDictionary";
 const SEASON_BUCKET_COUNT = 3;
 
 type RawLine = { fieldId: string; weightKg: number; date: Date };
-type FinishedLine = { fieldId: string; weightKg: number; date: Date };
+type QuantityLine = { rawIncomingTon: number; totalPackedTon: number; date: Date };
 
 function groupBy<T>(items: T[], keyFn: (item: T) => string | null) {
   const map = new Map<string, T[]>();
@@ -35,64 +35,31 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string | null) {
   return map;
 }
 
-function aggregateField(fieldId: string, label: string, raw: RawLine[], finished: FinishedLine[]): FieldYieldRow {
-  const rawKg = raw.reduce((sum, r) => sum + r.weightKg, 0);
-  const finishedKg = finished.reduce((sum, f) => sum + f.weightKg, 0);
-  return {
-    key: fieldId,
-    label,
-    rawKg,
-    rawLineCount: raw.length,
-    finishedKg,
-    palletCount: finished.length,
-    recoveryPct: rawKg > 0 ? (finishedKg / rawKg) * 100 : null,
-  };
-}
-
-// Builds one bucket's flat per-field rollup -- same reasoning as Field
-// Quality's buildFieldRows: every Field belongs to the same single farm, so
-// there's no grouping level above field worth adding.
-function buildFieldRows(
-  raw: RawLine[],
-  finished: FinishedLine[],
-  fieldById: Map<string, Field>,
-  prevRaw: RawLine[],
-  prevFinished: FinishedLine[]
-): FieldYieldRow[] {
+function buildFieldRows(raw: RawLine[], fieldById: Map<string, Field>, prevRaw: RawLine[]): FieldYieldRow[] {
   const rawByField = groupBy(raw, (r) => r.fieldId);
-  const finishedByField = groupBy(finished, (f) => f.fieldId);
   const prevRawByField = groupBy(prevRaw, (r) => r.fieldId);
-  const prevFinishedByField = groupBy(prevFinished, (f) => f.fieldId);
 
-  const fieldIds = new Set([...rawByField.keys(), ...finishedByField.keys()]);
-
-  return [...fieldIds]
+  return [...rawByField.keys()]
     .map((fieldId): FieldYieldRow | null => {
       const field = fieldById.get(fieldId);
       if (!field) return null;
-      const row = aggregateField(fieldId, field.name, rawByField.get(fieldId) ?? [], finishedByField.get(fieldId) ?? []);
-      const prevRow = aggregateField(
-        fieldId,
-        field.name,
-        prevRawByField.get(fieldId) ?? [],
-        prevFinishedByField.get(fieldId) ?? []
-      );
-      return { ...row, prevRecoveryPct: prevRow.recoveryPct };
+      const lines = rawByField.get(fieldId) ?? [];
+      const prevLines = prevRawByField.get(fieldId) ?? [];
+      return {
+        key: fieldId,
+        label: field.name,
+        rawKg: lines.reduce((s, l) => s + l.weightKg, 0),
+        rawLineCount: lines.length,
+        prevRawKg: prevLines.length > 0 ? prevLines.reduce((s, l) => s + l.weightKg, 0) : null,
+      };
     })
     .filter((r): r is FieldYieldRow => r !== null)
-    .sort((a, b) => {
-      // Fields with no measurable recovery this period sink to the bottom --
-      // nothing to compare, not a 0% recovery.
-      if (a.recoveryPct == null && b.recoveryPct == null) return 0;
-      if (a.recoveryPct == null) return 1;
-      if (b.recoveryPct == null) return -1;
-      return a.recoveryPct - b.recoveryPct;
-    });
+    .sort((a, b) => b.rawKg - a.rawKg);
 }
 
 function bucketSections(
   raw: RawLine[],
-  finished: FinishedLine[],
+  quantities: QuantityLine[],
   fieldById: Map<string, Field>,
   keyFn: (d: Date) => string,
   labelFn: (key: string) => string,
@@ -100,32 +67,33 @@ function bucketSections(
   take: number
 ): PeriodSection[] {
   const rawByBucket = groupBy(raw, (r) => keyFn(r.date));
-  const finishedByBucket = groupBy(finished, (f) => keyFn(f.date));
-  const sortedKeys = [...new Set([...rawByBucket.keys(), ...finishedByBucket.keys()])].sort(
+  const quantitiesByBucket = groupBy(quantities, (q) => keyFn(q.date));
+  const sortedKeys = [...new Set([...rawByBucket.keys(), ...quantitiesByBucket.keys()])].sort(
     (a, b) => sortValueFn(b) - sortValueFn(a)
   );
   const shown = sortedKeys.slice(0, take);
 
   // Scoped to fields present in fieldById (the MS1 set Field Quality also
-  // uses) so the "Overall" figure always reconciles with the sum of the
-  // field rows shown below it -- rather than silently including weight from
-  // fields the table itself drops.
-  const inScope = (r: RawLine | FinishedLine) => fieldById.has(r.fieldId);
+  // uses) so the per-field rows and their total reconcile with each other.
+  const inScope = (r: RawLine) => fieldById.has(r.fieldId);
 
   return shown.map((key, i) => {
     const bucketRaw = (rawByBucket.get(key) ?? []).filter(inScope);
-    const bucketFinished = (finishedByBucket.get(key) ?? []).filter(inScope);
     const prevKey = sortedKeys[i + 1];
     const prevRaw = (prevKey ? rawByBucket.get(prevKey) ?? [] : []).filter(inScope);
-    const prevFinished = (prevKey ? finishedByBucket.get(prevKey) ?? [] : []).filter(inScope);
-    const overall = aggregateField("overall", "Overall", bucketRaw, bucketFinished);
+    const bucketQuantities = quantitiesByBucket.get(key) ?? [];
+
+    const overallRawTon = bucketQuantities.reduce((s, q) => s + q.rawIncomingTon, 0);
+    const overallPackedTon = bucketQuantities.reduce((s, q) => s + q.totalPackedTon, 0);
+
     return {
       key,
       label: labelFn(key),
-      rows: buildFieldRows(bucketRaw, bucketFinished, fieldById, prevRaw, prevFinished),
-      overallRawKg: overall.rawKg,
-      overallFinishedKg: overall.finishedKg,
-      overallRecoveryPct: overall.recoveryPct,
+      rows: buildFieldRows(bucketRaw, fieldById, prevRaw),
+      totalRawKg: bucketRaw.reduce((s, r) => s + r.weightKg, 0),
+      overallRecoveryPct: overallRawTon > 0 ? (overallPackedTon / overallRawTon) * 100 : null,
+      overallRawTon,
+      overallPackedTon,
     };
   });
 }
@@ -144,7 +112,7 @@ export default async function YieldRecoveryPage() {
   const currentSeasonStartYear = Number(egyptSeasonKey(new Date()).split("-")[0]);
   const queryCutoff = egyptSeasonStart(currentSeasonStartYear - (SEASON_BUCKET_COUNT - 1));
 
-  const [plotLines, pallets] = await Promise.all([
+  const [plotLines, quantityEntries] = await Promise.all([
     prisma.harvestTicketPlotLine.findMany({
       where: {
         fieldId: { not: null },
@@ -153,9 +121,9 @@ export default async function YieldRecoveryPage() {
       },
       select: { fieldId: true, weightKg: true, harvestTicket: { select: { receivedDate: true, harvestDate: true } } },
     }),
-    prisma.pallet.findMany({
-      where: { createdAt: { gte: queryCutoff } },
-      select: { weightTonnes: true, createdAt: true, lot: { select: { fieldId: true } } },
+    prisma.dailyQuantityEntry.findMany({
+      where: { date: { gte: queryCutoff } },
+      select: { date: true, rawIncomingTon: true, totalPackedTon: true },
     }),
   ]);
 
@@ -166,16 +134,16 @@ export default async function YieldRecoveryPage() {
     })
     .filter((r): r is RawLine => r !== null);
 
-  const finished: FinishedLine[] = pallets.map((p) => ({
-    fieldId: p.lot.fieldId,
-    weightKg: p.weightTonnes * 1000,
-    date: p.createdAt,
+  const quantities: QuantityLine[] = quantityEntries.map((q) => ({
+    date: q.date,
+    rawIncomingTon: q.rawIncomingTon ?? 0,
+    totalPackedTon: q.totalPackedTon ?? 0,
   }));
 
   const dataByPeriod: Record<Period, PeriodSection[]> = {
     DAILY: bucketSections(
       raw,
-      finished,
+      quantities,
       fieldById,
       (d) => egyptDateKey(d),
       (key) => formatDate(parseDateKey(key), "dd MMM yyyy", locale),
@@ -184,7 +152,7 @@ export default async function YieldRecoveryPage() {
     ),
     WEEKLY: bucketSections(
       raw,
-      finished,
+      quantities,
       fieldById,
       (d) => formatYMD(startOfWeek(egyptDateOnly(d), { weekStartsOn: 1 })),
       (key) => dict.weekOfLabel.replace("{date}", formatDate(parseDateKey(key), "dd MMM yyyy", locale)),
@@ -193,7 +161,7 @@ export default async function YieldRecoveryPage() {
     ),
     MONTHLY: bucketSections(
       raw,
-      finished,
+      quantities,
       fieldById,
       (d) => egyptMonthKey(d),
       (key) => formatDate(parseDateKey(key), "MMM yyyy", locale),
@@ -202,7 +170,7 @@ export default async function YieldRecoveryPage() {
     ),
     SEASON: bucketSections(
       raw,
-      finished,
+      quantities,
       fieldById,
       (d) => egyptSeasonKey(d),
       (key) => egyptSeasonLabel(key, locale),

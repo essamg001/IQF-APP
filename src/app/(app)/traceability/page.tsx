@@ -62,44 +62,13 @@ export default async function TraceabilityPage({
     fieldName && !field ? dict.notFoundMessage.replace("{field}", fieldName) : undefined;
 
   let directLots: Awaited<ReturnType<typeof loadDirectLots>> = [];
-  let possibleLots: Awaited<ReturnType<typeof loadDirectLots>> = [];
   let preDecapRecords: Awaited<ReturnType<typeof loadPreDecapRecords>> = [];
 
   if (field) {
     [directLots, preDecapRecords] = await Promise.all([loadDirectLots(field.id), loadPreDecapRecords(field.id)]);
-
-    const contributingChecks = await prisma.qualityCheck.findMany({
-      where: { checkpoint: "POST_DECAP", decision: "ACCEPTED", fieldId: field.id },
-      select: { createdAt: true },
-    });
-
-    if (contributingChecks.length > 0) {
-      const times = contributingChecks.map((c) => c.createdAt.getTime());
-      const minTime = new Date(Math.min(...times));
-      const maxTime = new Date(Math.max(...times));
-
-      const candidateLots = await prisma.productionLot.findMany({
-        where: {
-          fieldId: { not: field.id },
-          // A still-open shift (no end time yet) has no upper bound -- for a
-          // food-safety recall lookup, treat it as possibly still running
-          // rather than silently excluding it (SQL comparisons against NULL
-          // are never true, so `endTime: { gte: minTime }` alone would drop
-          // it).
-          shift: { startTime: { lte: maxTime }, OR: [{ endTime: { gte: minTime } }, { endTime: null }] },
-        },
-        include: lotInclude,
-      });
-
-      possibleLots = candidateLots.filter((lot) =>
-        times.some(
-          (t) => t >= lot.shift.startTime.getTime() && (lot.shift.endTime == null || t <= lot.shift.endTime.getTime())
-        )
-      );
-    }
   }
 
-  const affectedLots = [...directLots, ...possibleLots];
+  const affectedLots = directLots;
   const allPallets = affectedLots.flatMap((lot) =>
     lot.pallets.map((p) => ({ ...p, lotNumber: lot.lotNumber, lotIsTestData: lot.isTestData }))
   );
@@ -232,27 +201,6 @@ export default async function TraceabilityPage({
                       </td>
                     </tr>
                   ))}
-                  {possibleLots.map((lot) => (
-                    <tr key={lot.id} className="border-b border-slate-100 last:border-0">
-                      <td className={cn("py-2 pe-4", lot.isTestData && TEST_DATA_TEXT_CLASS)}>
-                        {lot.lotNumber} {lot.isTestData && <TestDataBadge />}
-                      </td>
-                      <td className="py-2 pe-4">{lot.factory.name}</td>
-                      <td className="py-2 pe-4">{formatDate(lot.shift.date, "dd MMM yyyy", locale)}</td>
-                      <td className="py-2 pe-4">
-                        <Badge color={lot.grade === "A" ? "green" : "amber"}>
-                          {fullDict.storage.gradeLabel.replace("{grade}", lot.grade)}
-                        </Badge>
-                      </td>
-                      <td className="py-2 pe-4">{FORMAT_LABEL[lot.format]}</td>
-                      <td className="py-2 pe-4">{lot.pallets.length}</td>
-                      <td className="py-2 pe-4">
-                        <Link href={`/production/${lot.id}`} className="text-emerald-700 hover:underline">
-                          <Badge color="amber">{dict.possibleBadge}</Badge>
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
                   {affectedLots.length === 0 && (
                     <tr>
                       <td colSpan={7} className="py-4 text-center text-slate-400">
@@ -332,7 +280,7 @@ const lotInclude = {
 
 function loadDirectLots(fieldId: string) {
   return prisma.productionLot.findMany({
-    where: { fieldId },
+    where: { fields: { some: { fieldId } } },
     include: lotInclude,
     orderBy: { createdAt: "desc" },
   });

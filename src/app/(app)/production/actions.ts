@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { generateLotNumber } from "@/lib/lotNumber";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { logActivity } from "@/lib/activityLog";
-import { shiftStartBlockedReason, scheduledShiftStartTime } from "@/lib/shifts";
+import { findOrCreateShift } from "@/lib/shifts";
+import { raiseShiftMissingPostDecapLinkAlert } from "@/lib/alerts";
 import { z } from "zod";
 
 const lotSchema = z.object({
@@ -15,7 +16,7 @@ const lotSchema = z.object({
   date: z.string().min(1),
   factoryId: z.string().min(1),
   shiftType: z.enum(["DAY", "NIGHT"]),
-  fieldName: z.string().min(1),
+  fieldNames: z.array(z.string().min(1)).min(1, "At least one supplying field is required."),
   grade: z.enum(["A", "B"]),
   format: z.enum(["WHOLE", "SLICED", "DICED"]),
   isEndOfDayGradeB: z.boolean(),
@@ -27,7 +28,7 @@ export async function createLotAction(_prevState: string | undefined, formData: 
     date: formData.get("date"),
     factoryId: formData.get("factoryId"),
     shiftType: formData.get("shiftType"),
-    fieldName: formData.get("fieldName"),
+    fieldNames: formData.getAll("fieldNames").map(String).filter((s) => s.trim().length > 0),
     grade: formData.get("grade"),
     format: formData.get("format"),
     isEndOfDayGradeB: formData.get("isEndOfDayGradeB") === "on",
@@ -43,27 +44,13 @@ export async function createLotAction(_prevState: string | undefined, formData: 
   if (!factory) return "Factory not found.";
   if (!factory.code) return `${factory.name} has no IQF unit code set — add one in Settings first.`;
 
-  let shift = await prisma.shiftLog.findFirst({
-    where: { factoryId: parsed.data.factoryId, shiftType: parsed.data.shiftType, date },
-  });
-  if (!shift) {
-    // Nobody's opened this shift by hand yet -- create it here rather than
-    // blocking the lot on a trip to Log Shift, using the same fixed start
-    // time and cleaning-sign-off gate that page enforces. Worker count is
-    // left unset; the real headcount breakdown lives in the Daily Report.
-    const blockReason = await shiftStartBlockedReason(parsed.data.factoryId, parsed.data.shiftType, date);
-    if (blockReason) return blockReason;
-
-    shift = await prisma.shiftLog.create({
-      data: {
-        factoryId: parsed.data.factoryId,
-        shiftType: parsed.data.shiftType,
-        date,
-        startTime: scheduledShiftStartTime(date, parsed.data.shiftType),
-      },
-    });
-    revalidatePath("/shifts");
-  }
+  // Nobody may have opened this shift by hand yet -- find-or-create it here
+  // rather than blocking the lot on a trip to Log Shift, using the same
+  // cleaning-sign-off gate that page enforces (see findOrCreateShift).
+  const shiftResult = await findOrCreateShift(parsed.data.factoryId, parsed.data.shiftType, date);
+  if (shiftResult.shift === null) return shiftResult.blockReason;
+  const shift = shiftResult.shift;
+  revalidatePath("/shifts");
 
   const farmCode = parsed.data.farmCode.trim().toUpperCase();
   const lotNumber = generateLotNumber({
@@ -78,23 +65,39 @@ export async function createLotAction(_prevState: string | undefined, formData: 
     return `Lot ${lotNumber} already exists — this farm/facility/day/shift combination has already been logged.`;
   }
 
+  // Fields that had an accepted Post-Decap Quality check tied to this exact
+  // shift, for telling apart automatically-confirmed suppliers from ones the
+  // grower/user typed in manually (the "add another field" escape hatch).
+  const confirmedChecks = await prisma.qualityCheck.findMany({
+    where: { checkpoint: "POST_DECAP", decision: "ACCEPTED", shiftId: shift.id, fieldId: { not: null } },
+    select: { fieldId: true },
+  });
+  const confirmedFieldIds = new Set(confirmedChecks.map((c) => c.fieldId!));
+
   // Field entry is free text (not a fixed list) -- match an existing field by
   // name or create one on the fly, so production isn't blocked on someone
   // pre-registering the field in Settings first. Matching case-insensitively
-  // (rather than the exact-match upsert this used to be) means a casing typo
-  // like "Mafa 4" vs the real "MAFA 4" reuses the real field instead of
-  // silently forking off a duplicate that fragments its defect-rate history.
-  const fieldName = parsed.data.fieldName.trim();
-  const existingField = await prisma.field.findFirst({ where: { name: { equals: fieldName, mode: "insensitive" } } });
-  const field = existingField ?? (await prisma.field.create({ data: { name: fieldName } }));
+  // means a casing typo like "Mafa 4" vs the real "MAFA 4" reuses the real
+  // field instead of silently forking off a duplicate.
+  const seenFieldIds = new Set<string>();
+  let anyConfirmed = false;
+  for (const rawName of parsed.data.fieldNames) {
+    const fieldName = rawName.trim();
+    const existingField = await prisma.field.findFirst({
+      where: { name: { equals: fieldName, mode: "insensitive" } },
+    });
+    const field = existingField ?? (await prisma.field.create({ data: { name: fieldName } }));
+    if (confirmedFieldIds.has(field.id)) anyConfirmed = true;
+    seenFieldIds.add(field.id);
+  }
 
-  await prisma.productionLot.create({
+  const lot = await prisma.productionLot.create({
     data: {
       lotNumber,
       farmCode,
       shiftId: shift.id,
       factoryId: factory.id,
-      fieldId: field.id,
+      fields: { create: [...seenFieldIds].map((fieldId) => ({ fieldId })) },
       grade: parsed.data.grade,
       format: parsed.data.format,
       isEndOfDayGradeB: parsed.data.isEndOfDayGradeB,
@@ -102,6 +105,10 @@ export async function createLotAction(_prevState: string | undefined, formData: 
       mrlResult: { create: {} },
     },
   });
+
+  if (!anyConfirmed) {
+    await raiseShiftMissingPostDecapLinkAlert({ lotId: lot.id, lotNumber: lot.lotNumber });
+  }
 
   revalidatePath("/production");
   redirect("/production");

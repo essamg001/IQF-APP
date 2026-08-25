@@ -10,7 +10,7 @@ import { FULL_PALLET_WEIGHT_TONNES, FULL_PALLET_CARTON_COUNT } from "@/lib/logis
 import type { ProductionLot, Field, ColdRoom, QualityCheck, Pallet } from "@prisma/client";
 import { useTranslations } from "@/lib/i18n/locale-context";
 
-type LotWithField = ProductionLot & { field: Field };
+type LotWithField = ProductionLot & { fields: { field: Field }[] };
 type PostFreezeCheck = QualityCheck & { pallet: Pallet | null };
 
 export function PackingForm({

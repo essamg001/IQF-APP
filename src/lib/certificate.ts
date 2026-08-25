@@ -80,7 +80,7 @@ async function fetchContainerForCertificate(containerId: string) {
               qualityChecks: true,
               lot: {
                 include: {
-                  field: true,
+                  fields: { include: { field: true } },
                   factory: true,
                   shift: true,
                   microbiologyResults: true,
@@ -269,7 +269,7 @@ export async function computeContainerCertificateData(containerId: string): Prom
     variety,
     containerNumber: container.containerNumber,
     lotNumbers: distinctLots.map((l) => l.lotNumber),
-    fieldNames: [...new Set(distinctLots.map((l) => l.field.name))],
+    fieldNames: [...new Set(distinctLots.flatMap((l) => l.fields.map((f) => f.field.name)))],
     factoryNames: [...new Set(distinctLots.map((l) => l.factory.name))],
     productionDateStart: shiftDates[0] ? shiftDates[0].toISOString() : null,
     productionDateEnd: shiftDates[shiftDates.length - 1] ? shiftDates[shiftDates.length - 1].toISOString() : null,

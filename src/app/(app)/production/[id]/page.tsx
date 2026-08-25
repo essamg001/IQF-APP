@@ -79,7 +79,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
     include: {
       shift: { include: { factory: true } },
       factory: true,
-      field: true,
+      fields: { include: { field: true } },
       microbiologyResults: { include: { testLines: true } },
       mrlResult: true,
       pallets: { include: { coldRoom: true, client: true }, orderBy: { palletNumber: "asc" } },
@@ -91,22 +91,10 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
   const inHouseResult = lot.microbiologyResults.find((r) => r.labType === "IN_HOUSE");
   const externalResult = lot.microbiologyResults.find((r) => r.labType === "EXTERNAL");
 
-  // Fruit is mixed at the decap facility before being split across both
-  // factories, so a lot's fruit isn't traceable to one exact field -- this is
-  // the honest list of every field whose fruit cleared Post-Decap Quality
-  // during this shift's time window, any of which could be present in the mix.
-  const contributingChecks = await prisma.qualityCheck.findMany({
-    where: {
-      checkpoint: "POST_DECAP",
-      decision: "ACCEPTED",
-      fieldId: { not: null },
-      // A still-open shift (no end time yet) has no upper bound -- anything
-      // from its start onward could still be part of the mix.
-      createdAt: { gte: lot.shift.startTime, ...(lot.shift.endTime ? { lte: lot.shift.endTime } : {}) },
-    },
-    include: { field: true },
-  });
-  const contributingFields = [...new Map(contributingChecks.map((c) => [c.fieldId, c.field!.name])).values()].sort();
+  // Recorded directly at lot creation from this exact shift's accepted
+  // Post-Decap Quality checks (see production/actions.ts) -- authoritative,
+  // no time-window guessing involved.
+  const contributingFields = lot.fields.map((f) => f.field.name).sort();
 
   return (
     <div className="space-y-6">
@@ -122,19 +110,13 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
         <p className="mt-1 text-sm text-slate-500">
           {dict.shiftLine
             .replace("{factory}", lot.factory.name)
-            .replace("{date}", formatDate(lot.shift.date, "dd MMM yyyy", locale))
-            .replace("{field}", lot.field.name)}
+            .replace("{date}", formatDate(lot.shift.date, "dd MMM yyyy", locale))}
         </p>
       </div>
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">{dict.fieldsSupplyingTitle}</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          {dict.fieldsSupplyingSubtitle.replace(
-            "{window}",
-            `${formatDate(lot.shift.startTime, "HH:mm", locale)}–${lot.shift.endTime ? formatDate(lot.shift.endTime, "HH:mm", locale) : dict.now}`
-          )}
-        </p>
+        <p className="mt-1 text-xs text-slate-500">{dict.fieldsSupplyingSubtitle}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {contributingFields.map((name) => (
             <Badge key={name} color="slate">
@@ -142,7 +124,7 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             </Badge>
           ))}
           {contributingFields.length === 0 && (
-            <p className="text-sm text-slate-400">{dict.noPostDecapChecksInWindow}</p>
+            <p className="text-sm text-slate-400">{dict.noFieldsRecorded}</p>
           )}
         </div>
       </Card>

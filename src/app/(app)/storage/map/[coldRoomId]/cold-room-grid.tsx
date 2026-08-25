@@ -22,7 +22,7 @@ type SlotPallet = {
   palletNumber: string;
   status: string;
   lotNumber: string;
-  fieldName: string;
+  fieldNames: string;
   clientName: string | null;
   quality: {
     grade: string;
@@ -38,7 +38,7 @@ type SlotPallet = {
 };
 
 type Slot = { id: string; round: number; rack: string; level: number; pallet: SlotPallet | null };
-type UnassignedPallet = { id: string; palletNumber: string; lotNumber: string; fieldName: string; isTestData: boolean };
+type UnassignedPallet = { id: string; palletNumber: string; lotNumber: string; fieldNames: string; isTestData: boolean };
 
 // Fallback coloring for pallets with no cfu/g reading yet -- once a reading
 // exists, the cfu tier ramp (see src/lib/cfuTier.ts) takes over instead, per
@@ -273,7 +273,7 @@ function SlotDetail({
               value={slot.pallet.lotNumber}
               className={slot.pallet.isTestData ? TEST_DATA_TEXT_CLASS : undefined}
             />
-            <Row label={dict.fieldHashLabel} value={slot.pallet.fieldName} />
+            <Row label={dict.fieldHashLabel} value={slot.pallet.fieldNames} />
             <Row label={dict.clientHashLabel} value={slot.pallet.clientName ?? "—"} />
             <Row label={dict.gradeFieldLabel} value={slot.pallet.quality ? dict.gradeLabel.replace("{grade}", slot.pallet.quality.grade) : "—"} />
             <Row
@@ -338,7 +338,7 @@ function SlotDetail({
               </option>
               {unassignedPallets.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.palletNumber} — {dict.lotHashLabel} {p.lotNumber} ({p.fieldName}){p.isTestData ? dict.testDataSuffix : ""}
+                  {p.palletNumber} — {dict.lotHashLabel} {p.lotNumber} ({p.fieldNames}){p.isTestData ? dict.testDataSuffix : ""}
                 </option>
               ))}
             </Select>

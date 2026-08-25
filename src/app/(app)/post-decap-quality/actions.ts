@@ -3,7 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { parseDateSafe } from "@/lib/dates";
+import { parseDateSafe, parseLocalDateOnly } from "@/lib/dates";
+import { findOrCreateShift } from "@/lib/shifts";
 import { z } from "zod";
 import { checkQualityLimits, encodeActionResult } from "@/lib/qualityLimits";
 import { raiseQualityLimitAlert } from "@/lib/alerts";
@@ -14,6 +15,12 @@ import { QC_NUMBER_REGEX } from "@/lib/qc";
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
 const postDecapCheckSchema = z.object({
+  // Which shift this check belongs to -- links to ShiftLog so "which fields
+  // supplied this shift" can be queried exactly (see Log Production Lot).
+  factoryId: z.string().min(1),
+  date: z.string().min(1),
+  shiftType: z.enum(["DAY", "NIGHT"]),
+
   // Extra, beyond STR03107 itself -- for field traceability (see Pre-Decap Arrivals).
   fieldName: z.string().optional(),
   receiptNoteNo: z.string().optional(),
@@ -81,8 +88,14 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
     fieldId = field.id;
   }
 
+  const shiftDate = parseLocalDateOnly(parsed.data.date);
+  if (!shiftDate) return "That date couldn't be read — please re-enter it.";
+  const shiftResult = await findOrCreateShift(parsed.data.factoryId, parsed.data.shiftType, shiftDate);
+  if (shiftResult.shift === null) return shiftResult.blockReason;
+  const shiftId = shiftResult.shift.id;
+
   const session = await auth();
-  const { fieldName, sampleCollectionTime, notes, ...data } = parsed.data;
+  const { fieldName, sampleCollectionTime, notes, factoryId, date, shiftType, ...data } = parsed.data;
 
   const totalDefectsPct = DECAP_SHARED_DEFECT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
 
@@ -103,6 +116,7 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
       checkpoint: "POST_DECAP",
       lotId: null,
       fieldId,
+      shiftId,
       decision: data.decision,
       complianceLevel: "GLOBALGAP",
       receiptNoteNo: data.receiptNoteNo,
@@ -156,5 +170,6 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
   });
 
   revalidatePath("/post-decap-quality");
+  revalidatePath("/shifts");
   return encodeActionResult(created.id, violations);
 }

@@ -112,7 +112,7 @@ async function main() {
       farmCode: "M4",
       shiftId: shift.id,
       factoryId: factory1.id,
-      fieldId: fieldA.id,
+      fields: { create: [{ fieldId: fieldA.id }] },
       grade: "A",
       format: "WHOLE",
       microbiologyResults: {

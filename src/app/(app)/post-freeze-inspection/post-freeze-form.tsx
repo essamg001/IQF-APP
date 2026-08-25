@@ -16,7 +16,7 @@ import type { ProductionLot, Field, Pallet, ShiftLog, Grade, Format } from "@pri
 import { useTranslations, useLocale } from "@/lib/i18n/locale-context";
 import type { Dictionary } from "@/lib/i18n/getDictionary";
 
-type LotWithRelations = ProductionLot & { field: Field; pallets: Pallet[]; shift: ShiftLog };
+type LotWithRelations = ProductionLot & { fields: { field: Field }[]; pallets: Pallet[]; shift: ShiftLog };
 
 type CrushedBrokenKey = "crushedBrokenFruit" | "crushedBrokenSlices" | "irregularBrokenCubes";
 
@@ -155,7 +155,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
               (selectedLot ? (
                 <p className="mt-1 text-xs font-medium text-emerald-700">
                   {dict.matchedLot
-                    .replace("{field}", selectedLot.field.name)
+                    .replace("{field}", selectedLot.fields.map((f) => f.field.name).join(", "))
                     .replace("{grade}", selectedLot.grade)
                     .replace("{format}", FORMAT_LABEL[selectedLot.format])
                     .replace("{date}", formatDate(selectedLot.shift.date, "d MMM yyyy", locale))}

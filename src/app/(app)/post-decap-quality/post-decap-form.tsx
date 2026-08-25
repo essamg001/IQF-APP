@@ -36,9 +36,15 @@ function Pct({
 type FieldOption = { id: string; name: string };
 
 export function PostDecapForm({
+  factoryId,
+  date,
+  shiftType,
   fields,
   fieldByReceiptNote,
 }: {
+  factoryId: string;
+  date: string;
+  shiftType: "DAY" | "NIGHT";
   fields: FieldOption[];
   fieldByReceiptNote: Record<string, string>;
 }) {
@@ -55,6 +61,9 @@ export function PostDecapForm({
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="factoryId" value={factoryId} />
+      <input type="hidden" name="date" value={date} />
+      <input type="hidden" name="shiftType" value={shiftType} />
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">{dict.traceabilityTitle}</h2>
         <div className="grid grid-cols-3 gap-3">

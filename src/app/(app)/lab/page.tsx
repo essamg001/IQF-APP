@@ -32,12 +32,12 @@ export default async function LabPage() {
     prisma.microbiologyResult.findMany({
       orderBy: { createdAt: "desc" },
       take: 300,
-      include: { lot: { include: { field: true } }, sentBy: true, testLines: true },
+      include: { lot: { include: { fields: { include: { field: true } } } }, sentBy: true, testLines: true },
     }),
     prisma.mrlResult.findMany({
       orderBy: { createdAt: "desc" },
       take: 300,
-      include: { lot: { include: { field: true } }, sentBy: true },
+      include: { lot: { include: { fields: { include: { field: true } } } }, sentBy: true },
     }),
   ]);
 
@@ -94,7 +94,7 @@ export default async function LabPage() {
           {awaitingDispatch.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
+                {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>
                 {(r.isTestData || r.lot.isTestData) && (
                   <>
@@ -129,7 +129,7 @@ export default async function LabPage() {
           {awaitingResult.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
+                {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>
                 {r.sentDate && (
                   <span className="ms-2 font-normal text-slate-400">
@@ -161,7 +161,7 @@ export default async function LabPage() {
           {resolved.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
+                {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>{" "}
                 <Badge color={r.status === "APPROVED" ? "green" : r.status === "FAILED_MINOR" ? "amber" : "red"}>
                   {r.status === "APPROVED"
@@ -214,7 +214,7 @@ export default async function LabPage() {
           {mrlAwaitingDispatch.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
+                {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
                 {(r.isTestData || r.lot.isTestData) && (
                   <>
                     {" "}
@@ -248,7 +248,7 @@ export default async function LabPage() {
           {mrlAwaitingResult.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
+                {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
                 {r.sentDate && (
                   <span className="ms-2 font-normal text-slate-400">
                     {dict.sentDateInline.replace("{date}", formatDate(r.sentDate, "dd MMM yyyy", locale))}
@@ -279,7 +279,7 @@ export default async function LabPage() {
           {mrlResolved.map((r) => (
             <details key={r.id} className="py-2">
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
-                {r.lot.lotNumber} — {r.lot.field.name} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
+                {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.status === "APPROVED" ? "green" : "red"}>
                   {r.status === "APPROVED" ? dict.statusApproved : dict.statusFailed}
                 </Badge>

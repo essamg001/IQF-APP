@@ -6,24 +6,30 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
 import { useTranslations } from "@/lib/i18n/locale-context";
 
+// Raw kg harvested per field, from Harvest Ticket weights -- the pre-mix,
+// per-field truth. Finished/recovery figures can no longer be attributed to
+// one field once a lot draws from several at once (see overallRecoveryPct
+// on PeriodSection for the whole-factory figure instead).
 export type FieldYieldRow = {
   key: string; // fieldId
   label: string; // field name
   rawKg: number;
   rawLineCount: number;
-  finishedKg: number;
-  palletCount: number;
-  recoveryPct: number | null;
-  prevRecoveryPct?: number | null;
+  prevRawKg?: number | null;
 };
 
 export type PeriodSection = {
   key: string;
   label: string;
   rows: FieldYieldRow[];
-  overallRawKg: number;
-  overallFinishedKg: number;
+  totalRawKg: number;
+  // Sourced from the Daily Report's Quantities section (real, reject-aware
+  // paper-form data: raw incoming vs. total packed), not from pallet/harvest
+  // weights -- a distinct, whole-factory figure that does not reconcile with
+  // the sum of the per-field raw-kg rows above (different data source).
   overallRecoveryPct: number | null;
+  overallRawTon: number;
+  overallPackedTon: number;
 };
 
 export type Period = "DAILY" | "WEEKLY" | "MONTHLY" | "SEASON";
@@ -41,14 +47,14 @@ function formatKg(kg: number): string {
 
 function TrendBadge({ row }: { row: FieldYieldRow }) {
   const dict = useTranslations().yieldRecovery;
-  if (row.recoveryPct == null || row.prevRecoveryPct == null)
-    return <span className="text-xs text-slate-400">{dict.noPriorData}</span>;
-  const delta = row.recoveryPct - row.prevRecoveryPct;
-  if (Math.abs(delta) < 1) return <span className="text-xs text-slate-400">{dict.flat}</span>;
+  if (row.prevRawKg == null) return <span className="text-xs text-slate-400">{dict.noPriorData}</span>;
+  const delta = row.rawKg - row.prevRawKg;
+  const pctDelta = row.prevRawKg > 0 ? (delta / row.prevRawKg) * 100 : null;
+  if (pctDelta == null || Math.abs(pctDelta) < 1) return <span className="text-xs text-slate-400">{dict.flat}</span>;
   const improving = delta > 0;
   return (
     <span className={cn("text-xs font-medium", improving ? "text-emerald-600" : "text-red-600")}>
-      {improving ? "▲" : "▼"} {Math.abs(delta).toFixed(1)} {dict.ptsVsPriorPeriod}
+      {improving ? "▲" : "▼"} {Math.abs(pctDelta).toFixed(1)}% {dict.vsPriorPeriod}
     </span>
   );
 }
@@ -57,13 +63,16 @@ function SectionTable({ section }: { section: PeriodSection }) {
   const dict = useTranslations().yieldRecovery;
   return (
     <div>
-      <div className="mb-1 flex items-center gap-3">
+      <div className="mb-1 flex flex-wrap items-center gap-3">
         <p className="text-xs font-semibold text-slate-500">{section.label}</p>
+        <span className="text-xs text-slate-500">
+          {dict.totalRawLabel}: <span className="font-medium text-slate-700">{formatKg(section.totalRawKg)}</span>
+        </span>
         {section.overallRecoveryPct != null && (
           <span className="text-xs text-slate-500">
-            {dict.overallLabel}:{" "}
+            {dict.overallRecoveryLabel}:{" "}
             <Badge color={recoveryColor(section.overallRecoveryPct)}>{section.overallRecoveryPct.toFixed(1)}%</Badge>{" "}
-            ({formatKg(section.overallFinishedKg)} {dict.finishedLabel} / {formatKg(section.overallRawKg)} {dict.rawLabel})
+            ({dict.fromDailyReport})
           </span>
         )}
       </div>
@@ -73,8 +82,6 @@ function SectionTable({ section }: { section: PeriodSection }) {
             <tr>
               <th className="px-4 py-2 font-medium">{dict.colField}</th>
               <th className="px-4 py-2 font-medium">{dict.colRawIn}</th>
-              <th className="px-4 py-2 font-medium">{dict.colFinishedOut}</th>
-              <th className="px-4 py-2 font-medium">{dict.colRecovery}</th>
               <th className="px-4 py-2 font-medium">{dict.colTrend}</th>
             </tr>
           </thead>
@@ -88,19 +95,6 @@ function SectionTable({ section }: { section: PeriodSection }) {
                     ({row.rawLineCount} {dict.linesSuffix})
                   </span>
                 </td>
-                <td className="px-4 py-2 text-slate-700">
-                  {formatKg(row.finishedKg)}
-                  <span className="ms-1 text-xs font-normal text-slate-400">
-                    ({row.palletCount} {dict.palletsSuffix})
-                  </span>
-                </td>
-                <td className="px-4 py-2">
-                  {row.recoveryPct != null ? (
-                    <Badge color={recoveryColor(row.recoveryPct)}>{row.recoveryPct.toFixed(1)}%</Badge>
-                  ) : (
-                    <span className="text-xs text-slate-400">{dict.noRawWeightLogged}</span>
-                  )}
-                </td>
                 <td className="px-4 py-2">
                   <TrendBadge row={row} />
                 </td>
@@ -108,7 +102,7 @@ function SectionTable({ section }: { section: PeriodSection }) {
             ))}
             {section.rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={3} className="px-4 py-8 text-center text-slate-400">
                   {dict.noRowsInPeriod}
                 </td>
               </tr>
@@ -133,6 +127,7 @@ export function YieldRecoveryTable({ dataByPeriod }: { dataByPeriod: Record<Peri
 
   return (
     <div>
+      <p className="mb-3 text-xs text-slate-500">{dict.overallRecoveryExplainer}</p>
       <div className="flex gap-1 border-b border-slate-200">
         {(["DAILY", "WEEKLY", "MONTHLY", "SEASON"] as const).map((p) => (
           <button

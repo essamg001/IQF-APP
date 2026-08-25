@@ -508,6 +508,31 @@ export async function raiseBladeKnifeDamagedAlert(params: {
   }
 }
 
+/**
+ * Fired when a Production Lot is logged for a shift with no accepted
+ * Post-Decap Quality check linked to any of it -- every field on the lot came
+ * from the manual "add another field" fallback instead of the automatic
+ * shift-scoped suggestion, meaning decap traceability for this lot is
+ * currently unconfirmed.
+ */
+export async function raiseShiftMissingPostDecapLinkAlert(params: { lotId: string; lotNumber: string }) {
+  const message = `Lot ${params.lotNumber} was logged with no matching accepted Post-Decap Quality check for its shift -- its supplying field(s) were entered manually and aren't confirmed by a decap record.`;
+
+  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "SHIFT_MISSING_POST_DECAP_LINK",
+        relatedEntityType: "SHIFT_MISSING_POST_DECAP_LINK",
+        relatedEntityId: params.lotId,
+        targetRole: role,
+        message,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Lot Missing Post-Decap Link", message)));
+  }
+}
+
 async function checkSpecMismatch() {
   const pallets = await prisma.pallet.findMany({
     where: { status: "ALLOCATED" },

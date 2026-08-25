@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { generateLotNumber } from "@/lib/lotNumber";
 import { useTranslations } from "@/lib/i18n/locale-context";
-import type { Factory, Field } from "@prisma/client";
+import type { Field } from "@prisma/client";
 
 function parseLocalDateOnly(dateStr: string): Date | null {
   const parts = dateStr.split("-").map(Number);
@@ -18,75 +18,74 @@ function parseLocalDateOnly(dateStr: string): Date | null {
 }
 
 export function LotForm({
-  factories,
+  factoryId,
+  factoryCode,
+  date,
+  shiftType,
   fields,
-  recentFieldNames,
+  suggestedFieldNames,
 }: {
-  factories: Factory[];
+  factoryId: string;
+  factoryCode: string | null;
+  date: string;
+  shiftType: "DAY" | "NIGHT";
   fields: Field[];
-  recentFieldNames: string[];
+  suggestedFieldNames: string[];
 }) {
   const [error, formAction, pending] = useActionState(createLotAction, undefined);
   const dict = useTranslations().production;
 
   const [farmCode, setFarmCode] = useState("M4");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [fieldName, setFieldName] = useState(recentFieldNames[0] ?? "");
-
-  const options = useMemo(
-    () =>
-      factories.flatMap((f, i) =>
-        (["DAY", "NIGHT"] as const).map((shiftType) => ({
-          value: `${f.id}::${shiftType}`,
-          label: `IQF${i + 1} — Shift ${shiftType === "DAY" ? "1 (Day)" : "2 (Night)"}`,
-          factoryCode: f.code,
-        }))
-      ),
-    [factories]
-  );
-  const [selection, setSelection] = useState(options[0]?.value ?? "");
-  const [factoryId, shiftType] = selection.split("::") as [string, "DAY" | "NIGHT"];
-  const selectedOption = options.find((o) => o.value === selection);
+  const [checkedFields, setCheckedFields] = useState<Set<string>>(new Set(suggestedFieldNames));
+  const [extraFieldName, setExtraFieldName] = useState("");
+  const [extraFields, setExtraFields] = useState<string[]>([]);
 
   const previewLotNumber = useMemo(() => {
     const parsedDate = parseLocalDateOnly(date);
-    if (!farmCode || !parsedDate || !selectedOption?.factoryCode) return null;
-    return generateLotNumber({
-      farmCode: farmCode.trim().toUpperCase(),
-      factoryCode: selectedOption.factoryCode,
-      date: parsedDate,
-      shiftType,
+    if (!farmCode || !parsedDate || !factoryCode) return null;
+    return generateLotNumber({ farmCode: farmCode.trim().toUpperCase(), factoryCode, date: parsedDate, shiftType });
+  }, [farmCode, date, factoryCode, shiftType]);
+
+  const allFieldNames = [...checkedFields, ...extraFields];
+
+  function toggleField(name: string) {
+    setCheckedFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
     });
-  }, [farmCode, date, selectedOption, shiftType]);
+  }
+
+  function addExtraField() {
+    const name = extraFieldName.trim();
+    if (!name) return;
+    if (!extraFields.some((f) => f.toLowerCase() === name.toLowerCase()) && !checkedFields.has(name)) {
+      setExtraFields((prev) => [...prev, name]);
+    }
+    setExtraFieldName("");
+  }
 
   return (
     <form action={formAction}>
       <Card className="space-y-4">
-        <input type="hidden" name="factoryId" value={factoryId ?? ""} />
-        <input type="hidden" name="shiftType" value={shiftType ?? ""} />
-        <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label={dict.farmCodeLabel}>
-            <Input
-              name="farmCode"
-              required
-              placeholder={dict.farmCodePlaceholder}
-              value={farmCode}
-              onChange={(e) => setFarmCode(e.target.value)}
-            />
-          </FieldGroup>
-          <FieldGroup label={dict.dateLabel}>
-            <Input name="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
-          </FieldGroup>
-        </div>
-        <FieldGroup label={dict.factoryShiftLabel}>
-          <Select value={selection} onChange={(e) => setSelection(e.target.value)} required>
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
+        <input type="hidden" name="factoryId" value={factoryId} />
+        <input type="hidden" name="date" value={date} />
+        <input type="hidden" name="shiftType" value={shiftType} />
+        {allFieldNames.map((name) => (
+          <input key={name} type="hidden" name="fieldNames" value={name} />
+        ))}
+
+        <FieldGroup label={dict.farmCodeLabel}>
+          <Input
+            name="farmCode"
+            required
+            placeholder={dict.farmCodePlaceholder}
+            value={farmCode}
+            onChange={(e) => setFarmCode(e.target.value)}
+          />
         </FieldGroup>
+
         {previewLotNumber && (
           <p className="text-xs text-slate-500">
             {dict.lotNumberWillBe.split("{number}")[0]}
@@ -94,49 +93,65 @@ export function LotForm({
             {dict.lotNumberWillBe.split("{number}")[1]}
           </p>
         )}
-        <FieldGroup label={dict.fieldLabel}>
-          <Input
-            name="fieldName"
-            list="field-suggestions"
-            required
-            placeholder={dict.fieldPlaceholder}
-            value={fieldName}
-            onChange={(e) => setFieldName(e.target.value)}
-          />
-          <datalist id="field-suggestions">
-            {fields.map((f) => (
-              <option key={f.id} value={f.name} />
+
+        <FieldGroup label={dict.fieldsChecklistLabel}>
+          <p className="text-xs text-slate-500">{dict.fieldsChecklistHint}</p>
+          {suggestedFieldNames.length === 0 && (
+            <p className="mt-1 text-xs font-medium text-amber-600">{dict.noFieldsForShiftYet}</p>
+          )}
+          <div className="mt-2 space-y-1.5">
+            {suggestedFieldNames.map((name) => (
+              <label key={name} className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={checkedFields.has(name)} onChange={() => toggleField(name)} />
+                {name}
+              </label>
             ))}
-          </datalist>
-          {fieldName.trim() &&
-            !fields.some((f) => f.name.toLowerCase() === fieldName.trim().toLowerCase()) && (
+            {extraFields.map((name) => (
+              <label key={name} className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked
+                  onChange={() => setExtraFields((prev) => prev.filter((f) => f !== name))}
+                />
+                {name}
+              </label>
+            ))}
+          </div>
+
+          <div className="mt-3 flex items-end gap-2">
+            <div className="flex-1">
+              <FieldGroup label={dict.addAnotherFieldLabel}>
+                <Input
+                  list="field-suggestions"
+                  placeholder={dict.addAnotherFieldPlaceholder}
+                  value={extraFieldName}
+                  onChange={(e) => setExtraFieldName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addExtraField();
+                    }
+                  }}
+                />
+                <datalist id="field-suggestions">
+                  {fields.map((f) => (
+                    <option key={f.id} value={f.name} />
+                  ))}
+                </datalist>
+              </FieldGroup>
+            </div>
+            <Button type="button" variant="secondary" onClick={addExtraField}>
+              {dict.addFieldButton}
+            </Button>
+          </div>
+          {extraFieldName.trim() &&
+            !fields.some((f) => f.name.toLowerCase() === extraFieldName.trim().toLowerCase()) && (
               <p className="mt-1 text-xs font-medium text-amber-600">
-                {dict.noExistingFieldMatch.replace("{name}", fieldName.trim())}
+                {dict.noExistingFieldMatch.replace("{name}", extraFieldName.trim())}
               </p>
             )}
-          {recentFieldNames.length > 0 && (
-            <p className="mt-1 text-xs text-slate-500">
-              {dict.autoFilledFromPostDecap}
-              {recentFieldNames.length > 1 && (
-                <>
-                  {dict.alsoRecentPrefix}
-                  {recentFieldNames.slice(1).map((name, i) => (
-                    <span key={name}>
-                      {i > 0 && ", "}
-                      <button
-                        type="button"
-                        onClick={() => setFieldName(name)}
-                        className="text-emerald-700 hover:underline"
-                      >
-                        {name}
-                      </button>
-                    </span>
-                  ))}
-                </>
-              )}
-            </p>
-          )}
         </FieldGroup>
+
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label={dict.gradeLabelField}>
             <Select name="grade" required>
@@ -160,8 +175,9 @@ export function LotForm({
 
         <p className="text-xs text-slate-500">{dict.autoShiftCreationNote}</p>
 
+        {allFieldNames.length === 0 && <p className="text-sm text-red-600">{dict.atLeastOneFieldRequired}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || allFieldNames.length === 0}>
           {pending ? dict.saving : dict.logLot}
         </Button>
       </Card>

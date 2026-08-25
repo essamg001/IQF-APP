@@ -58,7 +58,15 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
   const pallet = await prisma.pallet.findUnique({
     where: { id: palletId },
     include: {
-      lot: { include: { field: true, factory: true, shift: true, microbiologyResults: true, mrlResult: true } },
+      lot: {
+        include: {
+          fields: { include: { field: true } },
+          factory: true,
+          shift: true,
+          microbiologyResults: true,
+          mrlResult: true,
+        },
+      },
       coldRoom: true,
       client: true,
       order: true,
@@ -154,7 +162,7 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
               </dd>
             </div>
             <Row label={dict.factoryLabel} value={pallet.lot.factory.name} />
-            <Row label={dict.fieldLabel} value={pallet.lot.field.name} />
+            <Row label={dict.fieldLabel} value={pallet.lot.fields.map((f) => f.field.name).join(", ")} />
             <Row label={dict.gradeFieldLabel} value={dict.gradeLabel.replace("{grade}", pallet.lot.grade)} />
             <Row label={dict.formatFieldLabel} value={formatLabel(dict, pallet.lot.format)} />
             <Row label={dict.weightLabel} value={`${pallet.weightTonnes} t`} />

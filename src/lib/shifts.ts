@@ -30,3 +30,22 @@ export function scheduledShiftStartTime(date: Date, shiftType: ShiftType): Date 
   d.setHours(startHour, 0, 0, 0);
   return d;
 }
+
+// Shared find-or-create used by both Log Production Lot and Post-Decap
+// Quality, so "which shift is this" and its cleaning-sign-off gate can never
+// drift between the two call sites.
+export async function findOrCreateShift(
+  factoryId: string,
+  shiftType: ShiftType,
+  date: Date
+): Promise<{ shift: { id: string }; blockReason: null } | { shift: null; blockReason: string }> {
+  let shift = await prisma.shiftLog.findFirst({ where: { factoryId, shiftType, date } });
+  if (!shift) {
+    const blockReason = await shiftStartBlockedReason(factoryId, shiftType, date);
+    if (blockReason) return { shift: null, blockReason };
+    shift = await prisma.shiftLog.create({
+      data: { factoryId, shiftType, date, startTime: scheduledShiftStartTime(date, shiftType) },
+    });
+  }
+  return { shift, blockReason: null };
+}

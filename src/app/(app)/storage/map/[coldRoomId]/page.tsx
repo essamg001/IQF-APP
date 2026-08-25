@@ -18,7 +18,7 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
       where: { coldRoomId },
       include: {
         pallet: {
-          include: { lot: { include: { field: true } }, client: true },
+          include: { lot: { include: { fields: { include: { field: true } } } }, client: true },
         },
       },
       orderBy: [{ round: "asc" }, { rack: "asc" }, { level: "asc" }],
@@ -33,7 +33,7 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
         status: { notIn: ["SHIPPED", "WASTE"] },
         OR: [{ coldRoomId }, { coldRoomId: null }],
       },
-      include: { lot: { include: { field: true } } },
+      include: { lot: { include: { fields: { include: { field: true } } } } },
       // Oldest not-yet-shelved pallet first -- matches the physical routine
       // of shelving pallets roughly in the order they come off the line.
       orderBy: { createdAt: "asc" },
@@ -61,7 +61,7 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
           palletNumber: s.pallet.palletNumber,
           status: s.pallet.status,
           lotNumber: s.pallet.lot.lotNumber,
-          fieldName: s.pallet.lot.field.name,
+          fieldNames: s.pallet.lot.fields.map((f) => f.field.name).join(", "),
           clientName: s.pallet.client?.name ?? null,
           quality: qualityByPalletId.get(s.pallet.id) ?? null,
           isTestData: s.pallet.isTestData || s.pallet.lot.isTestData,
@@ -96,7 +96,7 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
           id: p.id,
           palletNumber: p.palletNumber,
           lotNumber: p.lot.lotNumber,
-          fieldName: p.lot.field.name,
+          fieldNames: p.lot.fields.map((f) => f.field.name).join(", "),
           isTestData: p.isTestData || p.lot.isTestData,
         }))}
       />

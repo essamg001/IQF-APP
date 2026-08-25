@@ -16,7 +16,11 @@ export default async function FinalProductEntryPage() {
   const dict = getDictionary(await resolveLocale()).finalProductEntry;
 
   const [lots, coldRooms] = await Promise.all([
-    prisma.productionLot.findMany({ orderBy: { createdAt: "desc" }, take: 50, include: { field: true } }),
+    prisma.productionLot.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { fields: { include: { field: true } } },
+    }),
     prisma.coldRoom.findMany({ orderBy: { name: "asc" } }),
   ]);
 

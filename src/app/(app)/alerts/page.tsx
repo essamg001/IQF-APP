@@ -39,6 +39,7 @@ const WARNING_ALERT_TYPES = new Set<AlertType>([
   "MICROBIOLOGY_PENDING",
   "EARLY_WARNING",
   "GLOBALGAP_EXPIRING",
+  "SHIFT_MISSING_POST_DECAP_LINK",
 ]);
 function alertSeverityColor(type: AlertType): "red" | "amber" | "slate" {
   if (CRITICAL_ALERT_TYPES.has(type)) return "red";
@@ -74,6 +75,7 @@ export default async function AlertsPage() {
     SCALE_OUT_OF_TOLERANCE: dict.typeScaleOutOfTolerance,
     RODENT_DETECTED: dict.typeRodentDetected,
     TOOL_INVENTORY_DISCREPANCY: dict.typeToolInventoryDiscrepancy,
+    SHIFT_MISSING_POST_DECAP_LINK: dict.typeShiftMissingPostDecapLink,
   } as const;
 
   const STATUS_LABEL = { UNREAD: dict.statusUnread, READ: dict.statusRead } as const;
