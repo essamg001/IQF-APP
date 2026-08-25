@@ -40,6 +40,17 @@ export default async function NewLotPage({
     : [];
   const suggestedFieldNames = [...new Set(suggestedChecks.map((c) => c.field!.name))].sort();
 
+  // Only prefill the farm code when every suggested field agrees on the same
+  // non-null one -- if any field has no code on file, or two disagree, leave
+  // it for the person logging the lot to enter rather than guess.
+  const suggestedFieldFarmCodes = suggestedChecks.map((c) => c.field!.farmCode);
+  const suggestedFarmCode =
+    suggestedFieldFarmCodes.length > 0 &&
+    suggestedFieldFarmCodes[0] &&
+    suggestedFieldFarmCodes.every((code) => code === suggestedFieldFarmCodes[0])
+      ? suggestedFieldFarmCodes[0]
+      : null;
+
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">{dict.logProductionLot}</h1>
@@ -78,6 +89,7 @@ export default async function NewLotPage({
           shiftType={shiftType}
           fields={fields}
           suggestedFieldNames={suggestedFieldNames}
+          suggestedFarmCode={suggestedFarmCode}
         />
       </div>
     </div>

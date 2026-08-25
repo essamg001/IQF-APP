@@ -24,6 +24,7 @@ export function LotForm({
   shiftType,
   fields,
   suggestedFieldNames,
+  suggestedFarmCode,
 }: {
   factoryId: string;
   factoryCode: string | null;
@@ -31,11 +32,12 @@ export function LotForm({
   shiftType: "DAY" | "NIGHT";
   fields: Field[];
   suggestedFieldNames: string[];
+  suggestedFarmCode: string | null;
 }) {
   const [error, formAction, pending] = useActionState(createLotAction, undefined);
   const dict = useTranslations().production;
 
-  const [farmCode, setFarmCode] = useState("M4");
+  const [farmCode, setFarmCode] = useState(suggestedFarmCode ?? "");
   const [checkedFields, setCheckedFields] = useState<Set<string>>(new Set(suggestedFieldNames));
   const [extraFieldName, setExtraFieldName] = useState("");
   const [extraFields, setExtraFields] = useState<string[]>([]);
@@ -84,6 +86,9 @@ export function LotForm({
             value={farmCode}
             onChange={(e) => setFarmCode(e.target.value)}
           />
+          {suggestedFarmCode && farmCode === suggestedFarmCode && (
+            <p className="mt-1 text-xs text-slate-500">{dict.farmCodeAutoFilledNote}</p>
+          )}
         </FieldGroup>
 
         {previewLotNumber && (

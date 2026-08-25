@@ -2657,6 +2657,9 @@ const en = {
     leaveEndBlankNote:
       "Leave end time blank if the shift hasn't finished yet — it fills in automatically once today's Daily Report records this shift's line uptime.",
     numberOfWorkersLabel: "Number of workers",
+    prefilledFromLabourNote: "Prefilled from this shift's Labour Distribution total in Daily Report — edit if it differs.",
+    noLabourDataNote: "No Labour Distribution recorded yet for this shift — enter the worker count manually.",
+    fieldsSupplyingLabel: "Fields already supplying this shift (from Post-Decap Quality)",
     saving: "Saving…",
     logShiftButton: "Log shift",
     rejectedFruitComposted: "Rejected fruit composted (this shift)",
@@ -2691,6 +2694,7 @@ const en = {
     gradeLabel: "Grade {grade}",
     farmCodeLabel: "Farm Code",
     farmCodePlaceholder: "e.g. M4",
+    farmCodeAutoFilledNote: "Auto-filled from the supplying field(s) — change if this lot draws from a different farm.",
     dateLabel: "Date",
     factoryShiftLabel: "Factory & Shift",
     shiftLabel: "Shift",

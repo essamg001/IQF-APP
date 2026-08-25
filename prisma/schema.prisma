@@ -483,6 +483,10 @@ model Field {
   mapReference String?
 
   farmName        String? // e.g. "MAFA 4"
+  // Short code used in ProductionLot's lot-number prefix (e.g. "M4" for
+  // "MAFA 4") -- distinct from capqFarmCode/nfsaFarmCode below, which are
+  // certification-body codes, not the lot-numbering abbreviation.
+  farmCode        String?
   // Same farm-level accreditation, same code repeated across every field
   // belonging to it -- matches how farmName itself is already denormalized
   // per field row rather than needing a separate Farm entity.
