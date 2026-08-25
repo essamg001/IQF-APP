@@ -7,16 +7,19 @@ import { getDictionary } from "@/lib/i18n/getDictionary";
 import { AckForm } from "./ack-form";
 import type { SupervisorProtocolRole } from "@prisma/client";
 
+// Ordered to match the product's own physical journey through the factory
+// (same reasoning as the sidebar's "Field to Freezer to Truck" section),
+// then the overarching/managerial roles last.
 const ROLES: SupervisorProtocolRole[] = [
-  "COLD_STORAGE_LOADING",
-  "RAW_MATERIAL_FEED",
-  "GENERAL_ALL_SUPERVISORS",
-  "OPERATIONS_MANAGER",
-  "LINE_SORTING",
-  "HEALTH_AND_SAFETY",
-  "FACTORY_MANAGER",
   "RECEIVING",
+  "RAW_MATERIAL_FEED",
+  "LINE_SORTING",
   "PACKING",
+  "COLD_STORAGE_LOADING",
+  "OPERATIONS_MANAGER",
+  "FACTORY_MANAGER",
+  "HEALTH_AND_SAFETY",
+  "GENERAL_ALL_SUPERVISORS",
 ];
 
 const ROLE_DICT_KEY: Record<SupervisorProtocolRole, string> = {
@@ -41,7 +44,7 @@ export default async function SupervisorRolesPage({
   const { role: roleParam } = await searchParams;
   const role: SupervisorProtocolRole = ROLES.includes(roleParam as SupervisorProtocolRole)
     ? (roleParam as SupervisorProtocolRole)
-    : "COLD_STORAGE_LOADING";
+    : ROLES[0];
 
   const protocol = dict.protocols[ROLE_DICT_KEY[role] as keyof typeof dict.protocols];
 
