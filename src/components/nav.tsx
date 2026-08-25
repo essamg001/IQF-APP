@@ -35,6 +35,15 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
     ],
   },
   {
+    // Pure reference/documentation content -- not a log, not a data table --
+    // so it lives apart from sectionReference (master data) and
+    // sectionCompliance (recurring logs).
+    headerKey: "sectionProtocolsReference",
+    items: [
+      { href: "/crop-protection-plan", labelKey: "cropProtectionPlan", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+    ],
+  },
+  {
     // The product's own journey, in physical order.
     headerKey: "sectionPipeline",
     items: [

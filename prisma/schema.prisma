@@ -2832,3 +2832,104 @@ model RodentTrapCheck {
   @@unique([trapId, date])
 }
 
+// The approved pesticide/crop-protection reference program (PPPL) per growth
+// stage -- what's authorized to spray against which pest, at what dose/PHI/
+// MRL, distinct from FieldSprayRecord (which logs what was actually applied
+// in the field). Revised season to season by the grower, hence a real
+// editable model rather than static content.
+enum CropProtectionGrowthStage {
+  MOTHER_PLANTS
+  NURSERY
+  OPEN_FIELD
+  UNIDO_GREENHOUSE
+}
+
+enum CropProtectionTreatmentMethod {
+  SPRAYING
+  INJECTION
+  DUSTING
+  FUMIGATION
+  STERILIZATION
+  DISTRIBUTION_OF_NATURAL_ENEMIES
+}
+
+enum CropProtectionCategory {
+  BIOLOGICAL
+  CHEMICAL
+  NATURAL_ENEMIES
+}
+
+model CropProtectionPlan {
+  id                   String                    @id @default(cuid())
+  growthStage          CropProtectionGrowthStage
+  farmName             String?
+  exportSeason         String?
+  cropName             String?
+  variety              String?
+  gradeClassifications String?
+  developedBy          String?
+  revisedBy            String?
+  approvedBy           String?
+  versionDate          DateTime
+  // False for a version superseded by a newer one for the same growth stage.
+  isCanonical          Boolean                   @default(true)
+  // True for Open Field until the grower supplies this year's real data --
+  // renders as an explicit empty state rather than stale/unconfirmed rows.
+  isSkeleton           Boolean                   @default(false)
+  // Fairtrade Hazardous Materials List classification footer -- present on
+  // the Mother Plants plan only.
+  hazardListNote       String?
+  notes                String?
+  entries              CropProtectionEntry[]
+  isTestData           Boolean                   @default(false)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  @@index([growthStage])
+}
+
+// Numeric-looking fields (dose, PHI, re-entry, MRL) are String, not Float/Int,
+// because the source documents mix numbers, ranges ("100 to 600L"), combined
+// active-ingredient values ("0.1+0.01"), and "NA" -- the same reasoning
+// already used for ClientSpec's tolerance fields.
+model CropProtectionEntry {
+  id                                String                          @id @default(cuid())
+  planId                            String
+  plan                              CropProtectionPlan             @relation(fields: [planId], references: [id], onDelete: Cascade)
+  targetPestOrDisease               String
+  pestStage                        String?
+  economicInjuryThreshold           String?
+  plantGrowthStage                  String?
+  treatmentMethod                   CropProtectionTreatmentMethod?
+  category                          CropProtectionCategory?
+  formulationCode                   String?
+  activeIngredient                  String?
+  commercialProductName             String
+  registrationNumber                String?
+  manufacturer                      String?
+  activeIngredientConcentrationPct  String?
+  dosePer100L                       String?
+  waterVolumePerFeddan              String?
+  dosePerFeddan                     String?
+  proposedPhiDays                   String?
+  reEntryPeriodHours                String?
+  applicationTimeWindow             String?
+  maxTreatmentsPerSeason            String?
+  strictestMrlLimitMgKg             String?
+  euArfdMgKg                        String?
+  // Per-product Fairtrade Hazardous Materials List classification (Red/
+  // Orange/etc) -- distinct from CropProtectionPlan.hazardListNote, which is
+  // just the plan-level footer explaining what the classification means.
+  fairtradeHazardClass              String?
+  // The 3 Nursery product names logged with no dosing data yet -- under
+  // review, not yet an approved entry.
+  isPending                         Boolean                         @default(false)
+  notes                             String?
+  isTestData                        Boolean                         @default(false)
+  createdAt                         DateTime                        @default(now())
+  updatedAt                         DateTime                        @updatedAt
+
+  @@index([planId])
+  @@index([targetPestOrDisease])
+}
+

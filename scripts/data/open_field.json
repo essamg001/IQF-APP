@@ -1,0 +1,16 @@
+{
+  "growthStage": "OPEN_FIELD",
+  "farmName": "MAFA Farms",
+  "exportSeason": null,
+  "cropName": "Strawberries",
+  "variety": null,
+  "gradeClassifications": null,
+  "developedBy": null,
+  "revisedBy": null,
+  "approvedBy": null,
+  "versionDate": "2026-01-25",
+  "hazardListNote": null,
+  "notes": "Skeleton only -- this year's real Open Field crop protection data has not been finalized yet. The 25-01-2026 draft was not imported since it isn't this year's confirmed plan.",
+  "isSkeleton": true,
+  "entries": []
+}
