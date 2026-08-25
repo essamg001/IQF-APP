@@ -85,6 +85,11 @@ export default async function PestControlPage({
         <p className="mt-1 text-sm text-slate-500">{dict.lightTrapsSubtitle}</p>
       </div>
 
+      <Card>
+        <h3 className="text-sm font-semibold text-slate-900">{dict.registerLightTrapTitle}</h3>
+        <LightTrapForm factoryId={factoryId} action={addLightTrapAction} />
+      </Card>
+
       {lightTraps.map((trap) => (
         <LightTrapCard key={trap.id} trap={trap} checks={trap.checks} month={month} year={year} />
       ))}
@@ -94,15 +99,15 @@ export default async function PestControlPage({
         </Card>
       )}
 
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-900">{dict.registerLightTrapTitle}</h3>
-        <LightTrapForm factoryId={factoryId} action={addLightTrapAction} />
-      </Card>
-
       <div>
         <h2 className="text-lg font-semibold text-slate-900">{dict.rodentControlTitle}</h2>
         <p className="mt-1 text-sm text-slate-500">{dict.rodentControlSubtitle}</p>
       </div>
+
+      <Card>
+        <h3 className="text-sm font-semibold text-slate-900">{dict.registerRodentTrapTitle}</h3>
+        <RodentTrapForm factoryId={factoryId} action={addRodentTrapAction} />
+      </Card>
 
       {rodentTraps.map((trap) => (
         <RodentTrapCard key={trap.id} trap={trap} checks={trap.checks} month={month} year={year} />
@@ -112,11 +117,6 @@ export default async function PestControlPage({
           <p className="text-sm text-slate-400">{dict.noRodentTraps}</p>
         </Card>
       )}
-
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-900">{dict.registerRodentTrapTitle}</h3>
-        <RodentTrapForm factoryId={factoryId} action={addRodentTrapAction} />
-      </Card>
     </div>
   );
 }

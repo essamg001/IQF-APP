@@ -10,6 +10,40 @@ import { canSignSpecException } from "@/lib/roles";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import type { AlertType } from "@prisma/client";
+
+// Severity is a property of the alert TYPE (what happened), independent of
+// whether it's been read yet (that's a separate, freshness signal -- see the
+// Status column below). Critical = an active compliance/food-safety breach
+// or a blocked action; warning = worth watching but nothing has actually
+// failed yet; everything else (e.g. a risk sign-off already on record) is
+// informational.
+const CRITICAL_ALERT_TYPES = new Set<AlertType>([
+  "MICROBIOLOGY_LOAD_ATTEMPT",
+  "MRL_LOAD_ATTEMPT",
+  "SPEC_MISMATCH",
+  "MICROBIOLOGY_REJECTED",
+  "QUALITY_LIMIT_EXCEEDED",
+  "SHIFT_ON_HOLD",
+  "TEMPERATURE_EXCURSION",
+  "SPRAY_RESTRICTION_BLOCKED",
+  "BLADE_KNIFE_MISMATCH",
+  "SCALE_OUT_OF_TOLERANCE",
+  "RODENT_DETECTED",
+  "TOOL_INVENTORY_DISCREPANCY",
+]);
+const WARNING_ALERT_TYPES = new Set<AlertType>([
+  "CONTAINER_OVERDUE",
+  "LOW_STOCK",
+  "MICROBIOLOGY_PENDING",
+  "EARLY_WARNING",
+  "GLOBALGAP_EXPIRING",
+]);
+function alertSeverityColor(type: AlertType): "red" | "amber" | "slate" {
+  if (CRITICAL_ALERT_TYPES.has(type)) return "red";
+  if (WARNING_ALERT_TYPES.has(type)) return "amber";
+  return "slate";
+}
 
 export default async function AlertsPage() {
   await generateAlerts();
@@ -81,11 +115,13 @@ export default async function AlertsPage() {
               return (
                 <tr key={a.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2">
-                    <Badge color={a.status === "UNREAD" ? "amber" : "slate"}>{TYPE_LABEL[a.type]}</Badge>
+                    <Badge color={alertSeverityColor(a.type)}>{TYPE_LABEL[a.type]}</Badge>
                   </td>
                   <td className="px-4 py-2">{a.message}</td>
                   <td className="px-4 py-2">{formatDate(a.createdAt, "dd MMM yyyy HH:mm", locale)}</td>
-                  <td className="px-4 py-2">{STATUS_LABEL[a.status]}</td>
+                  <td className="px-4 py-2">
+                    <Badge color={a.status === "UNREAD" ? "blue" : "slate"}>{STATUS_LABEL[a.status]}</Badge>
+                  </td>
                   <td className="px-4 py-2">
                     {check?.overrideStatus === "PENDING" && canOverride && <QualityOverrideActions checkId={check.id} />}
                     {check?.overrideStatus === "PENDING" && !canOverride && (

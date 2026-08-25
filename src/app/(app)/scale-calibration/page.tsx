@@ -71,6 +71,11 @@ export default async function ScaleCalibrationPage({
         </form>
       </Card>
 
+      <Card>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.registerScaleTitle}</h2>
+        <ScaleForm factoryId={factoryId} action={addWeighingScaleAction} />
+      </Card>
+
       {scales.map((s) => (
         <ScaleCard key={s.id} scale={s} checks={s.checks} month={month} year={year} />
       ))}
@@ -79,11 +84,6 @@ export default async function ScaleCalibrationPage({
           <p className="text-sm text-slate-400">{dict.noScales}</p>
         </Card>
       )}
-
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-900">{dict.registerScaleTitle}</h2>
-        <ScaleForm factoryId={factoryId} action={addWeighingScaleAction} />
-      </Card>
     </div>
   );
 }

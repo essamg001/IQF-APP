@@ -56,7 +56,8 @@ export default async function PersonalItemsPage({
           <h2 className="text-sm font-semibold text-slate-900">{dict.authorizedPersonnel}</h2>
           {!canManage && <span className="text-xs text-slate-400">{dict.onlyQualityCanEdit}</span>}
         </div>
-        <ul className="mt-3 divide-y divide-slate-100">
+        {canManage && <AuthorizationForm />}
+        <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 pt-1">
           {authorizations.map((a) => (
             <li key={a.id} className="flex items-center justify-between py-2 text-sm">
               <span>
@@ -85,7 +86,6 @@ export default async function PersonalItemsPage({
           ))}
           {authorizations.length === 0 && <li className="py-2 text-sm text-slate-400">{dict.noOneAuthorized}</li>}
         </ul>
-        {canManage && <AuthorizationForm />}
       </Card>
 
       <Card>

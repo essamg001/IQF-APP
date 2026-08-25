@@ -41,7 +41,8 @@ export default async function ToolInventoryPage({
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">{dict.registeredTools}</h2>
-        <ul className="mt-3 divide-y divide-slate-100">
+        <ItemForm />
+        <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 pt-1">
           {items.map((i) => (
             <li key={i.id} className="flex items-center justify-between py-2 text-sm">
               <span>
@@ -61,7 +62,6 @@ export default async function ToolInventoryPage({
           ))}
           {items.length === 0 && <li className="py-2 text-sm text-slate-400">{dict.noToolsYet}</li>}
         </ul>
-        <ItemForm />
       </Card>
 
       <Card>

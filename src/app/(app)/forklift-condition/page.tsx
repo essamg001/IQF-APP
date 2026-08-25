@@ -76,6 +76,11 @@ export default async function ForkliftConditionPage({
         </form>
       </Card>
 
+      <Card>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.registerEquipmentTitle}</h2>
+        <EquipmentForm factoryId={factoryId} action={addForkliftEquipmentAction} />
+      </Card>
+
       {equipment.map((eq) => (
         <EquipmentCard
           key={eq.id}
@@ -91,11 +96,6 @@ export default async function ForkliftConditionPage({
           <p className="text-sm text-slate-400">{dict.noEquipment}</p>
         </Card>
       )}
-
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-900">{dict.registerEquipmentTitle}</h2>
-        <EquipmentForm factoryId={factoryId} action={addForkliftEquipmentAction} />
-      </Card>
     </div>
   );
 }
