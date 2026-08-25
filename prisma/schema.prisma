@@ -277,6 +277,9 @@ model User {
   verifiedNonConformanceReports  NonConformanceReport[] @relation("NonConformanceVerifiedBy")
   uploadedNonConformanceReportPhotos NonConformanceReportPhoto[] @relation("NonConformanceReportPhotoUploadedBy")
 
+  recordedFactoryVisits         FactoryVisit[]
+  uploadedAuditFindingPhotos     ClientAuditFindingPhoto[]
+
 
   personalItemChecksCheckedIn  PersonalItemShiftCheck[] @relation("PersonalItemCheckedInBy")
   personalItemChecksCheckedOut PersonalItemShiftCheck[] @relation("PersonalItemCheckedOutBy")
@@ -426,6 +429,7 @@ model Factory {
   packagingMaterialsDailyLogs PackagingMaterialsDailyLog[]
   forkliftEquipment           ForkliftEquipment[]
   nonConformanceReports       NonConformanceReport[]
+  factoryVisits               FactoryVisit[]
   weighingScales              WeighingScale[]
   toolInventoryShiftChecks    ToolInventoryShiftCheck[]
   lightTraps                  LightTrap[]
@@ -2642,6 +2646,10 @@ model NonConformanceReport {
 
   photos NonConformanceReportPhoto[]
 
+  // Set when this report was raised from a client audit finding (Visits),
+  // rather than created directly -- optional, most NCs have no visit origin.
+  raisedFromAuditFindings ClientAuditFinding[]
+
   isTestData Boolean  @default(false)
   createdAt  DateTime @default(now())
 
@@ -2931,5 +2939,74 @@ model CropProtectionEntry {
 
   @@index([planId])
   @@index([targetPestOrDisease])
+}
+
+// A visitor to the factory (client, supplier, official, or anyone else) --
+// most visits are just a log entry with optional feedback. When a visitor is
+// a client auditor, isAudit is set and detailed findings can be attached.
+model FactoryVisit {
+  id               String    @id @default(cuid())
+  factoryId        String
+  factory          Factory   @relation(fields: [factoryId], references: [id])
+  date             DateTime
+  visitorName      String
+  organization     String?
+  purpose          String
+  isAudit          Boolean   @default(false)
+  generalFeedback  String?
+  recordedByUserId String?
+  recordedByUser   User?     @relation(fields: [recordedByUserId], references: [id])
+  findings         ClientAuditFinding[]
+  isTestData       Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+
+  @@index([factoryId])
+  @@index([date])
+}
+
+enum AuditFindingCategory {
+  STRENGTH
+  ISSUE
+}
+
+enum AuditFindingSeverity {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+model ClientAuditFinding {
+  id          String       @id @default(cuid())
+  visitId     String
+  visit       FactoryVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  category    AuditFindingCategory
+  area        String?
+  description String
+  // ISSUE only -- a STRENGTH has nothing to rate the severity of.
+  severity    AuditFindingSeverity?
+
+  // An ISSUE finding can be escalated into the existing Non-Conformance CAPA
+  // workflow rather than tracking a second, parallel corrective-action
+  // process just for audit findings.
+  linkedNonConformanceReportId String?
+  linkedNonConformanceReport   NonConformanceReport? @relation(fields: [linkedNonConformanceReportId], references: [id])
+
+  photos     ClientAuditFindingPhoto[]
+  isTestData Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([visitId])
+}
+
+model ClientAuditFindingPhoto {
+  id               String             @id @default(cuid())
+  findingId        String
+  finding          ClientAuditFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  fileName         String
+  originalName     String
+  caption          String?
+  uploadedByUserId String?
+  uploadedBy       User?              @relation(fields: [uploadedByUserId], references: [id])
+  createdAt        DateTime           @default(now())
 }
 
