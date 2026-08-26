@@ -4,12 +4,17 @@ import { useActionState, useState } from "react";
 import { addPalletLoadLineAction } from "../actions";
 import { decodeSpecBlock } from "@/lib/specCompliance";
 import { SpecExceptionForm } from "./spec-exception-form";
-import { Input, Select, FieldGroup } from "@/components/ui/field";
+import { Input, FieldGroup } from "@/components/ui/field";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { useTranslations } from "@/lib/i18n/locale-context";
 
 type EligiblePallet = { id: string; palletNumber: string; remaining: number; lotNumber: string };
 
+// Typed, not picked from a dropdown -- the loader reads the number off the
+// physical pallet and enters it, and the server checks it against this
+// order's actual allocation (see addPalletLoadLineAction's palletNumber
+// resolution). A dropdown only confirms someone selected *a* description;
+// typing the real number is what catches picking up the wrong pallet.
 export function AddLoadLineForm({
   containerId,
   pallets,
@@ -21,8 +26,8 @@ export function AddLoadLineForm({
 }) {
   const boundAction = addPalletLoadLineAction.bind(null, containerId);
   const [error, formAction, pending] = useActionState(boundAction, undefined);
-  const [selectedId, setSelectedId] = useState(pallets[0]?.id ?? "");
-  const [quantity, setQuantity] = useState(pallets[0]?.remaining.toFixed(2) ?? "");
+  const [typedNumber, setTypedNumber] = useState("");
+  const [quantity, setQuantity] = useState("");
   const specBlock = decodeSpecBlock(error);
   const dict = useTranslations().logistics;
 
@@ -30,29 +35,39 @@ export function AddLoadLineForm({
     return <p className="text-sm text-slate-400">{dict.noPalletsRemainingTonnage}</p>;
   }
 
+  const matched = pallets.find((p) => p.palletNumber.trim().toLowerCase() === typedNumber.trim().toLowerCase());
+
   return (
     <div className="flex flex-wrap items-end gap-3">
       <form action={formAction} className="flex flex-wrap items-end gap-3">
         <FieldGroup label={dict.palletLabel}>
-          <Select
-            name="palletId"
-            value={selectedId}
+          <Input
+            name="palletNumber"
+            list="eligible-pallet-numbers"
+            value={typedNumber}
             onChange={(e) => {
-              setSelectedId(e.target.value);
-              const p = pallets.find((p) => p.id === e.target.value);
-              setQuantity(p ? p.remaining.toFixed(2) : "");
+              const value = e.target.value;
+              setTypedNumber(value);
+              const p = pallets.find((p) => p.palletNumber.trim().toLowerCase() === value.trim().toLowerCase());
+              if (p) setQuantity(p.remaining.toFixed(2));
             }}
+            placeholder={dict.palletNumberPlaceholder}
             className="w-80"
-          >
+            required
+          />
+          <datalist id="eligible-pallet-numbers">
             {pallets.map((p) => (
-              <option key={p.id} value={p.id}>
-                {dict.remainingLotOption
-                  .replace("{pallet}", p.palletNumber)
-                  .replace("{remaining}", p.remaining.toFixed(2))
-                  .replace("{lot}", p.lotNumber)}
-              </option>
+              <option key={p.id} value={p.palletNumber} />
             ))}
-          </Select>
+          </datalist>
+          {typedNumber.trim() &&
+            (matched ? (
+              <p className="mt-1 text-xs font-medium text-emerald-700">
+                {dict.palletNumberMatchedNote.replace("{remaining}", matched.remaining.toFixed(2)).replace("{lot}", matched.lotNumber)}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs font-medium text-red-600">{dict.palletNumberNotFoundNote}</p>
+            ))}
         </FieldGroup>
         <FieldGroup label={dict.quantityToLoadLabel}>
           <Input
@@ -66,9 +81,7 @@ export function AddLoadLineForm({
           />
         </FieldGroup>
         <ConfirmSubmitButton
-          confirmMessage={dict.loadPalletConfirm
-            .replace("{quantity}", quantity)
-            .replace("{pallet}", pallets.find((p) => p.id === selectedId)?.palletNumber ?? selectedId)}
+          confirmMessage={dict.loadPalletConfirm.replace("{quantity}", quantity).replace("{pallet}", typedNumber)}
           disabled={pending}
           className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
         >

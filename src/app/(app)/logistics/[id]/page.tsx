@@ -821,6 +821,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
               <SignOffForm
                 action={signLoadOutRepAction.bind(null, container.id)}
                 confirmMessage={dict.signOffAsLoadOutConfirm.replace("{name}", currentUserLabel ?? dict.yourself)}
+                pendingPalletCount={pendingPallets.length}
               />
             )}
           </div>
@@ -841,6 +842,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
               <SignOffForm
                 action={signQualityRepAction.bind(null, container.id)}
                 confirmMessage={dict.signOffAsQualityConfirm.replace("{name}", currentUserLabel ?? dict.yourself)}
+                pendingPalletCount={pendingPallets.length}
               />
             )}
           </div>

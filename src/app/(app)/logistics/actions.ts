@@ -422,9 +422,30 @@ async function createLoadLine(
 }
 
 const addLoadLineSchema = z.object({
-  palletId: z.string().min(1),
+  palletNumber: z.string().min(1),
   quantityTonnes: z.coerce.number().positive(),
 });
+
+// The loader types the number off the physical pallet rather than picking a
+// description from a list -- this is the actual check against reality
+// (picking the wrong pallet by hand is the failure mode a dropdown can't
+// catch). Scoped to this order's own allocation, since palletNumber alone
+// isn't unique across the whole system (see Pallet's schema comment) --
+// this ties "is this pallet allocated to the shipment we're loading",
+// not just "does this number exist somewhere".
+async function resolvePalletForOrder(orderId: string, rawPalletNumber: string): Promise<{ palletId: string } | { error: string }> {
+  const palletNumber = rawPalletNumber.trim();
+  const matches = await prisma.pallet.findMany({
+    where: { orderId, palletNumber: { equals: palletNumber, mode: "insensitive" } },
+  });
+  if (matches.length === 0) {
+    return { error: `"${palletNumber}" is not one of the pallets allocated to this order — check the number on the physical pallet and try again.` };
+  }
+  if (matches.length > 1) {
+    return { error: `More than one pallet on this order is numbered "${palletNumber}" — check with Storage to identify the right one before loading.` };
+  }
+  return { palletId: matches[0]!.id };
+}
 
 export async function addPalletLoadLineAction(
   containerId: string,
@@ -432,12 +453,10 @@ export async function addPalletLoadLineAction(
   formData: FormData
 ) {
   const parsed = addLoadLineSchema.safeParse({
-    palletId: formData.get("palletId"),
+    palletNumber: formData.get("palletNumber"),
     quantityTonnes: formData.get("quantityTonnes"),
   });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
-
-  const { pallet, remaining } = await palletWithRemaining(parsed.data.palletId);
 
   const container = await prisma.container.findUniqueOrThrow({
     where: { id: containerId },
@@ -448,6 +467,14 @@ export async function addPalletLoadLineAction(
   });
 
   if (isManifestLocked(container)) return MANIFEST_LOCKED_MESSAGE;
+
+  const resolved = await resolvePalletForOrder(container.orderId, parsed.data.palletNumber);
+  if ("error" in resolved) return resolved.error;
+
+  const { pallet, remaining } = await palletWithRemaining(resolved.palletId);
+  if (remaining <= ROUNDING_TOLERANCE_TONNES) {
+    return `${pallet.palletNumber} has already been fully loaded.`;
+  }
 
   const capacityError = checkContainerCapacity(container, parsed.data.quantityTonnes);
   if (capacityError) return capacityError;
@@ -705,7 +732,30 @@ async function incompleteChecklistMessage(containerId: string): Promise<string |
   return `Complete the pre-departure checklist first: ${missing.join("; ")}.`;
 }
 
-export async function signLoadOutRepAction(containerId: string, _prevState: string | undefined, _formData: FormData) {
+// Neither the checklist nor the manifest itself checks whether this order's
+// full allocation actually made it into a container somewhere -- a
+// container could otherwise be signed and sealed while pallets are still
+// sitting in the "awaiting load" list. A multi-container order can
+// legitimately leave some pallets for a different container, so this isn't
+// an unconditional block -- it requires an explicit acknowledgment
+// (confirmRemainderElsewhere) rather than silently letting it through.
+async function unshippedAllocationMessage(containerId: string, formData: FormData): Promise<string | null> {
+  const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
+  const orderPallets = await prisma.pallet.findMany({
+    where: { orderId: container.orderId },
+    include: { loadLines: { select: { quantityTonnes: true } } },
+  });
+  const stillPending = orderPallets.filter(
+    (p) => p.weightTonnes - p.loadLines.reduce((s, l) => s + l.quantityTonnes, 0) > ROUNDING_TOLERANCE_TONNES
+  );
+  if (stillPending.length === 0) return null;
+  if (formData.get("confirmRemainderElsewhere") === "on") return null;
+
+  const list = stillPending.map((p) => p.palletNumber).join(", ");
+  return `${stillPending.length} pallet(s) allocated to this order haven't been loaded into any container yet (${list}). Add them to this manifest, or confirm below that they're intentionally going into a different container.`;
+}
+
+export async function signLoadOutRepAction(containerId: string, _prevState: string | undefined, formData: FormData) {
   const session = await auth();
   if (!session?.user) return "You must be logged in to sign off.";
 
@@ -720,6 +770,9 @@ export async function signLoadOutRepAction(containerId: string, _prevState: stri
 
   const checklistError = await incompleteChecklistMessage(containerId);
   if (checklistError) return checklistError;
+
+  const pendingError = await unshippedAllocationMessage(containerId, formData);
+  if (pendingError) return pendingError;
 
   if (container.qualityRepUserId && container.qualityRepUserId === session.user.id) {
     return "You've already signed off as the Quality Department representative for this container -- the two sign-offs must be different people.";
@@ -741,7 +794,7 @@ export async function signLoadOutRepAction(containerId: string, _prevState: stri
   return "ok";
 }
 
-export async function signQualityRepAction(containerId: string, _prevState: string | undefined, _formData: FormData) {
+export async function signQualityRepAction(containerId: string, _prevState: string | undefined, formData: FormData) {
   const session = await auth();
   if (!session?.user) return "You must be logged in to sign off.";
 
@@ -753,6 +806,9 @@ export async function signQualityRepAction(containerId: string, _prevState: stri
 
   const checklistError = await incompleteChecklistMessage(containerId);
   if (checklistError) return checklistError;
+
+  const pendingError = await unshippedAllocationMessage(containerId, formData);
+  if (pendingError) return pendingError;
 
   if (container.loadOutRepUserId && container.loadOutRepUserId === session.user.id) {
     return "You've already signed off as the Load-Out Team representative for this container -- the two sign-offs must be different people.";

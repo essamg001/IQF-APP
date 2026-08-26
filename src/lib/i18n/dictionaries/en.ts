@@ -2589,12 +2589,16 @@ const en = {
     adding: "Adding…",
     addCost: "Add cost",
     palletLabel: "Pallet",
-    remainingLotOption: "{pallet} — {remaining}t remaining — Lot {lot}",
+    palletNumberPlaceholder: "Type the number on the pallet",
+    palletNumberMatchedNote: "Matches this order — {remaining}t remaining — Lot {lot}",
+    palletNumberNotFoundNote: "Not one of this order's allocated pallets — check the number.",
     quantityToLoadLabel: "Quantity to load (t)",
     loadPalletConfirm:
       "Load {quantity}t of pallet {pallet} into this container? This physically commits it to the shipment and frees its storage slot once fully loaded.",
     addToManifest: "Add to manifest",
     noPalletsRemainingTonnage: "No allocated pallets with remaining tonnage for this order.",
+    confirmRemainderElsewhereLabel:
+      "{count} pallet(s) from this order haven't been loaded into any container yet — I confirm they're intentionally going into a different container.",
     temperatureLabel: "Temperature (°C)",
     recordedAtLabel: "Recorded at",
     notesLabel: "Notes",
