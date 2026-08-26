@@ -33,6 +33,7 @@ export async function generateAlerts() {
     checkMicrobiologyPending(),
     checkGlobalGapExpiry(),
     checkCertificationExpiry(),
+    checkPalletsAwaitingReshelf(),
   ]);
 }
 
@@ -711,5 +712,24 @@ async function checkCertificationExpiry() {
 
     await upsertAlert("CERTIFICATION_EXPIRING", cert.id, "OWNER", message);
     await upsertAlert("CERTIFICATION_EXPIRING", cert.id, "QUALITY", message);
+  }
+}
+
+// A pallet pulled aside just to reach others behind it (see PalletPullAside)
+// is easy to forget once the shift that pulled it is over -- this is the
+// same "don't let it silently fall through the cracks" pattern as every
+// other upsertAlert check here, not a discrete one-off event, so it keeps
+// firing (deduped) for as long as the pallet stays un-reshelved.
+async function checkPalletsAwaitingReshelf() {
+  const pending = await prisma.palletPullAside.findMany({
+    where: { resolvedAt: null },
+    include: { pallet: true, coldRoom: true },
+  });
+
+  for (const p of pending) {
+    const hoursAgo = Math.round((Date.now() - p.pulledAt.getTime()) / (1000 * 60 * 60));
+    const message = `${p.pallet.palletNumber} was pulled aside from ${p.coldRoom.name} Round ${p.round} / Rack ${p.rack} ${hoursAgo} hour(s) ago and hasn't been re-shelved yet.`;
+    await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "OWNER", message);
+    await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "LOGISTICS", message);
   }
 }

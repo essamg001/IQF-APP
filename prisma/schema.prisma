@@ -172,6 +172,7 @@ enum AlertType {
   TOOL_INVENTORY_DISCREPANCY
   SHIFT_MISSING_POST_DECAP_LINK
   CERTIFICATION_EXPIRING
+  PALLET_AWAITING_RESHELVE
 }
 
 enum AlertStatus {
@@ -246,6 +247,7 @@ model User {
   activityLogs             ActivityLog[]
   loadOutSignedContainers  Container[]          @relation("ContainerLoadOutRep")
   qualitySignedContainers  Container[]          @relation("ContainerQualityRep")
+  pulledAsidePallets       PalletPullAside[]    @relation("PulledAsideBy")
   uploadedContainerLoadPhotos ContainerLoadPhoto[] @relation("ContainerLoadPhotoUploadedBy")
   containerChecklistConfirmations ContainerChecklistConfirmation[]
   cleaningProductionSignOffs  CleaningShiftRecord[] @relation("CleaningProductionSignOff")
@@ -459,6 +461,7 @@ model ColdRoom {
 
   pallets Pallet[]
   slots   ColdRoomSlot[]
+  pullAsides PalletPullAside[]
 }
 
 // One row per physical storage position. Generated in full when a cold room
@@ -478,6 +481,38 @@ model ColdRoomSlot {
 
   @@unique([coldRoomId, round, rack, level])
   @@index([coldRoomId])
+}
+
+// A pallet pulled out of its slot only to reach others behind it during
+// load-out -- not shipped, not generally "unassigned", but genuinely
+// displaced and owed a specific way back. Kept as its own record (not just
+// a boolean on Pallet) so there's a durable trail of who pulled it, when,
+// why, and -- once resolved -- exactly which slot it went back into. Not
+// deleted on resolution, the same way ContainerPalletLine or SpecException
+// keep a permanent record rather than being cleared once done.
+// palletId isn't @unique -- the same pallet can legitimately be pulled
+// aside more than once across its lifetime -- but the app only ever
+// creates a second row after the first is resolved (enforced in
+// pullPalletAsideAction, not the schema, since Prisma can't express a
+// partial/filtered unique constraint here).
+model PalletPullAside {
+  id             String    @id @default(cuid())
+  palletId       String
+  pallet         Pallet    @relation(fields: [palletId], references: [id])
+  coldRoomId     String
+  coldRoom       ColdRoom  @relation(fields: [coldRoomId], references: [id])
+  round          Int
+  rack           String
+  reason         String?
+  pulledAt       DateTime  @default(now())
+  pulledByName   String?
+  pulledByUserId String?
+  pulledByUser   User?     @relation("PulledAsideBy", fields: [pulledByUserId], references: [id])
+  resolvedAt     DateTime?
+  resolvedSlotId String?
+
+  @@index([coldRoomId])
+  @@index([palletId])
 }
 
 // Real farm-layout data (Farm/Station/Valve/Variety/boundary geometry) is
@@ -823,6 +858,7 @@ model Pallet {
   loadLines      ContainerPalletLine[]
   slot           ColdRoomSlot?
   specExceptions SpecException[]
+  pullAsides     PalletPullAside[]
 
   @@unique([palletNumber, lotId])
   @@index([palletNumber])

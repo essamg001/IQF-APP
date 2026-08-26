@@ -2,8 +2,8 @@
 
 import { useActionState, useMemo, useState } from "react";
 import type { MrlStatus } from "@prisma/client";
-import { assignPalletToSlotAction, unassignSlotAction } from "../actions";
-import { Select, FieldGroup } from "@/components/ui/field";
+import { assignPalletToSlotAction, unassignSlotAction, pullPalletAsideAction, reshelvePalletAction } from "../actions";
+import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button, LinkButton } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card } from "@/components/ui/card";
@@ -39,6 +39,17 @@ type SlotPallet = {
 
 type Slot = { id: string; round: number; rack: string; level: number; pallet: SlotPallet | null };
 type UnassignedPallet = { id: string; palletNumber: string; lotNumber: string; fieldNames: string; isTestData: boolean };
+type PullAside = {
+  id: string;
+  palletId: string;
+  palletNumber: string;
+  round: number;
+  rack: string;
+  pulledAt: string;
+  reason: string | null;
+  isTestData: boolean;
+  suggestedSlot: { id: string; round: number; rack: string; level: number } | null;
+};
 
 // Fallback coloring for pallets with no cfu/g reading yet -- once a reading
 // exists, the cfu tier ramp (see src/lib/cfuTier.ts) takes over instead, per
@@ -60,6 +71,7 @@ export function ColdRoomGrid({
   suggestedSlotId,
   unassignedPallets,
   highlightPalletIds,
+  pullAsides,
 }: {
   coldRoomId: string;
   rounds: number;
@@ -69,6 +81,7 @@ export function ColdRoomGrid({
   suggestedSlotId: string | null;
   unassignedPallets: UnassignedPallet[];
   highlightPalletIds?: string[];
+  pullAsides: PullAside[];
 }) {
   const fullDict = useTranslations();
   const dict = fullDict.storage;
@@ -80,6 +93,7 @@ export function ColdRoomGrid({
   const suggestedSlot = useMemo(() => slots.find((s) => s.id === suggestedSlotId) ?? null, [slots, suggestedSlotId]);
   const [round, setRound] = useState(highlightedSlots[0]?.round ?? suggestedSlot?.round ?? 1);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [reshelveError, reshelveFormAction] = useActionState(reshelvePalletAction, undefined);
 
   const racks = useMemo(() => Array.from({ length: rackCount }, (_, i) => rackLetter(i)), [rackCount]);
   const levels = useMemo(() => Array.from({ length: levelCount }, (_, i) => levelCount - i), [levelCount]);
@@ -115,6 +129,39 @@ export function ColdRoomGrid({
                   </li>
                 ))}
             </ul>
+          </div>
+        )}
+        {pullAsides.length > 0 && (
+          <div className="mb-3 rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-xs text-orange-900">
+            <p className="font-semibold">{dict.awaitingReshelveTitle.replace("{count}", String(pullAsides.length))}</p>
+            <ul className="mt-1.5 space-y-1.5">
+              {pullAsides.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    <span className={cn("font-mono font-medium", p.isTestData && TEST_DATA_TEXT_CLASS)}>{p.palletNumber}</span>
+                    {" — "}
+                    {dict.pulledFromNote.replace("{rack}", p.rack).replace("{round}", String(p.round))}
+                  </span>
+                  {p.suggestedSlot ? (
+                    <form action={reshelveFormAction}>
+                      <input type="hidden" name="pullAsideId" value={p.id} />
+                      <input type="hidden" name="slotId" value={p.suggestedSlot.id} />
+                      <button
+                        type="submit"
+                        className="shrink-0 rounded-md bg-orange-600 px-2 py-1 font-medium text-white hover:bg-orange-700"
+                      >
+                        {dict.reshelveToButton
+                          .replace("{rack}", p.suggestedSlot.rack)
+                          .replace("{level}", String(p.suggestedSlot.level))}
+                      </button>
+                    </form>
+                  ) : (
+                    <span className="text-orange-700">{dict.lineFullNote}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {reshelveError && <p className="mt-1.5 text-red-700">{reshelveError}</p>}
           </div>
         )}
         {suggestedSlot && (
@@ -278,6 +325,8 @@ function SlotDetail({
   onClose: () => void;
 }) {
   const [error, formAction, pending] = useActionState(assignPalletToSlotAction, undefined);
+  const [pullAsideError, pullAsideFormAction, pullAsidePending] = useActionState(pullPalletAsideAction, undefined);
+  const [pullReason, setPullReason] = useState("");
   const dict = useTranslations().storage;
 
   return (
@@ -364,6 +413,32 @@ function SlotDetail({
               >
                 {dict.unassign}
               </ConfirmSubmitButton>
+            </form>
+          </div>
+
+          <div className="border-t border-slate-100 pt-3">
+            <p className="mb-1.5 text-xs text-slate-500">{dict.pullAsideHint}</p>
+            <form action={pullAsideFormAction} className="space-y-2">
+              <input type="hidden" name="slotId" value={slot.id} />
+              <Input
+                name="reason"
+                placeholder={dict.pullAsideReasonPlaceholder}
+                value={pullReason}
+                onChange={(e) => setPullReason(e.target.value)}
+                className="text-sm"
+              />
+              <ConfirmSubmitButton
+                confirmMessage={dict.pullAsideConfirm
+                  .replace("{pallet}", slot.pallet.palletNumber)
+                  .replace("{round}", String(slot.round))
+                  .replace("{rack}", slot.rack)
+                  .replace("{level}", String(slot.level))}
+                disabled={pullAsidePending}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-orange-300 bg-orange-50 px-3.5 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100 disabled:opacity-50"
+              >
+                {pullAsidePending ? dict.pullingAside : dict.pullAside}
+              </ConfirmSubmitButton>
+              {pullAsideError && <p className="text-xs text-red-600">{pullAsideError}</p>}
             </form>
           </div>
         </>

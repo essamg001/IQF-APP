@@ -91,3 +91,112 @@ export async function unassignSlotAction(slotId: string) {
   revalidatePath("/storage/map");
   revalidatePath(`/storage/${slot.palletId}`);
 }
+
+const pullAsideSchema = z.object({
+  slotId: z.string().min(1),
+  reason: z.string().optional(),
+});
+
+// Pulling a pallet out just to reach one behind it is NOT the same event as
+// unassignSlotAction above -- that means "this pallet has left the room
+// entirely" (coldRoomId cleared). A pull-aside pallet is still physically
+// in the room, just not currently in a slot, and it owes a specific way
+// back -- so this keeps Pallet.coldRoomId set and opens a PalletPullAside
+// record instead of just freeing the slot silently.
+export async function pullPalletAsideAction(_prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in to pull a pallet aside.";
+
+  const parsed = pullAsideSchema.safeParse({
+    slotId: formData.get("slotId"),
+    reason: formData.get("reason") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const slot = await prisma.coldRoomSlot.findUniqueOrThrow({ where: { id: parsed.data.slotId }, include: { pallet: true } });
+  if (!slot.palletId) return "This slot is already empty.";
+
+  const existing = await prisma.palletPullAside.findFirst({ where: { palletId: slot.palletId, resolvedAt: null } });
+  if (existing) return "This pallet is already marked as pulled aside and awaiting re-shelve.";
+
+  const name = session.user.name || session.user.email;
+
+  await prisma.$transaction([
+    prisma.coldRoomSlot.update({ where: { id: slot.id }, data: { palletId: null } }),
+    prisma.palletPullAside.create({
+      data: {
+        palletId: slot.palletId,
+        coldRoomId: slot.coldRoomId,
+        round: slot.round,
+        rack: slot.rack,
+        reason: parsed.data.reason,
+        pulledByName: name,
+        pulledByUserId: session.user.id,
+      },
+    }),
+  ]);
+
+  await logActivity({
+    actorId: session.user.id,
+    action: "PALLET_PULLED_ASIDE",
+    entityType: "Pallet",
+    entityId: slot.palletId,
+    detail: `${slot.pallet?.palletNumber ?? slot.palletId} pulled aside from Round ${slot.round} / Rack ${slot.rack} / Level ${slot.level}${parsed.data.reason ? ` — ${parsed.data.reason}` : ""}`,
+  });
+
+  revalidatePath(`/storage/map/${slot.coldRoomId}`);
+  revalidatePath("/storage/map");
+  revalidatePath(`/storage/${slot.palletId}`);
+}
+
+const reshelveSchema = z.object({
+  pullAsideId: z.string().min(1),
+  slotId: z.string().min(1),
+});
+
+export async function reshelvePalletAction(_prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in to re-shelve a pallet.";
+
+  const parsed = reshelveSchema.safeParse({
+    pullAsideId: formData.get("pullAsideId"),
+    slotId: formData.get("slotId"),
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const pullAside = await prisma.palletPullAside.findUniqueOrThrow({
+    where: { id: parsed.data.pullAsideId },
+    include: { pallet: true },
+  });
+  if (pullAside.resolvedAt) return "This pallet has already been re-shelved.";
+
+  const slot = await prisma.coldRoomSlot.findUniqueOrThrow({ where: { id: parsed.data.slotId } });
+
+  const claimed = await prisma.$transaction(async (tx) => {
+    const result = await tx.coldRoomSlot.updateMany({
+      where: { id: parsed.data.slotId, palletId: null },
+      data: { palletId: pullAside.palletId },
+    });
+    if (result.count === 0) return false;
+    await tx.pallet.update({ where: { id: pullAside.palletId }, data: { coldRoomId: slot.coldRoomId } });
+    await tx.palletPullAside.update({
+      where: { id: pullAside.id },
+      data: { resolvedAt: new Date(), resolvedSlotId: slot.id },
+    });
+    return true;
+  });
+
+  if (!claimed) return "Someone just took that slot — pick another.";
+
+  await logActivity({
+    actorId: session.user.id,
+    action: "PALLET_RESHELVED",
+    entityType: "Pallet",
+    entityId: pullAside.palletId,
+    detail: `${pullAside.pallet.palletNumber} re-shelved to Round ${slot.round} / Rack ${slot.rack} / Level ${slot.level} (pulled from Round ${pullAside.round} / Rack ${pullAside.rack})`,
+  });
+
+  revalidatePath(`/storage/map/${slot.coldRoomId}`);
+  revalidatePath("/storage/map");
+  revalidatePath(`/storage/${pullAside.palletId}`);
+}

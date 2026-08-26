@@ -51,6 +51,22 @@ export function nextAvailableSlot(slots: SlotPosition[], rackOrder: string[]): S
   return empty[0] ?? null;
 }
 
+// Where a pallet pulled aside during load-out goes back -- confirmed with
+// the owner: within one storage line (a fixed round + rack, levels stacked
+// by height), level 1 is nearest the entrance and the highest level is the
+// deepest/back position. Re-stocking always fills from the back forward,
+// so occupied levels stay one contiguous block with any gap only at the
+// front (level 1 end) -- ready for new incoming produce, never scattered
+// mid-line. The correct next slot is therefore always the highest empty
+// level in that specific line, never a room-wide search like
+// nextAvailableSlot above (which spreads fresh stock level-by-level across
+// every rack instead of filling one line at a time).
+export function suggestReshelfSlot(slots: SlotPosition[], round: number, rack: string): SlotPosition | null {
+  const empty = slots.filter((s) => !s.palletId && s.round === round && s.rack === rack);
+  empty.sort((a, b) => b.level - a.level);
+  return empty[0] ?? null;
+}
+
 export type ProductType = { grade: string; format: string };
 
 /** The most common (grade, format) pair among a room's occupied pallets -- null if the room is empty. */

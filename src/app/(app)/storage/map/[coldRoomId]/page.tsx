@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { getPalletQualitySnapshots } from "@/lib/palletQuality";
-import { buildRackOrder, nextAvailableSlot } from "@/lib/coldStorage";
+import { buildRackOrder, nextAvailableSlot, suggestReshelfSlot } from "@/lib/coldStorage";
 import { ColdRoomGrid } from "./cold-room-grid";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
@@ -21,7 +21,7 @@ export default async function ColdRoomMapPage({
   const coldRoom = await prisma.coldRoom.findUnique({ where: { id: coldRoomId } });
   if (!coldRoom) notFound();
 
-  const [slots, unassignedPallets] = await Promise.all([
+  const [slots, unassignedPallets, pullAsides] = await Promise.all([
     prisma.coldRoomSlot.findMany({
       where: { coldRoomId },
       include: {
@@ -47,16 +47,38 @@ export default async function ColdRoomMapPage({
       orderBy: { createdAt: "asc" },
       take: 300,
     }),
+    prisma.palletPullAside.findMany({
+      where: { coldRoomId, resolvedAt: null },
+      include: { pallet: true },
+      orderBy: { pulledAt: "asc" },
+    }),
   ]);
 
   const occupiedPallets = slots.filter((s) => s.pallet).map((s) => s.pallet!);
   const qualityByPalletId = await getPalletQualitySnapshots(occupiedPallets.map((p) => ({ id: p.id, lotId: p.lotId })));
 
   const rackOrder = buildRackOrder(coldRoom.rackCount);
-  const suggestedSlot = nextAvailableSlot(
-    slots.map((s) => ({ id: s.id, round: s.round, rack: s.rack, level: s.level, palletId: s.palletId })),
-    rackOrder
-  );
+  const slotPositions = slots.map((s) => ({ id: s.id, round: s.round, rack: s.rack, level: s.level, palletId: s.palletId }));
+  const suggestedSlot = nextAvailableSlot(slotPositions, rackOrder);
+
+  // Each pull-aside's suggested way back: same line it came from, filled
+  // from the back (see suggestReshelfSlot) -- computed fresh against the
+  // slot state as it stands right now, not cached, since another
+  // pull-aside/reshelve happening in the same room changes what's empty.
+  const pullAsidesForClient = pullAsides.map((p) => {
+    const suggested = suggestReshelfSlot(slotPositions, p.round, p.rack);
+    return {
+      id: p.id,
+      palletId: p.palletId,
+      palletNumber: p.pallet.palletNumber,
+      round: p.round,
+      rack: p.rack,
+      pulledAt: p.pulledAt.toISOString(),
+      reason: p.reason,
+      isTestData: p.pallet.isTestData,
+      suggestedSlot: suggested ? { id: suggested.id, round: suggested.round, rack: suggested.rack, level: suggested.level } : null,
+    };
+  });
 
   const slotsForClient = slots.map((s) => ({
     id: s.id,
@@ -101,6 +123,7 @@ export default async function ColdRoomMapPage({
         slots={slotsForClient}
         suggestedSlotId={suggestedSlot?.id ?? null}
         highlightPalletIds={highlightPalletIds}
+        pullAsides={pullAsidesForClient}
         unassignedPallets={unassignedPallets.map((p) => ({
           id: p.id,
           palletNumber: p.palletNumber,
