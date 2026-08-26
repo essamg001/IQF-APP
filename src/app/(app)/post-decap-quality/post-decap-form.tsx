@@ -5,6 +5,7 @@ import { createPostDecapCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
@@ -82,6 +83,11 @@ export function PostDecapForm({
       <SampleFields key={isSuccess ? state : "initial"} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {decoded && decoded.violations.length === 0 && (
+        <p className="text-sm">
+          <Badge color="green">{dict.conforming}</Badge>
+        </p>
+      )}
       {decoded && <QualityLimitWarning violations={decoded.violations} />}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">{dict.saved}</p>}
       <Button type="submit" disabled={pending} className="w-full">
@@ -113,7 +119,6 @@ function FieldNameInput({
 }
 
 function SampleFields() {
-  const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
   const { total: defectTotal, bind } = useDefectTotal(DECAP_SHARED_DEFECT_FIELDS);
   const dict = useTranslations().postDecapQuality;
 
@@ -208,38 +213,19 @@ function SampleFields() {
               ))}
             </Select>
           </FieldGroup>
-          <FieldGroup label={dict.decisionLabel}>
-            <Select
-              name="decision"
-              required
-              value={decision}
-              onChange={(e) => setDecision(e.target.value as typeof decision)}
-            >
-              <option value="ACCEPTED">{dict.conforming}</option>
-              <option value="REJECTED">{dict.nonconforming}</option>
-            </Select>
+          <FieldGroup label={dict.correctiveActionOptional}>
+            <Input name="notes" placeholder={dict.correctiveActionPlaceholder} />
           </FieldGroup>
-          <FieldGroup label={decision === "REJECTED" ? dict.correctiveAction : dict.correctiveActionOptional}>
-            <Input
-              name="notes"
-              placeholder={decision === "REJECTED" ? dict.correctiveActionPlaceholder : undefined}
-              required={decision === "REJECTED"}
-            />
+          <FieldGroup label={dict.divertedTo}>
+            <Input name="divertedTo" placeholder={dict.divertedToPlaceholder} />
           </FieldGroup>
         </div>
-        {decision === "REJECTED" && (
-          <div className="grid grid-cols-2 gap-3">
-            <FieldGroup label={dict.divertedTo}>
-              <Input name="divertedTo" placeholder={dict.divertedToPlaceholder} />
-            </FieldGroup>
-            <FieldGroup label={dict.retraining}>
-              <label className="flex h-9 items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" name="retrainingRequested" className="h-4 w-4 rounded border-slate-300" />
-                {dict.requested}
-              </label>
-            </FieldGroup>
-          </div>
-        )}
+        <FieldGroup label={dict.retraining}>
+          <label className="flex h-9 items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="retrainingRequested" className="h-4 w-4 rounded border-slate-300" />
+            {dict.requested}
+          </label>
+        </FieldGroup>
       </Card>
     </>
   );

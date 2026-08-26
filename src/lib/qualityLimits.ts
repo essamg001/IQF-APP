@@ -256,18 +256,28 @@ export function formatViolation(v: LimitViolation): string {
   return `${v.label} ${v.value} (${limit})`;
 }
 
-/** Encodes a server action's success result, with any limit violations attached, into the single string these forms' useActionState hooks return. */
-export function encodeActionResult(id: string, violations: LimitViolation[]): string {
-  if (violations.length === 0) return `ok:${id}`;
-  return `ok:${id}::${JSON.stringify(violations)}`;
+/**
+ * Encodes a server action's success result -- the computed decision plus any
+ * limit violations -- into the single string these forms' useActionState
+ * hooks return. Decision always travels alongside violations rather than
+ * being re-derived client-side from `violations.length === 0`, since at
+ * least one checkpoint (a whole-delivery rejection on Arrival Inspection)
+ * can be REJECTED with zero violations (no per-defect sampling happens, so
+ * there's nothing to check against a limit).
+ */
+export function encodeActionResult(id: string, decision: "ACCEPTED" | "REJECTED", violations: LimitViolation[]): string {
+  if (violations.length === 0) return `ok:${id}:${decision}`;
+  return `ok:${id}:${decision}::${JSON.stringify(violations)}`;
 }
 
-export function decodeActionResult(state: string): { id: string; violations: LimitViolation[] } | null {
+export function decodeActionResult(state: string): { id: string; decision: "ACCEPTED" | "REJECTED"; violations: LimitViolation[] } | null {
   if (!state.startsWith("ok:")) return null;
   const rest = state.slice(3);
   const sep = rest.indexOf("::");
-  if (sep === -1) return { id: rest, violations: [] };
-  return { id: rest.slice(0, sep), violations: JSON.parse(rest.slice(sep + 2)) };
+  const head = sep === -1 ? rest : rest.slice(0, sep);
+  const [id, decision] = head.split(":") as [string, "ACCEPTED" | "REJECTED"];
+  const violations = sep === -1 ? [] : JSON.parse(rest.slice(sep + 2));
+  return { id, decision, violations };
 }
 
 export type TrendWarning = { label: string; recentValues: number[]; limit: LimitRule };

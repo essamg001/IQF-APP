@@ -17,7 +17,6 @@ const postFreezeSchema = z.object({
   // pallet must exist and be sampled before it's transported to cold
   // storage, so this can never be a lot-wide, pallet-less check.
   palletNumber: z.string().min(1, "Pallet number is required."),
-  decision: z.enum(["ACCEPTED", "REJECTED"]),
 
   clientName: z.string().optional(),
   varietyName: z.string().optional(),
@@ -107,9 +106,14 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
 
   const totalDefectsPct = POST_PACKAGING_DEFECT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
 
+  // Decision is computed, never picked by the supervisor -- see checkQualityLimits.
+  const violations = checkQualityLimits("POST_PACKAGING", { ...data, totalDefectsPct }, lot.grade, lot.format);
+  const decision: "ACCEPTED" | "REJECTED" = violations.length === 0 ? "ACCEPTED" : "REJECTED";
+
   const created = await prisma.qualityCheck.create({
     data: {
       ...data,
+      decision,
       lotId: lot.id,
       palletId,
       checkpoint: "POST_PACKAGING",
@@ -121,7 +125,6 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
     },
   });
 
-  const violations = checkQualityLimits("POST_PACKAGING", { ...data, totalDefectsPct }, lot.grade, lot.format);
   await raiseQualityLimitAlert({
     checkId: created.id,
     checkpointLabel: "Post-Freeze Inspection",
@@ -130,5 +133,5 @@ export async function createPostFreezeCheckAction(_prevState: string | undefined
   });
 
   revalidatePath("/post-freeze-inspection");
-  return encodeActionResult(created.id, violations);
+  return encodeActionResult(created.id, decision, violations);
 }

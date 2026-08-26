@@ -44,7 +44,6 @@ const preDecapCheckSchema = z.object({
   sandDustPct: pct(),
   foreignBodiesPct: pct(),
 
-  decision: z.enum(["ACCEPTED", "REJECTED"]),
   notes: z.string().optional(),
 }).refine((data) => Boolean(data.fieldName?.trim() || data.plotLineId), {
   message: "Select a plot (via Serial Number, or type the Plot Number).",
@@ -102,13 +101,17 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
     return `Sample No. "${data.sampleNo}" was already logged today for Pre-Decap Arrivals — check for a duplicate entry.`;
   }
 
+  // Decision is computed, never picked by the supervisor -- see checkQualityLimits.
+  const violations = checkQualityLimits("PRE_DECAP", { ...data, totalDefectsPct });
+  const decision: "ACCEPTED" | "REJECTED" = violations.length === 0 ? "ACCEPTED" : "REJECTED";
+
   const created = await prisma.qualityCheck.create({
     data: {
       checkpoint: "PRE_DECAP",
       lotId: null,
       fieldId,
       harvestTicketPlotLineId: plotLineId,
-      decision: data.decision,
+      decision,
       complianceLevel: "GLOBALGAP",
       receiptNoteNo: data.receiptNoteNo,
       varietyName: data.varietyName,
@@ -141,7 +144,6 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
     },
   });
 
-  const violations = checkQualityLimits("PRE_DECAP", { ...data, totalDefectsPct });
   await raiseQualityLimitAlert({
     checkId: created.id,
     checkpointLabel: "Pre-Decap Arrival",
@@ -165,5 +167,5 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
   }
 
   revalidatePath("/pre-decap-inspection");
-  return encodeActionResult(created.id, violations);
+  return encodeActionResult(created.id, decision, violations);
 }

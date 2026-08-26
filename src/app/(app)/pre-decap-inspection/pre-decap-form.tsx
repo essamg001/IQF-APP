@@ -6,6 +6,7 @@ import { createPreDecapCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { VarietyField } from "@/components/variety-field";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
@@ -69,6 +70,11 @@ export function PreDecapForm({
       <SampleFields key={isSuccess ? state : "initial"} fields={fields} harvestTickets={harvestTickets} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {decoded && decoded.violations.length === 0 && (
+        <p className="text-sm">
+          <Badge color="green">{dict.acceptable}</Badge>
+        </p>
+      )}
       {decoded && <QualityLimitWarning violations={decoded.violations} />}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">{dict.saved}</p>}
       <Button type="submit" disabled={pending} className="w-full">
@@ -134,7 +140,6 @@ function SerialPlotPicker({ tickets, fields }: { tickets: HarvestTicketOption[];
 }
 
 function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harvestTickets: HarvestTicketOption[] }) {
-  const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
   const { total: defectTotal, bind } = useDefectTotal(PRE_DECAP_DEFECT_FIELDS);
   const dict = useTranslations().preDecapInspection;
 
@@ -206,26 +211,9 @@ function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harve
       </Card>
 
       <Card className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label={dict.decisionLabel}>
-            <Select
-              name="decision"
-              required
-              value={decision}
-              onChange={(e) => setDecision(e.target.value as typeof decision)}
-            >
-              <option value="ACCEPTED">{dict.acceptable}</option>
-              <option value="REJECTED">{dict.unacceptable}</option>
-            </Select>
-          </FieldGroup>
-          <FieldGroup label={decision === "REJECTED" ? dict.reason : dict.reasonOptional}>
-            <Input
-              name="notes"
-              placeholder={decision === "REJECTED" ? dict.reasonPlaceholder : undefined}
-              required={decision === "REJECTED"}
-            />
-          </FieldGroup>
-        </div>
+        <FieldGroup label={dict.reasonOptional}>
+          <Input name="notes" />
+        </FieldGroup>
       </Card>
     </>
   );

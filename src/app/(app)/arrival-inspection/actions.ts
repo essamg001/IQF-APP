@@ -16,7 +16,6 @@ const pct = () => z.coerce.number().min(0).max(100).optional();
 const arrivalCheckSchema = z
   .object({
     appliesToWholeDelivery: z.boolean(),
-    decision: z.enum(["ACCEPTED", "REJECTED"]),
 
     shiftNumber: z.string().optional(),
     rawMaterialSource: z.string().optional(),
@@ -72,10 +71,6 @@ const arrivalCheckSchema = z
   .refine((data) => data.appliesToWholeDelivery || data.brix !== undefined, {
     message: "Brix is required unless this is a whole-delivery rejection.",
     path: ["brix"],
-  })
-  .refine((data) => data.decision !== "REJECTED" || !!data.notes?.trim(), {
-    message: "A reason is required when the delivery is rejected.",
-    path: ["notes"],
   });
 
 
@@ -111,11 +106,24 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
     }
   }
 
+  // A whole-delivery rejection is the supervisor's own deliberate call (no
+  // pallet-by-pallet sampling happens, so there's nothing to compute against
+  // thresholds) -- everything else is decided by checkQualityLimits, never
+  // picked manually.
+  const violations = data.appliesToWholeDelivery
+    ? []
+    : checkQualityLimits("RAW_MATERIAL", { ...data, totalDefectsPct });
+  const decision: "ACCEPTED" | "REJECTED" = data.appliesToWholeDelivery
+    ? "REJECTED"
+    : violations.length === 0
+      ? "ACCEPTED"
+      : "REJECTED";
+
   const created = await prisma.qualityCheck.create({
     data: {
       checkpoint: "RAW_MATERIAL",
       lotId: null,
-      decision: data.decision,
+      decision,
       appliesToWholeDelivery: data.appliesToWholeDelivery,
       shiftNumber: data.shiftNumber,
       // We certify to a single standard, so this is stamped automatically
@@ -167,11 +175,6 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
     },
   });
 
-  // A whole-delivery rejection skips per-defect sampling entirely, so there's
-  // no measured values to check against a limit.
-  const violations = data.appliesToWholeDelivery
-    ? []
-    : checkQualityLimits("RAW_MATERIAL", { ...data, totalDefectsPct });
   await raiseQualityLimitAlert({
     checkId: created.id,
     checkpointLabel: "Arrival Inspection at Factory",
@@ -182,5 +185,5 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
   });
 
   revalidatePath("/arrival-inspection");
-  return encodeActionResult(created.id, violations);
+  return encodeActionResult(created.id, decision, violations);
 }

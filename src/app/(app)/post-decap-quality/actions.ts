@@ -62,7 +62,6 @@ const postDecapCheckSchema = z.object({
   unfumigatedPalletsPct: pct(),
   brokenUncleanCratesPct: pct(),
 
-  decision: z.enum(["ACCEPTED", "REJECTED"]),
   divertedTo: z.string().optional(),
   retrainingRequested: z.boolean(),
   notes: z.string().optional(),
@@ -109,13 +108,17 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
     return `Sample No. "${data.sampleNo}" was already logged today for Post-Decap Quality — check for a duplicate entry.`;
   }
 
+  // Decision is computed, never picked by the supervisor -- see checkQualityLimits.
+  const violations = checkQualityLimits("POST_DECAP", { ...data, totalDefectsPct });
+  const decision: "ACCEPTED" | "REJECTED" = violations.length === 0 ? "ACCEPTED" : "REJECTED";
+
   const created = await prisma.qualityCheck.create({
     data: {
       checkpoint: "POST_DECAP",
       lotId: null,
       fieldId,
       decapShiftId: decapShift.id,
-      decision: data.decision,
+      decision,
       complianceLevel: "GLOBALGAP",
       receiptNoteNo: data.receiptNoteNo,
       varietyName: data.varietyName,
@@ -159,7 +162,6 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
     },
   });
 
-  const violations = checkQualityLimits("POST_DECAP", { ...data, totalDefectsPct });
   await raiseQualityLimitAlert({
     checkId: created.id,
     checkpointLabel: "Post-Decap Quality",
@@ -170,5 +172,5 @@ export async function createPostDecapCheckAction(_prevState: string | undefined,
   revalidatePath("/post-decap-quality");
   revalidatePath("/production/new");
   revalidatePath("/shifts/new");
-  return encodeActionResult(created.id, violations);
+  return encodeActionResult(created.id, decision, violations);
 }

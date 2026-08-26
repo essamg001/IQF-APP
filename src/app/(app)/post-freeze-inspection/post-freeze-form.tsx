@@ -5,6 +5,7 @@ import { createPostFreezeCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { VarietyField } from "@/components/variety-field";
 import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
@@ -210,6 +211,11 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
       <MeasurementFields key={isSuccess ? state : "initial"} grade={grade} format={lotFormat} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {decoded && decoded.violations.length === 0 && (
+        <p className="text-sm">
+          <Badge color="green">{dict.acceptable}</Badge>
+        </p>
+      )}
       {decoded && <QualityLimitWarning violations={decoded.violations} />}
       {isSuccess && <p className="text-sm font-medium text-emerald-700">{dict.saved}</p>}
       <Button type="submit" disabled={pending} className="w-full">
@@ -234,7 +240,6 @@ function PalletInput({ pallets, placeholder }: { pallets: Pallet[]; placeholder:
 
 function MeasurementFields({ grade, format: lotFormat }: { grade: Grade; format: Format }) {
   const limits = useMemo(() => displayLimitsFor(lotFormat, grade), [lotFormat, grade]);
-  const [decision, setDecision] = useState<"ACCEPTED" | "REJECTED">("ACCEPTED");
   const { total: defectTotal, bind } = useDefectTotal(POST_PACKAGING_DEFECT_FIELDS);
   const totalDefectsMax = limitsFor("POST_PACKAGING", grade, lotFormat).find((r) => r.field === "totalDefectsPct")!.max!;
   const fullDict = useTranslations();
@@ -368,17 +373,9 @@ function MeasurementFields({ grade, format: lotFormat }: { grade: Grade; format:
       </Card>
 
       <Card className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label={dict.decisionLabel}>
-            <Select name="decision" required value={decision} onChange={(e) => setDecision(e.target.value as typeof decision)}>
-              <option value="ACCEPTED">{dict.acceptable}</option>
-              <option value="REJECTED">{dict.unacceptable}</option>
-            </Select>
-          </FieldGroup>
-          <FieldGroup label={decision === "REJECTED" ? dict.correctiveAction : dict.correctiveActionOptional}>
-            <Input name="notes" required={decision === "REJECTED"} />
-          </FieldGroup>
-        </div>
+        <FieldGroup label={dict.correctiveActionOptional}>
+          <Input name="notes" />
+        </FieldGroup>
       </Card>
     </>
   );
