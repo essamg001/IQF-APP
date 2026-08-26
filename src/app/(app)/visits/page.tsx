@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { canAccessVisits } from "@/lib/roles";
 import { VisitForm } from "./visit-form";
 
 export default async function VisitsPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER") {
+  if (!canAccessVisits(session?.user)) {
     redirect("/");
   }
 

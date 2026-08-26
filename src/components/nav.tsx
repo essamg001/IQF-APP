@@ -9,7 +9,7 @@ import type { Role, Station } from "@prisma/client";
 
 type NavKey = keyof Dictionary["nav"];
 
-type NavItem = { href: string; labelKey: NavKey; roles?: Role[]; requiresHeadOfSales?: boolean };
+type NavItem = { href: string; labelKey: NavKey; roles?: Role[]; requiresHeadOfSales?: boolean; requiresHeadOfProduction?: boolean };
 
 // Two different kinds of section, deliberately kept apart: sections whose
 // items follow the strawberry's own physical journey (harvest -> decap ->
@@ -97,7 +97,7 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
       { href: "/injury-log", labelKey: "injuryLog" },
       { href: "/structural-issues", labelKey: "structuralIssues" },
       { href: "/packaging-materials", labelKey: "packagingMaterials" },
-      { href: "/visits", labelKey: "visits", roles: ["OWNER"] },
+      { href: "/visits", labelKey: "visits", requiresHeadOfProduction: true },
       { href: "/non-conformance", labelKey: "nonConformance" },
       { href: "/laundry", labelKey: "laundry", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
       { href: "/training", labelKey: "staffTraining", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
@@ -133,10 +133,21 @@ const STATION_ITEM: Record<Station, { href: string; labelKey: NavKey }> = {
   LAB: { href: "/lab", labelKey: "lab" },
 };
 
-export function Nav({ role, isHeadOfSales, station }: { role: Role; isHeadOfSales: boolean; station: Station | null }) {
+export function Nav({
+  role,
+  isHeadOfSales,
+  isHeadOfProduction,
+  station,
+}: {
+  role: Role;
+  isHeadOfSales: boolean;
+  isHeadOfProduction: boolean;
+  station: Station | null;
+}) {
   const pathname = usePathname();
   const dict = useTranslations();
   const canSeeTrends = role === "OWNER" || isHeadOfSales;
+  const canSeeVisits = role === "OWNER" || isHeadOfProduction;
 
   if (station) {
     const item = STATION_ITEM[station];
@@ -154,7 +165,8 @@ export function Nav({ role, isHeadOfSales, station }: { role: Role; isHeadOfSale
       {NAV_SECTIONS.map((section, sectionIndex) => {
         const visibleItems = section.items
           .filter((item) => !item.roles || item.roles.includes(role))
-          .filter((item) => !item.requiresHeadOfSales || canSeeTrends);
+          .filter((item) => !item.requiresHeadOfSales || canSeeTrends)
+          .filter((item) => !item.requiresHeadOfProduction || canSeeVisits);
         if (visibleItems.length === 0) return null;
 
         return (

@@ -59,6 +59,16 @@ export function canSignAsHeadOfProduction(user: { role: Role; isHeadOfProduction
   return user.role === "OWNER" || user.isHeadOfProduction;
 }
 
+/**
+ * Visits (client audits/factory visits) -- Owner + whoever holds
+ * isHeadOfProduction, since the owner said Head of Production will most
+ * likely be the one actually recording this data day-to-day.
+ */
+export function canAccessVisits(user: { role: Role; isHeadOfProduction: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfProduction;
+}
+
 /** Cleaning Mode's Head of Maintenance side -- see canSignAsHeadOfProduction. */
 export function canSignAsHeadOfMaintenance(user: { role: Role; isHeadOfMaintenance: boolean } | undefined | null) {
   if (!user) return false;

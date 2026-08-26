@@ -7,6 +7,7 @@ import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { canAccessVisits } from "@/lib/roles";
 
 const visitSchema = z.object({
   factoryId: z.string().min(1),
@@ -20,7 +21,7 @@ const visitSchema = z.object({
 
 export async function createFactoryVisitAction(_prevState: string | undefined, formData: FormData) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER") return "You don't have permission to do this.";
+  if (!session?.user || !canAccessVisits(session.user)) return "You don't have permission to do this.";
 
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
   const parsed = visitSchema.safeParse({ ...raw, isAudit: formData.get("isAudit") === "on" });
@@ -57,7 +58,7 @@ const findingSchema = z.object({
 
 export async function addAuditFindingAction(visitId: string, _prevState: string | undefined, formData: FormData) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER") return "You don't have permission to do this.";
+  if (!session?.user || !canAccessVisits(session.user)) return "You don't have permission to do this.";
 
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
   const parsed = findingSchema.safeParse(raw);
@@ -86,12 +87,14 @@ export async function addAuditFindingAction(visitId: string, _prevState: string 
 }
 
 export async function addFindingPhotoAction(visitId: string, findingId: string, formData: FormData) {
+  const session = await auth();
+  if (!session?.user || !canAccessVisits(session.user)) return;
+
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return;
 
   const caption = (formData.get("caption") as string) || undefined;
   const saved = await saveUploadedFile(file, "audit-finding-photos");
-  const session = await auth();
 
   await prisma.clientAuditFindingPhoto.create({
     data: {
@@ -107,13 +110,16 @@ export async function addFindingPhotoAction(visitId: string, findingId: string, 
 }
 
 export async function removeFindingPhotoAction(visitId: string, photoId: string) {
+  const session = await auth();
+  if (!session?.user || !canAccessVisits(session.user)) return;
+
   await prisma.clientAuditFindingPhoto.delete({ where: { id: photoId } });
   revalidatePath(`/visits/${visitId}`);
 }
 
 export async function raiseFindingAsNonConformanceAction(visitId: string, findingId: string) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER") return;
+  if (!session?.user || !canAccessVisits(session.user)) return;
 
   const finding = await prisma.clientAuditFinding.findUnique({
     where: { id: findingId },

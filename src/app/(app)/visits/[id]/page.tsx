@@ -10,6 +10,7 @@ import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { canAccessVisits } from "@/lib/roles";
 import { FindingForm } from "../finding-form";
 import {
   addFindingPhotoAction,
@@ -19,7 +20,7 @@ import {
 
 export default async function VisitDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER") {
+  if (!canAccessVisits(session?.user)) {
     redirect("/");
   }
 
