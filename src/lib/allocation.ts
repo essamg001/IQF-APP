@@ -111,8 +111,15 @@ export async function suggestAllocation(
 
     let score = 0;
     if (avgBrix !== null) {
-      if (avgBrix < brixRange.min) score += brixRange.min - avgBrix;
-      else if (avgBrix > brixRange.max) score += avgBrix - brixRange.max;
+      // Distance from the CENTER of the range, not from its edges. A pallet
+      // outside the range is already excluded above (see eligiblePallets'
+      // spec-compliance check, which uses this exact same range) -- so
+      // "distance beyond the edge" can never be positive here in the normal
+      // case, and every surviving pallet would score a tying 0 despite one
+      // being dead-center and another barely squeaking in at the boundary.
+      // Distance-from-center actually differentiates between them.
+      const center = (brixRange.min + brixRange.max) / 2;
+      score += Math.abs(avgBrix - center);
     } else {
       score += 5; // no data — deprioritize vs. known-good matches
     }
@@ -123,7 +130,7 @@ export async function suggestAllocation(
 
   scored.sort((a, b) => a.score - b.score || a.pallet.createdAt.getTime() - b.pallet.createdAt.getTime());
 
-  return pickClusteredByLine(scored, quantity);
+  return pickClusteredByLotThenLine(scored, quantity);
 }
 
 type EligiblePallet = Prisma.PalletGetPayload<{
@@ -138,32 +145,91 @@ type ScoredPallet = { pallet: EligiblePallet; score: number };
 // -- is sized to roughly a container's worth (see ColdRoomSlot's schema
 // comment), so pulling a shipment off one line rather than scattered across
 // the room is physically much easier for the driver and supervisor loading
-// it. Walks the quality-ranked list and, from the best still-unpicked
-// pallet, greedily takes every other still-eligible pallet already in that
-// same line (in the existing quality order) before moving on to the next
-// best pallet elsewhere. Line-clustering only ever trades off between
-// otherwise-equally-eligible pallets -- it never overrides the quality
-// ranking a spec/brix match already produced, since the anchor is always
-// literally the next-best pallet not yet picked. A pallet with no shelf
-// assignment yet is its own singleton line (nothing to cluster it with).
+// it. A pallet with no shelf assignment yet is its own singleton line
+// (nothing to cluster it with).
 function lineKey(pallet: EligiblePallet) {
   return pallet.slot ? `${pallet.slot.coldRoomId}::${pallet.slot.round}::${pallet.slot.rack}` : `unassigned::${pallet.id}`;
 }
 
-function pickClusteredByLine(ranked: ScoredPallet[], quantity: number): EligiblePallet[] {
-  const remaining = new Set(ranked.map((r) => r.pallet.id));
+// Within one lot's still-remaining pallets (already in quality order), greedily
+// exhausts the best-still-unpicked pallet's storage line before moving to the
+// next best pallet elsewhere in the same lot -- same reasoning as the module
+// doc comment on lineKey, just scoped to whichever lot pickClusteredByLotThenLine
+// has already chosen.
+function pickWithinLotByLine(lotEntries: ScoredPallet[], need: number): EligiblePallet[] {
+  // Sorts defensively rather than trusting callers to pass entries already
+  // in quality order -- cheap at this scale, and it removes an implicit
+  // precondition that silently produced the wrong pick order in an earlier
+  // version of this file's own test suite when it was forgotten once.
+  lotEntries = [...lotEntries].sort((a, b) => a.score - b.score);
+  const remaining = new Set(lotEntries.map((r) => r.pallet.id));
   const picks: EligiblePallet[] = [];
 
-  while (picks.length < quantity && remaining.size > 0) {
-    const anchor = ranked.find((r) => remaining.has(r.pallet.id))!;
+  while (picks.length < need && remaining.size > 0) {
+    const anchor = lotEntries.find((r) => remaining.has(r.pallet.id))!;
     const anchorLine = lineKey(anchor.pallet);
 
-    for (const r of ranked) {
-      if (picks.length >= quantity) break;
+    for (const r of lotEntries) {
+      if (picks.length >= need) break;
       if (!remaining.has(r.pallet.id)) continue;
       if (lineKey(r.pallet) !== anchorLine) continue;
       picks.push(r.pallet);
       remaining.delete(r.pallet.id);
+    }
+  }
+
+  return picks;
+}
+
+// Clients prefer a shipment drawn from as few production lots as possible
+// (consistent characteristics, a simpler certificate of analysis) -- a
+// stronger preference than storage-line clustering, since it's a client
+// expectation, not just a driver convenience. So lot is the OUTER grouping,
+// line-clustering the inner one within whichever lot gets chosen.
+//
+// Each round: prefer a lot that can supply the ENTIRE remaining need by
+// itself, picking the best (lowest average score) such lot if more than one
+// qualifies. If no single lot can fully cover what's left, prefer the lot
+// with the most still-eligible pallets (so the fewest additional lots are
+// needed to finish the order), quality as the tiebreaker. This can mean
+// choosing a lot that isn't quite the single best pallet's lot, if a
+// slightly-lower-scoring lot would let the whole order stay in one lot --
+// that trade is the point.
+function pickClusteredByLotThenLine(ranked: ScoredPallet[], quantity: number): EligiblePallet[] {
+  ranked = [...ranked].sort((a, b) => a.score - b.score); // see pickWithinLotByLine's comment on why this isn't left implicit
+  const remaining = new Set(ranked.map((r) => r.pallet.id));
+  const picks: EligiblePallet[] = [];
+
+  while (picks.length < quantity && remaining.size > 0) {
+    const need = quantity - picks.length;
+
+    const byLot = new Map<string, ScoredPallet[]>();
+    for (const r of ranked) {
+      if (!remaining.has(r.pallet.id)) continue;
+      const key = r.pallet.lotId;
+      if (!byLot.has(key)) byLot.set(key, []);
+      byLot.get(key)!.push(r);
+    }
+
+    const lots = [...byLot.values()].map((entries) => {
+      const count = entries.length;
+      const fullyCovers = count >= need;
+      const usedCount = fullyCovers ? need : count;
+      const repScore = entries.slice(0, usedCount).reduce((s, e) => s + e.score, 0) / usedCount;
+      return { entries, count, fullyCovers, repScore };
+    });
+
+    lots.sort((a, b) => {
+      if (a.fullyCovers !== b.fullyCovers) return a.fullyCovers ? -1 : 1;
+      if (a.fullyCovers) return a.repScore - b.repScore; // both cover fully -- best quality wins
+      if (b.count !== a.count) return b.count - a.count; // neither covers fully -- prefer fewer lots to finish
+      return a.repScore - b.repScore;
+    });
+
+    const chosenLot = lots[0]!;
+    for (const p of pickWithinLotByLine(chosenLot.entries, need)) {
+      picks.push(p);
+      remaining.delete(p.id);
     }
   }
 
