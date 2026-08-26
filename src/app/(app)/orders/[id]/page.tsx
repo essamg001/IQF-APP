@@ -238,17 +238,42 @@ export default async function OrderDetailPage({
       </div>
 
       <Card className="overflow-x-auto p-0">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-900">{dict.allocatedPalletsTitle}</h2>
-          <LinkButton
-            // Only prefill a container when there's exactly one on this order --
-            // defaulting to containers[0] on a multi-container order would
-            // silently attach the claim to the wrong shipment.
-            href={`/claims/new?clientId=${order.clientId}${order.containers.length === 1 ? `&containerNumber=${order.containers[0].containerNumber}` : ""}`}
-            variant="secondary"
-          >
-            {dict.fileClaim}
-          </LinkButton>
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              // One "View on Storage Map" link per cold room this order's
+              // still-in-storage pallets are actually shelved in -- a
+              // shipped pallet is gone, so there's nothing to highlight for
+              // it. Groups by room since a highlight query param only
+              // targets one room's map at a time.
+              const byRoom = new Map<string, { name: string; palletIds: string[] }>();
+              for (const p of order.pallets) {
+                if (p.status === "SHIPPED" || !p.coldRoomId || !p.slot) continue;
+                const entry = byRoom.get(p.coldRoomId) ?? { name: p.coldRoom!.name, palletIds: [] };
+                entry.palletIds.push(p.id);
+                byRoom.set(p.coldRoomId, entry);
+              }
+              return [...byRoom.entries()].map(([roomId, { name, palletIds }]) => (
+                <LinkButton
+                  key={roomId}
+                  href={`/storage/map/${roomId}?highlight=${palletIds.join(",")}`}
+                  variant="secondary"
+                >
+                  {dict.viewOnStorageMap.replace("{room}", name)}
+                </LinkButton>
+              ));
+            })()}
+            <LinkButton
+              // Only prefill a container when there's exactly one on this order --
+              // defaulting to containers[0] on a multi-container order would
+              // silently attach the claim to the wrong shipment.
+              href={`/claims/new?clientId=${order.clientId}${order.containers.length === 1 ? `&containerNumber=${order.containers[0].containerNumber}` : ""}`}
+              variant="secondary"
+            >
+              {dict.fileClaim}
+            </LinkButton>
+          </div>
         </div>
         <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">

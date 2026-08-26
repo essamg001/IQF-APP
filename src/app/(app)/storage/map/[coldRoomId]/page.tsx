@@ -6,8 +6,16 @@ import { ColdRoomGrid } from "./cold-room-grid";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
-export default async function ColdRoomMapPage({ params }: { params: Promise<{ coldRoomId: string }> }) {
+export default async function ColdRoomMapPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ coldRoomId: string }>;
+  searchParams: Promise<{ highlight?: string }>;
+}) {
   const { coldRoomId } = await params;
+  const { highlight } = await searchParams;
+  const highlightPalletIds = highlight ? highlight.split(",").filter(Boolean) : undefined;
   const dict = getDictionary(await resolveLocale()).storage;
 
   const coldRoom = await prisma.coldRoom.findUnique({ where: { id: coldRoomId } });
@@ -92,6 +100,7 @@ export default async function ColdRoomMapPage({ params }: { params: Promise<{ co
         levelCount={coldRoom.levelCount}
         slots={slotsForClient}
         suggestedSlotId={suggestedSlot?.id ?? null}
+        highlightPalletIds={highlightPalletIds}
         unassignedPallets={unassignedPallets.map((p) => ({
           id: p.id,
           palletNumber: p.palletNumber,

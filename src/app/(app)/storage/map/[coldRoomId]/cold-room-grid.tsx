@@ -59,6 +59,7 @@ export function ColdRoomGrid({
   slots,
   suggestedSlotId,
   unassignedPallets,
+  highlightPalletIds,
 }: {
   coldRoomId: string;
   rounds: number;
@@ -67,11 +68,17 @@ export function ColdRoomGrid({
   slots: Slot[];
   suggestedSlotId: string | null;
   unassignedPallets: UnassignedPallet[];
+  highlightPalletIds?: string[];
 }) {
   const fullDict = useTranslations();
   const dict = fullDict.storage;
+  const highlightSet = useMemo(() => new Set(highlightPalletIds ?? []), [highlightPalletIds]);
+  const highlightedSlots = useMemo(
+    () => slots.filter((s) => s.pallet && highlightSet.has(s.pallet.id)),
+    [slots, highlightSet]
+  );
   const suggestedSlot = useMemo(() => slots.find((s) => s.id === suggestedSlotId) ?? null, [slots, suggestedSlotId]);
-  const [round, setRound] = useState(suggestedSlot?.round ?? 1);
+  const [round, setRound] = useState(highlightedSlots[0]?.round ?? suggestedSlot?.round ?? 1);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
 
   const racks = useMemo(() => Array.from({ length: rackCount }, (_, i) => rackLetter(i)), [rackCount]);
@@ -88,6 +95,28 @@ export function ColdRoomGrid({
   return (
     <div className="mt-4 grid grid-cols-[1fr_320px] gap-4">
       <Card className="overflow-x-auto p-3">
+        {highlightedSlots.length > 0 && (
+          <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+            <p className="font-semibold">{dict.pickListTitle}</p>
+            <ul className="mt-1 space-y-0.5">
+              {highlightedSlots
+                .sort((a, b) => a.round - b.round || a.rack.localeCompare(b.rack) || a.level - b.level)
+                .map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-3">
+                    <span className={cn("font-mono font-medium", s.pallet!.isTestData && TEST_DATA_TEXT_CLASS)}>
+                      {s.pallet!.palletNumber}
+                    </span>
+                    <span>
+                      {dict.rackLevelRound
+                        .replace("{rack}", s.rack)
+                        .replace("{level}", String(s.level))
+                        .replace("{round}", String(s.round))}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
         {suggestedSlot && (
           <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
             <span>
@@ -142,6 +171,7 @@ export function ColdRoomGrid({
               slotByPosition={slotByPosition}
               selectedSlotId={selectedSlotId}
               suggestedSlotId={suggestedSlotId}
+              highlightSet={highlightSet}
               onSelect={setSelectedSlotId}
             />
           ))}
@@ -176,6 +206,7 @@ function RowFragment({
   slotByPosition,
   selectedSlotId,
   suggestedSlotId,
+  highlightSet,
   onSelect,
 }: {
   level: number;
@@ -184,6 +215,7 @@ function RowFragment({
   slotByPosition: Map<string, Slot>;
   selectedSlotId: string | null;
   suggestedSlotId: string | null;
+  highlightSet: Set<string>;
   onSelect: (id: string) => void;
 }) {
   const dict = useTranslations().storage;
@@ -205,10 +237,11 @@ function RowFragment({
           colorClass = STATUS_COLOR[slot.pallet!.quality?.microbiologyStatus ?? "PENDING"] ?? STATUS_COLOR.PENDING;
         }
         const isSuggested = !occupied && slot.id === suggestedSlotId;
+        const isHighlighted = occupied && highlightSet.has(slot.pallet!.id);
         const title = occupied
           ? `${slot.pallet!.palletNumber} — ${dict.lotHashLabel} ${slot.pallet!.lotNumber}${
               cfuValue != null ? dict.cfuPerGramSuffix.replace("{value}", cfuValue.toLocaleString("en-US")) : ""
-            }${slot.pallet!.isTestData ? dict.testDataSuffix : ""}`
+            }${slot.pallet!.isTestData ? dict.testDataSuffix : ""}${isHighlighted ? ` — ${dict.pickListTitle}` : ""}`
           : isSuggested
             ? dict.emptySuggestedSlotTitle.replace("{rackLevel}", `${rack}${level}`)
             : dict.emptySlotTitle.replace("{rackLevel}", `${rack}${level}`);
@@ -218,7 +251,13 @@ function RowFragment({
             title={title}
             onClick={() => onSelect(slot.id)}
             className={`h-8 truncate rounded border px-0.5 text-[10px] font-medium ${colorClass} ${
-              selectedSlotId === slot.id ? "ring-2 ring-emerald-600" : isSuggested ? "ring-2 ring-amber-500" : ""
+              isHighlighted
+                ? "ring-4 ring-blue-600"
+                : selectedSlotId === slot.id
+                  ? "ring-2 ring-emerald-600"
+                  : isSuggested
+                    ? "ring-2 ring-amber-500"
+                    : ""
             }`}
           >
             {occupied ? slot.pallet!.palletNumber.slice(-6) : isSuggested ? "★" : "+"}
