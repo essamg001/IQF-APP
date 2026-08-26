@@ -31,10 +31,17 @@ export function parseBrixRange(text: string | null | undefined): { min: number; 
 }
 
 /**
- * Picks pallets for an order: FIFO by default. If the client has a spec for
- * this grade + format, ranks eligible lots by brix fit (parsed from the
- * free-text spec) before falling back to FIFO order, with logged defect %
- * as a secondary tiebreaker.
+ * Picks pallets for an order. Meeting the client's spec is a pass/fail bar,
+ * not something to optimize past -- once a pallet is compliant, reaching
+ * for the single "best" one instead of the oldest one just skims the best
+ * stock first and leaves progressively worse (still compliant) stock
+ * behind for later orders. So among compliant pallets, plain FIFO decides
+ * order, with two consolidation preferences layered on top (neither is
+ * about quality, both are about touching as little of the warehouse as
+ * possible): stay within one production lot where a single lot can cover
+ * the order (clients prefer consistent characteristics / a simpler
+ * certificate of analysis), and within that lot, stay within one storage
+ * line (easier for the driver/supervisor loading it).
  */
 export async function suggestAllocation(
   params: {
@@ -94,41 +101,13 @@ export async function suggestAllocation(
     return true;
   });
 
-  const brixRange = parseBrixRange(spec?.brix);
-
-  // Uniform (score, pallet) ranking -- quality-ranked if a brix spec exists,
-  // otherwise 0 for everyone so FIFO alone decides (matches the prior
-  // no-spec behavior exactly, just expressed through the same ranking path
-  // that line-clustering below also uses).
-  const scored = eligiblePallets.map((pallet) => {
-    if (!spec || !brixRange) return { pallet, score: 0 };
-
-    const checks = pallet.lot.qualityChecks;
-    const avgBrix = checks.length ? checks.reduce((s, c) => s + c.brix, 0) / checks.length : null;
-    const avgDefect = checks.length
-      ? checks.reduce((s, c) => s + (c.mouldPct ?? 0) + (c.skinDamagePct ?? 0), 0) / checks.length
-      : 0;
-
-    let score = 0;
-    if (avgBrix !== null) {
-      // Distance from the CENTER of the range, not from its edges. A pallet
-      // outside the range is already excluded above (see eligiblePallets'
-      // spec-compliance check, which uses this exact same range) -- so
-      // "distance beyond the edge" can never be positive here in the normal
-      // case, and every surviving pallet would score a tying 0 despite one
-      // being dead-center and another barely squeaking in at the boundary.
-      // Distance-from-center actually differentiates between them.
-      const center = (brixRange.min + brixRange.max) / 2;
-      score += Math.abs(avgBrix - center);
-    } else {
-      score += 5; // no data — deprioritize vs. known-good matches
-    }
-    score += avgDefect * 0.1; // mild tiebreaker toward lower logged defects
-
-    return { pallet, score };
-  });
-
-  scored.sort((a, b) => a.score - b.score || a.pallet.createdAt.getTime() - b.pallet.createdAt.getTime());
+  // FIFO among compliant pallets -- see the doc comment above for why this
+  // isn't ranked by brix/defect quality. "score" here is purely the
+  // pallet's age (oldest = lowest = picked first); pickClusteredByLotThenLine
+  // and pickWithinLotByLine both just sort ascending by it, same as they
+  // would for a real quality score, so a lot/line's "repScore" naturally
+  // becomes that group's average age instead.
+  const scored = eligiblePallets.map((pallet) => ({ pallet, score: pallet.createdAt.getTime() }));
 
   return pickClusteredByLotThenLine(scored, quantity);
 }
@@ -151,11 +130,11 @@ function lineKey(pallet: EligiblePallet) {
   return pallet.slot ? `${pallet.slot.coldRoomId}::${pallet.slot.round}::${pallet.slot.rack}` : `unassigned::${pallet.id}`;
 }
 
-// Within one lot's still-remaining pallets (already in quality order), greedily
-// exhausts the best-still-unpicked pallet's storage line before moving to the
-// next best pallet elsewhere in the same lot -- same reasoning as the module
-// doc comment on lineKey, just scoped to whichever lot pickClusteredByLotThenLine
-// has already chosen.
+// Within one lot's still-remaining pallets (already in FIFO order), greedily
+// exhausts the oldest-still-unpicked pallet's storage line before moving to
+// the next-oldest pallet elsewhere in the same lot -- same reasoning as the
+// module doc comment on lineKey, just scoped to whichever lot
+// pickClusteredByLotThenLine has already chosen.
 function pickWithinLotByLine(lotEntries: ScoredPallet[], need: number): EligiblePallet[] {
   // Sorts defensively rather than trusting callers to pass entries already
   // in quality order -- cheap at this scale, and it removes an implicit
@@ -185,16 +164,19 @@ function pickWithinLotByLine(lotEntries: ScoredPallet[], need: number): Eligible
 // (consistent characteristics, a simpler certificate of analysis) -- a
 // stronger preference than storage-line clustering, since it's a client
 // expectation, not just a driver convenience. So lot is the OUTER grouping,
-// line-clustering the inner one within whichever lot gets chosen.
+// line-clustering the inner one within whichever lot gets chosen. Neither
+// level chases quality -- see suggestAllocation's doc comment -- so "score"
+// throughout this function is age (FIFO), and a lot's "repScore" is just
+// that lot's average age among the pallets that would actually be used.
 //
 // Each round: prefer a lot that can supply the ENTIRE remaining need by
-// itself, picking the best (lowest average score) such lot if more than one
+// itself, picking the oldest-on-average such lot if more than one
 // qualifies. If no single lot can fully cover what's left, prefer the lot
 // with the most still-eligible pallets (so the fewest additional lots are
-// needed to finish the order), quality as the tiebreaker. This can mean
-// choosing a lot that isn't quite the single best pallet's lot, if a
-// slightly-lower-scoring lot would let the whole order stay in one lot --
-// that trade is the point.
+// needed to finish the order), age as the tiebreaker. This can mean
+// choosing a lot that isn't home to the single oldest pallet overall, if
+// staying within it lets the whole order stay in one lot -- that trade is
+// the point.
 function pickClusteredByLotThenLine(ranked: ScoredPallet[], quantity: number): EligiblePallet[] {
   ranked = [...ranked].sort((a, b) => a.score - b.score); // see pickWithinLotByLine's comment on why this isn't left implicit
   const remaining = new Set(ranked.map((r) => r.pallet.id));
@@ -221,9 +203,9 @@ function pickClusteredByLotThenLine(ranked: ScoredPallet[], quantity: number): E
 
     lots.sort((a, b) => {
       if (a.fullyCovers !== b.fullyCovers) return a.fullyCovers ? -1 : 1;
-      if (a.fullyCovers) return a.repScore - b.repScore; // both cover fully -- best quality wins
+      if (a.fullyCovers) return a.repScore - b.repScore; // both cover fully -- oldest-on-average wins
       if (b.count !== a.count) return b.count - a.count; // neither covers fully -- prefer fewer lots to finish
-      return a.repScore - b.repScore;
+      return a.repScore - b.repScore; // final tiebreak -- oldest-on-average
     });
 
     const chosenLot = lots[0]!;
