@@ -356,6 +356,25 @@ export async function updateDepartmentLabourEntryAction(
 
   await prisma.$transaction(ops);
 
+  // Log Shift doesn't ask for a worker count -- it's expected to come from
+  // here, this shift's real Labour Distribution total, once Daily Report is
+  // filled in (same reasoning as end time / updateLineEfficiencyAction
+  // above). Keeps the ShiftLog row in sync with the latest total every time
+  // this department's entry changes, rather than only filling it once.
+  const shift = await prisma.shiftLog.findFirst({ where: { factoryId, date: parsedDate, shiftType } });
+  if (shift) {
+    const totals = await prisma.dailyLabourEntry.aggregate({
+      where: { factoryId, date: parsedDate, shiftType },
+      _sum: { headcount: true },
+    });
+    await prisma.shiftLog.update({
+      where: { id: shift.id },
+      data: { workerCount: totals._sum.headcount ?? null },
+    });
+    revalidatePath("/shifts");
+    revalidatePath(`/shifts/${shift.id}`);
+  }
+
   revalidatePath("/daily-report");
   return "ok";
 }

@@ -2652,14 +2652,8 @@ const en = {
     shiftLabel: "Shift",
     dateLabel: "Date",
     startTimeLabel: "Start time",
-    endTimeOptionalLabel: "End time (optional)",
-    prefilledFromUptimeNote:
-      "Prefilled from this shift's line uptime in Daily Report — edit if the actual start/end differs.",
-    leaveEndBlankNote:
-      "Leave end time blank if the shift hasn't finished yet — it fills in automatically once today's Daily Report records this shift's line uptime.",
-    numberOfWorkersLabel: "Number of workers",
-    prefilledFromLabourNote: "Prefilled from this shift's Labour Distribution total in Daily Report — edit if it differs.",
-    noLabourDataNote: "No Labour Distribution recorded yet for this shift — enter the worker count manually.",
+    endAndWorkersFromDailyReportNote:
+      "End time and worker count aren't known yet at shift-open — both fill in automatically once today's Daily Report records this shift's line uptime and Labour Distribution.",
     fieldsSupplyingLabel: "Fields already supplying this shift (from Post-Decap Quality)",
     saving: "Saving…",
     logShiftButton: "Log shift",

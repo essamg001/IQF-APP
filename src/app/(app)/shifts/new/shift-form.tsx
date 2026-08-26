@@ -26,20 +26,17 @@ type EfficiencyLookupRow = {
   uptimeTo: string | null;
 };
 
-type LabourLookupRow = { factoryId: string; date: string; shiftType: string; totalHeadcount: number };
 type FieldsLookupRow = { date: string; shiftType: string; fieldNames: string[] };
 
 export function ShiftForm({
   factories,
   initial,
   efficiencyLookup,
-  labourLookup,
   fieldsLookup,
 }: {
   factories: Factory[];
   initial?: { factoryId?: string; shiftType?: string; date?: string };
   efficiencyLookup: EfficiencyLookupRow[];
-  labourLookup: LabourLookupRow[];
   fieldsLookup: FieldsLookupRow[];
 }) {
   const [error, formAction, pending] = useActionState(createShiftAction, undefined);
@@ -66,12 +63,15 @@ export function ShiftForm({
 
   const [date, setDate] = useState(initial?.date ?? "");
   const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [workerCount, setWorkerCount] = useState("");
-  // Tracks whether the user has hand-edited a field for the current
+  // Tracks whether the user has hand-edited start time for the current
   // factory/date/shift combo, so a matching Daily Report value can prefill
-  // it without ever clobbering a deliberate edit.
-  const touchedRef = useRef({ start: false, end: false, workerCount: false });
+  // it without ever clobbering a deliberate edit. End time and worker count
+  // aren't asked for here at all -- neither is known yet at shift-open time.
+  // End time fills in automatically once Daily Report records this shift's
+  // line uptime (see updateLineEfficiencyAction); worker count fills in the
+  // same way once Daily Report's Labour Distribution is entered (see
+  // updateDepartmentLabourEntryAction).
+  const touchedRef = useRef({ start: false });
   const lastKeyRef = useRef("");
 
   const efficiencyByKey = useMemo(() => {
@@ -79,12 +79,6 @@ export function ShiftForm({
     for (const row of efficiencyLookup) m.set(`${row.factoryId}__${row.date}__${row.shiftType}`, row);
     return m;
   }, [efficiencyLookup]);
-
-  const labourByKey = useMemo(() => {
-    const m = new Map<string, LabourLookupRow>();
-    for (const row of labourLookup) m.set(`${row.factoryId}__${row.date}__${row.shiftType}`, row);
-    return m;
-  }, [labourLookup]);
 
   const fieldsByKey = useMemo(() => {
     const m = new Map<string, FieldsLookupRow>();
@@ -96,13 +90,11 @@ export function ShiftForm({
 
   const key = `${factoryId}__${date}__${shiftType}`;
   const match = date ? efficiencyByKey.get(key) : undefined;
-  const labourMatch = date ? labourByKey.get(key) : undefined;
   const fieldsMatch = date ? fieldsByKey.get(`${date}__${shiftType}`) : undefined;
 
-  // Start time defaults to the standard schedule (still editable); end time
-  // only prefills if Daily Report already happens to have this shift's
-  // uptime on file (e.g. logging retroactively) -- otherwise it's left blank
-  // and filled in automatically later, once Daily Report records it.
+  // Start time defaults to the standard schedule (still editable) unless
+  // Daily Report already happens to have this shift's uptime on file (e.g.
+  // logging retroactively).
   const fallbackStart = useMemo(
     () => (shiftType === "DAY" || shiftType === "NIGHT" ? scheduledStart(shiftType) : ""),
     [shiftType]
@@ -111,19 +103,15 @@ export function ShiftForm({
   useEffect(() => {
     if (key !== lastKeyRef.current) {
       // A fresh factory/date/shift combo -- start clean rather than leaving
-      // the previous combo's values sitting in the fields, since those belong
+      // the previous combo's value sitting in the field, since it belongs
       // to a different shift entirely.
       lastKeyRef.current = key;
-      touchedRef.current = { start: false, end: false, workerCount: false };
+      touchedRef.current = { start: false };
       setStartTime(match?.uptimeFrom ?? fallbackStart);
-      setEndTime(match?.uptimeTo ?? "");
-      setWorkerCount(labourMatch ? String(labourMatch.totalHeadcount) : "");
       return;
     }
     if (!touchedRef.current.start) setStartTime(match?.uptimeFrom ?? fallbackStart);
-    if (!touchedRef.current.end && match?.uptimeTo) setEndTime(match.uptimeTo);
-    if (!touchedRef.current.workerCount && labourMatch) setWorkerCount(String(labourMatch.totalHeadcount));
-  }, [key, match, fallbackStart, labourMatch]);
+  }, [key, match, fallbackStart]);
 
   return (
     <form action={formAction}>
@@ -142,54 +130,19 @@ export function ShiftForm({
         <FieldGroup label={dict.dateLabel}>
           <Input name="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
         </FieldGroup>
-        <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label={dict.startTimeLabel}>
-            <Input
-              name="startTime"
-              type="time"
-              required
-              value={startTime}
-              onChange={(e) => {
-                touchedRef.current.start = true;
-                setStartTime(e.target.value);
-              }}
-            />
-          </FieldGroup>
-          <FieldGroup label={dict.endTimeOptionalLabel}>
-            <Input
-              name="endTime"
-              type="time"
-              value={endTime}
-              onChange={(e) => {
-                touchedRef.current.end = true;
-                setEndTime(e.target.value);
-              }}
-            />
-          </FieldGroup>
-        </div>
-        {match && (match.uptimeFrom || match.uptimeTo) ? (
-          <p className="text-xs text-slate-500">{dict.prefilledFromUptimeNote}</p>
-        ) : (
-          <p className="text-xs text-slate-500">{dict.leaveEndBlankNote}</p>
-        )}
-        <FieldGroup label={dict.numberOfWorkersLabel}>
+        <FieldGroup label={dict.startTimeLabel}>
           <Input
-            name="workerCount"
-            type="number"
-            min="1"
+            name="startTime"
+            type="time"
             required
-            value={workerCount}
+            value={startTime}
             onChange={(e) => {
-              touchedRef.current.workerCount = true;
-              setWorkerCount(e.target.value);
+              touchedRef.current.start = true;
+              setStartTime(e.target.value);
             }}
           />
         </FieldGroup>
-        {labourMatch ? (
-          <p className="text-xs text-slate-500">{dict.prefilledFromLabourNote}</p>
-        ) : (
-          <p className="text-xs text-slate-500">{dict.noLabourDataNote}</p>
-        )}
+        <p className="text-xs text-slate-500">{dict.endAndWorkersFromDailyReportNote}</p>
 
         {fieldsMatch && fieldsMatch.fieldNames.length > 0 && (
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">

@@ -9,23 +9,18 @@ export default async function NewShiftPage({
 }: {
   searchParams: Promise<{ factoryId?: string; shiftType?: string; date?: string }>;
 }) {
-  const [factories, efficiencyRows, labourRows, fieldShifts] = await Promise.all([
+  const [factories, efficiencyRows, fieldShifts] = await Promise.all([
     prisma.factory.findMany({ orderBy: { name: "asc" } }),
     // Daily Report already captures each shift's line uptime window -- reuse
-    // it to prefill Log Shift's start/end time instead of making someone type
-    // the same times twice. Kept as a separate, editable prefill (not a hard
-    // link) since shift clock-in/out can legitimately differ from line uptime
-    // (setup/changeover time).
+    // it to prefill Log Shift's start time instead of making someone type it
+    // twice. Kept as a separate, editable prefill (not a hard link) since
+    // shift clock-in can legitimately differ from line uptime (setup time).
+    // End time and worker count aren't asked for here at all -- see
+    // shift-form.tsx and updateLineEfficiencyAction/
+    // updateDepartmentLabourEntryAction in daily-report/actions.ts.
     prisma.dailyLineEfficiency.findMany({
       where: { OR: [{ uptimeFrom: { not: null } }, { uptimeTo: { not: null } }] },
       select: { factoryId: true, date: true, shiftType: true, uptimeFrom: true, uptimeTo: true },
-    }),
-    // Same reasoning as line uptime above -- Daily Report's Labour
-    // Distribution already has the real per-role headcount, so prefill
-    // worker count from its total instead of asking for it twice.
-    prisma.dailyLabourEntry.groupBy({
-      by: ["factoryId", "date", "shiftType"],
-      _sum: { headcount: true },
     }),
     // Which fields already have an accepted Post-Decap check tied to this
     // date+shift -- read-only preview so opening a shift shows what's
@@ -56,15 +51,6 @@ export default async function NewShiftPage({
     uptimeTo: r.uptimeTo ? format(r.uptimeTo, "HH:mm") : null,
   }));
 
-  const labourLookup = labourRows
-    .filter((r) => r._sum.headcount != null && r._sum.headcount > 0)
-    .map((r) => ({
-      factoryId: r.factoryId,
-      date: format(r.date, "yyyy-MM-dd"),
-      shiftType: r.shiftType,
-      totalHeadcount: r._sum.headcount!,
-    }));
-
   const fieldsLookup = fieldShifts.map((s) => ({
     date: format(s.date, "yyyy-MM-dd"),
     shiftType: s.shiftType,
@@ -79,7 +65,6 @@ export default async function NewShiftPage({
           factories={factories}
           initial={{ factoryId, shiftType, date }}
           efficiencyLookup={efficiencyLookup}
-          labourLookup={labourLookup}
           fieldsLookup={fieldsLookup}
         />
       </div>

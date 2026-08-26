@@ -27,8 +27,6 @@ const shiftSchema = z.object({
   shiftType: z.enum(["DAY", "NIGHT"]),
   date: z.string().min(1),
   startTime: z.string().min(1),
-  endTime: z.string().optional(),
-  workerCount: z.coerce.number().int().positive(),
 });
 
 export async function createShiftAction(_prevState: string | undefined, formData: FormData) {
@@ -37,8 +35,6 @@ export async function createShiftAction(_prevState: string | undefined, formData
     shiftType: formData.get("shiftType"),
     date: formData.get("date"),
     startTime: formData.get("startTime"),
-    endTime: formData.get("endTime"),
-    workerCount: formData.get("workerCount"),
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
@@ -49,20 +45,10 @@ export async function createShiftAction(_prevState: string | undefined, formData
   if (!date || !startTime) {
     return "That date or time couldn't be read — please re-enter it.";
   }
-  // End time isn't asked for at shift-open -- it gets filled in automatically
-  // once the day's Daily Report records this shift's line uptime (see
-  // updateLineEfficiencyAction). Only set here if someone already knows it
-  // and typed it in (e.g. logging a shift retroactively).
-  let endTime: Date | null = null;
-  if (parsed.data.endTime) {
-    endTime = combineDateAndTime(parsed.data.date, parsed.data.endTime);
-    if (!endTime) return "That date or time couldn't be read — please re-enter it.";
-    // Night shifts cross midnight (e.g. 18:00-02:00): if the end time isn't
-    // after the start time, it belongs to the following day.
-    if (endTime <= startTime) {
-      endTime = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
-    }
-  }
+  // Neither end time nor worker count is asked for at shift-open -- neither
+  // is known yet. Both fill in automatically once the day's Daily Report
+  // records this shift's line uptime and Labour Distribution (see
+  // updateLineEfficiencyAction / updateDepartmentLabourEntryAction).
 
   // A shift can't start until the cleaning done between it and the one
   // before it is fully signed off -- DAY follows the previous calendar
@@ -92,7 +78,7 @@ export async function createShiftAction(_prevState: string | undefined, formData
   }
 
   await prisma.shiftLog.create({
-    data: { factoryId: parsed.data.factoryId, shiftType: parsed.data.shiftType, workerCount: parsed.data.workerCount, date, startTime, endTime },
+    data: { factoryId: parsed.data.factoryId, shiftType: parsed.data.shiftType, date, startTime },
   });
   revalidatePath("/shifts");
   redirect("/shifts");
