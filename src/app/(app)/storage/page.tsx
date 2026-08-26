@@ -46,7 +46,12 @@ export default async function StoragePage({
         status: (status as never) || undefined,
         coldRoomId: coldRoomId || undefined,
       },
-      include: { lot: { include: { fields: { include: { field: true } }, factory: true } }, coldRoom: true, client: true },
+      include: {
+        lot: { include: { fields: { include: { field: true } }, factory: true } },
+        coldRoom: true,
+        client: true,
+        slot: true,
+      },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
@@ -107,6 +112,7 @@ export default async function StoragePage({
               <th className="px-4 py-2 font-medium">{dict.colField}</th>
               <th className="px-4 py-2 font-medium">{dict.colFactory}</th>
               <th className="px-4 py-2 font-medium">{dict.colColdRoom}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLocation}</th>
               <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
               <th className="px-4 py-2 font-medium">{dict.colClient}</th>
               <th className="px-4 py-2 font-medium">{dict.colTotalPlateCount}</th>
@@ -129,6 +135,14 @@ export default async function StoragePage({
                 <td className="px-4 py-2">{p.lot.factory.name}</td>
                 <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>
                 <td className="px-4 py-2">
+                  {p.slot
+                    ? dict.rackLevelRound
+                        .replace("{rack}", p.slot.rack)
+                        .replace("{level}", String(p.slot.level))
+                        .replace("{round}", String(p.slot.round))
+                    : "—"}
+                </td>
+                <td className="px-4 py-2">
                   <Badge color={STATUS_COLOR[p.status]}>{statusLabel(dict, p.status)}</Badge>
                 </td>
                 <td className="px-4 py-2">{p.client?.name ?? "—"}</td>
@@ -142,7 +156,7 @@ export default async function StoragePage({
             ))}
             {pallets.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
                   {dict.noPalletsMatch}
                 </td>
               </tr>

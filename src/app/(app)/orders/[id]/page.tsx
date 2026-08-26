@@ -75,14 +75,15 @@ export default async function OrderDetailPage({
   const session = await auth();
   const showPricing = canSeePricing(session?.user.role);
   const locale = await resolveLocale();
-  const dict = getDictionary(locale).orders;
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.orders;
 
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
       client: true,
       containers: true,
-      pallets: { include: { lot: true, coldRoom: true, loadLines: true } },
+      pallets: { include: { lot: true, coldRoom: true, loadLines: true, slot: true } },
     },
   });
   if (!order) notFound();
@@ -255,6 +256,7 @@ export default async function OrderDetailPage({
               <th className="px-4 py-2 font-medium">{dict.colPalletNumber}</th>
               <th className="px-4 py-2 font-medium">{dict.colLot}</th>
               <th className="px-4 py-2 font-medium">{dict.colColdRoom}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLocation}</th>
               <th className="px-4 py-2 font-medium">{dict.colLoaded}</th>
               <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
             </tr>
@@ -281,6 +283,14 @@ export default async function OrderDetailPage({
                   <td className={cn("px-4 py-2", p.lot.isTestData && TEST_DATA_TEXT_CLASS)}>{p.lot.lotNumber}</td>
                   <td className="px-4 py-2">{p.coldRoom?.name ?? "—"}</td>
                   <td className="px-4 py-2">
+                    {p.slot
+                      ? fullDict.storage.rackLevelRound
+                          .replace("{rack}", p.slot.rack)
+                          .replace("{level}", String(p.slot.level))
+                          .replace("{round}", String(p.slot.round))
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-2">
                     {loaded.toFixed(2)}t / {p.weightTonnes}t
                   </td>
                   <td className="px-4 py-2">
@@ -291,7 +301,7 @@ export default async function OrderDetailPage({
             })}
             {order.pallets.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                   {dict.noPalletsAllocated}
                 </td>
               </tr>

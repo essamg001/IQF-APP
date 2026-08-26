@@ -56,7 +56,7 @@ export async function suggestAllocation(
       status: "IN_STORAGE",
       lot: { grade, format, shift: { is: { onHold: false } }, ...bothLabsApprovedFilter },
     },
-    include: { lot: { include: { qualityChecks: true, microbiologyResults: true, mrlResult: true } } },
+    include: { lot: { include: { qualityChecks: true, microbiologyResults: true, mrlResult: true } }, slot: true },
     orderBy: { createdAt: "asc" },
   });
 
@@ -96,11 +96,13 @@ export async function suggestAllocation(
 
   const brixRange = parseBrixRange(spec?.brix);
 
-  if (!spec || !brixRange) {
-    return eligiblePallets.slice(0, quantity);
-  }
-
+  // Uniform (score, pallet) ranking -- quality-ranked if a brix spec exists,
+  // otherwise 0 for everyone so FIFO alone decides (matches the prior
+  // no-spec behavior exactly, just expressed through the same ranking path
+  // that line-clustering below also uses).
   const scored = eligiblePallets.map((pallet) => {
+    if (!spec || !brixRange) return { pallet, score: 0 };
+
     const checks = pallet.lot.qualityChecks;
     const avgBrix = checks.length ? checks.reduce((s, c) => s + c.brix, 0) / checks.length : null;
     const avgDefect = checks.length
@@ -121,7 +123,51 @@ export async function suggestAllocation(
 
   scored.sort((a, b) => a.score - b.score || a.pallet.createdAt.getTime() - b.pallet.createdAt.getTime());
 
-  return scored.slice(0, quantity).map((s) => s.pallet);
+  return pickClusteredByLine(scored, quantity);
+}
+
+type EligiblePallet = Prisma.PalletGetPayload<{
+  include: {
+    lot: { include: { qualityChecks: true; microbiologyResults: true; mrlResult: true } };
+    slot: true;
+  };
+}>;
+type ScoredPallet = { pallet: EligiblePallet; score: number };
+
+// One storage "line" -- a single rack column, every level, within one round
+// -- is sized to roughly a container's worth (see ColdRoomSlot's schema
+// comment), so pulling a shipment off one line rather than scattered across
+// the room is physically much easier for the driver and supervisor loading
+// it. Walks the quality-ranked list and, from the best still-unpicked
+// pallet, greedily takes every other still-eligible pallet already in that
+// same line (in the existing quality order) before moving on to the next
+// best pallet elsewhere. Line-clustering only ever trades off between
+// otherwise-equally-eligible pallets -- it never overrides the quality
+// ranking a spec/brix match already produced, since the anchor is always
+// literally the next-best pallet not yet picked. A pallet with no shelf
+// assignment yet is its own singleton line (nothing to cluster it with).
+function lineKey(pallet: EligiblePallet) {
+  return pallet.slot ? `${pallet.slot.coldRoomId}::${pallet.slot.round}::${pallet.slot.rack}` : `unassigned::${pallet.id}`;
+}
+
+function pickClusteredByLine(ranked: ScoredPallet[], quantity: number): EligiblePallet[] {
+  const remaining = new Set(ranked.map((r) => r.pallet.id));
+  const picks: EligiblePallet[] = [];
+
+  while (picks.length < quantity && remaining.size > 0) {
+    const anchor = ranked.find((r) => remaining.has(r.pallet.id))!;
+    const anchorLine = lineKey(anchor.pallet);
+
+    for (const r of ranked) {
+      if (picks.length >= quantity) break;
+      if (!remaining.has(r.pallet.id)) continue;
+      if (lineKey(r.pallet) !== anchorLine) continue;
+      picks.push(r.pallet);
+      remaining.delete(r.pallet.id);
+    }
+  }
+
+  return picks;
 }
 
 /**
