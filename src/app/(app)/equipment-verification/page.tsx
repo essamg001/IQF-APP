@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { MetalDetectorSection } from "./metal-detector-section";
 import { ChlorineDosingSection } from "./chlorine-dosing-section";
+import { updateChlorineSetPointAction } from "./actions";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
@@ -64,7 +65,23 @@ export default async function EquipmentVerificationPage({
         const factoryName = `${f.name}${f.code ? ` (${f.code})` : ""}`;
         return (
           <Card key={f.id}>
-            <h3 className="text-sm font-semibold text-slate-900">{factoryName}</h3>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-slate-900">{factoryName}</h3>
+              <form action={updateChlorineSetPointAction.bind(null, f.id)} className="flex items-end gap-2">
+                <FieldGroup label={dict.chlorineSetPointLabel}>
+                  <Input
+                    name="chlorineSetPointPpm"
+                    type="number"
+                    step="0.01"
+                    defaultValue={f.chlorineSetPointPpm ?? ""}
+                    className="w-24 px-1.5 py-1 text-xs"
+                  />
+                </FieldGroup>
+                <Button type="submit" variant="secondary" className="px-2 py-1 text-xs">
+                  {fullDict.common.save}
+                </Button>
+              </form>
+            </div>
             <div className="mt-3 grid grid-cols-1 gap-6 md:grid-cols-2">
               {(["DAY", "NIGHT"] as const).map((shiftType) => (
                 <div key={shiftType} className="space-y-4">
@@ -89,6 +106,7 @@ export default async function EquipmentVerificationPage({
                     checks={chlorineChecks.filter((c) => c.factoryId === f.id && c.shiftType === shiftType)}
                     currentUserLabel={currentUserLabel}
                     now={now}
+                    setPointPpm={f.chlorineSetPointPpm}
                   />
                 </div>
               ))}

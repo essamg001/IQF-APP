@@ -1491,6 +1491,11 @@ const en = {
     chlorineTitle: "Dosing Pump / Chlorine — STR03117",
     chlorineSubtitle:
       "Free chlorine dosed into the wash tank, injected — checked hourly against the dosing machine's set point.",
+    chlorineSetPointLabel: "Set point (ppm)",
+    setPointValue: "Set point: {value} ppm",
+    setPointNotSet: "Set point not entered yet — enter it above to compare against each reading.",
+    setPointShortLabel: "set point",
+    vsSetPoint: "Δ{delta}",
     colTime: "Time",
     colPh: "PH",
     colCl2: "Cl₂ (ppm)",

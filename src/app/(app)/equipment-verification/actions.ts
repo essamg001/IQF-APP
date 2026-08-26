@@ -177,6 +177,24 @@ export async function reopenMetalDetectorMaintenanceAction(
   return "ok";
 }
 
+const chlorineSetPointSchema = z.object({
+  chlorineSetPointPpm: z.coerce.number().optional(),
+});
+
+// The dosing pump's own target reading -- an equipment configuration, not a
+// per-check value (see Factory.chlorineSetPointPpm's schema comment).
+export async function updateChlorineSetPointAction(factoryId: string, formData: FormData) {
+  const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
+  const parsed = chlorineSetPointSchema.safeParse(raw);
+  if (!parsed.success) return;
+
+  await prisma.factory.update({
+    where: { id: factoryId },
+    data: { chlorineSetPointPpm: parsed.data.chlorineSetPointPpm ?? null },
+  });
+  revalidatePath("/equipment-verification");
+}
+
 const chlorineDosingSchema = z.object({
   factoryId: z.string().min(1),
   date: z.string().min(1),

@@ -403,6 +403,12 @@ model Factory {
   // eligibility, not paperwork for one particular shipment.
   capqExportCode        String?
   nfsaAccreditationCode String?
+  // The wash-tank chlorine dosing pump's target reading -- a fixed
+  // equipment configuration (changes only on recalibration), not a
+  // per-check value, so it's recorded here rather than on every
+  // ChlorineDosingCheck row. Shown alongside each hourly reading so
+  // Equipment Verification can compare actual vs. target directly.
+  chlorineSetPointPpm Float?
 
   shifts ShiftLog[]
   lots   ProductionLot[]

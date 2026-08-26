@@ -19,6 +19,7 @@ export function ChlorineDosingSection({
   checks,
   currentUserLabel,
   now,
+  setPointPpm,
 }: {
   factoryId: string;
   date: string;
@@ -26,6 +27,7 @@ export function ChlorineDosingSection({
   checks: ChlorineDosingCheck[];
   currentUserLabel: string | null;
   now: Date;
+  setPointPpm: number | null;
 }) {
   const [presetHour, setPresetHour] = useState<number | null>(null);
   const shiftDate = parseLocalDateOnly(date) ?? now;
@@ -46,6 +48,9 @@ export function ChlorineDosingSection({
     <div className="rounded-md border border-slate-200 p-3">
       <h5 className="text-xs font-semibold text-slate-700">{dict.chlorineTitle}</h5>
       <p className="mt-0.5 text-[11px] text-slate-400">{dict.chlorineSubtitle}</p>
+      <p className="mt-0.5 text-[11px] font-medium text-slate-600">
+        {setPointPpm != null ? dict.setPointValue.replace("{value}", String(setPointPpm)) : dict.setPointNotSet}
+      </p>
 
       <div className="mt-2">
         <HourCoverageGrid
@@ -75,7 +80,18 @@ export function ChlorineDosingSection({
                   {c.recordedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </td>
                 <td className="py-1 pr-2">{c.phLevel ?? "—"}</td>
-                <td className="py-1 pr-2">{c.freeChlorinePpm ?? "—"}</td>
+                <td className="py-1 pr-2">
+                  {c.freeChlorinePpm ?? "—"}
+                  {c.freeChlorinePpm != null && setPointPpm != null && (
+                    <span className="text-slate-400">
+                      {" "}
+                      ({dict.vsSetPoint.replace(
+                        "{delta}",
+                        (c.freeChlorinePpm - setPointPpm >= 0 ? "+" : "") + (c.freeChlorinePpm - setPointPpm).toFixed(2)
+                      )})
+                    </span>
+                  )}
+                </td>
                 <td className="py-1 pr-2">{c.fruitTransitSeconds ?? "—"}</td>
                 <td className="py-1 pr-2">
                   {c.deviationOccurred == null ? (
@@ -110,7 +126,7 @@ export function ChlorineDosingSection({
           <FieldGroup label={dict.colPh}>
             <Input name="phLevel" type="number" step="0.01" className="px-1.5 py-1 text-xs" />
           </FieldGroup>
-          <FieldGroup label={dict.freeChlorine}>
+          <FieldGroup label={setPointPpm != null ? `${dict.freeChlorine} (${dict.setPointShortLabel} ${setPointPpm})` : dict.freeChlorine}>
             <Input name="freeChlorinePpm" type="number" step="0.01" className="px-1.5 py-1 text-xs" />
           </FieldGroup>
           <FieldGroup label={dict.fruitTransit}>
