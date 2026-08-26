@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { FlowDiagram } from "./flow-diagram";
 
 export default async function HaccpFlowDiagramPage() {
   const session = await auth();
@@ -29,7 +30,15 @@ export default async function HaccpFlowDiagramPage() {
         <span>{dict.docMetaVerified}</span>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold text-slate-900">{dict.diagramHeading}</h2>
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">{dict.diagramNote}</p>
+        <div className="mt-3">
+          <FlowDiagram dict={dict} />
+        </div>
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="border-red-200 bg-red-50">
           <Badge color="red">{dict.ccpBadge}</Badge>
           <h2 className="mt-2 text-sm font-semibold text-slate-900">{dict.ccpHeading}</h2>

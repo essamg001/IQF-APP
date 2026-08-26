@@ -375,6 +375,13 @@ const en = {
     docMetaIssueDate: "Issue date: 01 Mar 2023",
     docMetaUpdated: "Updated: 08 Mar 2026",
     docMetaVerified: "Verified by HACCP Team: 08 Mar 2026",
+    diagramHeading: "Process flow",
+    diagramNote:
+      "Redrawn from the source diagram for the screen. Box positions are simplified for readability, but every connection — including the two rework loops — matches the source exactly.",
+    startLabel: "Start",
+    endLabel: "The end",
+    reworkTempLabel: "Product hasn't reached the required temperature — back to the freezing tunnel",
+    reworkMetalLabel: "No — back through metal detection",
     ccpBadge: "CCP 01",
     ccpHeading: "Metal Detection",
     ccpBody: "Step 016. Critical limits: Ferrous ≤ 3mm, Non-ferrous ≤ 4mm, Stainless steel ≤ 4.5mm.",
