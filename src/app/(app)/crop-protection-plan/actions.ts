@@ -13,7 +13,15 @@ const entrySchema = z.object({
   economicInjuryThreshold: z.string().optional(),
   plantGrowthStage: z.string().optional(),
   treatmentMethod: z
-    .enum(["SPRAYING", "INJECTION", "DUSTING", "FUMIGATION", "STERILIZATION", "DISTRIBUTION_OF_NATURAL_ENEMIES"])
+    .enum([
+      "SPRAYING",
+      "INJECTION",
+      "DUSTING",
+      "FUMIGATION",
+      "STERILIZATION",
+      "DISTRIBUTION_OF_NATURAL_ENEMIES",
+      "THROUGH_DRIP_LINES",
+    ])
     .optional(),
   category: z.enum(["BIOLOGICAL", "CHEMICAL", "NATURAL_ENEMIES"]).optional(),
   formulationCode: z.string().optional(),
@@ -32,6 +40,9 @@ const entrySchema = z.object({
   strictestMrlLimitMgKg: z.string().optional(),
   euArfdMgKg: z.string().optional(),
   fairtradeHazardClass: z.string().optional(),
+  fairtradeSpecificConditions: z.string().optional(),
+  offLabelDate: z.string().optional(),
+  conditionsOfUse: z.string().optional(),
   isPending: z.boolean(),
   notes: z.string().optional(),
 });

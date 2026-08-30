@@ -43,6 +43,7 @@ export default async function CropProtectionPlanPage({
     FUMIGATION: dict.methodFumigation,
     STERILIZATION: dict.methodSterilization,
     DISTRIBUTION_OF_NATURAL_ENEMIES: dict.methodDistribution,
+    THROUGH_DRIP_LINES: dict.methodThroughDripLines,
   };
 
   const CATEGORY_LABEL: Record<string, string> = {

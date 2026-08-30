@@ -47,6 +47,7 @@ export function EntryForm({ planId, entry, action }: { planId: string; entry?: C
               <option value="FUMIGATION">{dict.methodFumigation}</option>
               <option value="STERILIZATION">{dict.methodSterilization}</option>
               <option value="DISTRIBUTION_OF_NATURAL_ENEMIES">{dict.methodDistribution}</option>
+              <option value="THROUGH_DRIP_LINES">{dict.methodThroughDripLines}</option>
             </Select>
           </FieldGroup>
           <FieldGroup label={dict.colCategory}>
@@ -115,7 +116,16 @@ export function EntryForm({ planId, entry, action }: { planId: string; entry?: C
             <Input name="euArfdMgKg" defaultValue={entry?.euArfdMgKg ?? ""} />
           </FieldGroup>
           <FieldGroup label={dict.fairtradeClassLabel}>
-            <Input name="fairtradeHazardClass" defaultValue={entry?.fairtradeHazardClass ?? ""} />
+            <Input name="fairtradeHazardClass" defaultValue={entry?.fairtradeHazardClass ?? ""} placeholder={dict.fairtradeClassPlaceholder} />
+          </FieldGroup>
+          <FieldGroup label={dict.fairtradeSpecificConditionsLabel}>
+            <Input name="fairtradeSpecificConditions" defaultValue={entry?.fairtradeSpecificConditions ?? ""} />
+          </FieldGroup>
+          <FieldGroup label={dict.offLabelDateLabel}>
+            <Input name="offLabelDate" defaultValue={entry?.offLabelDate ?? ""} placeholder={dict.offLabelDatePlaceholder} />
+          </FieldGroup>
+          <FieldGroup label={dict.conditionsOfUseLabel}>
+            <Input name="conditionsOfUse" defaultValue={entry?.conditionsOfUse ?? ""} />
           </FieldGroup>
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-700">

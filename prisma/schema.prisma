@@ -3030,6 +3030,9 @@ enum CropProtectionTreatmentMethod {
   FUMIGATION
   STERILIZATION
   DISTRIBUTION_OF_NATURAL_ENEMIES
+  // Open Field's soil treatments (nematicides, etc.) applied via the
+  // irrigation drip system rather than sprayed or injected directly.
+  THROUGH_DRIP_LINES
 }
 
 enum CropProtectionCategory {
@@ -3100,6 +3103,13 @@ model CropProtectionEntry {
   // Orange/etc) -- distinct from CropProtectionPlan.hazardListNote, which is
   // just the plan-level footer explaining what the classification means.
   fairtradeHazardClass              String?
+  // Orange List sub-conditions (e.g. "not within a month of flowering") --
+  // only meaningful when fairtradeHazardClass is an Orange List code.
+  fairtradeSpecificConditions       String?
+  // "On label" / a phase-out date / a source-specific note -- mixed format
+  // in the source documents, same reasoning as the other String? fields.
+  offLabelDate                      String?
+  conditionsOfUse                   String?
   // The 3 Nursery product names logged with no dosing data yet -- under
   // review, not yet an approved entry.
   isPending                         Boolean                         @default(false)
