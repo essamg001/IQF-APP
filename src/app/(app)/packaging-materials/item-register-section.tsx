@@ -2,31 +2,23 @@
 
 import { useActionState, useRef, useState } from "react";
 import { addPackagingMaterialItemAction } from "./actions";
-import { Input, FieldGroup } from "@/components/ui/field";
+import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { closingBalance } from "@/lib/packagingMaterials";
 import { format } from "date-fns";
 import { useTranslations } from "@/lib/i18n/locale-context";
-import type { PackagingMaterialItem } from "@prisma/client";
-
-type PriorInfo = {
-  closingBalance: number;
-  productCode: string | null;
-  productUnit: string | null;
-  minLevel: number | null;
-  maxLevel: number | null;
-};
+import type { PackagingMaterial, PackagingMaterialItem } from "@prisma/client";
 
 export function ItemRegisterSection({
   dailyLogId,
   items,
-  priorByItem,
-  knownNames,
+  priorByMaterial,
+  materials,
 }: {
   dailyLogId: string;
   items: PackagingMaterialItem[];
-  priorByItem: Record<string, PriorInfo>;
-  knownNames: string[];
+  priorByMaterial: Record<string, { closingBalance: number }>;
+  materials: PackagingMaterial[];
 }) {
   const [state, formAction, pending] = useActionState(addPackagingMaterialItemAction, undefined);
   const formRef = useRef<HTMLFormElement>(null);
@@ -34,36 +26,20 @@ export function ItemRegisterSection({
   const dict = useTranslations();
   const t = dict.packagingMaterials;
 
-  const [itemName, setItemName] = useState("");
+  const [materialId, setMaterialId] = useState("");
   const [openingBalance, setOpeningBalance] = useState("");
   const [openingTouched, setOpeningTouched] = useState(false);
-  const [productCode, setProductCode] = useState("");
-  const [productUnit, setProductUnit] = useState("");
-  const [minLevel, setMinLevel] = useState("");
-  const [maxLevel, setMaxLevel] = useState("");
-  const [staticTouched, setStaticTouched] = useState(false);
 
-  function applyPriorMatch(name: string) {
-    const prior = priorByItem[name.trim().toLowerCase()];
-    if (!prior) return;
-    if (!openingTouched) setOpeningBalance(String(prior.closingBalance));
-    if (!staticTouched) {
-      setProductCode(prior.productCode ?? "");
-      setProductUnit(prior.productUnit ?? "");
-      setMinLevel(prior.minLevel != null ? String(prior.minLevel) : "");
-      setMaxLevel(prior.maxLevel != null ? String(prior.maxLevel) : "");
-    }
+  function applyPriorMatch(id: string) {
+    const prior = priorByMaterial[id];
+    if (!prior || openingTouched) return;
+    setOpeningBalance(String(prior.closingBalance));
   }
 
   function resetForm() {
-    setItemName("");
+    setMaterialId("");
     setOpeningBalance("");
     setOpeningTouched(false);
-    setProductCode("");
-    setProductUnit("");
-    setMinLevel("");
-    setMaxLevel("");
-    setStaticTouched(false);
   }
 
   return (
@@ -135,73 +111,26 @@ export function ItemRegisterSection({
         <input type="hidden" name="dailyLogId" value={dailyLogId} />
         <div className="grid grid-cols-5 gap-3">
           <FieldGroup label={t.itemNameLabel}>
-            <Input
-              name="itemName"
-              list="packaging-item-names"
+            <Select
+              name="materialId"
               required
               className="px-2 py-1 text-xs"
-              value={itemName}
+              value={materialId}
               onChange={(e) => {
-                setItemName(e.target.value);
+                setMaterialId(e.target.value);
                 applyPriorMatch(e.target.value);
               }}
-            />
-            <datalist id="packaging-item-names">
-              {knownNames.map((n) => (
-                <option key={n} value={n} />
+            >
+              <option value="" disabled>
+                {t.selectMaterialPlaceholder}
+              </option>
+              {materials.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.unit ? `${m.name} (${m.unit})` : m.name}
+                </option>
               ))}
-            </datalist>
+            </Select>
           </FieldGroup>
-          <FieldGroup label={t.productCodeLabel}>
-            <Input
-              name="productCode"
-              className="px-2 py-1 text-xs"
-              value={productCode}
-              onChange={(e) => {
-                setStaticTouched(true);
-                setProductCode(e.target.value);
-              }}
-            />
-          </FieldGroup>
-          <FieldGroup label={t.unitLabel}>
-            <Input
-              name="productUnit"
-              className="px-2 py-1 text-xs"
-              value={productUnit}
-              onChange={(e) => {
-                setStaticTouched(true);
-                setProductUnit(e.target.value);
-              }}
-            />
-          </FieldGroup>
-          <FieldGroup label={t.minLevelLabel}>
-            <Input
-              name="minLevel"
-              type="number"
-              min="0"
-              className="px-2 py-1 text-xs"
-              value={minLevel}
-              onChange={(e) => {
-                setStaticTouched(true);
-                setMinLevel(e.target.value);
-              }}
-            />
-          </FieldGroup>
-          <FieldGroup label={t.maxLevelLabel}>
-            <Input
-              name="maxLevel"
-              type="number"
-              min="0"
-              className="px-2 py-1 text-xs"
-              value={maxLevel}
-              onChange={(e) => {
-                setStaticTouched(true);
-                setMaxLevel(e.target.value);
-              }}
-            />
-          </FieldGroup>
-        </div>
-        <div className="grid grid-cols-5 gap-3">
           <FieldGroup label={t.openingBalanceLabel}>
             <Input
               name="openingBalance"
@@ -224,11 +153,11 @@ export function ItemRegisterSection({
           <FieldGroup label={t.quantityDamagedLabel}>
             <Input name="quantityDamaged" type="number" min="0" className="px-2 py-1 text-xs" />
           </FieldGroup>
+        </div>
+        <div className="grid grid-cols-5 gap-3">
           <FieldGroup label={t.lotNumberLabel}>
             <Input name="lotNumber" className="px-2 py-1 text-xs" />
           </FieldGroup>
-        </div>
-        <div className="grid grid-cols-5 gap-3">
           <FieldGroup label={t.receiptVoucherLabel}>
             <Input name="receiptOrVoucherNumber" className="px-2 py-1 text-xs" />
           </FieldGroup>
@@ -241,6 +170,8 @@ export function ItemRegisterSection({
           <FieldGroup label={t.storageLocationLabel}>
             <Input name="storageLocation" className="px-2 py-1 text-xs" />
           </FieldGroup>
+        </div>
+        <div className="grid grid-cols-5 gap-3">
           <FieldGroup label={t.storeKeeperLabel}>
             <Input name="storeKeeperName" className="px-2 py-1 text-xs" />
           </FieldGroup>

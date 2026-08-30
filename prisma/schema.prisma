@@ -173,6 +173,7 @@ enum AlertType {
   SHIFT_MISSING_POST_DECAP_LINK
   CERTIFICATION_EXPIRING
   PALLET_AWAITING_RESHELVE
+  PACKAGING_LOW_STOCK
 }
 
 enum AlertStatus {
@@ -441,6 +442,7 @@ model Factory {
   bladeIssueRecords         BladeIssueRecord[]
   bladeIncidentReports      BladeIncidentReport[]
   packagingMaterialsDailyLogs PackagingMaterialsDailyLog[]
+  packagingMaterials          PackagingMaterial[]
   forkliftEquipment           ForkliftEquipment[]
   nonConformanceReports       NonConformanceReport[]
   factoryVisits               FactoryVisit[]
@@ -2657,20 +2659,50 @@ model PackagingMaterialsDailyLog {
   @@unique([factoryId, date])
 }
 
+// The canonical material catalog -- one row per material per factory, with
+// the real reorder threshold and (optionally) how much of it a tonne of
+// packed product consumes. Replaces re-typing name/code/unit/min/max on
+// every daily row: PackagingMaterialItem.itemName stays a denormalized
+// snapshot for display, but materialId is the source of truth going forward.
+model PackagingMaterial {
+  id            String   @id @default(cuid())
+  factoryId     String
+  factory       Factory  @relation(fields: [factoryId], references: [id])
+  name          String
+  code          String?
+  unit          String?
+  minStockLevel Float?
+  // Quantity of `unit` consumed per tonne of product packed (matched against
+  // DailyQuantityEntry.totalPackedTon, summed across shifts/varieties for a
+  // given factory+date) -- lets the low-stock check project days-of-stock
+  // remaining from actual output instead of only a static floor.
+  consumptionRatioPerTon Float?
+  notes         String?
+  isTestData    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items PackagingMaterialItem[]
+
+  @@unique([factoryId, name])
+}
+
 // One row per item per day -- combines STO02421's daily reconciliation
 // (opening/used/damaged/closing) with STO02408's stock-card fields (code,
 // unit, min/max level, expiry, storage location, receipt/voucher #, supply
 // or issue destination, store keeper) so one sheet carries everything both
 // forms did. Closing balance is deliberately not stored, it's opening plus
 // received minus used minus damaged (see packagingMaterials.ts), same
-// "derived, not typed" reasoning as isStructuralIssueOverdue. Item name is
-// free text (owner's call) -- opening balance AND the code/unit/min/max
-// fields are all suggested from yesterday's entry for the same name (see
-// page.tsx), matched case-insensitively, but stay editable.
+// "derived, not typed" reasoning as isStructuralIssueOverdue. itemName stays
+// a denormalized snapshot of the material's name at entry time; materialId
+// links back to the canonical PackagingMaterial (nullable so pre-catalog
+// historical rows still render).
 model PackagingMaterialItem {
   id                      String                     @id @default(cuid())
   dailyLogId              String
   dailyLog                PackagingMaterialsDailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  materialId              String?
+  material                PackagingMaterial?         @relation(fields: [materialId], references: [id])
   itemName                String
   productCode             String?
   productUnit             String?
@@ -2689,6 +2721,7 @@ model PackagingMaterialItem {
   createdAt               DateTime                   @default(now())
 
   @@index([dailyLogId])
+  @@index([materialId])
 }
 
 // A flat daily consumption log -- how much of which cleaning chemical was

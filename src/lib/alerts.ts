@@ -6,6 +6,7 @@ import { parseBrixRange } from "@/lib/allocation";
 import { formatViolation, formatTrendWarning, type LimitViolation, type TrendWarning } from "@/lib/qualityLimits";
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
 import { getCompanySettings } from "@/lib/companySettings";
+import { getPackagingLowStockWarnings } from "@/lib/packagingMaterials";
 
 const MICRO_PENDING_DAYS_THRESHOLD = 3;
 const GLOBALGAP_EXPIRY_WARNING_DAYS = 30;
@@ -34,6 +35,7 @@ export async function generateAlerts() {
     checkGlobalGapExpiry(),
     checkCertificationExpiry(),
     checkPalletsAwaitingReshelf(),
+    checkPackagingLowStock(),
   ]);
 }
 
@@ -731,5 +733,26 @@ async function checkPalletsAwaitingReshelf() {
     const message = `${p.pallet.palletNumber} was pulled aside from ${p.coldRoom.name} Round ${p.round} / Rack ${p.rack} ${hoursAgo} hour(s) ago and hasn't been re-shelved yet.`;
     await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "OWNER", message);
     await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "LOGISTICS", message);
+  }
+}
+
+// A packaging material either sitting at/under its set minimum, or -- where
+// a consumption ratio is on file -- projected to run out within a few days
+// at the current production pace. Same ongoing-condition pattern as
+// checkPalletsAwaitingReshelf: keeps re-firing (deduped) for as long as the
+// condition holds.
+async function checkPackagingLowStock() {
+  const factories = await prisma.factory.findMany();
+
+  for (const factory of factories) {
+    const warnings = await getPackagingLowStockWarnings(factory.id);
+    for (const w of warnings) {
+      const message =
+        w.reason === "BELOW_MINIMUM"
+          ? `${w.material.name} (${factory.name}) is at ${w.closingBalance}${w.material.unit ? ` ${w.material.unit}` : ""}, at or below its minimum stock level of ${w.material.minStockLevel}.`
+          : `${w.material.name} (${factory.name}) is projected to run out in ${w.daysOfStockLeft!.toFixed(1)} day(s) at the current production pace (${w.closingBalance}${w.material.unit ? ` ${w.material.unit}` : ""} on hand).`;
+      await upsertAlert("PACKAGING_LOW_STOCK", w.material.id, "OWNER", message);
+      await upsertAlert("PACKAGING_LOW_STOCK", w.material.id, "PRODUCTION", message);
+    }
   }
 }

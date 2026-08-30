@@ -39,9 +39,7 @@ export async function updatePackagingMaterialsDailyLogAction(formData: FormData)
 
 const itemSchema = z.object({
   dailyLogId: z.string().min(1),
-  itemName: z.string().min(1),
-  productCode: z.string().optional(),
-  productUnit: z.string().optional(),
+  materialId: z.string().min(1),
   minLevel: z.coerce.number().int().nonnegative().optional(),
   maxLevel: z.coerce.number().int().nonnegative().optional(),
   openingBalance: z.coerce.number().int().nonnegative().optional(),
@@ -64,9 +62,19 @@ export async function addPackagingMaterialItemAction(_prevState: string | undefi
   const parsed = itemSchema.safeParse(raw);
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
-  const { expiryDate, ...rest } = parsed.data;
+  const material = await prisma.packagingMaterial.findUnique({ where: { id: parsed.data.materialId } });
+  if (!material) return "Unknown material.";
+
+  const { expiryDate, materialId, ...rest } = parsed.data;
   const created = await prisma.packagingMaterialItem.create({
-    data: { ...rest, expiryDate: expiryDate ? parseLocalDateOnly(expiryDate) : undefined },
+    data: {
+      ...rest,
+      materialId,
+      itemName: material.name,
+      productCode: material.code,
+      productUnit: material.unit,
+      expiryDate: expiryDate ? parseLocalDateOnly(expiryDate) : undefined,
+    },
   });
 
   await logActivity({
@@ -74,8 +82,37 @@ export async function addPackagingMaterialItemAction(_prevState: string | undefi
     action: "PACKAGING_MATERIAL_ITEM_ADDED",
     entityType: "PackagingMaterialItem",
     entityId: created.id,
-    detail: parsed.data.itemName,
+    detail: material.name,
   });
+
+  revalidatePath("/packaging-materials");
+  return "ok";
+}
+
+const materialSchema = z.object({
+  factoryId: z.string().min(1),
+  name: z.string().min(1),
+  code: z.string().optional(),
+  unit: z.string().optional(),
+  minStockLevel: z.coerce.number().nonnegative().optional(),
+  consumptionRatioPerTon: z.coerce.number().nonnegative().optional(),
+  notes: z.string().optional(),
+});
+
+export async function addPackagingMaterialAction(_prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return "You must be logged in.";
+
+  const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
+  const parsed = materialSchema.safeParse(raw);
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const existing = await prisma.packagingMaterial.findUnique({
+    where: { factoryId_name: { factoryId: parsed.data.factoryId, name: parsed.data.name } },
+  });
+  if (existing) return `"${parsed.data.name}" is already in the materials list.`;
+
+  await prisma.packagingMaterial.create({ data: parsed.data });
 
   revalidatePath("/packaging-materials");
   return "ok";

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { updatePackagingMaterialsDailyLogAction } from "./actions";
 import { ItemRegisterSection } from "./item-register-section";
+import { MaterialsSection } from "./materials-section";
+import { getPackagingLowStockWarnings } from "@/lib/packagingMaterials";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
@@ -41,48 +43,31 @@ export default async function PackagingMaterialsPage({
     include: { items: { orderBy: { createdAt: "asc" } } },
   });
 
-  // Most recent prior entry per item name (case-insensitive), scoped to this
-  // factory -- used to suggest tomorrow's opening balance (from yesterday's
-  // closing balance) and to carry forward the mostly-static stock-card
-  // fields (code/unit/min/max) without retyping them every day.
+  // Most recent prior entry per material, scoped to this factory -- used to
+  // suggest tomorrow's opening balance from yesterday's closing balance.
+  // Code/unit/min-max are no longer carried this way: they live on the
+  // PackagingMaterial record itself now.
   const priorItems = await prisma.packagingMaterialItem.findMany({
-    where: { dailyLog: { factoryId, date: { lt: date } } },
+    where: { dailyLog: { factoryId, date: { lt: date } }, materialId: { not: null } },
     orderBy: { createdAt: "desc" },
-    select: {
-      itemName: true,
-      openingBalance: true,
-      quantityReceived: true,
-      quantityUsed: true,
-      quantityDamaged: true,
-      productCode: true,
-      productUnit: true,
-      minLevel: true,
-      maxLevel: true,
-    },
+    select: { materialId: true, openingBalance: true, quantityReceived: true, quantityUsed: true, quantityDamaged: true },
     take: 200,
   });
-  const priorByItem = new Map<
-    string,
-    { closingBalance: number; productCode: string | null; productUnit: string | null; minLevel: number | null; maxLevel: number | null }
-  >();
+  const priorByMaterial = new Map<string, { closingBalance: number }>();
   for (const item of priorItems) {
-    const key = item.itemName.trim().toLowerCase();
-    if (priorByItem.has(key) || item.openingBalance == null) continue;
-    priorByItem.set(key, {
+    if (!item.materialId || priorByMaterial.has(item.materialId) || item.openingBalance == null) continue;
+    priorByMaterial.set(item.materialId, {
       closingBalance:
         item.openingBalance + (item.quantityReceived ?? 0) - (item.quantityUsed ?? 0) - (item.quantityDamaged ?? 0),
-      productCode: item.productCode,
-      productUnit: item.productUnit,
-      minLevel: item.minLevel,
-      maxLevel: item.maxLevel,
     });
   }
 
-  const knownNames = await prisma.packagingMaterialItem.findMany({
-    where: { dailyLog: { factoryId } },
-    select: { itemName: true },
-    distinct: ["itemName"],
+  const materials = await prisma.packagingMaterial.findMany({
+    where: { factoryId },
+    orderBy: { name: "asc" },
   });
+
+  const lowStockWarnings = await getPackagingLowStockWarnings(factoryId);
 
   return (
     <div className="space-y-6">
@@ -136,12 +121,33 @@ export default async function PackagingMaterialsPage({
         </form>
       </Card>
 
+      {lowStockWarnings.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <h2 className="text-sm font-semibold text-amber-900">{dict.lowStockBannerTitle}</h2>
+          <ul className="mt-2 space-y-1 text-sm text-amber-800">
+            {lowStockWarnings.map((w) => (
+              <li key={w.material.id}>
+                <span className="font-medium">{w.material.name}</span>
+                {" — "}
+                {w.reason === "BELOW_MINIMUM"
+                  ? dict.belowMinimumStock.replace("{balance}", String(w.closingBalance)).replace("{min}", String(w.material.minStockLevel))
+                  : dict.daysOfStockLeft.replace("{days}", w.daysOfStockLeft!.toFixed(1))}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <Card>
+        <MaterialsSection factoryId={factoryId} materials={materials} />
+      </Card>
+
       <Card>
         <ItemRegisterSection
           dailyLogId={header.id}
           items={header.items}
-          priorByItem={Object.fromEntries(priorByItem)}
-          knownNames={knownNames.map((n) => n.itemName)}
+          priorByMaterial={Object.fromEntries(priorByMaterial)}
+          materials={materials}
         />
       </Card>
     </div>
