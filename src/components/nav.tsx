@@ -87,6 +87,7 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
       { href: "/daily-report", labelKey: "dailyReport", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
       { href: "/cleaning", labelKey: "cleaningMode" },
       { href: "/cleaning-schedule", labelKey: "cleaningSchedule" },
+      { href: "/cleaning-materials-log", labelKey: "cleaningMaterialsLog" },
       { href: "/daily-checklist", labelKey: "dailyChecklist" },
       { href: "/equipment-verification", labelKey: "equipmentVerification", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
       { href: "/scale-calibration", labelKey: "scaleCalibration" },
