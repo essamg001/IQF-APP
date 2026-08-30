@@ -47,6 +47,11 @@ export default async function FieldSprayLogPage() {
               <th className="px-4 py-2 font-medium">{dict.colClearDate}</th>
               <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
               <th className="px-4 py-2 font-medium">{dict.colSprayedBy}</th>
+              <th className="px-4 py-2 font-medium">{dict.colPhiLimit}</th>
+              <th className="px-4 py-2 font-medium">{dict.colLeaf}</th>
+              <th className="px-4 py-2 font-medium">{dict.colGlobalGap}</th>
+              <th className="px-4 py-2 font-medium">{dict.colNurture}</th>
+              <th className="px-4 py-2 font-medium">{dict.colFairtrade}</th>
             </tr>
           </thead>
           <tbody>
@@ -77,12 +82,17 @@ export default async function FieldSprayLogPage() {
                     )}
                   </td>
                   <td className="px-4 py-2">{s.sprayedByName || "—"}</td>
+                  <td className="px-4 py-2">{s.phiLimitDays != null ? dict.daysValue.replace("{days}", String(s.phiLimitDays)) : "—"}</td>
+                  <td className="px-4 py-2">{s.leafCompliancePct != null ? `${s.leafCompliancePct}%` : "—"}</td>
+                  <td className="px-4 py-2">{s.globalGapCompliancePct != null ? `${s.globalGapCompliancePct}%` : "—"}</td>
+                  <td className="px-4 py-2">{s.nurtureCompliancePct != null ? `${s.nurtureCompliancePct}%` : "—"}</td>
+                  <td className="px-4 py-2">{s.fairtradeCompliancePct != null ? `${s.fairtradeCompliancePct}%` : "—"}</td>
                 </tr>
               );
             })}
             {sprays.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
                   {dict.noSpraysLogged}
                 </td>
               </tr>

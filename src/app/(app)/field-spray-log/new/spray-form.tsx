@@ -54,6 +54,28 @@ export function SprayForm({ fields }: { fields: Pick<Field, "id" | "name">[] }) 
         <FieldGroup label={dict.reasonLabel}>
           <Input name="reason" placeholder={dict.reasonPlaceholder} />
         </FieldGroup>
+
+        <div className="border-t border-slate-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{dict.complianceHeading}</p>
+          <div className="mt-2 grid grid-cols-3 gap-3">
+            <FieldGroup label={dict.phiLimitDaysLabel}>
+              <Input name="phiLimitDays" type="number" min="0" step="1" />
+            </FieldGroup>
+            <FieldGroup label={dict.leafComplianceLabel}>
+              <Input name="leafCompliancePct" type="number" min="0" max="100" step="0.1" />
+            </FieldGroup>
+            <FieldGroup label={dict.globalGapComplianceLabel}>
+              <Input name="globalGapCompliancePct" type="number" min="0" max="100" step="0.1" />
+            </FieldGroup>
+            <FieldGroup label={dict.nurtureComplianceLabel}>
+              <Input name="nurtureCompliancePct" type="number" min="0" max="100" step="0.1" />
+            </FieldGroup>
+            <FieldGroup label={dict.fairtradeComplianceLabel}>
+              <Input name="fairtradeCompliancePct" type="number" min="0" max="100" step="0.1" />
+            </FieldGroup>
+          </div>
+        </div>
+
         <FieldGroup label={dict.notesLabel}>
           <Textarea name="notes" rows={2} />
         </FieldGroup>

@@ -15,6 +15,11 @@ const sprayFormSchema = z.object({
   noHarvestDays: z.coerce.number().int().min(0).default(12),
   sprayedByName: z.string().optional(),
   reason: z.string().optional(),
+  phiLimitDays: z.coerce.number().int().min(0).optional(),
+  leafCompliancePct: z.coerce.number().min(0).max(100).optional(),
+  globalGapCompliancePct: z.coerce.number().min(0).max(100).optional(),
+  nurtureCompliancePct: z.coerce.number().min(0).max(100).optional(),
+  fairtradeCompliancePct: z.coerce.number().min(0).max(100).optional(),
   notes: z.string().optional(),
 });
 
