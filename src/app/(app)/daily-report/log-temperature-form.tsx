@@ -36,6 +36,9 @@ export function LogTemperatureForm({
         <FieldGroup label={dict.timeDefaultsNowLabel}>
           <Input name="recordedAt" type="datetime-local" className="w-48" />
         </FieldGroup>
+        <FieldGroup label={dict.checkedByLabel}>
+          <Input name="checkedByName" placeholder={dict.checkedByPlaceholder} className="w-40" />
+        </FieldGroup>
         <FieldGroup label={dict.notesOptionalRoundLabel}>
           <Input name="notes" placeholder={dict.notesPlaceholder} className="w-56" />
         </FieldGroup>

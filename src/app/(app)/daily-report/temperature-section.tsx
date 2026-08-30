@@ -22,7 +22,7 @@ export async function TemperatureSection({
   factoryId: string;
   factoryName: string;
   factoryCode: string | null;
-  logs: { location: string; recordedAt: Date; valueC: number }[];
+  logs: { location: string; recordedAt: Date; valueC: number; checkedByName: string | null }[];
 }) {
   const fullDict = getDictionary(await resolveLocale());
   const dict = fullDict.dailyReport;
@@ -30,9 +30,11 @@ export async function TemperatureSection({
 
   // Latest reading wins per location/hour bucket, in case of a re-entry.
   const valueByLocationHour = new Map<string, number>();
+  const checkedByLocationHour = new Map<string, string>();
   for (const log of logs) {
     const hour = log.recordedAt.getHours();
     valueByLocationHour.set(`${log.location}__${hour}`, log.valueC);
+    if (log.checkedByName) checkedByLocationHour.set(`${log.location}__${hour}`, log.checkedByName);
   }
 
   return (
@@ -64,11 +66,14 @@ export async function TemperatureSection({
               <td className="whitespace-nowrap px-2 py-1.5 text-slate-500">{loc.limits}</td>
               <td className="whitespace-nowrap px-2 py-1.5 text-slate-500">{loc.instrument}</td>
               {HOURS.map((h) => {
-                const value = valueByLocationHour.get(`${loc.name}__${h}`);
+                const key = `${loc.name}__${h}`;
+                const value = valueByLocationHour.get(key);
+                const checkedBy = checkedByLocationHour.get(key);
                 const outOfLimit = value != null && isTemperatureOutOfLimit(value, loc.limits);
                 return (
                   <td
                     key={h}
+                    title={checkedBy ? dict.checkedByLabel + ": " + checkedBy : undefined}
                     className={cn("px-2 py-1.5", outOfLimit ? "font-semibold text-red-600" : "text-slate-700")}
                   >
                     {value ?? "—"}

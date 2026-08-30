@@ -22,6 +22,11 @@ export async function addLightTrapAction(_prevState: string | undefined, formDat
   const parsed = lightTrapSchema.safeParse(raw);
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
+  const existing = await prisma.lightTrap.findUnique({
+    where: { factoryId_trapNumber: { factoryId: parsed.data.factoryId, trapNumber: parsed.data.trapNumber } },
+  });
+  if (existing) return `Trap #${parsed.data.trapNumber} is already registered.`;
+
   const created = await prisma.lightTrap.create({ data: parsed.data });
 
   await logActivity({
@@ -95,6 +100,17 @@ export async function addRodentTrapAction(_prevState: string | undefined, formDa
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
   const parsed = rodentTrapSchema.safeParse(raw);
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const existing = await prisma.rodentTrap.findUnique({
+    where: {
+      factoryId_trapNumber_trapType: {
+        factoryId: parsed.data.factoryId,
+        trapNumber: parsed.data.trapNumber,
+        trapType: parsed.data.trapType,
+      },
+    },
+  });
+  if (existing) return `Trap #${parsed.data.trapNumber} is already registered.`;
 
   const created = await prisma.rodentTrap.create({ data: parsed.data });
 

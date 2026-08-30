@@ -292,6 +292,10 @@ model User {
   toolInventoryChecksCheckedOut ToolInventoryShiftCheck[] @relation("ToolInventoryCheckedOutBy")
 
   recordedInjuryRecords InjuryRecord[]
+
+  recordedWasteDisposals WasteDisposalRecord[]
+  recordedBannedItemScreenings BannedItemScreeningRecord[]
+  recordedCleaningMaterialConsumption CleaningMaterialConsumptionRecord[]
 }
 
 // A generic "who did what, when" trail -- deliberately not tied to one entity
@@ -444,7 +448,11 @@ model Factory {
   toolInventoryShiftChecks    ToolInventoryShiftCheck[]
   lightTraps                  LightTrap[]
   rodentTraps                 RodentTrap[]
+  wasteDisposalRecords        WasteDisposalRecord[]
+  bannedItemScreeningRecords  BannedItemScreeningRecord[]
+  cleaningMaterialConsumptionRecords CleaningMaterialConsumptionRecord[]
 }
+
 
 // rounds/rackCount/levelCount mirror the real physical storage map exactly
 // (كروكى خريطة ثلاجات مصنع التجميد.xlsx): each round is a full rack section
@@ -577,9 +585,20 @@ model FieldSprayRecord {
   noHarvestDays Int      @default(12)
   sprayedByName String?
   reason        String?
-  notes         String?
-  isTestData    Boolean  @default(false)
-  createdAt     DateTime @default(now())
+
+  // The standard's required pre-harvest interval, distinct from
+  // noHarvestDays above (the interval actually applied) -- lets a shorter
+  // actual wait than the standard's limit show up as a real compliance gap
+  // instead of being indistinguishable from full compliance.
+  phiLimitDays           Int?
+  leafCompliancePct      Float?
+  globalGapCompliancePct Float?
+  nurtureCompliancePct   Float?
+  fairtradeCompliancePct Float?
+
+  notes      String?
+  isTestData Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
   @@index([fieldId])
 }
@@ -1196,6 +1215,38 @@ model Waste {
   date     DateTime  @default(now())
 }
 
+enum WasteClassification {
+  HAZARDOUS
+  ORGANIC
+  OTHER
+}
+
+// The daily disposal register (HSE03215-shaped) -- who disposed of what,
+// how, and where, classified for regulatory purposes. Deliberately separate
+// from Waste above: that model links a quantity back to the pallet/shift it
+// came from for yield reporting, while this is the actual paper disposal
+// log (supervisor sign-off, disposal method, hazardous/organic/other) with
+// no reporting relationship to a specific pallet or shift.
+model WasteDisposalRecord {
+  id             String              @id @default(cuid())
+  factoryId      String
+  factory        Factory             @relation(fields: [factoryId], references: [id])
+  date           DateTime
+  supervisorName String
+  disposalMethod String
+  location       String?
+  classification WasteClassification
+  notes          String?
+
+  recordedByUserId String?
+  recordedByUser   User?    @relation(fields: [recordedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([factoryId, date])
+}
+
 model Order {
   id              String     @id @default(cuid())
   orderNumber     String     @unique // our own internal reference, auto-generated
@@ -1665,14 +1716,15 @@ model Alert {
 // against a fixed list carrying each location's Limits/Instrument reference,
 // since that's fixed metadata, not something that varies per reading.
 model DailyTemperatureLog {
-  id         String   @id @default(cuid())
-  factoryId  String
-  factory    Factory  @relation(fields: [factoryId], references: [id])
-  location   String
-  recordedAt DateTime @default(now())
-  valueC     Float
-  notes      String?
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  factoryId     String
+  factory       Factory  @relation(fields: [factoryId], references: [id])
+  location      String
+  recordedAt    DateTime @default(now())
+  valueC        Float
+  checkedByName String?
+  notes         String?
+  createdAt     DateTime @default(now())
 
   @@index([factoryId, location, recordedAt])
 }
@@ -2415,6 +2467,32 @@ model PersonalItemShiftCheck {
   @@index([factoryId, date, shiftType])
 }
 
+// The pre-high-care-area screening log (HSE03290/91-adjacent) -- catching a
+// banned item (glass, jewelry, loose plastic) on someone before they enter,
+// not the authorized-item custody tracked above. Deliberately a separate
+// model: PersonalItemShiftCheck is keyed to a fixed roster of named,
+// pre-authorized people with condition-in/condition-out state; this is an
+// unbounded, timestamped incident log with no roster relationship at all.
+model BannedItemScreeningRecord {
+  id             String   @id @default(cuid())
+  factoryId      String
+  factory        Factory  @relation(fields: [factoryId], references: [id])
+  date           DateTime
+  personName     String
+  itemFound      String
+  disposalMethod String?
+  location       String?
+  supervisorName String
+
+  recordedByUserId String?
+  recordedByUser   User?    @relation(fields: [recordedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([factoryId, date])
+}
+
 // The month-level facts on HSE03203's header -- who runs the first-aid box,
 // the blue plaster lot number (passed through the metal detector so a torn
 // piece stays detectable), and the month's opening stock. Created/edited via
@@ -2611,6 +2689,33 @@ model PackagingMaterialItem {
   createdAt               DateTime                   @default(now())
 
   @@index([dailyLogId])
+}
+
+// A flat daily consumption log -- how much of which cleaning chemical was
+// used today, at what concentration, and for what. Deliberately not shaped
+// like PackagingMaterialsDailyLog/PackagingMaterialItem above: that
+// header+child shape exists specifically for opening/received/used/damaged/
+// closing stock reconciliation, which nothing here calls for -- this is
+// just "we used X of Y today," one row per material per day.
+model CleaningMaterialConsumptionRecord {
+  id             String   @id @default(cuid())
+  factoryId      String
+  factory        Factory  @relation(fields: [factoryId], references: [id])
+  date           DateTime
+  materialName   String
+  quantityUsed   Float
+  unit           String?
+  concentration  String?
+  purpose        String?
+  recordedByName String
+
+  recordedByUserId String?
+  recordedByUser   User?    @relation(fields: [recordedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  isTestData Boolean @default(false)
+
+  @@index([factoryId, date])
 }
 
 enum ForkliftEquipmentType {

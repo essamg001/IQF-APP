@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useActionState } from "react";
 import { createMetalDetectorCheckAction, updateMetalDetectorMaintenanceAction, reopenMetalDetectorMaintenanceAction } from "./actions";
-import { Input, FieldGroup } from "@/components/ui/field";
+import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
@@ -63,6 +63,8 @@ export function MetalDetectorSection({
               <th className="py-1 pr-2 font-medium">{dict.colNonFe}</th>
               <th className="py-1 pr-2 font-medium">{dict.colSs}</th>
               <th className="py-1 pr-2 font-medium">{dict.colReleased}</th>
+              <th className="py-1 pr-2 font-medium">{dict.colEquipment}</th>
+              <th className="py-1 pr-2 font-medium">{dict.colTraceability}</th>
               <th className="py-1 pr-2 font-medium">{dict.colBy}</th>
             </tr>
           </thead>
@@ -86,13 +88,15 @@ export function MetalDetectorSection({
                 </td>
                 <td className="py-1 pr-2">
                   {c.productReleased == null ? (
-                    "—"
+                    <Badge color="slate">{dict.notApplicable}</Badge>
                   ) : c.productReleased ? (
                     <Badge color="green">{dict.released}</Badge>
                   ) : (
                     <Badge color="red">{dict.held}</Badge>
                   )}
                 </td>
+                <td className="py-1 pr-2 text-slate-500">{c.equipmentNumber ?? "—"}</td>
+                <td className="py-1 pr-2 text-slate-500">{c.traceabilityCode ?? "—"}</td>
                 <td className="py-1 pr-2 text-slate-500">{c.checkedByName ?? "—"}</td>
               </tr>
             ))}
@@ -197,6 +201,9 @@ function MaintenanceChecklist({
   );
 }
 
+const RELEASE_STATUS = ["RELEASED", "HELD", "NOT_APPLICABLE"] as const;
+type ReleaseStatus = (typeof RELEASE_STATUS)[number];
+
 function MetalDetectorCheckForm({
   factoryId,
   date,
@@ -222,20 +229,83 @@ function MetalDetectorCheckForm({
     stainlessDetected: dict.stainlessDetected,
   } as const;
 
+  // Every field here is controlled (rather than defaultValue/defaultChecked)
+  // so a validation error -- e.g. submitting "Held" with no corrective
+  // action -- doesn't wipe the mm readings the person already typed. Only
+  // presetHour (clicking an hour shortcut) should reset recordedAt; nothing
+  // else should ever silently clear this form.
+  const [recordedAt, setRecordedAt] = useState(defaultRecordedAt);
+  useEffect(() => setRecordedAt(defaultRecordedAt), [defaultRecordedAt]);
+  const [equipmentNumber, setEquipmentNumber] = useState("");
+  const [traceabilityCode, setTraceabilityCode] = useState("");
+  const [ferrousDetected, setFerrousDetected] = useState(true);
+  const [ferrousDiameterMm, setFerrousDiameterMm] = useState("");
+  const [nonFerrousDetected, setNonFerrousDetected] = useState(true);
+  const [nonFerrousDiameterMm, setNonFerrousDiameterMm] = useState("");
+  const [stainlessDetected, setStainlessDetected] = useState(true);
+  const [stainlessDiameterMm, setStainlessDiameterMm] = useState("");
+  const [releaseStatus, setReleaseStatus] = useState<ReleaseStatus>("RELEASED");
+  const [correctiveAction, setCorrectiveAction] = useState("");
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  // Checked before the server action ever fires, not just as a duplicate of
+  // it -- some browsers reset a native <select>'s displayed value as part of
+  // a form submission round trip, even one this component intercepts and
+  // re-renders as controlled. Catching this client-side means "Held" never
+  // has to survive that round trip at all for the one validation rule that
+  // doesn't need the server.
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    if (releaseStatus === "HELD" && !correctiveAction.trim()) {
+      e.preventDefault();
+      setClientError(dict.correctiveActionRequiredError);
+      return;
+    }
+    setClientError(null);
+  }
+
+  const DETECTED = {
+    ferrousDetected: [ferrousDetected, setFerrousDetected] as const,
+    nonFerrousDetected: [nonFerrousDetected, setNonFerrousDetected] as const,
+    stainlessDetected: [stainlessDetected, setStainlessDetected] as const,
+  };
+  const DIAMETER = {
+    ferrousDiameterMm: [ferrousDiameterMm, setFerrousDiameterMm] as const,
+    nonFerrousDiameterMm: [nonFerrousDiameterMm, setNonFerrousDiameterMm] as const,
+    stainlessDiameterMm: [stainlessDiameterMm, setStainlessDiameterMm] as const,
+  };
+
   return (
-    <form action={formAction} className="mt-2 space-y-2 border-t border-slate-100 pt-2">
+    <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2 border-t border-slate-100 pt-2">
       <input type="hidden" name="factoryId" value={factoryId} />
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="shiftType" value={shiftType} />
-      <FieldGroup label={dict.timeDefaultNow}>
-        <Input
-          key={presetHour ?? "now"}
-          name="recordedAt"
-          type="datetime-local"
-          defaultValue={defaultRecordedAt}
-          className="px-1.5 py-1 text-xs"
-        />
-      </FieldGroup>
+      <div className="grid grid-cols-3 gap-1.5">
+        <FieldGroup label={dict.timeDefaultNow}>
+          <Input
+            name="recordedAt"
+            type="datetime-local"
+            value={recordedAt}
+            onChange={(e) => setRecordedAt(e.target.value)}
+            className="px-1.5 py-1 text-xs"
+          />
+        </FieldGroup>
+        <FieldGroup label={dict.equipmentNumberLabel}>
+          <Input
+            name="equipmentNumber"
+            value={equipmentNumber}
+            onChange={(e) => setEquipmentNumber(e.target.value)}
+            className="px-1.5 py-1 text-xs"
+          />
+        </FieldGroup>
+        <FieldGroup label={dict.traceabilityCodeLabel}>
+          <Input
+            name="traceabilityCode"
+            value={traceabilityCode}
+            onChange={(e) => setTraceabilityCode(e.target.value)}
+            className="px-1.5 py-1 text-xs"
+          />
+        </FieldGroup>
+      </div>
       <div className="grid grid-cols-3 gap-1.5">
         {(
           [
@@ -243,22 +313,52 @@ function MetalDetectorCheckForm({
             ["nonFerrousDetected", "nonFerrousDiameterMm"],
             ["stainlessDetected", "stainlessDiameterMm"],
           ] as const
-        ).map(([detectedName, diameterName]) => (
-          <div key={detectedName} className="space-y-1">
-            <label className="flex items-center gap-1 text-[11px] text-slate-700">
-              <input type="checkbox" name={detectedName} defaultChecked /> {DETECTION_LABELS[detectedName]}
-            </label>
-            <Input name={diameterName} type="number" step="0.1" placeholder="mm" className="px-1.5 py-1 text-xs" />
-          </div>
-        ))}
+        ).map(([detectedName, diameterName]) => {
+          const [detected, setDetected] = DETECTED[detectedName];
+          const [diameter, setDiameter] = DIAMETER[diameterName];
+          return (
+            <div key={detectedName} className="space-y-1">
+              <label className="flex items-center gap-1 text-[11px] text-slate-700">
+                <input
+                  type="checkbox"
+                  name={detectedName}
+                  checked={detected}
+                  onChange={(e) => setDetected(e.target.checked)}
+                />{" "}
+                {DETECTION_LABELS[detectedName]}
+              </label>
+              <Input
+                name={diameterName}
+                type="number"
+                step="0.1"
+                placeholder="mm"
+                value={diameter}
+                onChange={(e) => setDiameter(e.target.value)}
+                className="px-1.5 py-1 text-xs"
+              />
+            </div>
+          );
+        })}
       </div>
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1 text-[11px] text-slate-700">
-          <input type="checkbox" name="productReleased" defaultChecked /> {dict.productReleased}
-        </label>
-      </div>
+      <FieldGroup label={dict.releaseStatusLabel}>
+        <Select
+          name="productReleased"
+          value={releaseStatus}
+          onChange={(e) => setReleaseStatus(e.target.value as ReleaseStatus)}
+          className="px-1.5 py-1 text-xs"
+        >
+          <option value="RELEASED">{dict.releaseStatusReleased}</option>
+          <option value="HELD">{dict.releaseStatusHeld}</option>
+          <option value="NOT_APPLICABLE">{dict.releaseStatusNotApplicable}</option>
+        </Select>
+      </FieldGroup>
       <FieldGroup label={dict.correctiveActionIfHeld}>
-        <Input name="correctiveAction" className="px-1.5 py-1 text-xs" />
+        <Input
+          name="correctiveAction"
+          value={correctiveAction}
+          onChange={(e) => setCorrectiveAction(e.target.value)}
+          className="px-1.5 py-1 text-xs"
+        />
       </FieldGroup>
       <Button type="submit" variant="secondary" disabled={pending} className="px-2 py-1 text-[11px]">
         {pending ? dict.logging : dict.logCheck}
@@ -266,7 +366,7 @@ function MetalDetectorCheckForm({
       {currentUserLabel && (
         <span className="ms-2 text-[11px] text-slate-400">{dict.asUser.replace("{name}", currentUserLabel)}</span>
       )}
-      {errorMessage && <p className="text-[11px] text-red-600">{errorMessage}</p>}
+      {(clientError || errorMessage) && <p className="text-[11px] text-red-600">{clientError ?? errorMessage}</p>}
     </form>
   );
 }

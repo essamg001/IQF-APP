@@ -21,7 +21,7 @@ const metalDetectorSchema = z.object({
   nonFerrousDiameterMm: z.coerce.number().optional(),
   stainlessDetected: z.boolean(),
   stainlessDiameterMm: z.coerce.number().optional(),
-  productReleased: z.boolean(),
+  productReleased: z.enum(["RELEASED", "HELD", "NOT_APPLICABLE"]),
   correctiveAction: z.string().optional(),
 });
 
@@ -32,11 +32,10 @@ export async function createMetalDetectorCheckAction(_prevState: string | undefi
     ferrousDetected: formData.get("ferrousDetected") === "on",
     nonFerrousDetected: formData.get("nonFerrousDetected") === "on",
     stainlessDetected: formData.get("stainlessDetected") === "on",
-    productReleased: formData.get("productReleased") === "on",
   });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
-  if (!parsed.data.productReleased && !parsed.data.correctiveAction?.trim()) {
+  if (parsed.data.productReleased === "HELD" && !parsed.data.correctiveAction?.trim()) {
     return "Corrective action is required when the product isn't released.";
   }
 
@@ -44,11 +43,16 @@ export async function createMetalDetectorCheckAction(_prevState: string | undefi
   if (!date) return "That date couldn't be read.";
 
   const session = await auth();
-  const { date: _date, ...data } = parsed.data;
+  const { date: _date, productReleased, ...data } = parsed.data;
+  // NOT_APPLICABLE (nothing running yet -- the first check of a shift, before
+  // any product to release) is stored as null, distinct from Held (false),
+  // so it never needs a fabricated corrective action.
+  const productReleasedValue = productReleased === "NOT_APPLICABLE" ? null : productReleased === "RELEASED";
 
   const created = await prisma.metalDetectorCheck.create({
     data: {
       ...data,
+      productReleased: productReleasedValue,
       date,
       recordedAt: parseDateSafe(parsed.data.recordedAt) ?? new Date(),
       checkedByName: session?.user.name ?? session?.user.email ?? undefined,
@@ -61,7 +65,12 @@ export async function createMetalDetectorCheckAction(_prevState: string | undefi
     action: "METAL_DETECTOR_CHECK_LOGGED",
     entityType: "MetalDetectorCheck",
     entityId: created.id,
-    detail: parsed.data.productReleased ? "Product released" : `Held — ${parsed.data.correctiveAction}`,
+    detail:
+      productReleased === "RELEASED"
+        ? "Product released"
+        : productReleased === "HELD"
+          ? `Held — ${parsed.data.correctiveAction}`
+          : "No product running",
   });
 
   revalidatePath("/equipment-verification");

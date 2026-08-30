@@ -199,28 +199,26 @@ function PalletFields({
           </Select>
         </FieldGroup>
         <FieldGroup label={dict.totalCartons}>
-          {isFull ? (
-            <>
-              <input type="hidden" name="totalCartons" value={FULL_PALLET_CARTON_COUNT} />
-              <p className="flex h-9 items-center text-sm text-slate-600">
-                {dict.totalCartonsFullNote.replace("{count}", String(FULL_PALLET_CARTON_COUNT))}
-              </p>
-            </>
-          ) : (
-            <Input name="totalCartons" type="number" min="1" />
-          )}
+          <Input
+            key={`cartons-${parcelStatus}`}
+            name="totalCartons"
+            type="number"
+            min="1"
+            defaultValue={isFull ? FULL_PALLET_CARTON_COUNT : undefined}
+          />
+          {isFull && <p className="mt-1 text-xs text-slate-400">{dict.totalCartonsFullNote.replace("{count}", String(FULL_PALLET_CARTON_COUNT))}</p>}
         </FieldGroup>
         <FieldGroup label={dict.weightTonnes}>
-          {isFull ? (
-            <>
-              <input type="hidden" name="weightTonnes" value={FULL_PALLET_WEIGHT_TONNES} />
-              <p className="flex h-9 items-center text-sm text-slate-600">
-                {dict.weightTonnesFullNote.replace("{weight}", String(FULL_PALLET_WEIGHT_TONNES))}
-              </p>
-            </>
-          ) : (
-            <Input name="weightTonnes" type="number" step="0.01" min="0" required />
-          )}
+          <Input
+            key={`weight-${parcelStatus}`}
+            name="weightTonnes"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            defaultValue={isFull ? FULL_PALLET_WEIGHT_TONNES : undefined}
+          />
+          {isFull && <p className="mt-1 text-xs text-slate-400">{dict.weightTonnesFullNote.replace("{weight}", String(FULL_PALLET_WEIGHT_TONNES))}</p>}
         </FieldGroup>
         <FieldGroup label={dict.coldRoom}>
           <Select name="coldRoomId" defaultValue="">

@@ -26,6 +26,11 @@ export async function addWeighingScaleAction(_prevState: string | undefined, for
   const parsed = scaleSchema.safeParse(raw);
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
+  const existing = await prisma.weighingScale.findUnique({
+    where: { factoryId_scaleNumber: { factoryId: parsed.data.factoryId, scaleNumber: parsed.data.scaleNumber } },
+  });
+  if (existing) return `Scale #${parsed.data.scaleNumber} is already registered.`;
+
   const created = await prisma.weighingScale.create({ data: parsed.data });
 
   await logActivity({

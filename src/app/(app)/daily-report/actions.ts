@@ -25,6 +25,7 @@ const temperatureBatchSchema = z.object({
   factoryId: z.string().min(1),
   factoryCode: z.string().optional(),
   recordedAt: z.string().optional(),
+  checkedByName: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -37,6 +38,7 @@ export async function logTemperatureBatchAction(_prevState: string | undefined, 
     factoryId: formData.get("factoryId"),
     factoryCode: formData.get("factoryCode") || undefined,
     recordedAt: formData.get("recordedAt") || undefined,
+    checkedByName: formData.get("checkedByName") || undefined,
     notes: formData.get("notes") || undefined,
   });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
@@ -57,6 +59,7 @@ export async function logTemperatureBatchAction(_prevState: string | undefined, 
       factoryId: parsed.data.factoryId,
       location: r.location,
       valueC: r.valueC,
+      checkedByName: parsed.data.checkedByName,
       notes: parsed.data.notes,
       recordedAt,
     })),
