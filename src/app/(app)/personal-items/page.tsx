@@ -6,10 +6,11 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { canAccessLab } from "@/lib/roles";
-import { parseLocalDateOnly } from "@/lib/dates";
+import { parseLocalDateOnly, formatDate } from "@/lib/dates";
 import { toggleAuthorizationActiveAction } from "./actions";
 import { AuthorizationForm } from "./authorization-form";
 import { PersonalItemShiftRow } from "./check-row";
+import { ScreeningForm } from "./screening-form";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
@@ -19,7 +20,8 @@ export default async function PersonalItemsPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   const session = await auth();
-  const fullDict = getDictionary(await resolveLocale());
+  const locale = await resolveLocale();
+  const fullDict = getDictionary(locale);
   const dict = fullDict.personalItems;
   const ITEM_LABELS: { key: "allowsMobile" | "allowsPens" | "allowsCalculator" | "allowsOther"; label: string }[] = [
     { key: "allowsMobile", label: dict.itemMobile },
@@ -31,11 +33,14 @@ export default async function PersonalItemsPage({
   const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
   const parsedDate = parseLocalDateOnly(dateStr) ?? new Date();
 
-  const [factories, authorizations, checks] = await Promise.all([
+  const [factories, authorizations, checks, screenings] = await Promise.all([
     prisma.factory.findMany({ orderBy: { code: "asc" } }),
     prisma.personalItemAuthorization.findMany({ orderBy: { name: "asc" } }),
     prisma.personalItemShiftCheck.findMany({ where: { date: parsedDate } }),
+    prisma.bannedItemScreeningRecord.findMany({ include: { factory: true }, orderBy: { date: "desc" }, take: 200 }),
   ]);
+
+  const knownScreeningSupervisorNames = [...new Set(screenings.map((s) => s.supervisorName))].sort();
 
   const canManage = canAccessLab(session?.user?.role);
   const activeAuthorizations = authorizations.filter((a) => a.isActive);
@@ -134,6 +139,51 @@ export default async function PersonalItemsPage({
               </div>
             ))
           )}
+      </Card>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.screeningTitle}</h2>
+        <p className="mt-1 text-xs text-slate-500">{dict.screeningSubtitle}</p>
+        <div className="mt-4">
+          <ScreeningForm factories={factories} knownSupervisorNames={knownScreeningSupervisorNames} />
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-start text-sm">
+            <thead className="border-b border-slate-200 text-slate-500">
+              <tr>
+                <th className="px-2 py-2 font-medium">#</th>
+                <th className="px-2 py-2 font-medium">{dict.colDate}</th>
+                <th className="px-2 py-2 font-medium">{fullDict.common.factory}</th>
+                <th className="px-2 py-2 font-medium">{dict.screeningFormPerson}</th>
+                <th className="px-2 py-2 font-medium">{dict.screeningFormItem}</th>
+                <th className="px-2 py-2 font-medium">{dict.screeningFormDisposalMethod}</th>
+                <th className="px-2 py-2 font-medium">{fullDict.common.location}</th>
+                <th className="px-2 py-2 font-medium">{dict.screeningFormSupervisor}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {screenings.map((s, i) => (
+                <tr key={s.id} className="border-b border-slate-100 last:border-0">
+                  <td className="px-2 py-2 text-slate-400">{screenings.length - i}</td>
+                  <td className="px-2 py-2">{formatDate(s.date, "dd MMM yyyy", locale)}</td>
+                  <td className="px-2 py-2">{s.factory.name}</td>
+                  <td className="px-2 py-2 font-medium text-slate-800">{s.personName}</td>
+                  <td className="px-2 py-2">{s.itemFound}</td>
+                  <td className="px-2 py-2">{s.disposalMethod || "—"}</td>
+                  <td className="px-2 py-2">{s.location || "—"}</td>
+                  <td className="px-2 py-2">{s.supervisorName}</td>
+                </tr>
+              ))}
+              {screenings.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-2 py-8 text-center text-slate-400">
+                    {dict.noScreeningsLogged}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );

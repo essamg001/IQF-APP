@@ -165,3 +165,49 @@ export async function checkOutPersonalItemsAction(checkId: string, _prevState: s
   revalidatePath("/personal-items");
   return "ok";
 }
+
+const screeningSchema = z.object({
+  factoryId: z.string().min(1),
+  date: z.string().min(1),
+  personName: z.string().min(1),
+  itemFound: z.string().min(1),
+  disposalMethod: z.string().optional(),
+  location: z.string().optional(),
+  supervisorName: z.string().min(1),
+});
+
+// The pre-high-care-area banned-item screening (glass/jewelry/loose
+// plastic) -- distinct from the authorized-item check-in/out above (see the
+// model's own comment on BannedItemScreeningRecord).
+export async function addBannedItemScreeningAction(_prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return "Not signed in.";
+
+  const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
+  const parsed = screeningSchema.safeParse(raw);
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const date = parseLocalDateOnly(parsed.data.date);
+  if (!date) return "That date couldn't be read.";
+
+  const { date: _date, ...data } = parsed.data;
+
+  const created = await prisma.bannedItemScreeningRecord.create({
+    data: {
+      ...data,
+      date,
+      recordedByUserId: session.user.id,
+    },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    action: "BANNED_ITEM_SCREENING_LOGGED",
+    entityType: "BannedItemScreeningRecord",
+    entityId: created.id,
+    detail: `${parsed.data.personName} — ${parsed.data.itemFound}`,
+  });
+
+  revalidatePath("/personal-items");
+  return "ok";
+}
