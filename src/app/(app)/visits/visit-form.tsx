@@ -12,12 +12,10 @@ const today = new Date().toISOString().slice(0, 10);
 
 export function VisitForm({
   factories,
-  knownVisitorNames,
   knownOrganizations,
   knownPurposes,
 }: {
   factories: Factory[];
-  knownVisitorNames: string[];
   knownOrganizations: string[];
   knownPurposes: string[];
 }) {
@@ -42,16 +40,8 @@ export function VisitForm({
               ))}
             </Select>
           </FieldGroup>
-          <FieldGroup label={t.visitorNameLabel}>
-            <Input name="visitorName" required list="visitor-names" />
-            <datalist id="visitor-names">
-              {knownVisitorNames.map((n) => (
-                <option key={n} value={n} />
-              ))}
-            </datalist>
-          </FieldGroup>
           <FieldGroup label={t.organizationLabel}>
-            <Input name="organization" list="visitor-orgs" />
+            <Input name="organization" required list="visitor-orgs" />
             <datalist id="visitor-orgs">
               {knownOrganizations.map((n) => (
                 <option key={n} value={n} />
@@ -59,6 +49,10 @@ export function VisitForm({
             </datalist>
           </FieldGroup>
         </div>
+
+        <FieldGroup label={t.visitorNameLabel}>
+          <Textarea name="visitorNames" required placeholder={t.visitorNamesPlaceholder} rows={2} />
+        </FieldGroup>
 
         <FieldGroup label={t.purposeLabel}>
           <Input name="purpose" required list="visit-purposes" />

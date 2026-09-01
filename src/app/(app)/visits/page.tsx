@@ -27,12 +27,11 @@ export default async function VisitsPage() {
     }),
     prisma.factory.findMany({ orderBy: { name: "asc" } }),
     prisma.factoryVisit.findMany({
-      select: { visitorName: true, organization: true, purpose: true },
+      select: { organization: true, purpose: true },
       take: 1000,
     }),
   ]);
 
-  const knownVisitorNames = [...new Set(allForOptions.map((v) => v.visitorName))].sort();
   const knownOrganizations = [...new Set(allForOptions.map((v) => v.organization).filter((v): v is string => !!v))].sort();
   const knownPurposes = [...new Set(allForOptions.map((v) => v.purpose))].sort();
 
@@ -44,12 +43,7 @@ export default async function VisitsPage() {
       </div>
 
       <div className="mt-6 max-w-xl">
-        <VisitForm
-          factories={factories}
-          knownVisitorNames={knownVisitorNames}
-          knownOrganizations={knownOrganizations}
-          knownPurposes={knownPurposes}
-        />
+        <VisitForm factories={factories} knownOrganizations={knownOrganizations} knownPurposes={knownPurposes} />
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
@@ -71,7 +65,7 @@ export default async function VisitsPage() {
                 <td className="px-4 py-2">{formatDate(v.date, "dd MMM yyyy", locale)}</td>
                 <td className="px-4 py-2">
                   <Link href={`/visits/${v.id}`} className="font-medium text-emerald-700 hover:underline">
-                    {v.visitorName}
+                    {v.visitorNames.join(", ")}
                   </Link>
                 </td>
                 <td className="px-4 py-2">{v.organization ?? "—"}</td>

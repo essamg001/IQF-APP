@@ -12,8 +12,8 @@ import { canAccessVisits } from "@/lib/roles";
 const visitSchema = z.object({
   factoryId: z.string().min(1),
   date: z.string().min(1),
-  visitorName: z.string().min(1),
-  organization: z.string().optional(),
+  visitorNames: z.string().min(1),
+  organization: z.string().min(1, "A company name is required."),
   purpose: z.string().min(1),
   isAudit: z.boolean(),
   generalFeedback: z.string().optional(),
@@ -27,11 +27,17 @@ export async function createFactoryVisitAction(_prevState: string | undefined, f
   const parsed = visitSchema.safeParse({ ...raw, isAudit: formData.get("isAudit") === "on" });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
-  const { date, ...rest } = parsed.data;
+  const { date, visitorNames, ...rest } = parsed.data;
+  const names = visitorNames
+    .split(/[\n,]/)
+    .map((n) => n.trim())
+    .filter(Boolean);
+  if (names.length === 0) return "At least one visitor name is required.";
 
   const visit = await prisma.factoryVisit.create({
     data: {
       ...rest,
+      visitorNames: names,
       date: new Date(date),
       recordedByUserId: session.user.id,
     },
@@ -42,7 +48,7 @@ export async function createFactoryVisitAction(_prevState: string | undefined, f
     action: "FACTORY_VISIT_LOGGED",
     entityType: "FactoryVisit",
     entityId: visit.id,
-    detail: `${rest.visitorName}${rest.organization ? ` (${rest.organization})` : ""}`,
+    detail: `${names.join(", ")} (${rest.organization})`,
   });
 
   revalidatePath("/visits");
@@ -135,7 +141,7 @@ export async function raiseFindingAsNonConformanceAction(visitId: string, findin
       description: finding.description,
       ncType: "OTHER",
       source: "EXTERNAL_AUDIT",
-      reportedByName: finding.visit.visitorName,
+      reportedByName: finding.visit.visitorNames.join(", "),
     },
   });
 

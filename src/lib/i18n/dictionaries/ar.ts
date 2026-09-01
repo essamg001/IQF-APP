@@ -1228,8 +1228,9 @@ const ar = {
     subtitle:
       "من زار المصنع، ولماذا، وأي ملاحظات قدّموها — بما في ذلك النتائج التفصيلية من مدققي العملاء. نشجّع الملاحظات أيًا كان مصدرها.",
     logVisit: "تسجيل زيارة",
-    visitorNameLabel: "اسم الزائر",
-    organizationLabel: "الجهة",
+    visitorNameLabel: "أسماء الزوار",
+    visitorNamesPlaceholder: "اسم واحد في كل سطر، مثال:\nأحمد حسن\nسارة مصطفى",
+    organizationLabel: "اسم الشركة",
     purposeLabel: "الغرض",
     isAuditLabel: "هذه زيارة تدقيق من عميل (تسجيل نتائج تفصيلية)",
     generalFeedbackLabel: "ملاحظات عامة",

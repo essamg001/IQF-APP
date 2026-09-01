@@ -55,7 +55,7 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold text-slate-900">{visit.visitorName}</h1>
+          <h1 className="text-xl font-semibold text-slate-900">{visit.visitorNames.join(", ")}</h1>
           {visit.isAudit && <Badge color="blue">{dict.auditBadge}</Badge>}
         </div>
         <p className="mt-1 text-sm text-slate-500">
@@ -63,6 +63,13 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
           {visit.factory.name} · {formatDate(visit.date, "dd MMM yyyy", locale)} · {visit.purpose}
         </p>
       </div>
+
+      {visit.isAudit && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.addFindingTitle}</h2>
+          <FindingForm visitId={visit.id} />
+        </Card>
+      )}
 
       {visit.generalFeedback && (
         <Card>
@@ -98,11 +105,6 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
                 />
               ))}
             </ul>
-          </Card>
-
-          <Card>
-            <h2 className="text-sm font-semibold text-slate-900">{dict.addFindingTitle}</h2>
-            <FindingForm visitId={visit.id} />
           </Card>
         </>
       )}

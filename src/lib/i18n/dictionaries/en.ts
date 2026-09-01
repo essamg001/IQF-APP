@@ -1246,8 +1246,9 @@ const en = {
     subtitle:
       "Who visited the factory, why, and any feedback they gave — including detailed findings from client auditors. We encourage feedback wherever it comes from.",
     logVisit: "Log visit",
-    visitorNameLabel: "Visitor Name",
-    organizationLabel: "Organization",
+    visitorNameLabel: "Visitor Name(s)",
+    visitorNamesPlaceholder: "One name per line, e.g.\nAhmed Hassan\nSara Mostafa",
+    organizationLabel: "Company Name",
     purposeLabel: "Purpose",
     isAuditLabel: "This is a client audit (record detailed findings)",
     generalFeedbackLabel: "General Feedback",

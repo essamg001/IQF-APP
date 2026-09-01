@@ -3191,7 +3191,9 @@ model FactoryVisit {
   factoryId        String
   factory          Factory   @relation(fields: [factoryId], references: [id])
   date             DateTime
-  visitorName      String
+  // Multiple visitors can arrive together under one company -- one visit
+  // record, one sign-off, several names.
+  visitorNames     String[] @default([])
   organization     String?
   purpose          String
   isAudit          Boolean   @default(false)
