@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { formatDate } from "@/lib/dates";
-import { isStructuralIssueOverdue } from "@/lib/structuralIssues";
+import { isStructuralIssueOverdue, STRUCTURAL_ISSUE_LOCATIONS } from "@/lib/structuralIssues";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
@@ -14,9 +14,20 @@ const STATUS_COLOR = {
   COMPLETED: "green",
 } as const;
 
-export default async function StructuralIssuesPage() {
+const SORT_OPTIONS = ["reportedDesc", "reportedAsc", "location", "targetCompletion"] as const;
+type SortOption = (typeof SORT_OPTIONS)[number];
+
+export default async function StructuralIssuesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ location?: string; sort?: string }>;
+}) {
   const locale = await resolveLocale();
   const dict = getDictionary(locale).structuralIssues;
+  const { location, sort } = await searchParams;
+  const sortOption: SortOption = (SORT_OPTIONS as readonly string[]).includes(sort ?? "")
+    ? (sort as SortOption)
+    : "reportedDesc";
 
   const STATUS_LABEL = {
     REPORTED: dict.statusReported,
@@ -24,9 +35,19 @@ export default async function StructuralIssuesPage() {
     COMPLETED: dict.statusCompleted,
   } as const;
 
+  const orderBy =
+    sortOption === "reportedAsc"
+      ? { reportedAt: "asc" as const }
+      : sortOption === "location"
+        ? { location: "asc" as const }
+        : sortOption === "targetCompletion"
+          ? { proposedCompletionDate: "asc" as const }
+          : { reportedAt: "desc" as const };
+
   const issues = await prisma.structuralIssue.findMany({
+    where: location ? { location } : undefined,
     include: { factory: true, _count: { select: { photos: true } } },
-    orderBy: { reportedAt: "desc" },
+    orderBy,
     take: 200,
   });
 
@@ -51,7 +72,25 @@ export default async function StructuralIssuesPage() {
         <LinkButton href="/structural-issues/new">{dict.reportIssue}</LinkButton>
       </div>
 
-      <Card className="mt-6 overflow-x-auto p-0">
+      <form className="mt-4 flex gap-3" method="get">
+        <select name="location" defaultValue={location ?? ""} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <option value="">{dict.allLocations}</option>
+          {STRUCTURAL_ISSUE_LOCATIONS.map((loc) => (
+            <option key={loc} value={loc}>
+              {dict.locationOptionLabels[loc]}
+            </option>
+          ))}
+        </select>
+        <select name="sort" defaultValue={sortOption} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <option value="reportedDesc">{dict.sortReportedNewest}</option>
+          <option value="reportedAsc">{dict.sortReportedOldest}</option>
+          <option value="location">{dict.sortLocation}</option>
+          <option value="targetCompletion">{dict.sortTargetCompletion}</option>
+        </select>
+        <button className="rounded-md bg-emerald-700 px-3.5 py-2 text-sm font-medium text-white">{dict.filterButton}</button>
+      </form>
+
+      <Card className="mt-4 overflow-x-auto p-0">
         <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
@@ -70,7 +109,7 @@ export default async function StructuralIssuesPage() {
                 <tr key={i.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2">
                     <Link href={`/structural-issues/${i.id}`} className="font-medium text-emerald-700 hover:underline">
-                      {dict.knownLocationLabels[i.location] ?? i.location}
+                      {dict.locationOptionLabels[i.location] ?? dict.knownLocationLabels[i.location] ?? i.location}
                     </Link>
                     {i._count.photos > 0 && (
                       <span className="ms-1.5 text-xs text-slate-400">

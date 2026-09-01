@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createStructuralIssueAction } from "../actions";
+import { STRUCTURAL_ISSUE_LOCATIONS } from "@/lib/structuralIssues";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,7 +27,16 @@ export function IssueForm({ factories }: { factories: Factory[] }) {
           </Select>
         </FieldGroup>
         <FieldGroup label={dict.common.location}>
-          <Input name="location" required placeholder={t.formLocationPlaceholder} />
+          <Select name="location" required defaultValue="">
+            <option value="" disabled>
+              {t.formLocationPlaceholder}
+            </option>
+            {STRUCTURAL_ISSUE_LOCATIONS.map((loc) => (
+              <option key={loc} value={loc}>
+                {t.locationOptionLabels[loc]}
+              </option>
+            ))}
+          </Select>
         </FieldGroup>
         <FieldGroup label={dict.common.description}>
           <Input name="description" required placeholder={t.formDescriptionPlaceholder} />

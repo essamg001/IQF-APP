@@ -5,13 +5,14 @@ import { auth } from "@/lib/auth";
 import { saveUploadedFile } from "@/lib/files";
 import { logActivity } from "@/lib/activityLog";
 import { canSignAsHeadOfProduction, canSignAsHeadOfMaintenance } from "@/lib/roles";
+import { STRUCTURAL_ISSUE_LOCATIONS } from "@/lib/structuralIssues";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 const issueSchema = z.object({
   factoryId: z.string().min(1),
-  location: z.string().min(1),
+  location: z.enum(STRUCTURAL_ISSUE_LOCATIONS),
   description: z.string().min(1),
 });
 
@@ -120,7 +121,7 @@ export async function confirmAndPlanStructuralIssueAction(
 }
 
 const completeSchema = z.object({
-  completionNotes: z.string().optional(),
+  completionNotes: z.string().min(1, "Completion notes are required."),
 });
 
 export async function completeStructuralIssueAction(id: string, _prevState: string | undefined, formData: FormData) {
@@ -132,8 +133,8 @@ export async function completeStructuralIssueAction(id: string, _prevState: stri
   const existing = await prisma.structuralIssue.findUniqueOrThrow({ where: { id } });
   if (existing.status !== "PLANNED") return "This issue hasn't been confirmed and planned yet.";
 
-  const parsed = completeSchema.safeParse({ completionNotes: formData.get("completionNotes") || undefined });
-  if (!parsed.success) return "Invalid input.";
+  const parsed = completeSchema.safeParse({ completionNotes: formData.get("completionNotes") });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
   await prisma.structuralIssue.update({
     where: { id },

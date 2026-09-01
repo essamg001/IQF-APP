@@ -15,7 +15,7 @@ export function CompleteForm({ issueId }: { issueId: string }) {
   return (
     <form action={formAction} className="mt-3 space-y-3">
       <FieldGroup label={t.completionNotes}>
-        <Input name="completionNotes" placeholder={t.completeFormNotesPlaceholder} />
+        <Input name="completionNotes" required placeholder={t.completeFormNotesPlaceholder} />
       </FieldGroup>
       <ConfirmSubmitButton
         confirmMessage={t.markCompletedConfirm}

@@ -69,7 +69,9 @@ export default async function StructuralIssueDetailPage({ params }: { params: Pr
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold text-slate-900">{dict.knownLocationLabels[issue.location] ?? issue.location}</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          {dict.locationOptionLabels[issue.location] ?? dict.knownLocationLabels[issue.location] ?? issue.location}
+        </h1>
         <Badge color={STATUS_COLOR[issue.status]}>{STATUS_LABEL[issue.status]}</Badge>
         {overdue && <Badge color="red">{dict.overdueBadge}</Badge>}
       </div>

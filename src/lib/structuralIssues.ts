@@ -1,5 +1,17 @@
 import type { StructuralIssueStatus } from "@prisma/client";
 
+export const STRUCTURAL_ISSUE_LOCATIONS = [
+  "ARRIVAL",
+  "PRE_COOLING",
+  "PROCESSING",
+  "PACKAGING",
+  "COLD_STORE",
+  "LOAD_OUT",
+  "WAREHOUSE",
+  "SERVICES",
+  "OFFICES",
+] as const;
+
 // The point of storing a proposed completion date is to catch the case where
 // maintenance itself becomes the delay -- "overdue" means still Planned past
 // the date they committed to, not just "old."
