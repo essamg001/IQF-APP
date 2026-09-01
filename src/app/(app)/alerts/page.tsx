@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { generateAlerts } from "@/lib/alerts";
+import { resolveAlertHrefs } from "@/lib/alertLinks";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { markAlertReadAction } from "./actions";
 import { QualityOverrideActions } from "./quality-override-actions";
 import { canSignSpecException } from "@/lib/roles";
@@ -101,6 +103,7 @@ export default async function AlertsPage() {
     ? await prisma.qualityCheck.findMany({ where: { id: { in: checkIds } } })
     : [];
   const checkById = new Map(checks.map((c) => [c.id, c]));
+  const alertHrefs = await resolveAlertHrefs(alerts);
 
   return (
     <div>
@@ -127,7 +130,15 @@ export default async function AlertsPage() {
                   <td className="px-4 py-2">
                     <Badge color={alertSeverityColor(a.type)}>{TYPE_LABEL[a.type]}</Badge>
                   </td>
-                  <td className="px-4 py-2">{a.message}</td>
+                  <td className="px-4 py-2">
+                    {alertHrefs.has(a.id) ? (
+                      <Link href={alertHrefs.get(a.id)!} className="text-emerald-700 hover:underline">
+                        {a.message}
+                      </Link>
+                    ) : (
+                      a.message
+                    )}
+                  </td>
                   <td className="px-4 py-2">{formatDate(a.createdAt, "dd MMM yyyy HH:mm", locale)}</td>
                   <td className="px-4 py-2">
                     <Badge color={a.status === "UNREAD" ? "blue" : "slate"}>{STATUS_LABEL[a.status]}</Badge>
