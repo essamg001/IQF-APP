@@ -126,6 +126,7 @@ export default async function StructuralIssuesPage({
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-1.5">
                       <Badge color={STATUS_COLOR[i.status]}>{STATUS_LABEL[i.status]}</Badge>
+                      {i.status === "REPORTED" && i.acknowledgedAt && <Badge color="blue">{dict.acknowledgedBadge}</Badge>}
                       {overdue && <Badge color="red">{dict.overdueBadge}</Badge>}
                     </div>
                   </td>

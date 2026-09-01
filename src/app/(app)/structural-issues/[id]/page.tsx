@@ -9,7 +9,7 @@ import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatDate } from "@/lib/dates";
 import { canSignAsHeadOfMaintenance } from "@/lib/roles";
 import { isStructuralIssueOverdue } from "@/lib/structuralIssues";
-import { addStructuralIssuePhotoAction, removeStructuralIssuePhotoAction } from "../actions";
+import { addStructuralIssuePhotoAction, removeStructuralIssuePhotoAction, acknowledgeStructuralIssueAction } from "../actions";
 import { PlanForm } from "./plan-form";
 import { CompleteForm } from "./complete-form";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
@@ -90,6 +90,11 @@ export default async function StructuralIssueDetailPage({ params }: { params: Pr
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">{dict.maintenanceCard}</h2>
           <dl className="mt-3 space-y-2 text-sm">
+            <Row label={dict.acknowledgedBy} value={issue.acknowledgedByName ? dict.knownPersonLabels[issue.acknowledgedByName] ?? issue.acknowledgedByName : null} />
+            <Row
+              label={dict.acknowledgedAt}
+              value={issue.acknowledgedAt ? formatDate(issue.acknowledgedAt, "dd MMM yyyy HH:mm", locale) : null}
+            />
             <Row label={dict.confirmedBy} value={issue.confirmedByName ? dict.knownPersonLabels[issue.confirmedByName] ?? issue.confirmedByName : null} />
             <Row
               label={dict.confirmedAt}
@@ -112,6 +117,24 @@ export default async function StructuralIssueDetailPage({ params }: { params: Pr
           </dl>
         </Card>
       </div>
+
+      {issue.status === "REPORTED" && !issue.acknowledgedAt && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.acknowledgeTitle}</h2>
+          {canManage ? (
+            <form action={acknowledgeStructuralIssueAction.bind(null, issue.id)} className="mt-2">
+              <ConfirmSubmitButton
+                confirmMessage={dict.acknowledgeConfirm}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-white px-3.5 py-2 text-sm font-medium text-slate-900 border border-slate-300 transition-colors hover:bg-slate-50"
+              >
+                {dict.acknowledgeButton}
+              </ConfirmSubmitButton>
+            </form>
+          ) : (
+            <p className="mt-2 text-xs text-slate-400">{dict.onlyMaintenance}</p>
+          )}
+        </Card>
+      )}
 
       {issue.status === "REPORTED" && (
         <Card>

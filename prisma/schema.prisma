@@ -272,9 +272,10 @@ model User {
   workingConfirmedPurchaseRequests PurchaseRequest[] @relation("PurchaseWorkingConfirmedBy")
   uploadedPurchaseRequestPhotos    PurchaseRequestPhoto[] @relation("PurchaseRequestPhotoUploadedBy")
 
-  reportedStructuralIssues  StructuralIssue[] @relation("StructuralIssueReportedBy")
-  confirmedStructuralIssues StructuralIssue[] @relation("StructuralIssueConfirmedBy")
-  completedStructuralIssues StructuralIssue[] @relation("StructuralIssueCompletedBy")
+  reportedStructuralIssues     StructuralIssue[] @relation("StructuralIssueReportedBy")
+  acknowledgedStructuralIssues StructuralIssue[] @relation("StructuralIssueAcknowledgedBy")
+  confirmedStructuralIssues    StructuralIssue[] @relation("StructuralIssueConfirmedBy")
+  completedStructuralIssues    StructuralIssue[] @relation("StructuralIssueCompletedBy")
   uploadedStructuralIssuePhotos StructuralIssuePhoto[] @relation("StructuralIssuePhotoUploadedBy")
 
   reportedNonConformanceReports  NonConformanceReport[] @relation("NonConformanceReportedBy")
@@ -2384,6 +2385,15 @@ model StructuralIssue {
   reportedByUserId String?
   reportedByUser   User?    @relation("StructuralIssueReportedBy", fields: [reportedByUserId], references: [id])
   reportedAt       DateTime @default(now())
+
+  // A lightweight "Maintenance has seen this" signal, separate from and
+  // earlier than confirming the damage and committing to a repair plan --
+  // the plan can take time to work out, but the reporter shouldn't have to
+  // wonder whether the report reached anyone in the meantime.
+  acknowledgedByName   String?
+  acknowledgedByUserId String?
+  acknowledgedByUser   User?     @relation("StructuralIssueAcknowledgedBy", fields: [acknowledgedByUserId], references: [id])
+  acknowledgedAt       DateTime?
 
   confirmedByName        String?
   confirmedByUserId      String?

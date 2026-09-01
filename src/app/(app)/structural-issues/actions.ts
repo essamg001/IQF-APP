@@ -68,6 +68,37 @@ export async function createStructuralIssueAction(_prevState: string | undefined
   redirect(`/structural-issues/${created.id}`);
 }
 
+// A lightweight "Maintenance has seen this" step, separate from and earlier
+// than confirmAndPlanStructuralIssueAction below -- gives the reporter a
+// visible signal that the report reached someone, before a full repair plan
+// (which can take longer to work out) is ready.
+export async function acknowledgeStructuralIssueAction(id: string) {
+  const session = await auth();
+  if (!canSignAsHeadOfMaintenance(session?.user)) return;
+
+  const existing = await prisma.structuralIssue.findUniqueOrThrow({ where: { id } });
+  if (existing.acknowledgedAt) return;
+
+  await prisma.structuralIssue.update({
+    where: { id },
+    data: {
+      acknowledgedByName: session!.user.name || session!.user.email,
+      acknowledgedByUserId: session!.user.id,
+      acknowledgedAt: new Date(),
+    },
+  });
+
+  await logActivity({
+    actorId: session!.user.id,
+    action: "STRUCTURAL_ISSUE_ACKNOWLEDGED",
+    entityType: "StructuralIssue",
+    entityId: id,
+  });
+
+  revalidatePath(`/structural-issues/${id}`);
+  revalidatePath("/structural-issues");
+}
+
 const planSchema = z.object({
   proposedPlan: z.string().min(1, "A repair plan is required."),
   proposedCompletionDate: z.string().min(1, "A target completion date is required."),
