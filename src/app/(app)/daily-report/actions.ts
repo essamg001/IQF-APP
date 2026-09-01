@@ -110,6 +110,14 @@ export async function addQuantityEntryAction(_prevState: string | undefined, for
   return "ok";
 }
 
+// Same "remove and re-add" correction pattern as removeDowntimeEventAction --
+// there's no per-field edit UI here, so a mistaken row is fixed by deleting
+// it and logging it again correctly, rather than left with no way to fix it.
+export async function removeQuantityEntryAction(id: string) {
+  await prisma.dailyQuantityEntry.delete({ where: { id } });
+  revalidatePath("/daily-report");
+}
+
 const packingSchema = z.object({
   date: z.string().min(1),
   factoryId: z.string().optional(),
@@ -138,6 +146,11 @@ export async function addPackingLineAction(_prevState: string | undefined, formD
 
   revalidatePath("/daily-report");
   return "ok";
+}
+
+export async function removePackingLineAction(id: string) {
+  await prisma.dailyPackingLine.delete({ where: { id } });
+  revalidatePath("/daily-report");
 }
 
 const downtimeSchema = z.object({

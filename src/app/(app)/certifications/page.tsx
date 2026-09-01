@@ -1,13 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { trainingExpiryStatus, trainingExpiryColor } from "@/lib/training";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { CertificationForm } from "./certification-form";
+import { deleteCertificationAction } from "./actions";
 
 export default async function CertificationsPage() {
   const session = await auth();
@@ -49,6 +52,7 @@ export default async function CertificationsPage() {
               <th className="px-4 py-2 font-medium">{dict.colValidTo}</th>
               <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
               <th className="px-4 py-2 font-medium">{dict.colNotes}</th>
+              <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -63,12 +67,24 @@ export default async function CertificationsPage() {
                     <Badge color={trainingExpiryColor(status)}>{STATUS_LABEL[status]}</Badge>
                   </td>
                   <td className="px-4 py-2 text-slate-500">{c.notes ?? "—"}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-3">
+                      <Link href={`/certifications/${c.id}/edit`} className="text-xs text-emerald-700 hover:underline">
+                        {fullDict.common.edit}
+                      </Link>
+                      <form action={deleteCertificationAction.bind(null, c.id)}>
+                        <ConfirmSubmitButton confirmMessage={dict.removeCertConfirm.replace("{name}", c.name)}>
+                          {fullDict.common.remove}
+                        </ConfirmSubmitButton>
+                      </form>
+                    </div>
+                  </td>
                 </tr>
               );
             })}
             {certifications.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
                   {dict.noCertifications}
                 </td>
               </tr>

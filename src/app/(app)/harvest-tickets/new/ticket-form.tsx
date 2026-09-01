@@ -20,7 +20,12 @@ type PlotLine = {
   weightKg?: string;
 };
 
-const EMPTY_LINE: PlotLine = {};
+// Festival is overwhelmingly the common variety planted -- defaulting to it
+// saves retyping the same value on nearly every plot line, while staying a
+// plain editable text value if a specific plot really is a different one.
+const EMPTY_LINE: PlotLine = { varietyName: "Festival" };
+
+type FieldOption = { station: string; valve: string };
 
 type HarvestTicketsDict = Dictionary["harvestTickets"];
 
@@ -43,13 +48,18 @@ function PlotLineCard({
   onChange,
   onRemove,
   dict,
+  fields,
 }: {
   line: PlotLine;
   onChange: (next: PlotLine) => void;
   onRemove: () => void;
   dict: HarvestTicketsDict;
+  fields: FieldOption[];
 }) {
   const set = (key: keyof PlotLine, value: string) => onChange({ ...line, [key]: value });
+  const stations = [...new Set(fields.map((f) => f.station))];
+  const valvesForStation = fields.filter((f) => !line.stationNo || f.station === line.stationNo).map((f) => f.valve);
+  const valves = [...new Set(valvesForStation)];
 
   return (
     <div className="rounded-md border border-slate-200 p-3">
@@ -61,10 +71,32 @@ function PlotLineCard({
       </div>
       <div className="mt-3 grid grid-cols-4 gap-3">
         <FieldGroup label={dict.stationNo}>
-          <Input value={line.stationNo ?? ""} onChange={(e) => set("stationNo", e.target.value)} />
+          <Select
+            value={line.stationNo ?? ""}
+            onChange={(e) => {
+              // Changing station clears a now-mismatched valve pick rather
+              // than silently submitting a station/valve pair that was
+              // never a real field.
+              onChange({ ...line, stationNo: e.target.value, plotValveGhNo: "" });
+            }}
+          >
+            <option value="">—</option>
+            {stations.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </Select>
         </FieldGroup>
         <FieldGroup label={dict.plotValveGhNo}>
-          <Input value={line.plotValveGhNo ?? ""} onChange={(e) => set("plotValveGhNo", e.target.value)} />
+          <Select value={line.plotValveGhNo ?? ""} onChange={(e) => set("plotValveGhNo", e.target.value)}>
+            <option value="">—</option>
+            {valves.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </Select>
         </FieldGroup>
         <FieldGroup label={dict.variety}>
           <Input value={line.varietyName ?? ""} onChange={(e) => set("varietyName", e.target.value)} />
@@ -92,7 +124,7 @@ function PlotLineCard({
   );
 }
 
-export function TicketForm() {
+export function TicketForm({ fields }: { fields: FieldOption[] }) {
   const [error, formAction, pending] = useActionState(createHarvestTicketAction, undefined);
   const [lines, setLines] = useState<PlotLine[]>([{ ...EMPTY_LINE }]);
   const [productType, setProductType] = useState("");
@@ -239,6 +271,7 @@ export function TicketForm() {
               onChange={(next) => setLines(lines.map((l, j) => (j === i ? next : l)))}
               onRemove={() => setLines(lines.filter((_, j) => j !== i))}
               dict={dict}
+              fields={fields}
             />
           ))}
           {lines.length === 0 && <p className="text-sm text-slate-400">{dict.noPlotsAddedYet}</p>}

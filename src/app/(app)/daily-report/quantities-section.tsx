@@ -2,6 +2,8 @@
 
 import { Card } from "@/components/ui/card";
 import { QuantityEntryForm } from "./quantity-entry-form";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { removeQuantityEntryAction } from "./actions";
 import { useTranslations } from "@/lib/i18n/locale-context";
 
 type QuantityEntry = {
@@ -87,6 +89,7 @@ export function QuantitiesSection({
             <th className="px-2 py-2 font-medium">{dict.colRejectedPost}</th>
             <th className="px-2 py-2 font-medium">{dict.totalPacked}</th>
             <th className="px-2 py-2 font-medium">{dict.lost}</th>
+            <th className="px-2 py-2 font-medium"></th>
           </tr>
         </thead>
         <tbody>
@@ -130,11 +133,21 @@ export function QuantitiesSection({
               <td className="px-2 py-1.5">
                 {fmt(e.lostTon)} {e.lostPct != null && <span className="text-slate-400">({e.lostPct}%)</span>}
               </td>
+              <td className="px-2 py-1.5">
+                <form action={removeQuantityEntryAction.bind(null, e.id)}>
+                  <ConfirmSubmitButton
+                    confirmMessage={dict.removeQuantityEntryConfirm}
+                    className="text-red-600 hover:underline"
+                  >
+                    {fullDict.common.remove}
+                  </ConfirmSubmitButton>
+                </form>
+              </td>
             </tr>
           ))}
           {entries.length === 0 && (
             <tr>
-              <td colSpan={13} className="px-2 py-6 text-center text-slate-400">
+              <td colSpan={14} className="px-2 py-6 text-center text-slate-400">
                 {dict.noEntriesYet}
               </td>
             </tr>
@@ -149,6 +162,7 @@ export function QuantitiesSection({
                   {v.toFixed(3)}
                 </td>
               ))}
+              <td></td>
             </tr>
           )}
         </tbody>

@@ -2,6 +2,8 @@
 
 import { Card } from "@/components/ui/card";
 import { PackingEntryForm } from "./packing-entry-form";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { removePackingLineAction } from "./actions";
 import { useTranslations } from "@/lib/i18n/locale-context";
 
 type PackingLine = {
@@ -54,6 +56,7 @@ export function PackingSection({
             <th className="px-2 py-2 font-medium">{dict.col2ndClass}</th>
             <th className="px-2 py-2 font-medium">{dict.colTotalPkgs}</th>
             <th className="px-2 py-2 font-medium">{dict.colTotalTon}</th>
+            <th className="px-2 py-2 font-medium"></th>
           </tr>
         </thead>
         <tbody>
@@ -68,11 +71,18 @@ export function PackingSection({
               <td className="px-2 py-1.5">{l.secondClassQty ?? "—"}</td>
               <td className="px-2 py-1.5">{l.totalPackageQty ?? "—"}</td>
               <td className="px-2 py-1.5">{l.totalTon ?? "—"}</td>
+              <td className="px-2 py-1.5">
+                <form action={removePackingLineAction.bind(null, l.id)}>
+                  <ConfirmSubmitButton confirmMessage={dict.removePackingLineConfirm} className="text-red-600 hover:underline">
+                    {fullDict.common.remove}
+                  </ConfirmSubmitButton>
+                </form>
+              </td>
             </tr>
           ))}
           {lines.length === 0 && (
             <tr>
-              <td colSpan={9} className="px-2 py-6 text-center text-slate-400">
+              <td colSpan={10} className="px-2 py-6 text-center text-slate-400">
                 {dict.noEntriesYet}
               </td>
             </tr>
@@ -84,6 +94,7 @@ export function PackingSection({
               </td>
               <td className="px-2 py-2">{totalPackageQty}</td>
               <td className="px-2 py-2">{totalTon.toFixed(3)}</td>
+              <td></td>
             </tr>
           )}
         </tbody>
