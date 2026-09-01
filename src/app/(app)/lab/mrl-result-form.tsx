@@ -28,6 +28,22 @@ export function MrlResultForm({ resultId, result }: { resultId: string; result: 
 
   return (
     <form action={formAction} className="mt-3 space-y-3">
+      <div className="rounded-md border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-3">
+        <p className="mb-2 text-xs font-semibold text-emerald-800">{dict.certificateUploadSectionTitle}</p>
+        <FieldGroup label={dict.certificateFileMrlLabel}>
+          <Input name="certificateFile" type="file" accept=".pdf,.jpg,.jpeg,.png" />
+        </FieldGroup>
+        {result?.certificateFileName && (
+          <a
+            href={`/api/files/certificates/${result.certificateFileName}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-xs text-emerald-700 hover:underline"
+          >
+            {dict.viewCurrentCertificate.replace("{name}", result.certificateFileOriginalName ?? dict.fileFallback)}
+          </a>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <FieldGroup label={dict.statusFieldLabel}>
           <Select name="status" defaultValue={result?.status ?? "PENDING"}>
@@ -52,20 +68,7 @@ export function MrlResultForm({ resultId, result }: { resultId: string; result: 
         <FieldGroup label={dict.analysisDateLabel}>
           <Input name="analysisDate" type="date" defaultValue={dateInputValue(result?.analysisDate ?? null)} />
         </FieldGroup>
-        <FieldGroup label={dict.certificateFileMrlLabel}>
-          <Input name="certificateFile" type="file" accept=".pdf,.jpg,.jpeg,.png" />
-        </FieldGroup>
       </div>
-      {result?.certificateFileName && (
-        <a
-          href={`/api/files/certificates/${result.certificateFileName}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-emerald-700 hover:underline"
-        >
-          {dict.viewCurrentCertificate.replace("{name}", result.certificateFileOriginalName ?? dict.fileFallback)}
-        </a>
-      )}
       <FieldGroup label={dict.notesLabel}>
         <Input name="notes" defaultValue={result?.notes ?? ""} />
       </FieldGroup>

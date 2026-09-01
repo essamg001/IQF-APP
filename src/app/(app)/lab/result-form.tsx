@@ -106,6 +106,20 @@ export function ResultForm({
 
   return (
     <form action={formAction} className="mt-3 space-y-3">
+      <div className="rounded-md border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-3">
+        <p className="mb-2 text-xs font-semibold text-emerald-800">{dict.certificateUploadSectionTitle}</p>
+        <FieldGroup
+          label={
+            result?.certificateFileOriginalName
+              ? dict.certificateFileCurrentLabel.replace("{name}", result.certificateFileOriginalName)
+              : dict.certificateFileNewLabel
+          }
+        >
+          <input type="file" name="certificateFile" accept="application/pdf,image/jpeg,image/png" className="block text-sm" />
+          <p className="mt-1 text-xs text-slate-500">{dict.certificateFileHint}</p>
+        </FieldGroup>
+      </div>
+
       <div className="grid grid-cols-4 gap-3">
         <FieldGroup label={dict.statusFieldLabel}>
           <Select name="status" defaultValue={result?.status ?? "SENT_TO_LAB"}>
@@ -283,16 +297,6 @@ export function ResultForm({
           </FieldGroup>
         </div>
       </div>
-      <FieldGroup
-        label={
-          result?.certificateFileOriginalName
-            ? dict.certificateFileCurrentLabel.replace("{name}", result.certificateFileOriginalName)
-            : dict.certificateFileNewLabel
-        }
-      >
-        <input type="file" name="certificateFile" accept="application/pdf,image/jpeg,image/png" className="block text-sm" />
-        <p className="mt-1 text-xs text-slate-400">{dict.certificateFileHint}</p>
-      </FieldGroup>
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       <Button type="submit" variant="secondary" disabled={pending}>
         {pending ? dict.saving : dict.saveResult}

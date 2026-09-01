@@ -2609,6 +2609,7 @@ const en = {
     reasonPlaceholder: "Why it failed spec",
     correctiveActionLabel: "Corrective action",
     correctiveActionPlaceholder: "What was done about it",
+    certificateUploadSectionTitle: "Certificate Upload",
     certificateFileCurrentLabel: "Certificate File (currently: {name})",
     certificateFileNewLabel: "Certificate File (PDF, JPG, or PNG)",
     certificateFileHint:

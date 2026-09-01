@@ -2589,6 +2589,7 @@ const ar = {
     reasonPlaceholder: "سبب فشل المواصفة",
     correctiveActionLabel: "الإجراء التصحيحي",
     correctiveActionPlaceholder: "ما الذي تم اتخاذه بشأنه",
+    certificateUploadSectionTitle: "رفع الشهادة",
     certificateFileCurrentLabel: "ملف الشهادة (الحالي: {name})",
     certificateFileNewLabel: "ملف الشهادة (PDF أو JPG أو PNG)",
     certificateFileHint: "مطلوب، مع رقم الشهادة ورمز العينة، قبل حفظ هذه النتيجة كمعتمدة أو فاشلة.",
