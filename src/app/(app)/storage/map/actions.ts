@@ -57,7 +57,7 @@ export async function assignPalletToSlotAction(_prevState: string | undefined, f
     action: "PALLET_SLOT_ASSIGNED",
     entityType: "Pallet",
     entityId: parsed.data.palletId,
-    detail: `${pallet.palletNumber} → Round ${slot.round} / Rack ${slot.rack} / Level ${slot.level}`,
+    detail: `${pallet.palletNumber} → Level ${slot.round} / Rack ${slot.rack} / Position ${slot.level}`,
   });
 
   revalidatePath(`/storage/map/${slot.coldRoomId}`);
@@ -84,7 +84,7 @@ export async function unassignSlotAction(slotId: string) {
     action: "PALLET_SLOT_UNASSIGNED",
     entityType: "Pallet",
     entityId: slot.palletId,
-    detail: `${slot.pallet?.palletNumber ?? slot.palletId} vacated Round ${slot.round} / Rack ${slot.rack} / Level ${slot.level}`,
+    detail: `${slot.pallet?.palletNumber ?? slot.palletId} vacated Level ${slot.round} / Rack ${slot.rack} / Position ${slot.level}`,
   });
 
   revalidatePath(`/storage/map/${slot.coldRoomId}`);
@@ -141,7 +141,7 @@ export async function pullPalletAsideAction(_prevState: string | undefined, form
     action: "PALLET_PULLED_ASIDE",
     entityType: "Pallet",
     entityId: slot.palletId,
-    detail: `${slot.pallet?.palletNumber ?? slot.palletId} pulled aside from Round ${slot.round} / Rack ${slot.rack} / Level ${slot.level}${parsed.data.reason ? ` — ${parsed.data.reason}` : ""}`,
+    detail: `${slot.pallet?.palletNumber ?? slot.palletId} pulled aside from Level ${slot.round} / Rack ${slot.rack} / Position ${slot.level}${parsed.data.reason ? ` — ${parsed.data.reason}` : ""}`,
   });
 
   revalidatePath(`/storage/map/${slot.coldRoomId}`);
@@ -193,7 +193,7 @@ export async function reshelvePalletAction(_prevState: string | undefined, formD
     action: "PALLET_RESHELVED",
     entityType: "Pallet",
     entityId: pullAside.palletId,
-    detail: `${pullAside.pallet.palletNumber} re-shelved to Round ${slot.round} / Rack ${slot.rack} / Level ${slot.level} (pulled from Round ${pullAside.round} / Rack ${pullAside.rack})`,
+    detail: `${pullAside.pallet.palletNumber} re-shelved to Level ${slot.round} / Rack ${slot.rack} / Position ${slot.level} (pulled from Level ${pullAside.round} / Rack ${pullAside.rack})`,
   });
 
   revalidatePath(`/storage/map/${slot.coldRoomId}`);

@@ -730,7 +730,7 @@ async function checkPalletsAwaitingReshelf() {
 
   for (const p of pending) {
     const hoursAgo = Math.round((Date.now() - p.pulledAt.getTime()) / (1000 * 60 * 60));
-    const message = `${p.pallet.palletNumber} was pulled aside from ${p.coldRoom.name} Round ${p.round} / Rack ${p.rack} ${hoursAgo} hour(s) ago and hasn't been re-shelved yet.`;
+    const message = `${p.pallet.palletNumber} was pulled aside from ${p.coldRoom.name} Level ${p.round} / Rack ${p.rack} ${hoursAgo} hour(s) ago and hasn't been re-shelved yet.`;
     await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "OWNER", message);
     await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "LOGISTICS", message);
   }
