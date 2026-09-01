@@ -23,10 +23,10 @@ export function DowntimeEntryForm({ factoryId, date }: { factoryId: string; date
         </Select>
       </FieldGroup>
       <FieldGroup label={dict.fromLabel}>
-        <Input name="fromTime" type="time" required className="w-28" />
+        <Input name="fromTime" type="time" step="60" required className="w-28" />
       </FieldGroup>
       <FieldGroup label={dict.toLabel}>
-        <Input name="toTime" type="time" required className="w-28" />
+        <Input name="toTime" type="time" step="60" required className="w-28" />
       </FieldGroup>
       <FieldGroup label={dict.reasonLabel}>
         <Input name="reason" required placeholder={dict.reasonPlaceholder} className="w-48" />

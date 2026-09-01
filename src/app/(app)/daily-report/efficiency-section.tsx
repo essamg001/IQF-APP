@@ -18,9 +18,14 @@ type Efficiency = {
   actualQuantityTon: number | null;
 };
 
+// Downtime logged against a shift can legitimately exceed that shift's own
+// uptime window (e.g. downtime events spilling past a shift boundary) --
+// clamped to 0 rather than rendering a broken "-15:-12"-style negative
+// duration, since "less than no time ran" isn't a real duration to display.
 function formatDuration(minutes: number) {
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
+  const clamped = Math.max(0, minutes);
+  const h = Math.floor(clamped / 60);
+  const m = Math.round(clamped % 60);
   return `${h}:${m.toString().padStart(2, "0")}`;
 }
 
