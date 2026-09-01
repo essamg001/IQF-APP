@@ -150,5 +150,5 @@ export async function markWasteAction(palletId: string, formData: FormData) {
   revalidatePath(`/storage/${palletId}`);
   revalidatePath("/orders");
   revalidatePath("/available-to-sell");
-  revalidatePath("/load-out");
+  revalidatePath("/logistics");
 }

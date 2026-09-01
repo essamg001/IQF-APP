@@ -11,17 +11,40 @@ import { ResultForm } from "./result-form";
 import { MrlResultForm } from "./mrl-result-form";
 import { ResolveHoldForm } from "./resolve-hold-form";
 import { TestDataBadge } from "@/components/test-data-badge";
+import { cn } from "@/lib/cn";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
-export default async function LabPage() {
+// Same slice-to-40 truncation as before, except a linked-to lot is never
+// silently dropped just because it's old -- it's spliced back in at the
+// front so a deep link always lands on something visible.
+function keepFocusedInView<T extends { lot: { lotNumber: string } }>(
+  all: T[],
+  limit: number,
+  isFocused: (lotNumber: string) => boolean
+): T[] {
+  const sliced = all.slice(0, limit);
+  if (!all.some((r) => isFocused(r.lot.lotNumber))) return sliced;
+  if (sliced.some((r) => isFocused(r.lot.lotNumber))) return sliced;
+  const focusedRow = all.find((r) => isFocused(r.lot.lotNumber))!;
+  return [focusedRow, ...sliced.slice(0, limit - 1)];
+}
+
+export default async function LabPage({ searchParams }: { searchParams: Promise<{ lot?: string }> }) {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
+  const { lot: focusedLot } = await searchParams;
   const locale = await resolveLocale();
   const dict = getDictionary(locale).lab;
   const LAB_LABEL = { IN_HOUSE: dict.labInHouse, EXTERNAL: dict.labExternal } as const;
+  // Highlights and auto-opens whichever lot a link (e.g. the Order lifecycle
+  // tracker's "View in Lab" action) was actually pointing at -- this list has
+  // no other deep-linking, so without this a user following that link would
+  // land on an unfiltered wall of results with no idea which row matters.
+  const isFocused = (lotNumber: string) => focusedLot != null && lotNumber === focusedLot;
+  const focusedClass = "ring-2 ring-emerald-400 rounded-md";
 
   const [onHoldShifts, results, mrlResults] = await Promise.all([
     prisma.shiftLog.findMany({
@@ -43,11 +66,13 @@ export default async function LabPage() {
 
   const awaitingDispatch = results.filter((r) => r.status === "PENDING");
   const awaitingResult = results.filter((r) => r.status === "SENT_TO_LAB");
-  const resolved = results.filter((r) => ["APPROVED", "FAILED_MINOR", "FAILED_SEVERE"].includes(r.status)).slice(0, 40);
+  const resolvedAll = results.filter((r) => ["APPROVED", "FAILED_MINOR", "FAILED_SEVERE"].includes(r.status));
+  const resolved = keepFocusedInView(resolvedAll, 40, isFocused);
 
   const mrlAwaitingDispatch = mrlResults.filter((r) => r.status === "PENDING");
   const mrlAwaitingResult = mrlResults.filter((r) => r.status === "SENT_TO_LAB");
-  const mrlResolved = mrlResults.filter((r) => r.status === "APPROVED" || r.status === "FAILED").slice(0, 40);
+  const mrlResolvedAll = mrlResults.filter((r) => r.status === "APPROVED" || r.status === "FAILED");
+  const mrlResolved = keepFocusedInView(mrlResolvedAll, 40, isFocused);
 
   return (
     <div className="space-y-6">
@@ -92,7 +117,7 @@ export default async function LabPage() {
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {awaitingDispatch.map((r) => (
-            <details key={r.id} className="py-2">
+            <details key={r.id} className={cn("py-2", isFocused(r.lot.lotNumber) && focusedClass)} open={isFocused(r.lot.lotNumber)}>
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
                 {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>
@@ -127,7 +152,7 @@ export default async function LabPage() {
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {awaitingResult.map((r) => (
-            <details key={r.id} className="py-2">
+            <details key={r.id} className={cn("py-2", isFocused(r.lot.lotNumber) && focusedClass)} open={isFocused(r.lot.lotNumber)}>
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
                 {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>
@@ -159,7 +184,7 @@ export default async function LabPage() {
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {resolved.map((r) => (
-            <details key={r.id} className="py-2">
+            <details key={r.id} className={cn("py-2", isFocused(r.lot.lotNumber) && focusedClass)} open={isFocused(r.lot.lotNumber)}>
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
                 {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.labType === "IN_HOUSE" ? "blue" : "slate"}>{LAB_LABEL[r.labType]}</Badge>{" "}
@@ -212,7 +237,7 @@ export default async function LabPage() {
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {mrlAwaitingDispatch.map((r) => (
-            <details key={r.id} className="py-2">
+            <details key={r.id} className={cn("py-2", isFocused(r.lot.lotNumber) && focusedClass)} open={isFocused(r.lot.lotNumber)}>
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
                 {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
                 {(r.isTestData || r.lot.isTestData) && (
@@ -246,7 +271,7 @@ export default async function LabPage() {
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {mrlAwaitingResult.map((r) => (
-            <details key={r.id} className="py-2">
+            <details key={r.id} className={cn("py-2", isFocused(r.lot.lotNumber) && focusedClass)} open={isFocused(r.lot.lotNumber)}>
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
                 {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}
                 {r.sentDate && (
@@ -277,7 +302,7 @@ export default async function LabPage() {
         </div>
         <div className="mt-3 divide-y divide-slate-100">
           {mrlResolved.map((r) => (
-            <details key={r.id} className="py-2">
+            <details key={r.id} className={cn("py-2", isFocused(r.lot.lotNumber) && focusedClass)} open={isFocused(r.lot.lotNumber)}>
               <summary className="cursor-pointer text-sm font-medium text-slate-800">
                 {r.lot.lotNumber} — {r.lot.fields.map((f) => f.field.name).join(", ")} — {dict.gradeLabel.replace("{grade}", r.lot.grade)}{" "}
                 <Badge color={r.status === "APPROVED" ? "green" : "red"}>
