@@ -2275,10 +2275,6 @@ model PurchaseRequest {
   id              String           @id @default(cuid())
   factoryId       String
   factory         Factory          @relation(fields: [factoryId], references: [id])
-  category        PurchaseCategory
-  itemDescription String
-  quantity        String?
-  reason          String?
 
   status PurchaseRequestStatus @default(REQUESTED)
 
@@ -2313,12 +2309,31 @@ model PurchaseRequest {
   workingNotes             String?
 
   photos PurchaseRequestPhoto[]
+  items  PurchaseRequestItem[]
 
   isTestData Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   @@index([factoryId])
   @@index([status])
+}
+
+// One row per item on the request -- category/description/quantity/reason
+// live here so several items can be requested together as one list, with
+// the whole list moving through the Requested/Approved/Ordered/Received/
+// ConfirmedWorking pipeline above as a single unit (the owner's explicit
+// call: items entered together are not independently approved/ordered).
+model PurchaseRequestItem {
+  id                String           @id @default(cuid())
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest  @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  category          PurchaseCategory
+  itemDescription   String
+  quantity          String?
+  reason            String?
+  createdAt         DateTime         @default(now())
+
+  @@index([purchaseRequestId])
 }
 
 model PurchaseRequestPhoto {

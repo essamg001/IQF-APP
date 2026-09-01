@@ -9,12 +9,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-const requestSchema = z.object({
-  factoryId: z.string().min(1),
+const lineItemSchema = z.object({
   category: z.enum(["CLEANING_MATERIALS", "EQUIPMENT", "SPARE_PARTS", "OTHER"]),
   itemDescription: z.string().min(1),
   quantity: z.string().optional(),
   reason: z.string().optional(),
+});
+
+const requestSchema = z.object({
+  factoryId: z.string().min(1),
+  items: z.array(lineItemSchema).min(1, "Add at least one item."),
 });
 
 // Requests come from the Head of Production specifically, same
@@ -26,7 +30,15 @@ export async function createPurchaseRequestAction(_prevState: string | undefined
   }
 
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
-  const parsed = requestSchema.safeParse(raw);
+
+  let items: unknown = [];
+  try {
+    items = raw.itemsJson ? JSON.parse(String(raw.itemsJson)) : [];
+  } catch {
+    items = [];
+  }
+
+  const parsed = requestSchema.safeParse({ factoryId: raw.factoryId, items });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
   // A photo is optional here -- unlike a structural issue, there's usually
@@ -45,9 +57,10 @@ export async function createPurchaseRequestAction(_prevState: string | undefined
 
   const created = await prisma.purchaseRequest.create({
     data: {
-      ...parsed.data,
+      factoryId: parsed.data.factoryId,
       requestedByName: session!.user.name || session!.user.email,
       requestedByUserId: session!.user.id,
+      items: { create: parsed.data.items },
       ...(photo ? { photos: photo } : {}),
     },
   });
@@ -57,7 +70,7 @@ export async function createPurchaseRequestAction(_prevState: string | undefined
     action: "PURCHASE_REQUEST_CREATED",
     entityType: "PurchaseRequest",
     entityId: created.id,
-    detail: `${parsed.data.itemDescription} (${parsed.data.category.replace(/_/g, " ")})`,
+    detail: `${parsed.data.items.length} item(s): ${parsed.data.items.map((i) => i.itemDescription).join(", ")}`,
   });
 
   revalidatePath("/purchase-requests");

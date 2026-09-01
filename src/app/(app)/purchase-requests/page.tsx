@@ -44,7 +44,7 @@ export default async function PurchaseRequestsPage() {
   const canManage = canManagePurchasing(session?.user);
 
   const requests = await prisma.purchaseRequest.findMany({
-    include: { factory: true, _count: { select: { photos: true } } },
+    include: { factory: true, items: true, _count: { select: { photos: true } } },
     orderBy: { requestedAt: "desc" },
     take: 200,
   });
@@ -84,30 +84,35 @@ export default async function PurchaseRequestsPage() {
             </tr>
           </thead>
           <tbody>
-            {requests.map((r) => (
-              <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-2">
-                  <Link href={`/purchase-requests/${r.id}`} className="font-medium text-emerald-700 hover:underline">
-                    {r.itemDescription}
-                  </Link>
-                  {r._count.photos > 0 && (
-                    <span className="ms-1.5 text-xs text-slate-400">
-                      ({r._count.photos} {dict.photoCountSuffix})
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-slate-600">{CATEGORY_LABEL[r.category]}</td>
-                <td className="px-4 py-2 text-slate-600">{r.factory.name}</td>
-                <td className="px-4 py-2 text-slate-600">{r.requestedByName}</td>
-                <td className="px-4 py-2 text-slate-500">{formatDate(r.requestedAt, "dd MMM yyyy", locale)}</td>
-                <td className="px-4 py-2 text-slate-500">
-                  {r.expectedDeliveryDate ? formatDate(r.expectedDeliveryDate, "dd MMM yyyy", locale) : "—"}
-                </td>
-                <td className="px-4 py-2">
-                  <Badge color={STATUS_COLOR[r.status]}>{STATUS_LABEL[r.status]}</Badge>
-                </td>
-              </tr>
-            ))}
+            {requests.map((r) => {
+              const distinctCategories = [...new Set(r.items.map((i) => i.category))];
+              const categoryLabel =
+                distinctCategories.length === 1 ? CATEGORY_LABEL[distinctCategories[0]] : dict.categoryMixed;
+              return (
+                <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-2">
+                    <Link href={`/purchase-requests/${r.id}`} className="font-medium text-emerald-700 hover:underline">
+                      {r.items.map((i) => i.itemDescription).join(", ")}
+                    </Link>
+                    {r._count.photos > 0 && (
+                      <span className="ms-1.5 text-xs text-slate-400">
+                        ({r._count.photos} {dict.photoCountSuffix})
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">{categoryLabel}</td>
+                  <td className="px-4 py-2 text-slate-600">{r.factory.name}</td>
+                  <td className="px-4 py-2 text-slate-600">{r.requestedByName}</td>
+                  <td className="px-4 py-2 text-slate-500">{formatDate(r.requestedAt, "dd MMM yyyy", locale)}</td>
+                  <td className="px-4 py-2 text-slate-500">
+                    {r.expectedDeliveryDate ? formatDate(r.expectedDeliveryDate, "dd MMM yyyy", locale) : "—"}
+                  </td>
+                  <td className="px-4 py-2">
+                    <Badge color={STATUS_COLOR[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+                  </td>
+                </tr>
+              );
+            })}
             {requests.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-slate-400">

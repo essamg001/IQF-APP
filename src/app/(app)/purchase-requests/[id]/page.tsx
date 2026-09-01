@@ -68,7 +68,11 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
     auth(),
     prisma.purchaseRequest.findUnique({
       where: { id },
-      include: { factory: true, photos: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } } },
+      include: {
+        factory: true,
+        items: true,
+        photos: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } },
+      },
     }),
   ]);
   if (!request) notFound();
@@ -80,18 +84,45 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold text-slate-900">{request.itemDescription}</h1>
-        <Badge color="slate">{CATEGORY_LABEL[request.category]}</Badge>
+        <h1 className="text-xl font-semibold text-slate-900">
+          {dict.listHeading.replace("{count}", String(request.items.length))}
+        </h1>
         <Badge color={STATUS_COLOR[request.status]}>{STATUS_LABEL[request.status]}</Badge>
       </div>
+
+      <Card>
+        <h2 className="text-sm font-semibold text-slate-900">{dict.itemsCardTitle}</h2>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-start text-sm">
+            <thead className="border-b border-slate-200 text-slate-500 text-xs">
+              <tr>
+                <th className="px-2 py-1 font-medium">{dict.colItem}</th>
+                <th className="px-2 py-1 font-medium">{dict.colCategory}</th>
+                <th className="px-2 py-1 font-medium">{dict.rowQuantity}</th>
+                <th className="px-2 py-1 font-medium">{dict.rowReason}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {request.items.map((i) => (
+                <tr key={i.id} className="border-b border-slate-100 last:border-0">
+                  <td className="px-2 py-1 font-medium text-slate-900">{i.itemDescription}</td>
+                  <td className="px-2 py-1">
+                    <Badge color="slate">{CATEGORY_LABEL[i.category]}</Badge>
+                  </td>
+                  <td className="px-2 py-1 text-slate-600">{i.quantity ?? "—"}</td>
+                  <td className="px-2 py-1 text-slate-600">{i.reason ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">{dict.requestDetailsCard}</h2>
           <dl className="mt-3 space-y-2 text-sm">
             <Row label={common.factory} value={request.factory.name} />
-            <Row label={dict.rowQuantity} value={request.quantity} />
-            <Row label={dict.rowReason} value={request.reason} />
             <Row label={dict.rowRequestedBy} value={request.requestedByName} />
             <Row label={dict.requestedLabel} value={formatDate(request.requestedAt, "dd MMM yyyy HH:mm", locale)} />
           </dl>
@@ -155,7 +186,7 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
             <ConfirmActionForm
               requestId={request.id}
               action={markReceivedAction}
-              confirmMessage={dict.confirmReceivedMessage.replace("{item}", request.itemDescription)}
+              confirmMessage={dict.confirmReceivedMessage.replace("{count}", String(request.items.length))}
               buttonLabel={dict.markReceivedButton}
             />
           ) : (
@@ -171,7 +202,7 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
           <ConfirmActionForm
             requestId={request.id}
             action={confirmWorkingAction}
-            confirmMessage={dict.confirmWorkingMessage.replace("{item}", request.itemDescription)}
+            confirmMessage={dict.confirmWorkingMessage.replace("{count}", String(request.items.length))}
             buttonLabel={dict.confirmWorkingButton}
             withNotes
           />
