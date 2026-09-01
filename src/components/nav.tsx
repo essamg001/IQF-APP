@@ -28,16 +28,8 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
     ],
   },
   {
-    headerKey: "sectionReference",
-    items: [
-      { href: "/fields", labelKey: "fields" },
-      { href: "/clients", labelKey: "clients" },
-    ],
-  },
-  {
     // Pure reference/documentation content -- not a log, not a data table --
-    // so it lives apart from sectionReference (master data) and
-    // sectionCompliance (recurring logs).
+    // so it lives apart from sectionCompliance (recurring logs).
     headerKey: "sectionProtocolsReference",
     items: [
       { href: "/crop-protection-plan", labelKey: "cropProtectionPlan", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
@@ -52,6 +44,7 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
     // The product's own journey, in physical order.
     headerKey: "sectionPipeline",
     items: [
+      { href: "/fields", labelKey: "fields" },
       { href: "/harvest-tickets", labelKey: "harvestTickets", roles: ["OWNER", "QUALITY"] },
       { href: "/field-spray-log", labelKey: "fieldSprayLog", roles: ["OWNER", "QUALITY"] },
       { href: "/pre-decap-inspection", labelKey: "preDecapArrivals", roles: ["OWNER", "QUALITY"] },
@@ -70,6 +63,7 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
   {
     headerKey: "sectionSalesShipping",
     items: [
+      { href: "/clients", labelKey: "clients" },
       { href: "/orders", labelKey: "orders" },
       { href: "/active-orders", labelKey: "activeOrders" },
       { href: "/available-to-sell", labelKey: "availableToSell" },

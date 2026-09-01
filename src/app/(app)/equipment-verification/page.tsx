@@ -4,10 +4,9 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { parseLocalDateOnly } from "@/lib/dates";
+import { parseLocalDateOnly, addDays, toDateOnlyString } from "@/lib/dates";
 import { MetalDetectorSection } from "./metal-detector-section";
 import { ChlorineDosingSection } from "./chlorine-dosing-section";
-import { updateChlorineSetPointAction } from "./actions";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
@@ -24,10 +23,17 @@ export default async function EquipmentVerificationPage({
   const dict = fullDict.equipmentVerification;
 
   const { date: dateParam } = await searchParams;
-  const dateStr = dateParam ?? new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  // The Night shift's early hours (0-6) are stored under the PREVIOUS
+  // calendar day (see hourSlotDate in shiftHours.ts) -- so before 7 AM,
+  // "today" would default this page to a Night shift that hasn't started
+  // for another 12+ hours, hiding the one that's actually still in
+  // progress. Defaulting to yesterday during that window shows the real
+  // current shift without anyone having to know to pick the date manually.
+  const defaultDateStr = now.getHours() < 7 ? toDateOnlyString(addDays(now, -1)) : toDateOnlyString(now);
+  const dateStr = dateParam ?? defaultDateStr;
   const dayStart = parseLocalDateOnly(dateStr) ?? new Date();
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const now = new Date();
 
   const [factories, metalChecks, maintenanceChecks, chlorineChecks] = await Promise.all([
     prisma.factory.findMany({ orderBy: { code: "asc" } }),
@@ -67,20 +73,6 @@ export default async function EquipmentVerificationPage({
           <Card key={f.id}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-slate-900">{factoryName}</h3>
-              <form action={updateChlorineSetPointAction.bind(null, f.id)} className="flex items-end gap-2">
-                <FieldGroup label={dict.chlorineSetPointLabel}>
-                  <Input
-                    name="chlorineSetPointPpm"
-                    type="number"
-                    step="0.01"
-                    defaultValue={f.chlorineSetPointPpm ?? ""}
-                    className="w-24 px-1.5 py-1 text-xs"
-                  />
-                </FieldGroup>
-                <Button type="submit" variant="secondary" className="px-2 py-1 text-xs">
-                  {fullDict.common.save}
-                </Button>
-              </form>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-6 md:grid-cols-2">
               {(["DAY", "NIGHT"] as const).map((shiftType) => (

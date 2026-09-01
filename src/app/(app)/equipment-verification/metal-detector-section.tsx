@@ -4,11 +4,11 @@ import { useState, useEffect, type FormEvent } from "react";
 import { useActionState } from "react";
 import { createMetalDetectorCheckAction, updateMetalDetectorMaintenanceAction, reopenMetalDetectorMaintenanceAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { HourCoverageGrid } from "./hour-coverage-grid";
-import { SHIFT_HOURS, hourSlotDate, toDateTimeLocalValue } from "@/lib/shiftHours";
+import { SHIFT_HOURS, hourSlotDate, toDateTimeLocalValue, isCurrentHourSlot } from "@/lib/shiftHours";
 import { parseLocalDateOnly } from "@/lib/dates";
 import { isMetalDetectorMaintenanceLocked } from "@/lib/equipmentVerification";
 import type { MetalDetectorCheck, MetalDetectorMaintenanceCheck, ShiftType } from "@prisma/client";
@@ -50,6 +50,7 @@ export function MetalDetectorSection({
           hours={hours}
           hasCheck={(h) => latestByHour.has(h)}
           elapsed={(h) => hourSlotDate(shiftDate, shiftType, h) <= now}
+          isCurrent={(h) => isCurrentHourSlot(hourSlotDate(shiftDate, shiftType, h), now)}
           onPick={setPresetHour}
         />
       </div>
@@ -306,40 +307,6 @@ function MetalDetectorCheckForm({
           />
         </FieldGroup>
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
-        {(
-          [
-            ["ferrousDetected", "ferrousDiameterMm"],
-            ["nonFerrousDetected", "nonFerrousDiameterMm"],
-            ["stainlessDetected", "stainlessDiameterMm"],
-          ] as const
-        ).map(([detectedName, diameterName]) => {
-          const [detected, setDetected] = DETECTED[detectedName];
-          const [diameter, setDiameter] = DIAMETER[diameterName];
-          return (
-            <div key={detectedName} className="space-y-1">
-              <label className="flex items-center gap-1 text-[11px] text-slate-700">
-                <input
-                  type="checkbox"
-                  name={detectedName}
-                  checked={detected}
-                  onChange={(e) => setDetected(e.target.checked)}
-                />{" "}
-                {DETECTION_LABELS[detectedName]}
-              </label>
-              <Input
-                name={diameterName}
-                type="number"
-                step="0.1"
-                placeholder="mm"
-                value={diameter}
-                onChange={(e) => setDiameter(e.target.value)}
-                className="px-1.5 py-1 text-xs"
-              />
-            </div>
-          );
-        })}
-      </div>
       <FieldGroup label={dict.releaseStatusLabel}>
         <Select
           name="productReleased"
@@ -352,14 +319,59 @@ function MetalDetectorCheckForm({
           <option value="NOT_APPLICABLE">{dict.releaseStatusNotApplicable}</option>
         </Select>
       </FieldGroup>
-      <FieldGroup label={dict.correctiveActionIfHeld}>
-        <Input
-          name="correctiveAction"
-          value={correctiveAction}
-          onChange={(e) => setCorrectiveAction(e.target.value)}
-          className="px-1.5 py-1 text-xs"
-        />
-      </FieldGroup>
+
+      {releaseStatus === "NOT_APPLICABLE" ? (
+        <p className="rounded bg-slate-50 px-2 py-1.5 text-[11px] text-slate-500">{dict.noProductRunningNote}</p>
+      ) : (
+        <>
+          <p className="text-[11px] text-slate-400">{dict.standardTestKitNote}</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(
+              [
+                ["ferrousDetected", "ferrousDiameterMm"],
+                ["nonFerrousDetected", "nonFerrousDiameterMm"],
+                ["stainlessDetected", "stainlessDiameterMm"],
+              ] as const
+            ).map(([detectedName, diameterName]) => {
+              const [detected, setDetected] = DETECTED[detectedName];
+              const [diameter, setDiameter] = DIAMETER[diameterName];
+              return (
+                <div key={detectedName} className="space-y-1">
+                  <label className="flex items-center gap-1 text-[11px] text-slate-700">
+                    <input
+                      type="checkbox"
+                      name={detectedName}
+                      checked={detected}
+                      onChange={(e) => setDetected(e.target.checked)}
+                    />{" "}
+                    {DETECTION_LABELS[detectedName]}
+                  </label>
+                  <Input
+                    name={diameterName}
+                    type="number"
+                    step="0.1"
+                    placeholder="mm"
+                    value={diameter}
+                    onChange={(e) => setDiameter(e.target.value)}
+                    className="px-1.5 py-1 text-xs"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {releaseStatus === "HELD" && (
+        <FieldGroup label={dict.correctiveActionIfHeld}>
+          <Input
+            name="correctiveAction"
+            value={correctiveAction}
+            onChange={(e) => setCorrectiveAction(e.target.value)}
+            className="px-1.5 py-1 text-xs"
+          />
+        </FieldGroup>
+      )}
       <Button type="submit" variant="secondary" disabled={pending} className="px-2 py-1 text-[11px]">
         {pending ? dict.logging : dict.logCheck}
       </Button>
@@ -367,6 +379,17 @@ function MetalDetectorCheckForm({
         <span className="ms-2 text-[11px] text-slate-400">{dict.asUser.replace("{name}", currentUserLabel)}</span>
       )}
       {(clientError || errorMessage) && <p className="text-[11px] text-red-600">{clientError ?? errorMessage}</p>}
+      {releaseStatus === "HELD" && (
+        <div className="pt-1">
+          <LinkButton
+            href={`/non-conformance/new?factoryId=${factoryId}&ncType=EQUIPMENT&location=${encodeURIComponent("Metal Detector")}&productOrReference=${encodeURIComponent(traceabilityCode)}&description=${encodeURIComponent(`Metal detector check held: ${correctiveAction || ""}`)}`}
+            variant="secondary"
+            className="px-2 py-1 text-[11px]"
+          >
+            {dict.raiseNonConformanceReport}
+          </LinkButton>
+        </div>
+      )}
     </form>
   );
 }

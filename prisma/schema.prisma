@@ -2109,6 +2109,12 @@ model MetalDetectorMaintenanceCheck {
 // manual reading against the dosing machine's set point/standard rate --
 // deviationOccurred is the checker's own call, matching the paper form
 // (not computed against a stored target, since the form doesn't record one).
+enum DosingAgent {
+  CHLORINE
+  PERACETIC_ACID
+  OTHER
+}
+
 model ChlorineDosingCheck {
   id        String    @id @default(cuid())
   factoryId String
@@ -2116,6 +2122,13 @@ model ChlorineDosingCheck {
   date      DateTime
   shiftType ShiftType
   recordedAt DateTime @default(now())
+
+  // The dosing pump doses either chlorine or peracetic acid depending on
+  // what's loaded -- OTHER + dosingAgentOther covers anything else, same
+  // "select from the common cases, free text for the rest" convention as
+  // DailyPackingLine.clientOther.
+  dosingAgent      DosingAgent @default(CHLORINE)
+  dosingAgentOther String?
 
   phLevel            Float?
   freeChlorinePpm    Float?

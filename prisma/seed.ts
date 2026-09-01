@@ -25,14 +25,14 @@ async function main() {
   console.log(`Seeded ${users.length} users (password: password123)`);
 
   const factory1 = await prisma.factory.upsert({
-    where: { name: "Factory 1 (Established)" },
+    where: { name: "IQF 1 (Established)" },
     update: {},
-    create: { name: "Factory 1 (Established)", capacityTonnesPerHour: 4.2 },
+    create: { name: "IQF 1 (Established)", capacityTonnesPerHour: 4.2 },
   });
   await prisma.factory.upsert({
-    where: { name: "Factory 2 (New)" },
+    where: { name: "IQF 2 (New)" },
     update: {},
-    create: { name: "Factory 2 (New)", capacityTonnesPerHour: 4.9 },
+    create: { name: "IQF 2 (New)", capacityTonnesPerHour: 4.9 },
   });
   console.log("Seeded 2 factories");
 
@@ -212,7 +212,7 @@ async function main() {
       expectedTransitDays: 12,
       loadType: "UNPALLETISED",
       loadingDate: new Date("2026-06-19"),
-      loadingLocation: "Factory 1 Dock",
+      loadingLocation: "IQF 1 Dock",
       loadingSupervisor: "Essam",
       loadOutRepName: "Essam",
       loadOutSignedAt: new Date("2026-06-19"),

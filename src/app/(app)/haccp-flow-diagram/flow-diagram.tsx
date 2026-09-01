@@ -209,7 +209,10 @@ export function FlowDiagram({ dict }: { dict: Dict }) {
         <Node box={B.n005} n={num(10)}>{label(10)}</Node>
         <Node box={B.waste} variant="terminal">{dict.wasteLabel}</Node>
         <Node box={B.n006} n={num(4)}>{label(4)}</Node>
-        <Node box={B.n007} n={num(5)}>{label(5)}</Node>
+        <Node box={B.n007} n={num(5)} variant="ccp">
+          <span className="mb-0.5 block text-[8.5px] font-bold uppercase tracking-wider text-red-600">{dict.ccpBadge02}</span>
+          {label(5)}
+        </Node>
         <Node box={B.n004b} n={num(6)}>{label(6)}</Node>
         <Node box={B.n008} n={num(11)}>{label(11)}</Node>
         <Node box={B.n009} n={num(7)}>{label(7)}</Node>

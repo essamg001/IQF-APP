@@ -28,3 +28,19 @@ export function toDateTimeLocalValue(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+// An hourly check (metal detector, chlorine dosing) can only be logged for
+// the clock hour that's actually happening right now -- not a future hour
+// (it hasn't happened yet) and not a past hour that's already closed
+// (backfilling a missed reading after the fact defeats the point of an
+// hourly check). Once an hour ends without a reading, that window is gone
+// for good; the HourCoverageGrid still shows it red so the gap is visible,
+// but it's no longer clickable/loggable.
+export function isCurrentHourSlot(recordedAt: Date, now: Date): boolean {
+  return (
+    recordedAt.getFullYear() === now.getFullYear() &&
+    recordedAt.getMonth() === now.getMonth() &&
+    recordedAt.getDate() === now.getDate() &&
+    recordedAt.getHours() === now.getHours()
+  );
+}

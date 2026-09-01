@@ -10,7 +10,13 @@ import type { Factory } from "@prisma/client";
 
 const today = new Date().toISOString().slice(0, 10);
 
-export function ReportForm({ factories }: { factories: Factory[] }) {
+export function ReportForm({
+  factories,
+  defaults,
+}: {
+  factories: Factory[];
+  defaults?: { factoryId?: string; ncType?: string; location?: string; productOrReference?: string; description?: string };
+}) {
   const [state, formAction, pending] = useActionState(createNonConformanceReportAction, undefined);
   const errorMessage = typeof state === "string" ? state : undefined;
   const dict = useTranslations();
@@ -24,7 +30,7 @@ export function ReportForm({ factories }: { factories: Factory[] }) {
             <Input name="date" type="date" defaultValue={today} required />
           </FieldGroup>
           <FieldGroup label={dict.common.factory}>
-            <Select name="factoryId" required defaultValue={factories[0]?.id ?? ""}>
+            <Select name="factoryId" required defaultValue={defaults?.factoryId ?? factories[0]?.id ?? ""}>
               {factories.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
@@ -33,7 +39,7 @@ export function ReportForm({ factories }: { factories: Factory[] }) {
             </Select>
           </FieldGroup>
           <FieldGroup label={t.ncTypeLabel}>
-            <Select name="ncType" required defaultValue="PRODUCT">
+            <Select name="ncType" required defaultValue={defaults?.ncType ?? "PRODUCT"}>
               <option value="PRODUCT">{t.typeProduct}</option>
               <option value="PROCESS">{t.typeProcess}</option>
               <option value="EQUIPMENT">{t.typeEquipment}</option>
@@ -55,13 +61,13 @@ export function ReportForm({ factories }: { factories: Factory[] }) {
         </div>
 
         <FieldGroup label={dict.common.location}>
-          <Input name="location" required placeholder={t.locationPlaceholder} />
+          <Input name="location" required defaultValue={defaults?.location ?? ""} placeholder={t.locationPlaceholder} />
         </FieldGroup>
         <FieldGroup label={t.productReferenceLabel}>
-          <Input name="productOrReference" placeholder={t.productReferencePlaceholder} />
+          <Input name="productOrReference" defaultValue={defaults?.productOrReference ?? ""} placeholder={t.productReferencePlaceholder} />
         </FieldGroup>
         <FieldGroup label={dict.common.description}>
-          <Input name="description" required placeholder={t.descriptionPlaceholder} />
+          <Input name="description" required defaultValue={defaults?.description ?? ""} placeholder={t.descriptionPlaceholder} />
         </FieldGroup>
 
         {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}

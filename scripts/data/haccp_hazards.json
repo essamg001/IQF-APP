@@ -419,7 +419,7 @@
         "severity": 4,
         "result": 8,
         "resultLabel": "MEDIUM",
-        "isCcp": false
+        "isCcp": true
       },
       {
         "category": "CHEMICAL",

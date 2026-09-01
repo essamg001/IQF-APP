@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { parseLocalDateOnly, parseDateSafe } from "@/lib/dates";
 import { logActivity } from "@/lib/activityLog";
 import { isMetalDetectorMaintenanceLocked } from "@/lib/equipmentVerification";
+import { isCurrentHourSlot } from "@/lib/shiftHours";
 import { z } from "zod";
 
 const metalDetectorSchema = z.object({
@@ -42,6 +43,11 @@ export async function createMetalDetectorCheckAction(_prevState: string | undefi
   const date = parseLocalDateOnly(parsed.data.date);
   if (!date) return "That date couldn't be read.";
 
+  const recordedAt = parseDateSafe(parsed.data.recordedAt) ?? new Date();
+  if (!isCurrentHourSlot(recordedAt, new Date())) {
+    return "This reading can only be logged for the current hour -- not a future hour, and not a past hour that's already closed.";
+  }
+
   const session = await auth();
   const { date: _date, productReleased, ...data } = parsed.data;
   // NOT_APPLICABLE (nothing running yet -- the first check of a shift, before
@@ -54,7 +60,7 @@ export async function createMetalDetectorCheckAction(_prevState: string | undefi
       ...data,
       productReleased: productReleasedValue,
       date,
-      recordedAt: parseDateSafe(parsed.data.recordedAt) ?? new Date(),
+      recordedAt,
       checkedByName: session?.user.name ?? session?.user.email ?? undefined,
       checkedByUserId: session?.user.id,
     },
@@ -209,6 +215,8 @@ const chlorineDosingSchema = z.object({
   date: z.string().min(1),
   shiftType: z.enum(["DAY", "NIGHT"]),
   recordedAt: z.string().optional(),
+  dosingAgent: z.enum(["CHLORINE", "PERACETIC_ACID", "OTHER"]),
+  dosingAgentOther: z.string().optional(),
   phLevel: z.coerce.number().optional(),
   freeChlorinePpm: z.coerce.number().optional(),
   fruitTransitSeconds: z.coerce.number().optional(),
@@ -233,6 +241,11 @@ export async function createChlorineDosingCheckAction(_prevState: string | undef
   const date = parseLocalDateOnly(parsed.data.date);
   if (!date) return "That date couldn't be read.";
 
+  const recordedAt = parseDateSafe(parsed.data.recordedAt) ?? new Date();
+  if (!isCurrentHourSlot(recordedAt, new Date())) {
+    return "This reading can only be logged for the current hour -- not a future hour, and not a past hour that's already closed.";
+  }
+
   const session = await auth();
   const { date: _date, ...data } = parsed.data;
 
@@ -240,7 +253,7 @@ export async function createChlorineDosingCheckAction(_prevState: string | undef
     data: {
       ...data,
       date,
-      recordedAt: parseDateSafe(parsed.data.recordedAt) ?? new Date(),
+      recordedAt,
       verifiedByName: session?.user.name ?? session?.user.email ?? undefined,
       verifiedByUserId: session?.user.id,
     },

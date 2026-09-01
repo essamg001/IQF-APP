@@ -39,10 +39,17 @@ export default async function HaccpFlowDiagramPage() {
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="border-red-200 bg-red-50">
-          <Badge color="red">{dict.ccpBadge}</Badge>
-          <h2 className="mt-2 text-sm font-semibold text-slate-900">{dict.ccpHeading}</h2>
-          <p className="mt-1 text-xs leading-relaxed text-slate-600">{dict.ccpBody}</p>
+        <Card className="border-red-200 bg-red-50 space-y-3">
+          <div>
+            <Badge color="red">{dict.ccpBadge}</Badge>
+            <h2 className="mt-2 text-sm font-semibold text-slate-900">{dict.ccpHeading}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">{dict.ccpBody}</p>
+          </div>
+          <div className="border-t border-red-200 pt-3">
+            <Badge color="red">{dict.ccpBadge02}</Badge>
+            <h2 className="mt-2 text-sm font-semibold text-slate-900">{dict.ccpHeading02}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">{dict.ccpBody02}</p>
+          </div>
         </Card>
         <Card className="border-amber-200 bg-amber-50">
           <Badge color="amber">018 – 010</Badge>
@@ -73,7 +80,7 @@ export default async function HaccpFlowDiagramPage() {
             </thead>
             <tbody>
               {dict.steps.map((step, i) => {
-                const isCcp = step.n === "016";
+                const isCcp = step.n === "016" || step.n === "007";
                 return (
                   <tr
                     key={`${step.n}-${i}`}
@@ -83,7 +90,7 @@ export default async function HaccpFlowDiagramPage() {
                       {step.n}
                       {isCcp && (
                         <span className="ms-1.5">
-                          <Badge color="red">{dict.ccpBadge}</Badge>
+                          <Badge color="red">{step.n === "007" ? dict.ccpBadge02 : dict.ccpBadge}</Badge>
                         </span>
                       )}
                     </td>

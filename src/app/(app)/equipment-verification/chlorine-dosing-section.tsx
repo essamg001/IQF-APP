@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
-import { createChlorineDosingCheckAction } from "./actions";
-import { Input, FieldGroup } from "@/components/ui/field";
+import { createChlorineDosingCheckAction, updateChlorineSetPointAction } from "./actions";
+import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HourCoverageGrid } from "./hour-coverage-grid";
-import { SHIFT_HOURS, hourSlotDate, toDateTimeLocalValue } from "@/lib/shiftHours";
+import { SHIFT_HOURS, hourSlotDate, toDateTimeLocalValue, isCurrentHourSlot } from "@/lib/shiftHours";
 import { parseLocalDateOnly } from "@/lib/dates";
 import type { ChlorineDosingCheck, ShiftType } from "@prisma/client";
 import { useTranslations } from "@/lib/i18n/locale-context";
@@ -30,6 +30,8 @@ export function ChlorineDosingSection({
   setPointPpm: number | null;
 }) {
   const [presetHour, setPresetHour] = useState<number | null>(null);
+  const [dosingAgent, setDosingAgent] = useState<"CHLORINE" | "PERACETIC_ACID" | "OTHER">("CHLORINE");
+  const [dosingAgentOther, setDosingAgentOther] = useState("");
   const shiftDate = parseLocalDateOnly(date) ?? now;
   const hours = SHIFT_HOURS[shiftType];
 
@@ -48,15 +50,27 @@ export function ChlorineDosingSection({
     <div className="rounded-md border border-slate-200 p-3">
       <h5 className="text-xs font-semibold text-slate-700">{dict.chlorineTitle}</h5>
       <p className="mt-0.5 text-[11px] text-slate-400">{dict.chlorineSubtitle}</p>
-      <p className="mt-0.5 text-[11px] font-medium text-slate-600">
-        {setPointPpm != null ? dict.setPointValue.replace("{value}", String(setPointPpm)) : dict.setPointNotSet}
-      </p>
+      <form action={updateChlorineSetPointAction.bind(null, factoryId)} className="mt-1 flex items-end gap-1.5">
+        <FieldGroup label={dict.chlorineSetPointLabel}>
+          <Input
+            name="chlorineSetPointPpm"
+            type="number"
+            step="0.01"
+            defaultValue={setPointPpm ?? ""}
+            className="w-20 px-1.5 py-1 text-[11px]"
+          />
+        </FieldGroup>
+        <Button type="submit" variant="secondary" className="px-2 py-1 text-[11px]">
+          {fullDict.common.save}
+        </Button>
+      </form>
 
       <div className="mt-2">
         <HourCoverageGrid
           hours={hours}
           hasCheck={(h) => latestByHour.has(h)}
           elapsed={(h) => hourSlotDate(shiftDate, shiftType, h) <= now}
+          isCurrent={(h) => isCurrentHourSlot(hourSlotDate(shiftDate, shiftType, h), now)}
           onPick={setPresetHour}
         />
       </div>
@@ -122,11 +136,40 @@ export function ChlorineDosingSection({
             className="px-1.5 py-1 text-xs"
           />
         </FieldGroup>
+        <div className="grid grid-cols-2 gap-1.5">
+          <FieldGroup label={dict.dosingAgentLabel}>
+            <Select
+              name="dosingAgent"
+              value={dosingAgent}
+              onChange={(e) => setDosingAgent(e.target.value as typeof dosingAgent)}
+              className="px-1.5 py-1 text-xs"
+            >
+              <option value="CHLORINE">{dict.dosingAgentChlorine}</option>
+              <option value="PERACETIC_ACID">{dict.dosingAgentPeraceticAcid}</option>
+              <option value="OTHER">{dict.dosingAgentOther}</option>
+            </Select>
+          </FieldGroup>
+          {dosingAgent === "OTHER" && (
+            <FieldGroup label={dict.dosingAgentOtherLabel}>
+              <Input
+                name="dosingAgentOther"
+                value={dosingAgentOther}
+                onChange={(e) => setDosingAgentOther(e.target.value)}
+                className="px-1.5 py-1 text-xs"
+              />
+            </FieldGroup>
+          )}
+        </div>
         <div className="grid grid-cols-3 gap-1.5">
           <FieldGroup label={dict.colPh}>
             <Input name="phLevel" type="number" step="0.01" className="px-1.5 py-1 text-xs" />
           </FieldGroup>
-          <FieldGroup label={setPointPpm != null ? `${dict.freeChlorine} (${dict.setPointShortLabel} ${setPointPpm})` : dict.freeChlorine}>
+          <FieldGroup
+            label={
+              (setPointPpm != null ? `${dict.freeChlorine} (${dict.setPointShortLabel} ${setPointPpm})` : dict.freeChlorine) +
+              (dosingAgent !== "CHLORINE" ? ` — ${dict.dosingAgentReadingNote}` : "")
+            }
+          >
             <Input name="freeChlorinePpm" type="number" step="0.01" className="px-1.5 py-1 text-xs" />
           </FieldGroup>
           <FieldGroup label={dict.fruitTransit}>
