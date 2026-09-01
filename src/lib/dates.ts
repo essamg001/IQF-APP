@@ -6,9 +6,18 @@ import type { Locale as AppLocale } from "@prisma/client";
  * Locale-aware date formatting -- ar-EG gives Arabic month/day names with
  * Western digits (0-9), matching how dates are actually written day-to-day
  * in Egypt (as opposed to ar-SA's Eastern Arabic numerals).
+ *
+ * Every call site in this app writes its pattern as "dd MMM yyyy" (an
+ * abbreviated month) -- fine in English ("01 Sep 2026"), but the owner
+ * wants full month names specifically in Arabic, not a shortened one
+ * ("سبتمبر" not "سبتـ"). Rather than touch every call site's literal
+ * pattern string, the exactly-3-M abbreviated-month token is upgraded to
+ * the 4-M full-name token only when rendering Arabic -- English keeps its
+ * existing abbreviated form unchanged.
  */
 export function formatDate(date: Date, pattern: string, locale: AppLocale): string {
-  return format(date, pattern, locale === "AR" ? { locale: arEG } : undefined);
+  const effectivePattern = locale === "AR" ? pattern.replace(/M{3}(?!M)/g, "MMMM") : pattern;
+  return format(date, effectivePattern, locale === "AR" ? { locale: arEG } : undefined);
 }
 
 /**

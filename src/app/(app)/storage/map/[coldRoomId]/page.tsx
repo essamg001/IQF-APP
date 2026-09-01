@@ -32,14 +32,17 @@ export default async function ColdRoomMapPage({
       orderBy: [{ round: "asc" }, { rack: "asc" }, { level: "asc" }],
     }),
     prisma.pallet.findMany({
-      // Scoped to pallets nominally packed for THIS room (or never assigned
-      // a room at all, e.g. older data) -- otherwise every unshelved pallet
-      // in the factory shows up as assignable here regardless of which cold
-      // room its own packing record actually points to.
+      // Any slot-less pallet is assignable here, regardless of which cold
+      // room its own Final Product Entry packing record happened to guess --
+      // that guess is an unfiltered, non-authoritative pick made at packing
+      // time (see packing-form.tsx), and deciding the real room is the whole
+      // point of this screen. An earlier version scoped this to pallets
+      // nominally packed for THIS room, which meant a room nobody happened
+      // to guess at packing time showed an empty dropdown forever even with
+      // plenty of free slots -- not a per-room quirk, any room could hit it.
       where: {
         slot: null,
         status: { notIn: ["SHIPPED", "WASTE"] },
-        OR: [{ coldRoomId }, { coldRoomId: null }],
       },
       include: { lot: { include: { fields: { include: { field: true } } } } },
       // Oldest not-yet-shelved pallet first -- matches the physical routine
