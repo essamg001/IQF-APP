@@ -104,7 +104,7 @@ export function OrderForm({ clients }: { clients: ClientWithSpecs[] }) {
         {grade && format && (
           <div>
             {matchedSpec ? (
-              <details className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3">
+              <details key={matchedSpec.id} open className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3">
                 <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-emerald-800">
                   {dict.clientSpecTitle.replace("{specName}", matchedSpec.specName)}
                 </summary>

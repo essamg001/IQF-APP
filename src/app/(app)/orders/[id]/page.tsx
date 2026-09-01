@@ -6,9 +6,8 @@ import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
-import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatDate } from "@/lib/dates";
-import { allocatePalletsAction, updateOrderQuantityAction, updateOrderValueAction } from "../actions";
+import { updateOrderQuantityAction, updateOrderValueAction } from "../actions";
 import { AdvanceStageButton } from "./advance-stage-button";
 import { LifecycleTracker } from "./lifecycle-tracker";
 import { getOrderLifecycleStatus, ORDER_STAGE_SEQUENCE } from "@/lib/orderLifecycle";
@@ -157,17 +156,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           }}
           actions={{
             ALLOCATED: order.pallets.length < order.quantityPallets && (
-              <form action={allocatePalletsAction.bind(null, order.id)}>
-                <ConfirmSubmitButton
-                  confirmMessage={dict.allocateConfirm
-                    .replace("{count}", String(order.quantityPallets - order.pallets.length))
-                    .replace("{tonnes}", ((order.quantityPallets - order.pallets.length) * FULL_PALLET_WEIGHT_TONNES).toFixed(1))
-                    .replace("{orderNumber}", order.orderNumber)}
-                  className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
-                >
-                  {dict.allocatePallets}
-                </ConfirmSubmitButton>
-              </form>
+              <LinkButton
+                href={`/orders/${order.id}/allocate`}
+                variant="secondary"
+                className="px-3 py-1.5 text-sm"
+              >
+                {dict.allocatePallets}
+              </LinkButton>
             ),
           }}
         />
