@@ -2,7 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { suggestAllocation, explainZeroAllocation } from "@/lib/allocation";
+import { suggestAllocation } from "@/lib/allocation";
+import { ORDER_STAGE_SEQUENCE } from "@/lib/orderLifecycle";
 import { logActivity } from "@/lib/activityLog";
 import { canSeePricing } from "@/lib/roles";
 import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
@@ -18,7 +19,9 @@ const orderSchema = z.object({
   grade: z.enum(["A", "B"]),
   format: z.enum(["WHOLE", "SLICED", "DICED"]),
   quantityTonnes: z.coerce.number().positive(),
+  valueUsd: z.coerce.number().nonnegative().optional(),
   orderDate: z.string().min(1),
+  shipDate: z.string().optional(),
 });
 
 async function generateOrderNumber(): Promise<string> {
@@ -38,20 +41,29 @@ export async function createOrderAction(_prevState: string | undefined, formData
     grade: formData.get("grade"),
     format: formData.get("format"),
     quantityTonnes: formData.get("quantityTonnes"),
+    valueUsd: formData.get("valueUsd") || undefined,
     orderDate: formData.get("orderDate"),
+    shipDate: formData.get("shipDate") || undefined,
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  const { quantityTonnes, ...rest } = parsed.data;
+  const { quantityTonnes, valueUsd, shipDate, ...rest } = parsed.data;
   // Pallets are the actual allocatable unit in storage, so the tonnage the
   // client agrees to gets converted to whole pallets at 1.2t each.
   const quantityPallets = Math.max(1, Math.round(quantityTonnes / PALLET_WEIGHT_TONNES));
   const orderNumber = await generateOrderNumber();
 
   const order = await prisma.order.create({
-    data: { ...rest, orderNumber, quantityPallets, valueUsd: 0, orderDate: new Date(rest.orderDate) },
+    data: {
+      ...rest,
+      orderNumber,
+      quantityPallets,
+      valueUsd: valueUsd ?? 0,
+      orderDate: new Date(rest.orderDate),
+      shipDate: shipDate ? new Date(shipDate) : undefined,
+    },
   });
 
   const session = await auth();
@@ -114,12 +126,12 @@ export async function updateOrderValueAction(orderId: string, formData: FormData
 }
 
 export async function allocatePalletsAction(orderId: string) {
-  const { picks, remaining, grade, format } = await prisma.$transaction(
+  const { picks } = await prisma.$transaction(
     async (tx) => {
       const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
       const alreadyAllocated = await tx.pallet.count({ where: { orderId } });
       const remaining = order.quantityPallets - alreadyAllocated;
-      if (remaining <= 0) return { picks: [], remaining, grade: order.grade, format: order.format };
+      if (remaining <= 0) return { picks: [] };
 
       const picks = await suggestAllocation(
         {
@@ -138,19 +150,18 @@ export async function allocatePalletsAction(orderId: string) {
         });
       }
 
-      return { picks, remaining, grade: order.grade, format: order.format };
+      return { picks };
     },
     { isolationLevel: "Serializable" }
   );
 
-  // remaining <= 0 means the order was already fully allocated (e.g. a
-  // concurrent submission) -- nothing to explain, the button shouldn't even
-  // be visible in that state. Only a genuine zero-eligible-pallets result is
-  // worth surfacing a reason for.
+  // A zero-pick result (no stock, no lab clearance, or a spec fail) is no
+  // longer explained via a one-time redirect banner -- the order detail
+  // page's lifecycle tracker shows the same reason persistently, not just
+  // right after a failed click.
   if (picks.length === 0) {
-    if (remaining <= 0) return;
-    const reason = await explainZeroAllocation({ grade, format });
-    redirect(`/orders/${orderId}?allocError=${reason}`);
+    revalidatePath(`/orders/${orderId}`);
+    return;
   }
 
   const session = await auth();
@@ -166,8 +177,6 @@ export async function allocatePalletsAction(orderId: string) {
   revalidatePath("/storage");
 }
 
-const STAGE_ORDER = ["CONFIRMED", "IN_PRODUCTION", "PACKED", "SHIPPED", "DELIVERED", "PAID"] as const;
-
 export async function advanceOrderStageAction(
   orderId: string,
   _prevState: string | undefined,
@@ -177,8 +186,8 @@ export async function advanceOrderStageAction(
     where: { id: orderId },
     include: { pallets: { select: { status: true, palletNumber: true } } },
   });
-  const idx = STAGE_ORDER.indexOf(order.stage);
-  const next = STAGE_ORDER[idx + 1];
+  const idx = ORDER_STAGE_SEQUENCE.indexOf(order.stage);
+  const next = ORDER_STAGE_SEQUENCE[idx + 1];
   if (!next) return;
 
   // Advancing to Shipped is a confirmation that shipping already happened

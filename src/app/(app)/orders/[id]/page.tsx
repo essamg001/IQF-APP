@@ -10,6 +10,8 @@ import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatDate } from "@/lib/dates";
 import { allocatePalletsAction, updateOrderQuantityAction, updateOrderValueAction } from "../actions";
 import { AdvanceStageButton } from "./advance-stage-button";
+import { LifecycleTracker } from "./lifecycle-tracker";
+import { getOrderLifecycleStatus, ORDER_STAGE_SEQUENCE } from "@/lib/orderLifecycle";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
@@ -18,9 +20,7 @@ import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
-const STAGE_ORDER = ["CONFIRMED", "IN_PRODUCTION", "PACKED", "SHIPPED", "DELIVERED", "PAID"] as const;
-
-function stageLabel(dict: Dictionary["orders"], stage: (typeof STAGE_ORDER)[number]) {
+function stageLabel(dict: Dictionary["orders"], stage: (typeof ORDER_STAGE_SEQUENCE)[number]) {
   return {
     CONFIRMED: dict.stageConfirmed,
     IN_PRODUCTION: dict.stageInProduction,
@@ -63,15 +63,8 @@ function claimStatusLabel(dict: Dictionary["orders"], status: "OPEN" | "UNDER_RE
   }[status];
 }
 
-export default async function OrderDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ allocError?: string }>;
-}) {
+export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { allocError } = await searchParams;
   const session = await auth();
   const showPricing = canSeePricing(session?.user.role);
   const locale = await resolveLocale();
@@ -81,12 +74,21 @@ export default async function OrderDetailPage({
   const order = await prisma.order.findUnique({
     where: { id },
     include: {
-      client: true,
+      client: { include: { specs: true } },
       containers: true,
-      pallets: { include: { lot: true, coldRoom: true, loadLines: true, slot: true } },
+      pallets: {
+        include: {
+          lot: { include: { microbiologyResults: true, mrlResult: true, shift: true } },
+          coldRoom: true,
+          loadLines: true,
+          slot: true,
+        },
+      },
     },
   });
   if (!order) notFound();
+
+  const lifecycleSteps = await getOrderLifecycleStatus(order);
 
   const containerIds = order.containers.map((c) => c.id);
   const relatedClaims =
@@ -122,51 +124,54 @@ export default async function OrderDetailPage({
         return sum + share;
       }, 0);
 
-  const nextStage = STAGE_ORDER[STAGE_ORDER.indexOf(order.stage) + 1];
-
-  const allocErrorMessage =
-    allocError === "NO_STOCK"
-      ? dict.allocateNoneNoStock
-      : allocError === "LAB_PENDING"
-        ? dict.allocateNoneLabPending
-        : allocError === "SPEC_FAIL"
-          ? dict.allocateNoneSpecFail.replace("{clientName}", order.client.name)
-          : null;
+  const nextStage = ORDER_STAGE_SEQUENCE[ORDER_STAGE_SEQUENCE.indexOf(order.stage) + 1];
+  // Shipped is now auto-advanced the moment every allocated pallet actually
+  // ships (see maybeAutoAdvanceToShipped) -- a manual button for it would
+  // either be redundant (already true) or just repeat what the tracker's own
+  // Loaded step already explains, so it's the one transition left out here.
+  const showManualAdvance = nextStage && nextStage !== "SHIPPED";
 
   return (
     <div className="space-y-6">
-      {allocErrorMessage && (
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          {allocErrorMessage}
-        </p>
-      )}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold text-slate-900">{order.orderNumber}</h1>
-            <Badge color="slate">{stageLabel(dict, order.stage)}</Badge>
-          </div>
+          <h1 className="text-xl font-semibold text-slate-900">{order.orderNumber}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {order.client.name} · {dict.gradeLabel.replace("{grade}", order.grade)} · {formatLabel(dict, order.format)}
           </p>
         </div>
-        <div className="flex gap-2">
-          {order.pallets.length < order.quantityPallets && (
-            <form action={allocatePalletsAction.bind(null, order.id)}>
-              <ConfirmSubmitButton
-                confirmMessage={dict.allocateConfirm
-                  .replace("{count}", String(order.quantityPallets - order.pallets.length))
-                  .replace("{tonnes}", ((order.quantityPallets - order.pallets.length) * FULL_PALLET_WEIGHT_TONNES).toFixed(1))
-                  .replace("{orderNumber}", order.orderNumber)}
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
-              >
-                {dict.allocatePallets}
-              </ConfirmSubmitButton>
-            </form>
-          )}
-          {nextStage && <AdvanceStageButton orderId={order.id} label={stageLabel(dict, nextStage)} />}
-        </div>
+        {showManualAdvance && <AdvanceStageButton orderId={order.id} label={stageLabel(dict, nextStage)} />}
       </div>
+
+      <Card>
+        <LifecycleTracker
+          steps={lifecycleSteps}
+          labels={{
+            CONFIRMED: dict.stageConfirmed,
+            ALLOCATED: dict.stepAllocated,
+            LAB_CLEARED: dict.stepLabCleared,
+            LOADED: dict.stepLoaded,
+            SHIPPED: dict.stageShipped,
+            DELIVERED: dict.stageDelivered,
+            PAID: dict.stagePaid,
+          }}
+          actions={{
+            ALLOCATED: order.pallets.length < order.quantityPallets && (
+              <form action={allocatePalletsAction.bind(null, order.id)}>
+                <ConfirmSubmitButton
+                  confirmMessage={dict.allocateConfirm
+                    .replace("{count}", String(order.quantityPallets - order.pallets.length))
+                    .replace("{tonnes}", ((order.quantityPallets - order.pallets.length) * FULL_PALLET_WEIGHT_TONNES).toFixed(1))
+                    .replace("{orderNumber}", order.orderNumber)}
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                >
+                  {dict.allocatePallets}
+                </ConfirmSubmitButton>
+              </form>
+            ),
+          }}
+        />
+      </Card>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>

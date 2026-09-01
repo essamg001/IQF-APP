@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { formatDate } from "@/lib/dates";
+import { getOrderLifecycleStatus, summarizeLifecycle, type LifecycleStepKey } from "@/lib/orderLifecycle";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
@@ -34,6 +35,18 @@ function stageLabel(dict: Dictionary["orders"], stage: keyof typeof STAGE_COLOR)
   }[stage];
 }
 
+function stepLabel(dict: Dictionary["orders"], key: LifecycleStepKey) {
+  return {
+    CONFIRMED: dict.stageConfirmed,
+    ALLOCATED: dict.stepAllocated,
+    LAB_CLEARED: dict.stepLabCleared,
+    LOADED: dict.stepLoaded,
+    SHIPPED: dict.stageShipped,
+    DELIVERED: dict.stageDelivered,
+    PAID: dict.stagePaid,
+  }[key];
+}
+
 export default async function OrdersPage() {
   const session = await auth();
   const showPricing = canSeePricing(session?.user.role);
@@ -41,10 +54,25 @@ export default async function OrdersPage() {
   const dict = getDictionary(locale).orders;
 
   const orders = await prisma.order.findMany({
-    include: { client: true, _count: { select: { pallets: true } } },
+    include: {
+      client: { include: { specs: true } },
+      containers: true,
+      _count: { select: { pallets: true } },
+      // Only fetched in full for orders whose stage isn't already terminal --
+      // a Delivered/Paid order has nothing left to derive a blocker for.
+      pallets: {
+        include: { lot: { include: { microbiologyResults: true, mrlResult: true, shift: true } } },
+      },
+    },
     orderBy: { orderDate: "desc" },
     take: 200,
   });
+
+  const lifecycleByOrder = new Map<string, Awaited<ReturnType<typeof getOrderLifecycleStatus>>>();
+  for (const o of orders) {
+    if (o.stage === "DELIVERED" || o.stage === "PAID") continue;
+    lifecycleByOrder.set(o.id, await getOrderLifecycleStatus(o));
+  }
 
   return (
     <div>
@@ -93,7 +121,16 @@ export default async function OrdersPage() {
                 <td className="px-4 py-2">{o._count.pallets} / {o.quantityPallets}</td>
                 {showPricing && <td className="px-4 py-2">${o.valueUsd.toLocaleString()}</td>}
                 <td className="px-4 py-2">
-                  <Badge color={STAGE_COLOR[o.stage]}>{stageLabel(dict, o.stage)}</Badge>
+                  {(() => {
+                    const steps = lifecycleByOrder.get(o.id);
+                    if (!steps) return <Badge color={STAGE_COLOR[o.stage]}>{stageLabel(dict, o.stage)}</Badge>;
+                    const summary = summarizeLifecycle(steps);
+                    return (
+                      <Badge color={summary.tone === "blocked" ? "amber" : summary.tone === "done" ? "green" : "blue"}>
+                        {stepLabel(dict, summary.key)}
+                      </Badge>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-2">{formatDate(o.orderDate, "dd MMM yyyy", locale)}</td>
               </tr>

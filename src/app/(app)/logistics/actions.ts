@@ -17,6 +17,7 @@ import {
 } from "@/lib/specCompliance";
 import { logActivity } from "@/lib/activityLog";
 import { canSeeContainerValue, canSignSpecException } from "@/lib/roles";
+import { maybeAutoAdvanceToShipped } from "@/lib/orderLifecycle";
 import {
   CAPACITY_TONNES,
   LOAD_TYPE_LABEL,
@@ -393,7 +394,8 @@ async function createLoadLine(
   palletId: string,
   remaining: number,
   quantityTonnes: number,
-  coldRoomId: string | null
+  coldRoomId: string | null,
+  orderId: string
 ) {
   if (quantityTonnes > remaining + ROUNDING_TOLERANCE_TONNES) {
     return `Only ${remaining.toFixed(2)}t remaining on this pallet.`;
@@ -414,6 +416,13 @@ async function createLoadLine(
     ]);
     revalidatePath("/storage/map");
     if (coldRoomId) revalidatePath(`/storage/map/${coldRoomId}`);
+
+    // The order's own stage no longer needs a person to remember to click
+    // "Advance to Shipped" once every pallet on it has actually shipped --
+    // see maybeAutoAdvanceToShipped's doc comment.
+    await maybeAutoAdvanceToShipped(orderId);
+    revalidatePath(`/orders/${orderId}`);
+    revalidatePath("/orders");
   }
 
   revalidatePath(`/logistics/${containerId}`);
@@ -566,7 +575,7 @@ export async function addPalletLoadLineAction(
     return "This pallet needs stickering before it can be loaded.";
   }
 
-  return createLoadLine(containerId, pallet.id, remaining, parsed.data.quantityTonnes, pallet.coldRoomId);
+  return createLoadLine(containerId, pallet.id, remaining, parsed.data.quantityTonnes, pallet.coldRoomId, container.orderId);
 }
 
 const overrideSpecExceptionSchema = z.object({
@@ -662,7 +671,8 @@ export async function overrideSpecExceptionAction(_prevState: string | undefined
     parsed.data.palletId,
     remaining,
     parsed.data.quantityTonnes,
-    pallet.coldRoomId
+    pallet.coldRoomId,
+    container.orderId
   );
 }
 
