@@ -1,0 +1,1190 @@
+[
+  {
+    "stepNumber": "001",
+    "stepNameArabic": "استالم  للفراوله المجهزة",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "وجود تلوث بيولوجى فى المنتج الوارد من المزرعه مثل فيروس كبدىA -  نوروفيروس - ايكوالى - ليستريا -سالمونيال",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P . للمنتج\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "وجود تلوث بيولوجى فى المنتج الوارد من  وحدة التجهيز مثل خمائر و الفطريا ت(Yeast-mould)",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P . للمنتج\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200\nتطبيق تعليمات استالم الفراوله المجمدهWIGEN03116",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج اثناء عملية الفحص واالستالم مثل فيروس كبدىA -  نوروفيروس - ايكوالى - ليستريا -سالمونيال",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": "وجود متبقيات مبيدات فى المنتج عند االستالم ال يتوافق مع الحد االقصى المصرح به قانونا في بلد المنشآ او بلد البيع",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P .\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": "وجود معادن ثقيله( كادميوم -رصاص-زئبق)   فى المنتج عند االستالم ال يتوافق مع الحد االقصى المصرح به قانونا في بلد المنشآ او بلد البيع",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P .\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "وجود تلوث مادى من االجسام الغريبة(الزجاج -البالستك الصلب)",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P .\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "وجود تلوث مادى من االجسام الغريبه( الحلى -دبابيس الطرحة)",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P .\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": "وجود تلوث للمنتج بأحد المواد المسببه للحساسية مثل زراعه الفراولة بعد محصول الفول السودانى",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P .\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200",
+        "probability": 1,
+        "severity": 5,
+        "result": 5,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": "توريد صنف غير الصنف المطلوب( مثال االصناف المحمية وفقا لقانون الملكية الفكرية)",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P .\nالتحقق من مصداقية الصنف مثل استيفاء الشروط الخاصة بحماية الملكية الفكرية",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "حدوث تلوث متعمد اثناء توريد المنتج",
+        "controlsArabic": "التعامل مع مزارع معتمده  حاصله على شهادة التوافق مع معايير جلوبالجابGLOBALG.A.P .\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "002",
+    "stepNameArabic": "التبريد المبدئى فى منطقة انتظار الخام",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج من االسطح( سالمونيال - ليستريا- ايكوالى0157- كامبيلوباكتر)",
+        "controlsArabic": "تطبيق  تعليمات عمل النظافهWI03207\nاتباع تعليمات حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nاتباع برنامج التدريب العملى للعاملين",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "ادخال تلوث مادى نتيجة لكسر الزجاج او البالستك الصلب",
+        "controlsArabic": "اتباع سياسة التحكم في الزجاج والمواد القابلة للكسر\nتطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "ادخال تلوث مادى نتيجة الرتداء العاملين او الزائرين الحلى او الدبابيس",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق تعليمات عمل حماية المنتج من التلوثWI03200\nمرور المنتج النهائى على جهاز كشف المعادن",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث متعمد بسبب دخول عاملين او زوار او مقاولين غير مصرح لهم",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتوقيع الزوار او المقاولين على االستبيان الصحى\nتوافر مرافق مع الزوار او المقاولين داخل المحطة\nتوافر كاميرات مراقبه داخل المحطة\nتدريب العاملين على مبادئFIRST.\nتدريب العاملين على اجراء االبالغ السرى فى الحاالت التى تستدعى ذلك\nحصر الزوار من خالل بوابات الدخول الرئيسية",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "003",
+    "stepNameArabic": "تفريغ الخام",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA -  نوروفيروس - االيكوالى-ليستريا  سالمونياال من العاملين او االسطح",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق تعليمات عمل النظافهWI03207",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": "ادخال تلوث كيميائى ناتج عن استخدام زيوت او شحوم غير صالحه لمالمسة االغذية",
+        "controlsArabic": "توريد زيوت او شحوم صالحة لمالمسة االغذية وغير مسببه للحساسية",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "ادخال تلوث مادى نتيجة الرتداء العاملين او الزائرين الحلى او الدبابيس",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق تعليمات عمل حماية المنتج من التلوثWI03200\nمرور المنتج النهائى على جهاز كشف المعادن",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": "ادخال تلوث كيميائى ناتج عن استخدام زيوت او شحوم  به مكونات مسببه لللحساسية",
+        "controlsArabic": "توريد زيوت او شحوم صالحة لمالمسة االغذية وغير مسببه للحساسية",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث متعمد من العاملين",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على مبادئFIRST\nتوفير آليات االبالغ السري\nتوفير آليات لبحث شكاوي العاملين وفض اي خالف بين الرؤساء والمرؤوسين\nتوفير كاميرات مراقبه داخل موقع العمل\nتوافر مرافق مع الزوار او المقاولين داخل المحطة",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث متعمد من الزوار او المقاولين",
+        "controlsArabic": "تسجيل اسماء كل الزائرين والمقاولين عند الدخول من البوابات الرئيسية واالتصال باحد العاملين الصطحاب الزائر او المقاول داخل مواقع العمل ولحين خروجه مرة اخري\nتوقيع الزوار او المقاولين على االستبيان الصحى قبل دخول مواقع العمل\nتوافر كاميرات مراقبه داخل موقع العمل",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "004",
+    "stepNameArabic": "الفرز اليدوى(١)  و(٢)",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA - نوروفيروس - اال يكوالى-ليستريا  سالمونياال من العاملين او االسطح",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207\nتطبيق خطة التحاليل المعمليةPP07200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "ادخال تلوث مادى نتيجة لكسر الزجاج او البالستك الصلب او كسر زجاج/بالستك النظارات التي يرتديها العاملين او الزائرين او المقاولين",
+        "controlsArabic": "اتباع سياسة التحكم في الزجاج والمواد القابلة للكسر\nتطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nمراقبة النظارات التى يرتديها العاملين او الزوار او المقاولين يوميا",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "ادخال تلوث مادى نتيجة الستخدام العاملين السكين او االجهزة المحمولة آو البالستر االزرق او نتيجة الرتداء العاملين او الزائرين الحلى او الدبابيس او ، او السكين",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق تعليمات عمل حماية المنتج من التلوثWI03200\nمرور المنتج النهائى على جهاز كشف المعادن",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث متعمد بسبب دخول عاملين  و زوار او مقاولين غير مصرح لهم.",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتوقيع الزوار او المقاولين على االستبيان الصحى\nتوافر مرافق مع الزوار او المقاولين داخل المحطة\nتوافر كاميرات مراقبه داخل المحطة\nتدريب العاملين على مبادئFIRST.\nتدريب العاملين على اجراء االبالغ السرى فى الحاالت التى تستدعى ذلك\nحصر الزوار من خالل بوابات الدخول الرئيسية",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "005",
+    "stepNameArabic": "ازالة العنق بالسكين ووضع المنتج فى صناديق  بالستك",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA - نوروفيروس - اال يكوالى- ليستريا  سالمونياال من العاملين او االسطح( سكاكين -صناديق)",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207\nتطبيق خطة التحاليل المعمليةPP07200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجي بالدماء نتيجة حدوث قطع / جرح في ايدي العاملين بسبب استخدام السكينة",
+        "controlsArabic": "تطبيق سياسة  افرازات الجسم\nتطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق  تعليمات عمل النظافهWI03207\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "006",
+    "stepNameArabic": "الغسيل بالماء على درجة حرارة الغرفه",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث ميكروبيولجى للمنتج مثل  سالمونيال - ليستريا مونوسيتوجينس - ايكوالى -شيجال)  من مياه الغسيل المستخدمه.",
+        "controlsArabic": "استخدام مياه شرب نظيفه من شركة المياه\nتطبيق خطة التحاليل المعمليةPP07200\nتغيير المياه المستخدمه بعد5  ساعات من الورديه او اثناء الراحة",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "007",
+    "stepNameArabic": "الغسيل بالماء على درجة حرارة اقل من10  درجة مئوية",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث ميكروبيولجى للمنتج مثل  سالمونيال - ليستريا مونوسيتوجينس - ايكوالى -شيجال)  من مياه الغسيل المستخدمه.",
+        "controlsArabic": "استخدام مياه شرب نظيفه من شركة المياه\nتطبيق خطة التحاليل المعمليةPP07200\nتغيير المياه المستخدمه بعد5 ساعات من الورديه او اثناء الراحة",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "وجود تلوث ميكروبيولجى للمنتج(  العد الكلى للبكرتياTPC  ناتج من استخدام مبيدات حيويه  على المنتج فى األرض.",
+        "controlsArabic": "استخدام مياه شرب نظيفه من شركة المياه\nتطبيق خطة التحاليل المعمليةPP07200\nغسيل المنتج بمياه بارده من الشيلر باستخدام صوديوم هيبوكلورايت بتركيز5 -10  جزء فى المليون كلور حر لمدة25- 35 ثانيه.\nتغيير المياه المستخدمه بعد5 ساعات من الورديه او اثناء الراحة",
+        "probability": 2,
+        "severity": 4,
+        "result": 8,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": "وجود متبقيات للكلوريت و البركلوريت تزيد عن الحد المسموح بها للدول المصدر اليها",
+        "controlsArabic": "تطبيق تعليمات استالم الفراوله المجمدهWIGEN03116\nتطبيق خطة التحاليل المعمليةPP07200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "008",
+    "stepNameArabic": "التقطيع اآللى",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA - نوروفيروس - االيكوالى- ليستريا  سالمونياال من االسطح المالمسة للمنتج( ماكينة  التقطيع  والسيور)",
+        "controlsArabic": "تطبيق تعليمات النظافه للفراوله المجمدهWI03207\nلتدريب العملى على إرشادات الحفاظ على الصحة والسالمة والبيئةHSE-03214\nخطة التحاليل المعمليةPP07200\nاتباع تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "تلوث باالجسام الغريبه( بكسر السكاكين)",
+        "controlsArabic": "اتباع تعليمات تشغيل وصيانة ماكينة التقطيع\nأتباع تعليمات النظافة وحماية المنتج من التلوثWi-03-200\nتدريب العاملين على إرشادات للحفاظ على الصحة والسالمة والبيئةHSE-03214\nتدريب العاملين على الصيانه\nتمرير المنتج على جهاز كشف المعادن",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث متعمد للمنتج نتيجة عدم توافر كلمة سر لماكينة االتقطيع.",
+        "controlsArabic": "تطبيق تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتوافر مرافق مع الزوار او المقاولين داخل المحطة\nتوافر كاميرات مراقبه داخل المحطة او مشرفين على االقل يتابعون جميع العمليات\nتدريب العاملين على مبادئFIRST\nعمل كلمة سر لكل معده او ماكينة مع المسئول فقط و يتم تغييرها عند ترك العمل الحد العاملين",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "009",
+    "stepNameArabic": "نفق التجميد",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث نتيجة عدم كفاءة عملية التجميد مما يؤدى الى فساد  المنتج اثناء فترة الصالحية نتيجة نمومايلى( سالمونيال -  ليستريا مونوسيتوجينس- ايكوالى0157- كامبيلوباكتر)",
+        "controlsArabic": "مراقبة درجات الحرارة لنفق التجميد و مدة التجميد و سرعة السير وقياس درجة حرارة المنتج بعد نفق التجميد\nتطبيق تعليمات النظافه للفراوله المجمدهWI03207\nإتباع خطة التحاليل المعمليةPP07200\nاتباع تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214",
+        "probability": 2,
+        "severity": 4,
+        "result": 8,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "عدم توافر كلمة سر لوحدة التحكم و المراقبة فى نفق التجميد",
+        "controlsArabic": "تطبيق تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على مبادئFIRST.\nتوافر مرافق مع الزوار او المقاولين داخل المحطة\nتوافر كاميرات مراقبه داخل المحطة او مشرفين على االقل يتابعون جميع العمليات\nتوافر كلمة سر للوحة التحكم فى نفق التجميد",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "010",
+    "stepNameArabic": "التدريج",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA - نوروفيروس - اال يكوالى-ليستريا  سالمونياال من االسطح المالمسة للمنتج",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207\nتطبيق خطة التحاليل المعمليةPP07200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "وجود تلوث مادى من االجسام الغريبه مثل الزجاج -البالستك الصلب",
+        "controlsArabic": "اتباع سياسة التحكم في الزجاج والمواد القابلة للكسر\nتطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "011",
+    "stepNameArabic": "فرز االجسام الغريبة باستخدام ماكينة الTomra",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل اال يكوالى- ليستريا  سالمونياال من االسطح المالمسة للمنتج",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207\nتطبيق خطة التحاليل المعمليةPP07200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "وجود تلوث مادى من االجسام الغريبه مثل الزجاج -البالستك الصلب",
+        "controlsArabic": "اتباع سياسة التحكم في الزجاج والمواد القابلة للكسر\nتطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "012",
+    "stepNameArabic": "التعبئة والوزن فى كيس بالستيك داخل كرتونه",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA - نوروفيروس - االيكوالى- ليستريا -سالمونياال من االسطح المالمسة للمنتج",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207\nتطبيق خطة التحاليل المعمليةPP07200\nإجراءات الشراء وقبول و اعتماد و مراقبة و تقييم  الموردين ومقدمي الخدماتP02200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "013",
+    "stepNameArabic": "التعبئة و الوزن فى شكارة",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA - نوروفيروس - اال يكوالى-ليستريا  سالمونياال من االسطح المالمسة للمنتج",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207\nتطبيق خطة التحاليل المعمليةPP07200",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "014",
+    "stepNameArabic": "خياطة الجوال ووضع بيانات التمييز والتتبع",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "ادخال تلوث معدنى نتيجةحدوث كسر البرة الخياطة اثناء خياطة شيكارة الفراوله المجمده",
+        "controlsArabic": "مرور المنتج على جهاز كشف المعادن\nالمراقبة الدورية البرة الخياطة",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "015",
+    "stepNameArabic": "لصق الكرتونه",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "016",
+    "stepNameArabic": "كشف المعادن",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "بقاء تلوث المنتج بالمعادن بسبب عدم كفاءة جهاز كشف المعادن( تم شراء جهاز كشف المعادن وفقا لطلب العمالء وبالتالي هذه الخطوةCCP  علي الرغم من وجود برامج اشتراطية كافية)",
+        "controlsArabic": "المراقبة الدوريه لحساسية جهاز كشف للمعادن\nاتباع تعليمات تشغيل ماكينة كشف المعادنEIO03557\nتطبيق تعليمات النظافهWI03207\nتنفيذ برنامج التدريب العملى",
+        "probability": 1,
+        "severity": 5,
+        "result": 5,
+        "resultLabel": "MEDIUM",
+        "isCcp": true
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "عدم توافر كلمة سر لجهاز كشف المعادن",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتوافر كاميرات مراقبه داخل المحطة او مشرفين على االقل يتابعون جميع العمليات\nتدريب العاملين على مبادئFIRST.\nتحديد و تعريف االماكن الحساسه داخل المحطة و العاملين بها\nعمل باس ورد لكل معده او ماكينة و يتم تغييرها عند ترك العمل الحد العاملين",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث للمنتج بسبب فقد السيطره على دخول المنشأه",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات والمنشآت والعاملينWI01100\nاستخدام برامج الكترونيه لمراقبة مواقع دخول وحركة العاملين داخل الموقع.",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث متعمد بسبب دخول عاملين  و زوار او مقاولين غير مصرح لهم.",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتوقيع الزوار او المقاولين على االستبيان الصحى\nتوافر مرافق مع الزوار او المقاولين داخل المحطة\nتوافر كاميرات مراقبه داخل المحطة\nتدريب العاملين على مبادئFIRST.\nتدريب العاملين على اجراء االبالغ السرى فى الحاالت التى تستدعى ذلك\nحصر الزوار من خالل بوابات الدخول الرئيسية",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "017",
+    "stepNameArabic": "الرص على البالت ووضع بيانات التمييز والتتبع",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "018",
+    "stepNameArabic": "مراقبة الجوده",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA - نوروفيروس - اال يكوالى-ليستريا  سالمونياال من االسطح المالمسة للمنتج او من العاملين",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "019",
+    "stepNameArabic": "وضع المنتج في منطقة الحجر داخل التخزين المجمد درجة الحرارة-18 درجة مئوية",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى للمنتج مثل فيروس كبدىA - نوروفيروس - اال يكوالى-ليستريا  سالمونياال من االسطح المالمسة للمنتج او من العاملين",
+        "controlsArabic": "تطبيق التدريب العملى على تعليمات عامة حماية المنتج والبيئة من التلوث والحفاظ على السالمة والنظافة الشخصية للعاملينHSE03214\nتطبيق خطة التحاليل المعمليةPP07200  للعاملين\nتطبيق تعليمات العمل حماية المنتج من التلوثWI03200\nتطبيق  تعليمات عمل النظافهWI03207",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "020",
+    "stepNameArabic": "التخزين المجمد",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث نتيجة عدم كفاءة عملية التخزين المجمد مما يؤدى الى  فساد المنتج اثناء فترة الصالحية نتيجة نمومايلى( سالمونيال - ليستريا مونوسيتوجينس - ايكوالى0157-  كامبيلوباكتر)",
+        "controlsArabic": "إتباع تعليمات النظافه للفراوله المجمدهWI03207\nإتباع برنامج التدريب العملى على إرشادات الحفاظ على الصحة والسالمة والبيئةHSE03214\nإتباع خطة التحاليل المعمليةPP07200\nالمراقبة الدورية لدرجات حرارة للثالجات اثناء التخزين",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "حدوث تلوث متعمد من العاملين",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتواجد فرد امنى على بوابات المحطة\nتحديد و تعريف العاملين الدائمين\nتوافر قائمه بالعاملين اليومين\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتوافر كاميرات مراقبه داخل المحطة او مشرفين على االقل يتابعون جميع العمليات\nتدريب العاملين على مبادئFIRST.\nتحديد و تعريف االماكن الحساسه داخل المحطة و العاملين بها",
+        "probability": 2,
+        "severity": 3,
+        "result": 6,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث متعمد بسبب دخول عاملين  و زوار او مقاولين غير مصرح لهم.",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتوقيع الزوار او المقاولين على االستبيان الصحى\nتوافر مرافق مع الزوار او المقاولين داخل المحطة\nتوافر كاميرات مراقبه داخل المحطة\nتدريب العاملين على مبادئFIRST.\nتدريب العاملين على اجراء االبالغ السرى فى الحاالت التى تستدعى ذلك\nحصر الزوار من خالل بوابات الدخول الرئيسية",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "021",
+    "stepNameArabic": "فك الباليت وضع بيانات التمييز والتتبع وبيانات العميل تجهيزا للشحن بالباليت او بدون باليت",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": null
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "022",
+    "stepNameArabic": "الشحن  والتداول",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث بيولوجى من وسائل الشحن بسبب انخفاض مستوى النظافة لوسيلة النقل",
+        "controlsArabic": "تطبيق خطة نظافة مهمات ومواقع العملPP03201\nمراجعة نظافة وسيلة النقل قبل التحميل من مشرف التحميل\nالتدريب العملى على نظافة الحاويات",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": null
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": null
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "حدوث تلوث متعمد من العاملين",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على تعليمات الحفاظ على امن المنتجات و المنشأت و العاملينWI011100\nتدريب العاملين على مبادئFIRST\nتوفير آليات االبالغ السري\nتوفير آليات لبحث شكاوي العاملين وفض اي خالف بين الرؤساء والمرؤوسين\nتوفير كاميرات مراقبه داخل موقع العمل",
+        "probability": 2,
+        "severity": 4,
+        "result": 8,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث متعمد بسبب دخول عاملين  و زوار او مقاولين غير مصرح لهم",
+        "controlsArabic": "تسجيل اسماء كل الزائرين والمقاولين عند الدخول من البوابات الرئيسية واالتصال باحد العاملين الصطحاب الزائر او المقاول داخل مواقع العمل ولحين خروجه مرة اخري\nتوقيع الزوار او المقاولين على االستبيان الصحى قبل دخول مواقع العمل\nتوافر كاميرات مراقبه داخل موقع العمل\nيوجد باب لدخول المصنع و اليسمح للدخول اال بعد ابالغ مدير الموقع",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  },
+  {
+    "stepNumber": "023",
+    "stepNameArabic": "استالم وتخزين مهمات التعبئة",
+    "hazards": [
+      {
+        "category": "BIOLOGICAL",
+        "hazardArabic": "ادخال تلوث ميكروبى للمنتج نتيجة عدم نظافة وسيلة نقل مهمات التعبئة اثناء االستالم او تخزين المهمات فى مكان غير نظيف اوعدم تغطية المهمات",
+        "controlsArabic": "استالم مهمات التعبئة فى وسائل نقل نظيفه\nتغطية مهمات التعبئة اثناء االستالم\nفحص النظرى لمهمات التعبئة اثناء االستالم\nالتعامل مع موردين معتمدين.\nابالغ المورد لمواعيد وصول و استالم المههات و التنسيق\nاستبعاد اى مهمات تعبئة غير صالحة اثناء التعبئة",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "CHEMICAL",
+        "hazardArabic": "ادخال تلوث للمنتج من مهمات التعبئة غير صالحة لمالمسة االغذية نتيجة عدم توافر تحليل هجره لالكياس المستخدمه فى التعبئة",
+        "controlsArabic": "توافر شهادات صالحية لمالمسة االغذية.\nشهادة تحليل هجرة للبالستك المالمس للمنتج\nالتعامل مع موردين معتمدين\nاستبعاد مهمات التعبئة بدون توافر شهادات تحليل الهجرة للبالستك و شهادات صالحية مالمسة االغذية",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "PHYSICAL",
+        "hazardArabic": "وجود اجسام غريبه( حشرات- شعر -اتربه) على مهمات التعبئة",
+        "controlsArabic": "الفحص  اثناء استالم مهمات التعبئة\nالتعامل مع موردين معتمدين\nالفحص النظرى للمهمات قبل االستخدام\nاستبعاد اى مهمات غير مطابقه للمواصفات او بها اجسام غريبة وابالغ المورد",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "ALLERGEN",
+        "hazardArabic": null
+      },
+      {
+        "category": "FRAUD",
+        "hazardArabic": "توريد مهمات تعبئة غير مطابقه للمواصفات المطلوبه",
+        "controlsArabic": "التعامل مع موردين معتمدين\nالفحص العملى للمنتج اثناء التشغيل وفق المواصفات المطلوبه.",
+        "probability": 1,
+        "severity": 4,
+        "result": 4,
+        "resultLabel": "MEDIUM",
+        "isCcp": false
+      },
+      {
+        "category": "SECURITY",
+        "hazardArabic": "ادخال تلوث للمنتج بسبب عدم تامين مهمات التعبئة",
+        "controlsArabic": "اتباع تعليمات الحفاظ على امن المنتجات والمنشآت والعاملينWI01100\nالتنسيق مع المورد على مواعيد التوريد و ارقام الحاويات\nالتعامل مع موردين معتمدين",
+        "probability": 1,
+        "severity": 3,
+        "result": 3,
+        "resultLabel": "WEAK",
+        "isCcp": false
+      },
+      {
+        "category": "RADIOLOGICAL",
+        "hazardArabic": null
+      }
+    ]
+  }
+]

@@ -3311,3 +3311,41 @@ model Certification {
   updatedAt  DateTime @updatedAt
 }
 
+enum HaccpHazardCategory {
+  BIOLOGICAL
+  CHEMICAL
+  PHYSICAL
+  ALLERGEN
+  FRAUD
+  SECURITY
+  RADIOLOGICAL
+}
+
+// The real hazard-analysis table backing haccp-flow-diagram's 23 process
+// steps (Magrabi Agriculture IQF Strawberry HACCP Study, Issue 01.2, updated
+// 08/03/2026) -- one row per hazard category assessed at each step,
+// including the ones the study found "not applicable" (hazardArabic/
+// controlsArabic null), since documenting that every category was
+// considered is itself part of a real HACCP study. hazardArabic/
+// controlsArabic are transcribed verbatim in the source's own Arabic, not
+// translated -- this is a legal/regulatory food-safety document, and
+// translating it risks subtly changing a real hazard or control statement.
+// isCcp is true only for step 016 (Metal Detection), the study's one
+// Critical Control Point -- matches haccp-flow-diagram's existing CCP 01.
+model HaccpHazard {
+  id                String              @id @default(cuid())
+  processStepNumber String
+  category          HaccpHazardCategory
+  hazardArabic      String?
+  controlsArabic    String?
+  probability       Int?
+  severity          Int?
+  result            Int?
+  resultLabel       String?
+  isCcp             Boolean             @default(false)
+  sortOrder         Int
+  createdAt         DateTime            @default(now())
+
+  @@index([processStepNumber])
+}
+

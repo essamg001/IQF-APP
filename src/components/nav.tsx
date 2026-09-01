@@ -42,6 +42,7 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
     items: [
       { href: "/crop-protection-plan", labelKey: "cropProtectionPlan", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
       { href: "/haccp-flow-diagram", labelKey: "haccpFlowDiagram", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
+      { href: "/haccp-hazard-analysis", labelKey: "haccpHazardAnalysis", roles: ["OWNER", "QUALITY", "PRODUCTION"] },
       { href: "/emergency-protocols", labelKey: "emergencyProtocols" },
       { href: "/supervisor-roles", labelKey: "supervisorRoles" },
       { href: "/org-structure", labelKey: "orgStructure" },
