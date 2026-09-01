@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { StaffTrainingForm } from "./staff-training-form";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function TrainingPage({
   searchParams,
@@ -64,14 +65,20 @@ export default async function TrainingPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {dict.subtitle.replace("{count}", String(totalCount)).replace("{people}", String(uniqueAttendees))}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {dict.subtitle.replace("{count}", String(totalCount)).replace("{people}", String(uniqueAttendees))}
+          </p>
+          <p className="print-only mt-1 text-xs text-slate-500">
+            {common.printedOn.replace("{date}", formatDate(now, "dd MMM yyyy HH:mm", locale))}
+          </p>
+        </div>
+        <PrintButton />
       </div>
 
-      <Card>
+      <Card className="no-print">
         <StaffTrainingForm
           knownNames={knownNames}
           knownJobTitles={knownJobTitles}
@@ -81,7 +88,7 @@ export default async function TrainingPage({
         />
       </Card>
 
-      <div className="flex items-center gap-3">
+      <div className="no-print flex items-center gap-3">
         <div className="flex gap-1 border-b border-slate-200">
           {(
             [

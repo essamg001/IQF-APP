@@ -27,3 +27,23 @@ body {
 html[lang="ar"] body {
   font-family: var(--font-arabic), Arial, Helvetica, sans-serif;
 }
+
+/* Print-to-PDF support (see PrintButton): pages opt individual elements out
+   of the printed page with .no-print, and show print-only context (e.g. a
+   header naming the report and when it was generated) with .print-only. */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .app-sidebar,
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

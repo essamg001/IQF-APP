@@ -3,6 +3,8 @@
 // namespace is added here without its Arabic counterpart being kept in sync.
 const en = {
   common: {
+    downloadPdf: "Download PDF",
+    printedOn: "Generated {date}",
     save: "Save",
     saving: "Saving…",
     cancel: "Cancel",

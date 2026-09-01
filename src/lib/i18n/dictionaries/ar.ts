@@ -2,6 +2,8 @@ import type { Dictionary } from "./en";
 
 const ar = {
   common: {
+    downloadPdf: "تنزيل PDF",
+    printedOn: "تم الإنشاء في {date}",
     save: "حفظ",
     saving: "جارٍ الحفظ…",
     cancel: "إلغاء",

@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <LocaleProvider locale={locale} dict={dict}>
       <div className="min-h-screen bg-slate-50">
         <div className="mx-auto flex max-w-7xl">
-          <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-e border-slate-200 bg-white p-4">
+          <aside className="app-sidebar sticky top-0 flex h-screen w-60 shrink-0 flex-col border-e border-slate-200 bg-white p-4">
             <div className="mb-6 px-1">
               <p className="text-sm font-semibold text-slate-900">{dict.app.name}</p>
             </div>
