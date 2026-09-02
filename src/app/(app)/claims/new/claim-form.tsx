@@ -32,10 +32,12 @@ function ContainerLineCard({
   line,
   onChange,
   onRemove,
+  showPricing,
 }: {
   line: ContainerLine;
   onChange: (next: ContainerLine) => void;
   onRemove: () => void;
+  showPricing: boolean;
 }) {
   const { claims: dict, common } = useTranslations();
   const set = (key: keyof ContainerLine, value: string) => onChange({ ...line, [key]: value });
@@ -72,27 +74,31 @@ function ContainerLineCard({
         <FieldGroup label={dict.formComplaintDate}>
           <Input type="date" value={line.complaintDate ?? ""} onChange={(e) => set("complaintDate", e.target.value)} />
         </FieldGroup>
-        <FieldGroup label={dict.formSellingPricePerCarton}>
-          <Input type="number" step="0.01" value={line.sellingPricePerCarton ?? ""} onChange={(e) => set("sellingPricePerCarton", e.target.value)} />
-        </FieldGroup>
-        <FieldGroup label={dict.formShippingPrice}>
-          <Input type="number" step="0.01" value={line.shippingPrice ?? ""} onChange={(e) => set("shippingPrice", e.target.value)} />
-        </FieldGroup>
         <FieldGroup label={dict.formLostCartons}>
           <Input type="number" value={line.lostCartons ?? ""} onChange={(e) => set("lostCartons", e.target.value)} />
         </FieldGroup>
-        <FieldGroup label={dict.formCreditRequired}>
-          <Input type="number" step="0.01" value={line.creditRequired ?? ""} onChange={(e) => set("creditRequired", e.target.value)} />
-        </FieldGroup>
-        <FieldGroup label={dict.colClaimPct}>
-          <Input type="number" step="0.01" value={line.claimPct ?? ""} onChange={(e) => set("claimPct", e.target.value)} />
-        </FieldGroup>
-        <FieldGroup label={dict.colClaimAmount}>
-          <Input type="number" step="0.01" value={line.claimAmount ?? ""} onChange={(e) => set("claimAmount", e.target.value)} />
-        </FieldGroup>
-        <FieldGroup label={dict.formTotalSales}>
-          <Input type="number" step="0.01" value={line.totalSales ?? ""} onChange={(e) => set("totalSales", e.target.value)} />
-        </FieldGroup>
+        {showPricing && (
+          <>
+            <FieldGroup label={dict.formSellingPricePerCarton}>
+              <Input type="number" step="0.01" value={line.sellingPricePerCarton ?? ""} onChange={(e) => set("sellingPricePerCarton", e.target.value)} />
+            </FieldGroup>
+            <FieldGroup label={dict.formShippingPrice}>
+              <Input type="number" step="0.01" value={line.shippingPrice ?? ""} onChange={(e) => set("shippingPrice", e.target.value)} />
+            </FieldGroup>
+            <FieldGroup label={dict.formCreditRequired}>
+              <Input type="number" step="0.01" value={line.creditRequired ?? ""} onChange={(e) => set("creditRequired", e.target.value)} />
+            </FieldGroup>
+            <FieldGroup label={dict.colClaimPct}>
+              <Input type="number" step="0.01" value={line.claimPct ?? ""} onChange={(e) => set("claimPct", e.target.value)} />
+            </FieldGroup>
+            <FieldGroup label={dict.colClaimAmount}>
+              <Input type="number" step="0.01" value={line.claimAmount ?? ""} onChange={(e) => set("claimAmount", e.target.value)} />
+            </FieldGroup>
+            <FieldGroup label={dict.formTotalSales}>
+              <Input type="number" step="0.01" value={line.totalSales ?? ""} onChange={(e) => set("totalSales", e.target.value)} />
+            </FieldGroup>
+          </>
+        )}
       </div>
     </div>
   );
@@ -102,10 +108,12 @@ export function ClaimForm({
   clients,
   defaultClientId,
   defaultContainerNumber,
+  showPricing,
 }: {
   clients: Client[];
   defaultClientId?: string;
   defaultContainerNumber?: string;
+  showPricing: boolean;
 }) {
   const [error, formAction, pending] = useActionState(createClaimAction, undefined);
   const [lines, setLines] = useState<ContainerLine[]>(
@@ -153,9 +161,11 @@ export function ClaimForm({
               <option value="RED">{dict.severityRedOption}</option>
             </Select>
           </FieldGroup>
-          <FieldGroup label={dict.formClaimValue}>
-            <Input name="valueUsd" type="number" step="0.01" min="0" required />
-          </FieldGroup>
+          {showPricing && (
+            <FieldGroup label={dict.formClaimValue}>
+              <Input name="valueUsd" type="number" step="0.01" min="0" required />
+            </FieldGroup>
+          )}
         </div>
       </Card>
 
@@ -173,6 +183,7 @@ export function ClaimForm({
               line={line}
               onChange={(next) => setLines(lines.map((l, j) => (j === i ? next : l)))}
               onRemove={() => setLines(lines.filter((_, j) => j !== i))}
+              showPricing={showPricing}
             />
           ))}
           {lines.length === 0 && <p className="text-sm text-slate-400">{dict.noContainersAddedYet}</p>}
@@ -197,35 +208,37 @@ export function ClaimForm({
         </div>
       </Card>
 
-      <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">{dict.pricingContractTitle}</h2>
-        <div className="grid grid-cols-4 gap-3">
-          <FieldGroup label={dict.formClientPrice}>
-            <Input name="clientPrice" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.formShippingPricePerContainer}>
-            <Input name="shippingPricePerContainer" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.formClientFarmGateBefore}>
-            <Input name="clientFarmGateBeforeIssue" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.formClientFarmGateAfter}>
-            <Input name="clientFarmGateAfterIssue" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.formTotalShippingPrice}>
-            <Input name="totalShippingPrice" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.formPriceAgreement}>
-            <Input name="priceAgreement" />
-          </FieldGroup>
-          <FieldGroup label={dict.formPaymentTerms}>
-            <Input name="paymentTerms" />
-          </FieldGroup>
-          <FieldGroup label={dict.formContractWithCompany}>
-            <Input name="contractWithCompany" />
-          </FieldGroup>
-        </div>
-      </Card>
+      {showPricing && (
+        <Card className="space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">{dict.pricingContractTitle}</h2>
+          <div className="grid grid-cols-4 gap-3">
+            <FieldGroup label={dict.formClientPrice}>
+              <Input name="clientPrice" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.formShippingPricePerContainer}>
+              <Input name="shippingPricePerContainer" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.formClientFarmGateBefore}>
+              <Input name="clientFarmGateBeforeIssue" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.formClientFarmGateAfter}>
+              <Input name="clientFarmGateAfterIssue" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.formTotalShippingPrice}>
+              <Input name="totalShippingPrice" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.formPriceAgreement}>
+              <Input name="priceAgreement" />
+            </FieldGroup>
+            <FieldGroup label={dict.formPaymentTerms}>
+              <Input name="paymentTerms" />
+            </FieldGroup>
+            <FieldGroup label={dict.formContractWithCompany}>
+              <Input name="contractWithCompany" />
+            </FieldGroup>
+          </div>
+        </Card>
+      )}
 
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">{dict.claimDetailsQualityTitle}</h2>
@@ -246,38 +259,42 @@ export function ClaimForm({
           <FieldGroup label={dict.formInspectionCompanyName}>
             <Input name="inspectionCompanyName" />
           </FieldGroup>
-          <FieldGroup label={dict.formInspectionCompanyCost}>
-            <Input name="inspectionCompanyCost" type="number" step="0.01" />
-          </FieldGroup>
+          {showPricing && (
+            <FieldGroup label={dict.formInspectionCompanyCost}>
+              <Input name="inspectionCompanyCost" type="number" step="0.01" />
+            </FieldGroup>
+          )}
           <FieldGroup label={dict.formInspectionCompanyReport}>
             <Input name="inspectionCompanyReport" />
           </FieldGroup>
         </div>
       </Card>
 
-      <Card className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-900">{dict.financialNegotiationTitle}</h2>
-        <div className="grid grid-cols-3 gap-3">
-          <FieldGroup label={dict.rowAmountRequestedFromClient}>
-            <Input name="amountRequestedFromClient" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.rowAmountAfterNegotiation}>
-            <Input name="amountAfterNegotiation" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.rowDiscountValue}>
-            <Input name="discountValue" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.rowAmountRequestedForApproval}>
-            <Input name="amountRequestedForApproval" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.rowTotalShipmentValue}>
-            <Input name="totalShipmentValue" type="number" step="0.01" />
-          </FieldGroup>
-          <FieldGroup label={dict.rowDiscountPct}>
-            <Input name="discountPct" type="number" step="0.01" />
-          </FieldGroup>
-        </div>
-      </Card>
+      {showPricing && (
+        <Card className="space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">{dict.financialNegotiationTitle}</h2>
+          <div className="grid grid-cols-3 gap-3">
+            <FieldGroup label={dict.rowAmountRequestedFromClient}>
+              <Input name="amountRequestedFromClient" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.rowAmountAfterNegotiation}>
+              <Input name="amountAfterNegotiation" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.rowDiscountValue}>
+              <Input name="discountValue" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.rowAmountRequestedForApproval}>
+              <Input name="amountRequestedForApproval" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.rowTotalShipmentValue}>
+              <Input name="totalShipmentValue" type="number" step="0.01" />
+            </FieldGroup>
+            <FieldGroup label={dict.rowDiscountPct}>
+              <Input name="discountPct" type="number" step="0.01" />
+            </FieldGroup>
+          </div>
+        </Card>
+      )}
 
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">{dict.notesApprovalsTitle}</h2>

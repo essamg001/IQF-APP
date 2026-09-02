@@ -68,6 +68,7 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
       { href: "/active-orders", labelKey: "activeOrders" },
       { href: "/available-to-sell", labelKey: "availableToSell" },
       { href: "/trends", labelKey: "historicalTrends", requiresHeadOfSales: true },
+      { href: "/financials", labelKey: "financials", requiresHeadOfSales: true },
       { href: "/logistics", labelKey: "logistics" },
     ],
   },

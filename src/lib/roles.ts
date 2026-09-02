@@ -25,13 +25,15 @@ export function canSeeHistoricalTrends(user: { role: Role; isHeadOfSales: boolea
 }
 
 /**
- * Container value (price/kg, price/carton, computed shipment value, payment
- * terms) in Logistics is more sensitive than general order-level pricing --
- * whoever is physically running load-out shouldn't be able to see what a
+ * The standalone Financials page (order value, container value/costs) is
+ * more sensitive than general order-level pricing -- whoever is physically
+ * running load-out or a regular Sales rep shouldn't be able to see what a
  * shipment is worth, so this is deliberately narrower than canSeePricing:
- * Owner + Head of Sales/Export only, not the whole Sales role.
+ * Owner + Head of Sales/Export only, not the whole Sales role. Order value
+ * itself used to be visible inline (via canSeePricing) on Orders/Dashboard/
+ * Active Orders -- it now lives only behind this gate, on /financials.
  */
-export function canSeeContainerValue(user: { role: Role; isHeadOfSales: boolean } | undefined | null) {
+export function canSeeFinancials(user: { role: Role; isHeadOfSales: boolean } | undefined | null) {
   if (!user) return false;
   return user.role === "OWNER" || user.isHeadOfSales;
 }

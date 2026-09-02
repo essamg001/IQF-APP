@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { canSeePricing } from "@/lib/roles";
 import { saveUploadedFile } from "@/lib/files";
 import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
@@ -76,6 +77,9 @@ const claimSchema = z.object({
 });
 
 export async function createClaimAction(_prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  const showPricing = canSeePricing(session?.user?.role);
+
   const raw = Object.fromEntries(
     Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v])
   );
@@ -94,6 +98,36 @@ export async function createClaimAction(_prevState: string | undefined, formData
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
+  }
+
+  // The form itself already hides every pricing field from a role that
+  // can't see pricing, but a direct POST shouldn't be able to set them
+  // either -- strip them server-side rather than trusting the client.
+  if (!showPricing) {
+    parsed.data.valueUsd = 0;
+    parsed.data.clientPrice = undefined;
+    parsed.data.shippingPricePerContainer = undefined;
+    parsed.data.clientFarmGateBeforeIssue = undefined;
+    parsed.data.clientFarmGateAfterIssue = undefined;
+    parsed.data.totalShippingPrice = undefined;
+    parsed.data.priceAgreement = undefined;
+    parsed.data.paymentTerms = undefined;
+    parsed.data.inspectionCompanyCost = undefined;
+    parsed.data.amountRequestedFromClient = undefined;
+    parsed.data.amountAfterNegotiation = undefined;
+    parsed.data.discountValue = undefined;
+    parsed.data.amountRequestedForApproval = undefined;
+    parsed.data.totalShipmentValue = undefined;
+    parsed.data.discountPct = undefined;
+    parsed.data.containers = parsed.data.containers.map((c) => ({
+      ...c,
+      sellingPricePerCarton: undefined,
+      shippingPrice: undefined,
+      creditRequired: undefined,
+      claimPct: undefined,
+      claimAmount: undefined,
+      totalSales: undefined,
+    }));
   }
 
   const { containers: containerLines, claimDate, ...claimFields } = parsed.data;
@@ -123,7 +157,6 @@ export async function createClaimAction(_prevState: string | undefined, formData
     },
   });
 
-  const session = await auth();
   await logActivity({
     actorId: session?.user.id,
     action: "CLAIM_CREATED",

@@ -1,13 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { canSeePricing } from "@/lib/roles";
-import { isCreditedClaim } from "@/lib/claims";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { formatDate } from "@/lib/dates";
-import { updateOrderQuantityAction, updateOrderValueAction } from "../actions";
+import { updateOrderQuantityAction } from "../actions";
 import { AdvanceStageButton } from "./advance-stage-button";
 import { LifecycleTracker } from "./lifecycle-tracker";
 import { getOrderLifecycleStatus, ORDER_STAGE_SEQUENCE } from "@/lib/orderLifecycle";
@@ -64,8 +61,6 @@ function claimStatusLabel(dict: Dictionary["orders"], status: "OPEN" | "UNDER_RE
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await auth();
-  const showPricing = canSeePricing(session?.user.role);
   const locale = await resolveLocale();
   const fullDict = getDictionary(locale);
   const dict = fullDict.orders;
@@ -94,34 +89,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     containerIds.length > 0
       ? await prisma.claim.findMany({
           where: { containers: { some: { containerId: { in: containerIds } } } },
-          include: {
-            containers: { where: { containerId: { in: containerIds } } },
-            _count: { select: { containers: true } },
-          },
         })
       : [];
-
-  // A claim can list several containers, each with its own claimAmount --
-  // summing only containers[0] (as this used to) silently dropped every
-  // other container's credit for a claim spanning more than one. Falling
-  // back to the claim's full valueUsd is only safe when every container the
-  // claim lists belongs to this order; otherwise that value may belong partly
-  // to another order too, and using it here would double-count it there.
-  const netValue =
-    order.valueUsd -
-    relatedClaims
-      .filter((c) => isCreditedClaim(c.status))
-      .reduce((sum, c) => {
-        const matchedTotal = c.containers.reduce((s, line) => s + (line.claimAmount ?? 0), 0);
-        const everyMatchedLineHasAmount = c.containers.length > 0 && c.containers.every((line) => line.claimAmount != null);
-        const claimIsFullyWithinThisOrder = c.containers.length === c._count.containers;
-        const share = everyMatchedLineHasAmount
-          ? matchedTotal
-          : claimIsFullyWithinThisOrder
-            ? c.valueUsd
-            : matchedTotal;
-        return sum + share;
-      }, 0);
 
   const nextStage = ORDER_STAGE_SEQUENCE[ORDER_STAGE_SEQUENCE.indexOf(order.stage) + 1];
   // Shipped is now auto-advanced the moment every allocated pallet actually
@@ -176,8 +145,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <Row label={dict.orderDateLabel} value={formatDate(order.orderDate, "dd MMM yyyy", locale)} />
             <Row label={dict.quantityLabel} value={`${order.quantityPallets} ${dict.palletsSuffix}`} />
             <Row label={dict.allocatedLabel} value={`${order.pallets.length} / ${order.quantityPallets}`} />
-            {showPricing && <Row label={dict.grossValueLabel} value={`$${order.valueUsd.toLocaleString()}`} />}
-            {showPricing && <Row label={dict.netValueLabel} value={`$${netValue.toLocaleString()}`} />}
           </dl>
           {order.pallets.length === 0 && (
             <form
@@ -193,16 +160,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                   defaultValue={order.quantityPallets * FULL_PALLET_WEIGHT_TONNES}
                   className="w-40"
                 />
-              </FieldGroup>
-              <Button type="submit" variant="secondary">
-                {dict.save}
-              </Button>
-            </form>
-          )}
-          {showPricing && (
-            <form action={updateOrderValueAction.bind(null, order.id)} className="mt-3 flex items-end gap-2 border-t border-slate-100 pt-3">
-              <FieldGroup label={order.valueUsd > 0 ? dict.updateValueLabel : dict.setValueLabel}>
-                <Input name="valueUsd" type="number" step="0.01" min="0" defaultValue={order.valueUsd || ""} className="w-40" />
               </FieldGroup>
               <Button type="submit" variant="secondary">
                 {dict.save}
@@ -351,10 +308,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                     </Badge>{" "}
                     {claimReasonLabel(dict, c.reason)}
                   </span>
-                  <span className="text-slate-500">
-                    {showPricing ? `$${c.valueUsd.toLocaleString()} · ` : ""}
-                    {claimStatusLabel(dict, c.status)}
-                  </span>
+                  <span className="text-slate-500">{claimStatusLabel(dict, c.status)}</span>
                 </a>
               </li>
             ))}

@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { canSeePricing } from "@/lib/roles";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,8 +46,6 @@ function stepLabel(dict: Dictionary["orders"], key: LifecycleStepKey) {
 }
 
 export default async function OrdersPage() {
-  const session = await auth();
-  const showPricing = canSeePricing(session?.user.role);
   const locale = await resolveLocale();
   const dict = getDictionary(locale).orders;
 
@@ -95,7 +91,6 @@ export default async function OrdersPage() {
               <th className="px-4 py-2 font-medium">{dict.colGradeFormat}</th>
               <th className="px-4 py-2 font-medium">{dict.colQtyPallets}</th>
               <th className="px-4 py-2 font-medium">{dict.colAllocated}</th>
-              {showPricing && <th className="px-4 py-2 font-medium">{dict.colValue}</th>}
               <th className="px-4 py-2 font-medium">{dict.colStage}</th>
               <th className="px-4 py-2 font-medium">{dict.colOrderDate}</th>
             </tr>
@@ -119,7 +114,6 @@ export default async function OrdersPage() {
                 </td>
                 <td className="px-4 py-2">{o.quantityPallets}</td>
                 <td className="px-4 py-2">{o._count.pallets} / {o.quantityPallets}</td>
-                {showPricing && <td className="px-4 py-2">${o.valueUsd.toLocaleString()}</td>}
                 <td className="px-4 py-2">
                   {(() => {
                     const steps = lifecycleByOrder.get(o.id);
@@ -137,7 +131,7 @@ export default async function OrdersPage() {
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={showPricing ? 8 : 7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                   {dict.noOrdersYet}
                 </td>
               </tr>

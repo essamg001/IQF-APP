@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { canSeePricing } from "@/lib/roles";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +32,6 @@ export default async function ActiveOrdersPage() {
     SHIPPED: ordersDict.stageShipped,
   };
 
-  const session = await auth();
-  const showPricing = canSeePricing(session?.user.role);
-
   const orders = await prisma.order.findMany({
     where: { stage: { notIn: ["DELIVERED", "PAID"] } },
     include: { client: true, _count: { select: { pallets: true } } },
@@ -64,7 +59,6 @@ export default async function ActiveOrdersPage() {
               <th className="px-4 py-2 font-medium">{ordersDict.colGradeFormat}</th>
               <th className="px-4 py-2 font-medium">{ordersDict.colQtyPallets}</th>
               <th className="px-4 py-2 font-medium">{ordersDict.colAllocated}</th>
-              {showPricing && <th className="px-4 py-2 font-medium">{ordersDict.colValue}</th>}
               <th className="px-4 py-2 font-medium">{ordersDict.colStage}</th>
               <th className="px-4 py-2 font-medium">{ordersDict.colOrderDate}</th>
             </tr>
@@ -90,7 +84,6 @@ export default async function ActiveOrdersPage() {
                 <td className="px-4 py-2">
                   {o._count.pallets} / {o.quantityPallets}
                 </td>
-                {showPricing && <td className="px-4 py-2">${o.valueUsd.toLocaleString()}</td>}
                 <td className="px-4 py-2">
                   <Badge color={STAGE_COLOR[o.stage as keyof typeof STAGE_COLOR]}>
                     {STAGE_LABEL[o.stage as keyof typeof STAGE_COLOR]}
@@ -101,7 +94,7 @@ export default async function ActiveOrdersPage() {
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={showPricing ? 8 : 7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                   {dict.noneActive}
                 </td>
               </tr>

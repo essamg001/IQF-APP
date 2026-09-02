@@ -16,7 +16,7 @@ import {
   type SpecComplianceRow,
 } from "@/lib/specCompliance";
 import { logActivity } from "@/lib/activityLog";
-import { canSeeContainerValue, canSignSpecException } from "@/lib/roles";
+import { canSeeFinancials, canSignSpecException } from "@/lib/roles";
 import { maybeAutoAdvanceToShipped } from "@/lib/orderLifecycle";
 import {
   CAPACITY_TONNES,
@@ -269,7 +269,7 @@ const containerValueSchema = z.object({
 
 export async function updateContainerValueAction(containerId: string, formData: FormData) {
   const session = await auth();
-  if (!canSeeContainerValue(session?.user)) return;
+  if (!canSeeFinancials(session?.user)) return;
 
   const parsed = containerValueSchema.parse({
     pricePerKgUsd: formData.get("pricePerKgUsd") || undefined,
@@ -278,6 +278,7 @@ export async function updateContainerValueAction(containerId: string, formData: 
   await prisma.container.update({ where: { id: containerId }, data: parsed });
   revalidatePath(`/logistics/${containerId}`);
   revalidatePath("/logistics");
+  revalidatePath("/financials");
 }
 
 const containerCostSchema = z.object({
@@ -287,7 +288,13 @@ const containerCostSchema = z.object({
   incurredAt: z.string().optional(),
 });
 
+// These two actions used to be reachable only through a UI block gated by
+// station rather than role -- gating here too, not just on the page, so a
+// direct call can't bypass who's actually allowed to see/touch cost data.
 export async function addContainerCostAction(containerId: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canSeeFinancials(session?.user)) return "You don't have permission to do this.";
+
   const parsed = containerCostSchema.safeParse({
     category: formData.get("category"),
     amountUsd: formData.get("amountUsd"),
@@ -302,13 +309,18 @@ export async function addContainerCostAction(containerId: string, _prevState: st
   });
   revalidatePath(`/logistics/${containerId}`);
   revalidatePath("/logistics");
+  revalidatePath("/financials");
   return "ok";
 }
 
 export async function removeContainerCostAction(containerId: string, costId: string) {
+  const session = await auth();
+  if (!canSeeFinancials(session?.user)) return;
+
   await prisma.containerCost.delete({ where: { id: costId } });
   revalidatePath(`/logistics/${containerId}`);
   revalidatePath("/logistics");
+  revalidatePath("/financials");
 }
 
 const loadingDetailsSchema = z.object({

@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { suggestAllocation } from "@/lib/allocation";
 import { ORDER_STAGE_SEQUENCE } from "@/lib/orderLifecycle";
 import { logActivity } from "@/lib/activityLog";
-import { canSeePricing } from "@/lib/roles";
+import { canSeeFinancials } from "@/lib/roles";
 import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -107,7 +107,7 @@ export async function updateOrderQuantityAction(orderId: string, formData: FormD
 
 export async function updateOrderValueAction(orderId: string, formData: FormData) {
   const session = await auth();
-  if (!canSeePricing(session?.user?.role)) return;
+  if (!canSeeFinancials(session?.user)) return;
 
   const valueUsd = z.coerce.number().nonnegative().parse(formData.get("valueUsd"));
   const before = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
@@ -123,6 +123,7 @@ export async function updateOrderValueAction(orderId: string, formData: FormData
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");
+  revalidatePath("/financials");
 }
 
 export async function allocatePalletsAction(orderId: string) {

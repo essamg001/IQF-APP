@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Card, StatCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { canSeePricing, canManagePurchasing, canSignAsHeadOfProduction, canSignAsHeadOfMaintenance } from "@/lib/roles";
+import { canManagePurchasing, canSignAsHeadOfProduction, canSignAsHeadOfMaintenance } from "@/lib/roles";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
@@ -60,12 +60,6 @@ export default async function DashboardPage() {
     prisma.structuralIssue.count({ where: { status: "PLANNED", proposedCompletionDate: { lt: new Date() } } }),
   ]);
 
-  let revenueHint: string | undefined;
-  if (canSeePricing(role)) {
-    const value = await prisma.order.aggregate({ _sum: { valueUsd: true } });
-    revenueHint = dict.revenueHint.replace("{value}", `$${(value._sum.valueUsd ?? 0).toLocaleString()}`);
-  }
-
   const purchasingRows: OpenItemRow[] = canManagePurchasing(user)
     ? [
         { label: dict.purchaseRequestsAwaitingReview, count: purchaseRequestsToReview, href: "/purchase-requests" },
@@ -111,7 +105,7 @@ export default async function DashboardPage() {
       <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
 
       <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
-        <StatCard label={dict.statClients} value={String(clientCount)} hint={revenueHint} />
+        <StatCard label={dict.statClients} value={String(clientCount)} />
         <StatCard label={dict.statActiveOrders} value={String(activeOrders)} />
         <StatCard label={dict.statPalletsInStorage} value={String(palletsInStorage)} />
         <StatCard label={dict.statOpenClaims} value={String(openClaims)} />

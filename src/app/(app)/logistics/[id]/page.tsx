@@ -8,7 +8,7 @@ import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
-import { canSeeContainerValue, canSignSpecException } from "@/lib/roles";
+import { canSignSpecException } from "@/lib/roles";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 import {
@@ -19,7 +19,6 @@ import {
   CONTAINER_CHECKLIST_ITEMS,
 } from "@/lib/logistics";
 import { AddLoadLineForm } from "./add-load-line-form";
-import { AddCostForm } from "./add-cost-form";
 import { AddTemperatureForm } from "./add-temperature-form";
 import { SignOffForm } from "./sign-off-form";
 import { ReopenManifestForm } from "./reopen-manifest-form";
@@ -28,10 +27,8 @@ import {
   updateContainerLocationAction,
   updateLoadingDetailsAction,
   updateShipmentDetailsAction,
-  updateContainerValueAction,
   updateExportDocumentsAction,
   updateReeferSetPointAction,
-  removeContainerCostAction,
   removePalletLoadLineAction,
   completeLoadLineAction,
   toggleStickeringRequiredAction,
@@ -56,21 +53,10 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
   const { id } = await params;
   const session = await auth();
   const isLoadOutStation = session?.user.station === "LOAD_OUT";
-  const showPricing = canSeeContainerValue(session?.user);
   const canSignOffSpecException = canSignSpecException(session?.user);
   const locale = await resolveLocale();
   const fullDict = getDictionary(locale);
   const dict = fullDict.logistics;
-  const COST_CATEGORY_LABEL: Record<string, string> = {
-    DEMURRAGE: dict.costDemurrage,
-    DETENTION: dict.costDetention,
-    STORAGE: dict.costStorage,
-    CUSTOMS_DELAY: dict.costCustomsDelay,
-    DOCUMENTATION: dict.costDocumentation,
-    INSPECTION: dict.costInspection,
-    REROUTING: dict.costRerouting,
-    OTHER: dict.costOther,
-  };
   const FORMAT_LABEL: Record<string, string> = {
     WHOLE: fullDict.orders.formatWhole,
     SLICED: fullDict.orders.formatSliced,
@@ -115,7 +101,6 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
         include: { pallet: { include: { lot: true } } },
         orderBy: { createdAt: "asc" },
       },
-      costs: { orderBy: { incurredAt: "desc" } },
       temperatureLogs: { orderBy: { recordedAt: "desc" } },
       loadPhotos: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } },
       checklistConfirmations: true,
@@ -156,23 +141,6 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
 
   const totalLoadedThisContainer = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
   const capacity = container.loadType ? CAPACITY_TONNES[container.loadType] : null;
-
-  // A pallet's cartons can be split across two containers when it fills one
-  // up mid-pallet, so a container's own carton count is prorated by however
-  // much of each pallet's weight actually went into it, not just summed
-  // whole -- otherwise a split pallet's cartons would be double-counted
-  // across both containers it touched.
-  const totalCartonsThisContainer = container.palletLines.reduce((sum, line) => {
-    if (!line.pallet.totalCartons || line.pallet.weightTonnes <= 0) return sum;
-    const fraction = Math.min(1, line.quantityTonnes / line.pallet.weightTonnes);
-    return sum + line.pallet.totalCartons * fraction;
-  }, 0);
-
-  const valueByWeightUsd = container.pricePerKgUsd != null ? container.pricePerKgUsd * totalLoadedThisContainer * 1000 : null;
-  const valueByCartonUsd =
-    container.pricePerCartonUsd != null ? container.pricePerCartonUsd * totalCartonsThisContainer : null;
-
-  const totalExtraCostsUsd = container.costs.reduce((s, c) => s + c.amountUsd, 0);
 
   return (
     <div className="space-y-6">
@@ -287,88 +255,8 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
                 {dict.update}
               </Button>
             </form>
-
-            {showPricing && (
-              <div className="mt-6 border-t border-slate-100 pt-4">
-                <h3 className="text-sm font-semibold text-slate-900">{dict.containerValueTitle}</h3>
-                <form action={updateContainerValueAction.bind(null, container.id)} className="mt-3 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <FieldGroup label={dict.pricePerKgLabel}>
-                      <Input name="pricePerKgUsd" type="number" step="0.001" min="0" defaultValue={container.pricePerKgUsd ?? ""} />
-                    </FieldGroup>
-                    <FieldGroup label={dict.pricePerCartonLabel}>
-                      <Input
-                        name="pricePerCartonUsd"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        defaultValue={container.pricePerCartonUsd ?? ""}
-                      />
-                    </FieldGroup>
-                  </div>
-                  <Button type="submit" variant="secondary">
-                    {dict.save}
-                  </Button>
-                </form>
-                <dl className="mt-3 space-y-1 text-sm">
-                  <Row
-                    label={dict.byWeightLabel.replace("{kg}", (totalLoadedThisContainer * 1000).toFixed(0))}
-                    value={valueByWeightUsd != null ? `$${valueByWeightUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
-                  />
-                  <Row
-                    label={dict.byCartonsLabel.replace("{ctn}", totalCartonsThisContainer.toFixed(0))}
-                    value={valueByCartonUsd != null ? `$${valueByCartonUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : undefined}
-                  />
-                  <Row label={dict.paymentTermsLabel} value={container.order.client.paymentTerms} />
-                </dl>
-              </div>
-            )}
           </Card>
         </div>
-      )}
-
-      {!isLoadOutStation && (
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">{dict.additionalCostsTitle}</h2>
-              <p className="mt-1 text-xs text-slate-500">{dict.additionalCostsSubtitle}</p>
-            </div>
-            {container.costs.length > 0 && (
-              <Badge color="amber">
-                {dict.totalSuffix.replace("{amount}", `$${totalExtraCostsUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`)}
-              </Badge>
-            )}
-          </div>
-
-          {container.costs.length > 0 && (
-            <ul className="mt-3 divide-y divide-slate-100 text-sm">
-              {container.costs.map((c) => (
-                <li key={c.id} className="flex items-center justify-between py-2">
-                  <div>
-                    <Badge color="slate">{COST_CATEGORY_LABEL[c.category]}</Badge>
-                    <span className="ms-2 text-slate-700">${c.amountUsd.toLocaleString()}</span>
-                    {c.description && <span className="ms-2 text-slate-500">{c.description}</span>}
-                    <span className="ms-2 text-xs text-slate-400">{c.incurredAt.toDateString()}</span>
-                  </div>
-                  <form action={removeContainerCostAction.bind(null, container.id, c.id)}>
-                    <ConfirmSubmitButton
-                      confirmMessage={dict.removeCostConfirm
-                        .replace("{amount}", `$${c.amountUsd.toLocaleString()}`)
-                        .replace("{category}", COST_CATEGORY_LABEL[c.category])}
-                    >
-                      {dict.remove}
-                    </ConfirmSubmitButton>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <AddCostForm containerId={container.id} />
-          </div>
-        </Card>
       )}
 
       {!isLoadOutStation && (
@@ -855,15 +743,6 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
           </div>
         )}
       </Card>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right text-slate-800">{value || "—"}</dd>
     </div>
   );
 }
