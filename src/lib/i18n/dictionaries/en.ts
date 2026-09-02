@@ -2555,8 +2555,7 @@ const en = {
   },
   lab: {
     title: "Lab",
-    subtitle:
-      "Every lot is sampled to both our in-house lab and an external lab. A lot can't ship until both come back Approved — and if the two disagree, every lot from that shift goes on hold until further testing resolves it.",
+    subtitle: "Microbiology and pesticide-residue (MRL) results, from sample dispatch through to a signed certificate.",
     shiftsOnHoldTitle: "Shifts On Hold — Split Microbiology Result",
     factoryDateShiftLine: "{factory} — {date} {shiftType} shift",
     dayShift: "Day",
@@ -2576,9 +2575,20 @@ const en = {
     viewCertificate: "View certificate",
     rejectedQuantitySuffix: " — {qty}t",
     noResultsRecordedYet: "No results recorded yet.",
+    microbiologySectionTitle: "Microbiology",
+    microbiologySectionSubtitle:
+      "Every lot is sampled to both our in-house lab and an external lab. A lot can't ship until both come back Approved — and if the two disagree, every lot from that shift goes on hold until further testing resolves it.",
     mrlSectionTitle: "MRL — Pesticide Residue Testing",
     mrlSectionSubtitle:
       "Every lot also needs its own MRL result, tested externally, before it can load out — same hard gate as microbiology, added even though the farms run a biological-control program with no synthetic spraying.",
+    statAwaitingDispatch: "Awaiting Dispatch",
+    statAtLab: "At Lab",
+    statNeedsAttention: "Needs Attention",
+    statNeedsAttentionHint: "Failed results across microbiology and MRL",
+    failedCountSuffix: "{count} failed",
+    daysAtLabSuffix: " — {days}d at lab",
+    searchByLotPlaceholder: "Search by lot number…",
+    noMatchingResults: "No results match that search.",
     labInHouse: "In-House",
     labExternal: "External",
     gradeLabel: "Grade {grade}",

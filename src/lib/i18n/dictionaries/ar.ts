@@ -2535,8 +2535,7 @@ const ar = {
   },
   lab: {
     title: "المعمل",
-    subtitle:
-      "يتم أخذ عينة من كل تشغيلة إلى معملنا الداخلي ومعمل خارجي معًا. لا يمكن شحن التشغيلة حتى تعود نتيجة كلا المعملين معتمدة — وإذا اختلفت النتيجتان، يتم إيقاف كل تشغيلات تلك الوردية حتى يحل فحص إضافي الأمر.",
+    subtitle: "نتائج الميكروبيولوجيا وبقايا المبيدات (MRL)، من إرسال العينة وحتى شهادة معتمدة.",
     shiftsOnHoldTitle: "الورديات الموقوفة — نتيجة ميكروبيولوجية متباينة",
     factoryDateShiftLine: "{factory} — {date} وردية {shiftType}",
     dayShift: "نهارية",
@@ -2556,9 +2555,20 @@ const ar = {
     viewCertificate: "عرض الشهادة",
     rejectedQuantitySuffix: " — {qty} طن",
     noResultsRecordedYet: "لا توجد نتائج مسجّلة بعد.",
+    microbiologySectionTitle: "الميكروبيولوجيا",
+    microbiologySectionSubtitle:
+      "يتم أخذ عينة من كل تشغيلة إلى معملنا الداخلي ومعمل خارجي معًا. لا يمكن شحن التشغيلة حتى تعود نتيجة كلا المعملين معتمدة — وإذا اختلفت النتيجتان، يتم إيقاف كل تشغيلات تلك الوردية حتى يحل فحص إضافي الأمر.",
     mrlSectionTitle: "متبقيات المبيدات (MRL)",
     mrlSectionSubtitle:
       "كل تشغيلة تحتاج أيضًا إلى نتيجة MRL خاصة بها، تُفحص خارجيًا، قبل أن يمكن تحميلها — نفس الشرط الحتمي كالميكروبيولوجيا، أُضيف رغم أن المزارع تتبع برنامج مكافحة حيوية بدون رش كيميائي.",
+    statAwaitingDispatch: "بانتظار الإرسال",
+    statAtLab: "بالمعمل",
+    statNeedsAttention: "يحتاج انتباه",
+    statNeedsAttentionHint: "نتائج فاشلة عبر الميكروبيولوجيا و MRL",
+    failedCountSuffix: "{count} فاشلة",
+    daysAtLabSuffix: " — {days} يوم بالمعمل",
+    searchByLotPlaceholder: "ابحث برقم التشغيلة…",
+    noMatchingResults: "لا توجد نتائج مطابقة لهذا البحث.",
     labInHouse: "داخلي",
     labExternal: "خارجي",
     gradeLabel: "الدرجة {grade}",
