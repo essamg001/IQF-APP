@@ -5,6 +5,7 @@ import { updateLabResultAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { CfuTierBadge } from "@/components/cfu-tier-badge";
+import { LabPipelineTracker } from "./lab-pipeline-tracker";
 import { useTranslations } from "@/lib/i18n/locale-context";
 
 type TestLine = {
@@ -100,35 +101,62 @@ export function ResultForm({
 }) {
   const [lines, setLines] = useState<TestLine[]>(result?.testLines?.length ? result.testLines : [{ ...EMPTY_LINE }]);
   const [cfuValue, setCfuValue] = useState<number | null>(result?.totalPlateCountCfuG ?? null);
+  const [status, setStatus] = useState(result?.status ?? "SENT_TO_LAB");
+  const [hasNewCertificate, setHasNewCertificate] = useState(false);
   const [state, formAction, pending] = useActionState(updateLabResultAction.bind(null, resultId), undefined);
   const errorMessage = state && state !== "ok" ? state : undefined;
   const dict = useTranslations().lab;
 
+  const isResolved = status === "APPROVED" || status === "FAILED_MINOR" || status === "FAILED_SEVERE";
+  const hasCertificate = hasNewCertificate || !!result?.certificateFileName;
+  const pipelineStage = isResolved ? "resolved" : "atLab";
+
   return (
     <form action={formAction} className="mt-3 space-y-3">
+      <LabPipelineTracker
+        current={pipelineStage}
+        labels={[dict.awaitingDispatchTitle, dict.sentAwaitingResultTitle, dict.resolvedTitle]}
+      />
+
       <div className="rounded-md border-2 border-dashed border-emerald-300 bg-emerald-50/50 p-3">
         <p className="mb-2 text-xs font-semibold text-emerald-800">{dict.certificateUploadSectionTitle}</p>
-        <FieldGroup
-          label={
-            result?.certificateFileOriginalName
-              ? dict.certificateFileCurrentLabel.replace("{name}", result.certificateFileOriginalName)
-              : dict.certificateFileNewLabel
-          }
-        >
-          <input type="file" name="certificateFile" accept="application/pdf,image/jpeg,image/png" className="block text-sm" />
-          <p className="mt-1 text-xs text-slate-500">{dict.certificateFileHint}</p>
-        </FieldGroup>
+        <div className="flex flex-wrap items-end gap-3">
+          <FieldGroup
+            label={
+              result?.certificateFileOriginalName
+                ? dict.certificateFileCurrentLabel.replace("{name}", result.certificateFileOriginalName)
+                : dict.certificateFileNewLabel
+            }
+          >
+            <input
+              type="file"
+              name="certificateFile"
+              accept="application/pdf,image/jpeg,image/png"
+              className="block text-sm"
+              onChange={(e) => setHasNewCertificate(!!e.target.files?.length)}
+            />
+          </FieldGroup>
+          <FieldGroup label={dict.statusFieldLabel}>
+            <Select name="status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-52">
+              <option value="SENT_TO_LAB">{dict.statusStillAwaiting}</option>
+              <option value="APPROVED">{dict.statusApproved}</option>
+              <option value="FAILED_MINOR">{dict.statusFailedMinor}</option>
+              <option value="FAILED_SEVERE">{dict.statusFailedSevere}</option>
+            </Select>
+          </FieldGroup>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">
+          {dict.certificateFileHint} {dict.statusFieldHint}
+        </p>
+        {!isResolved && hasCertificate && (
+          <p className="mt-2 text-xs font-medium text-amber-700">{dict.certificateAttachedStillAwaitingWarning}</p>
+        )}
+        {isResolved && !hasCertificate && (
+          <p className="mt-2 text-xs font-medium text-amber-700">{dict.resolvedNoCertificateWarning}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        <FieldGroup label={dict.statusFieldLabel}>
-          <Select name="status" defaultValue={result?.status ?? "SENT_TO_LAB"}>
-            <option value="SENT_TO_LAB">{dict.statusStillAwaiting}</option>
-            <option value="APPROVED">{dict.statusApproved}</option>
-            <option value="FAILED_MINOR">{dict.statusFailedMinor}</option>
-            <option value="FAILED_SEVERE">{dict.statusFailedSevere}</option>
-          </Select>
-        </FieldGroup>
         <FieldGroup label={dict.totalPlateCountLabel}>
           <div className="flex items-center gap-2">
             <Input

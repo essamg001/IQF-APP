@@ -11,6 +11,7 @@ import { ResultForm } from "./result-form";
 import { MrlResultForm } from "./mrl-result-form";
 import { ResolveHoldForm } from "./resolve-hold-form";
 import { FilterableList } from "./filterable-list";
+import { LabPipelineTracker } from "./lab-pipeline-tracker";
 import { TestDataBadge } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
@@ -153,17 +154,23 @@ export default async function LabPage({ searchParams }: { searchParams: Promise<
                       </>
                     )}
                   </summary>
-                  <form action={markSentToLabAction.bind(null, r.id)} className="mt-3 flex flex-wrap items-end gap-3">
-                    <FieldGroup label={dict.labNameLabel}>
-                      <Input name="labName" className="w-64" />
-                    </FieldGroup>
-                    <FieldGroup label={dict.sentDateLabel}>
-                      <Input name="sentDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
-                    </FieldGroup>
-                    <Button type="submit" variant="secondary">
-                      {dict.markSentToLab}
-                    </Button>
-                  </form>
+                  <div className="mt-3">
+                    <LabPipelineTracker
+                      current="dispatch"
+                      labels={[dict.awaitingDispatchTitle, dict.sentAwaitingResultTitle, dict.resolvedTitle]}
+                    />
+                    <form action={markSentToLabAction.bind(null, r.id)} className="flex flex-wrap items-end gap-3">
+                      <FieldGroup label={dict.labNameLabel}>
+                        <Input name="labName" className="w-64" />
+                      </FieldGroup>
+                      <FieldGroup label={dict.sentDateLabel}>
+                        <Input name="sentDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+                      </FieldGroup>
+                      <Button type="submit" variant="secondary">
+                        {dict.markSentToLab}
+                      </Button>
+                    </form>
+                  </div>
                 </details>
               ))}
               {awaitingDispatch.length === 0 && <p className="py-2 text-sm text-slate-400">{dict.nothingWaitingToBeSent}</p>}
@@ -287,17 +294,23 @@ export default async function LabPage({ searchParams }: { searchParams: Promise<
                       </>
                     )}
                   </summary>
-                  <form action={markMrlSentToLabAction.bind(null, r.id)} className="mt-3 flex flex-wrap items-end gap-3">
-                    <FieldGroup label={dict.labNameLabel}>
-                      <Input name="labName" className="w-64" />
-                    </FieldGroup>
-                    <FieldGroup label={dict.sentDateLabel}>
-                      <Input name="sentDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
-                    </FieldGroup>
-                    <Button type="submit" variant="secondary">
-                      {dict.markSentToLab}
-                    </Button>
-                  </form>
+                  <div className="mt-3">
+                    <LabPipelineTracker
+                      current="dispatch"
+                      labels={[dict.awaitingDispatchTitle, dict.sentAwaitingResultTitle, dict.resolvedTitle]}
+                    />
+                    <form action={markMrlSentToLabAction.bind(null, r.id)} className="flex flex-wrap items-end gap-3">
+                      <FieldGroup label={dict.labNameLabel}>
+                        <Input name="labName" className="w-64" />
+                      </FieldGroup>
+                      <FieldGroup label={dict.sentDateLabel}>
+                        <Input name="sentDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+                      </FieldGroup>
+                      <Button type="submit" variant="secondary">
+                        {dict.markSentToLab}
+                      </Button>
+                    </form>
+                  </div>
                 </details>
               ))}
               {mrlAwaitingDispatch.length === 0 && <p className="py-2 text-sm text-slate-400">{dict.nothingWaitingToBeSent}</p>}
