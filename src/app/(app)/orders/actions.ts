@@ -201,6 +201,9 @@ export async function advanceOrderStageAction(
     if (order.pallets.length === 0) {
       return "Cannot mark as Shipped: no pallets have been allocated to this order yet.";
     }
+    if (order.pallets.length < order.quantityPallets) {
+      return `Cannot mark as Shipped: only ${order.pallets.length} of ${order.quantityPallets} pallets have been allocated to this order. Allocate the rest first.`;
+    }
     const notYetShipped = order.pallets.filter((p) => p.status !== "SHIPPED");
     if (notYetShipped.length > 0) {
       const sample = notYetShipped.slice(0, 3).map((p) => p.palletNumber).join(", ");

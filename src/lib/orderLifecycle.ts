@@ -156,11 +156,18 @@ export function summarizeLifecycle(steps: LifecycleStep[]): { key: LifecycleStep
 export async function maybeAutoAdvanceToShipped(orderId: string, tx: Prisma.TransactionClient | typeof prisma = prisma) {
   const order = await tx.order.findUnique({
     where: { id: orderId },
-    select: { stage: true, pallets: { select: { status: true } } },
+    select: { stage: true, quantityPallets: true, pallets: { select: { status: true } } },
   });
   if (!order) return;
   if (ORDER_STAGE_SEQUENCE.indexOf(order.stage) >= ORDER_STAGE_SEQUENCE.indexOf("SHIPPED")) return;
   if (order.pallets.length === 0) return;
+  // Every *allocated* pallet shipping isn't the same as the order actually
+  // being done -- an order still short of its full quantityPallets target
+  // (Allocate Pallets hasn't found the rest of the stock yet) would
+  // otherwise get silently marked Shipped the moment whatever partial
+  // allocation it does have finishes loading, even though more pallets are
+  // still owed to the client and were never allocated.
+  if (order.pallets.length < order.quantityPallets) return;
   if (order.pallets.some((p) => p.status !== "SHIPPED")) return;
 
   await tx.order.update({ where: { id: orderId }, data: { stage: "SHIPPED" } });
