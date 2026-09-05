@@ -23,6 +23,19 @@ import { useTranslations } from "@/lib/i18n/locale-context";
  * the same click that was supposed to let the browser's default submit
  * action run could disable the button before that default action fired,
  * silently dropping the very first genuine click.
+ *
+ * Before any of that, though, this checks form.checkValidity() itself.
+ * requestSubmit() on a form with an unmet `required`/native-validation field
+ * doesn't submit at all -- the browser blocks it silently and just shows its
+ * own validation bubble -- so no submit ever happens, `disabled` (the
+ * parent's useActionState `pending`) never toggles, and the effect above
+ * that's supposed to clear `submitting` never re-fires. Without this check,
+ * that leaves the button permanently stuck disabled after the very first
+ * confirmed-but-invalid submission, no different from the "not working"
+ * complaints this component was built to fix. So: only set `submitting` and
+ * call requestSubmit() when the form actually validates; otherwise surface
+ * the native validation message via reportValidity() and leave the button
+ * clickable so the user can fix the field and try again.
  */
 export function ConfirmSubmitButton({
   confirmMessage,
@@ -70,8 +83,13 @@ export function ConfirmSubmitButton({
           onCancel={() => setShowConfirm(false)}
           onConfirm={() => {
             setShowConfirm(false);
+            const form = buttonRef.current?.form;
+            if (form && !form.checkValidity()) {
+              form.reportValidity();
+              return;
+            }
             setSubmitting(true);
-            buttonRef.current?.form?.requestSubmit();
+            form?.requestSubmit();
           }}
         />
       )}
