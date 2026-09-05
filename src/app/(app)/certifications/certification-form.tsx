@@ -5,6 +5,7 @@ import { addCertificationAction, updateCertificationAction } from "./actions";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/locale-context";
+import { toDateOnlyString } from "@/lib/dates";
 import type { Certification } from "@prisma/client";
 
 export function CertificationForm({ certification }: { certification?: Certification }) {
@@ -35,7 +36,7 @@ export function CertificationForm({ certification }: { certification?: Certifica
         <Input
           name="validTo"
           type="date"
-          defaultValue={certification?.validTo.toISOString().slice(0, 10)}
+          defaultValue={certification ? toDateOnlyString(certification.validTo) : undefined}
           required
         />
       </FieldGroup>
