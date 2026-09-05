@@ -34,7 +34,10 @@ const claimSchema = z.object({
   variety: z.string().optional(),
   reason: z.enum(["QUALITY", "PACKAGING", "FOREIGN_MATERIAL", "TRANSPORT"]),
   severity: z.enum(["RED", "AMBER"]),
-  valueUsd: z.coerce.number().nonnegative(),
+  // Optional at the schema level: the form hides this field entirely for a
+  // role that can't see pricing, so no valueUsd key is ever posted for them.
+  // It's forced back to 0 for those roles below regardless.
+  valueUsd: z.coerce.number().nonnegative().optional(),
 
   weightMagrabiTon: z.coerce.number().optional(),
   weightClientTon: z.coerce.number().optional(),
@@ -104,7 +107,7 @@ export async function createClaimAction(_prevState: string | undefined, formData
   // can't see pricing, but a direct POST shouldn't be able to set them
   // either -- strip them server-side rather than trusting the client.
   if (!showPricing) {
-    parsed.data.valueUsd = 0;
+    parsed.data.valueUsd = undefined;
     parsed.data.clientPrice = undefined;
     parsed.data.shippingPricePerContainer = undefined;
     parsed.data.clientFarmGateBeforeIssue = undefined;
@@ -129,8 +132,9 @@ export async function createClaimAction(_prevState: string | undefined, formData
       totalSales: undefined,
     }));
   }
-
-  const { containers: containerLines, claimDate, ...claimFields } = parsed.data;
+  // Prisma's valueUsd is a required Float; the schema only makes it optional
+  // to tolerate a role that never posts the field at all (see above).
+  const { containers: containerLines, claimDate, valueUsd, ...claimFields } = parsed.data;
 
   // Match container numbers to existing Container records where possible, for traceability.
   const matched = await prisma.container.findMany({
@@ -141,6 +145,7 @@ export async function createClaimAction(_prevState: string | undefined, formData
   const claim = await prisma.claim.create({
     data: {
       ...claimFields,
+      valueUsd: valueUsd ?? 0,
       claimDate: new Date(claimDate),
       containers: {
         create: containerLines.map((c) => {
@@ -162,7 +167,7 @@ export async function createClaimAction(_prevState: string | undefined, formData
     action: "CLAIM_CREATED",
     entityType: "Claim",
     entityId: claim.id,
-    detail: `Filed claim (${parsed.data.reason}, ${parsed.data.severity}, $${parsed.data.valueUsd.toLocaleString()})`,
+    detail: `Filed claim (${parsed.data.reason}, ${parsed.data.severity}, $${(valueUsd ?? 0).toLocaleString()})`,
   });
 
   revalidatePath("/claims");
