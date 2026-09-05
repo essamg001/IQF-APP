@@ -194,9 +194,11 @@ export function ArrivalInspectionForm({
       <SampleFields key={isSuccess ? state : "initial"} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
-      {decoded && decoded.violations.length === 0 && (
+      {decoded && (
         <p className="text-sm">
-          <Badge color="green">{dict.acceptable}</Badge>
+          <Badge color={decoded.decision === "ACCEPTED" ? "green" : "red"}>
+            {decoded.decision === "ACCEPTED" ? dict.acceptable : dict.unacceptable}
+          </Badge>
         </p>
       )}
       {decoded && <QualityLimitWarning violations={decoded.violations} />}
