@@ -82,6 +82,12 @@ export async function createContainerAction(_prevState: string | undefined, form
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
+  // The order dropdown already excludes cancelled orders, but that's a
+  // display-layer filter -- a direct POST could still name one, and its
+  // pallets were already released back to stock at cancellation.
+  const order = await prisma.order.findUniqueOrThrow({ where: { id: parsed.data.orderId }, select: { cancelledAt: true } });
+  if (order.cancelledAt) return "This order was cancelled.";
+
   // Normalized so "msku1234567" and "MSKU1234567" aren't treated as two
   // different containers, and so it always displays in the standard ISO 6346
   // format used on the bill of lading, customs paperwork, and the carrier's

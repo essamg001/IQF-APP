@@ -1,23 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import { useActionState } from "react";
 import { createContainerAction } from "../actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
 import { useTranslations } from "@/lib/i18n/locale-context";
 import type { Client, Order } from "@prisma/client";
 
+type RoomSummary = { roomId: string; roomName: string; readyCount: number; target: number; palletIds: string[] } | null;
+
 export function ContainerForm({
   orders,
   defaultOrderId,
+  roomSummaryByOrder,
 }: {
   orders: (Order & { client: Client })[];
   defaultOrderId?: string;
+  roomSummaryByOrder: Record<string, RoomSummary>;
 }) {
   const [error, formAction, pending] = useActionState(createContainerAction, undefined);
+  const [selectedOrderId, setSelectedOrderId] = useState(defaultOrderId ?? "");
   const fullDict = useTranslations();
   const dict = fullDict.logistics;
   const FORMAT_LABEL: Record<string, string> = {
@@ -25,12 +31,18 @@ export function ContainerForm({
     SLICED: fullDict.orders.formatSliced,
     DICED: fullDict.orders.formatDiced,
   };
+  const summary = selectedOrderId ? roomSummaryByOrder[selectedOrderId] : undefined;
 
   return (
     <form action={formAction}>
       <Card className="space-y-4">
         <FieldGroup label={dict.orderLabel}>
-          <Select name="orderId" required defaultValue={defaultOrderId ?? ""}>
+          <Select
+            name="orderId"
+            required
+            value={selectedOrderId}
+            onChange={(e) => setSelectedOrderId(e.target.value)}
+          >
             <option value="" disabled>
               {dict.selectAnOrder}
             </option>
@@ -41,6 +53,33 @@ export function ContainerForm({
             ))}
           </Select>
         </FieldGroup>
+
+        {/* Confirms the right order was picked before the container even
+            exists -- a wrong pick shows a location/count that immediately
+            looks off, instead of only surfacing after commit. */}
+        {selectedOrderId && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+            {summary ? (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  {dict.orderPalletLocationSummary
+                    .replace("{room}", summary.roomName)
+                    .replace("{ready}", String(summary.readyCount))
+                    .replace("{target}", String(summary.target))}
+                </span>
+                <LinkButton
+                  href={`/storage/map/${summary.roomId}?highlight=${summary.palletIds.join(",")}&orderId=${selectedOrderId}`}
+                  variant="secondary"
+                  className="shrink-0 text-xs"
+                >
+                  {dict.previewOnStorageMap}
+                </LinkButton>
+              </div>
+            ) : (
+              <span>{dict.orderNoPalletsAllocatedYet}</span>
+            )}
+          </div>
+        )}
         <FieldGroup label={dict.containerNumberLabel}>
           <Input name="containerNumber" required placeholder={dict.containerNumberPlaceholder} />
         </FieldGroup>
