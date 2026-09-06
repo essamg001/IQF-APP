@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { overrideSpecExceptionAction } from "../actions";
+import { overrideSpecExceptionAction, releaseSpecFailedPalletAction } from "../actions";
 import type { SpecBlockPayload } from "@/lib/specCompliance";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { useTranslations } from "@/lib/i18n/locale-context";
 
 // Shown when addPalletLoadLineAction blocks a load because the pallet fails
@@ -17,6 +18,8 @@ import { useTranslations } from "@/lib/i18n/locale-context";
 export function SpecExceptionForm({ payload, canSignOff }: { payload: SpecBlockPayload; canSignOff: boolean }) {
   const [state, formAction, pending] = useActionState(overrideSpecExceptionAction, undefined);
   const errorMessage = typeof state === "string" && state !== "ok" ? state : undefined;
+  const [releaseState, releaseFormAction, releasePending] = useActionState(releaseSpecFailedPalletAction, undefined);
+  const releaseError = typeof releaseState === "string" && releaseState !== "ok" ? releaseState : undefined;
   const dict = useTranslations().logistics;
 
   return (
@@ -62,6 +65,23 @@ export function SpecExceptionForm({ payload, canSignOff }: { payload: SpecBlockP
           </Button>
         </form>
       )}
+
+      <form action={releaseFormAction} className="mt-3 space-y-2 rounded-md border border-slate-300 bg-white p-2">
+        <input type="hidden" name="palletId" value={payload.palletId} />
+        <input type="hidden" name="containerId" value={payload.containerId} />
+        <p className="text-xs text-slate-600">{dict.releaseSpecFailedPalletNote}</p>
+        <FieldGroup label={dict.noteOptionalLabel}>
+          <Input name="note" className="text-sm" />
+        </FieldGroup>
+        {releaseError && <p className="text-xs text-red-600">{releaseError}</p>}
+        <ConfirmSubmitButton
+          confirmMessage={dict.releaseSpecFailedPalletConfirm.replace("{pallet}", payload.palletNumber)}
+          disabled={releasePending}
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
+        >
+          {releasePending ? dict.releasing : dict.releaseSpecFailedPalletButton}
+        </ConfirmSubmitButton>
+      </form>
     </div>
   );
 }

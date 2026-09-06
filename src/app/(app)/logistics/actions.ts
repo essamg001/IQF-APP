@@ -737,6 +737,61 @@ export async function overrideSpecExceptionAction(_prevState: string | undefined
   );
 }
 
+const releaseSpecFailedPalletSchema = z.object({
+  palletId: z.string().min(1),
+  containerId: z.string().min(1),
+  note: z.string().optional(),
+});
+
+/**
+ * The other side of overrideSpecExceptionAction -- instead of signing off to
+ * ship a spec-failing pallet anyway, this releases it back to general stock
+ * (status/clientId/orderId cleared, same shape as cancelOrderAction's
+ * per-pallet release) so a different client whose spec it does meet can be
+ * allocated it instead of it sitting stuck in this order's "Allocated
+ * Pallets Awaiting Load" list with no resolution. The order's own allocated
+ * count drops by one, which the existing lifecycle tracker already
+ * surfaces as needing one more pallet -- no separate bookkeeping needed.
+ * Doesn't move the pallet: coldRoomId/slot are untouched, since it's
+ * already sitting exactly where it's sitting -- /storage/{palletId} always
+ * shows that, allocated or not. Open to anyone at load-out, not gated like
+ * the override -- rejecting a non-conforming pallet is the conservative
+ * choice, unlike shipping it anyway.
+ */
+export async function releaseSpecFailedPalletAction(_prevState: string | undefined, formData: FormData) {
+  const parsed = releaseSpecFailedPalletSchema.safeParse({
+    palletId: formData.get("palletId"),
+    containerId: formData.get("containerId"),
+    note: formData.get("note") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const pallet = await prisma.pallet.findUniqueOrThrow({
+    where: { id: parsed.data.palletId },
+    include: { order: { select: { orderNumber: true } } },
+  });
+  if (pallet.status !== "ALLOCATED") return "This pallet is no longer allocated -- nothing to release.";
+
+  const session = await auth();
+  await prisma.pallet.update({
+    where: { id: parsed.data.palletId },
+    data: { status: "IN_STORAGE", clientId: null, orderId: null },
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "PALLET_RELEASED_SPEC_FAIL",
+    entityType: "Pallet",
+    entityId: pallet.id,
+    detail: `Released ${pallet.palletNumber} from order ${pallet.order?.orderNumber ?? "—"} -- failed client spec${parsed.data.note ? `: ${parsed.data.note}` : ""}`,
+  });
+
+  revalidatePath(`/logistics/${parsed.data.containerId}`);
+  if (pallet.orderId) revalidatePath(`/orders/${pallet.orderId}`);
+  revalidatePath("/storage");
+  return "ok";
+}
+
 export async function completeLoadLineAction(containerId: string, lineId: string) {
   const container = await prisma.container.findUniqueOrThrow({ where: { id: containerId } });
   if (isManifestLocked(container)) return;
