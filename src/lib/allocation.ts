@@ -5,27 +5,62 @@ import { combinedCfuValue, exceedsClientLimit } from "@/lib/cfuTier";
 import { evaluateSpecCompliance, violatedSpecRows } from "@/lib/specCompliance";
 import { isMrlCleared } from "@/lib/mrl";
 
-/** Best-effort parse of free-text brix specs like "8-11%", "8% ± 2.5", "7 - 8.5", or "8.0". */
-export function parseBrixRange(text: string | null | undefined): { min: number; max: number } | null {
+/**
+ * Best-effort parse of free-text brix specs -- e.g. "8-11%", "8% ± 2.5",
+ * "7 - 8.5", "6.0 – 10.0" (en dash), "≥8.0", "Minimum 6 degrees", "6 degrees
+ * minimum", "8% (MIN)". `max: null` means open-ended (no ceiling stated).
+ *
+ * Real client spec sheets overwhelmingly express brix as a floor -- the
+ * concern is under-ripe fruit, not fruit that's *sweeter* than the stated
+ * minimum -- so an explicit minimum returns an open-ended range rather than
+ * clamping the top end to the same number. Previously a bare number with no
+ * min/max language (e.g. just "8%") fell through to that same min=max
+ * treatment, which meant real specs like "8% (MIN)" or "Minimum 6 degrees"
+ * (once the surrounding words were stripped down to their number) silently
+ * rejected any pallet sweeter than the floor -- confirmed live: 26 of 34
+ * real Grade A Whole client specs would reject a perfectly good 9°Bx pallet
+ * this way. A genuinely bare, unqualified number is real ambiguity (could
+ * mean floor, ceiling, or exact target) -- returns null (not enforceable,
+ * shown for manual review only) rather than guessing, same as this
+ * function already does for any other unparseable text.
+ *
+ * Every branch is anchored to the *start* of the (trimmed) text, not
+ * searched for anywhere in it -- a Red/Amber/Green banded spec like
+ * "Green (accept): >=8.0; Amber: >=7.0-8.0; Red (reject): <7.0" contains a
+ * "7.0-8.0"-shaped substring in its Amber clause that an unanchored search
+ * would misread as the whole spec's range (confirmed live: this exact text
+ * did precisely that before anchoring). Anchoring at the start still
+ * tolerates trailing descriptive text ("6.0 – 10.0 (uncorrected,
+ * refractometer)"), but a banded/multi-clause description that doesn't
+ * open with a number or comparison symbol correctly falls through to
+ * null, same as the class-level doc comment already says banded specs
+ * should.
+ */
+export function parseBrixRange(text: string | null | undefined): { min: number; max: number | null } | null {
   if (!text) return null;
+  const t = text.trim();
+  if (t === "*") return null;
 
-  const rangeMatch = text.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
+  const rangeMatch = t.match(/^(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)/);
   if (rangeMatch) {
     return { min: Number(rangeMatch[1]), max: Number(rangeMatch[2]) };
   }
 
-  const toleranceMatch = text.match(/(\d+(?:\.\d+)?)\s*%?\s*±\s*(\d+(?:\.\d+)?)/);
+  const toleranceMatch = t.match(/^(\d+(?:\.\d+)?)\s*%?\s*±\s*(\d+(?:\.\d+)?)/);
   if (toleranceMatch) {
     const center = Number(toleranceMatch[1]);
     const tolerance = Number(toleranceMatch[2]);
     return { min: center - tolerance, max: center + tolerance };
   }
 
-  const singleMatch = text.match(/(\d+(?:\.\d+)?)/);
-  if (singleMatch) {
-    const value = Number(singleMatch[1]);
-    return { min: value, max: value };
-  }
+  let m = t.match(/^(?:≥|>=|>)\s*(\d+(?:\.\d+)?)/);
+  if (m) return { min: Number(m[1]), max: null };
+  m = t.match(/^at least\s*(\d+(?:\.\d+)?)/i);
+  if (m) return { min: Number(m[1]), max: null };
+  m = t.match(/^min(?:imum)?\b[^\d]*(\d+(?:\.\d+)?)/i);
+  if (m) return { min: Number(m[1]), max: null };
+  m = t.match(/^(\d+(?:\.\d+)?)[^\d]*\bmin(?:imum)?\b/i);
+  if (m) return { min: Number(m[1]), max: null };
 
   return null;
 }

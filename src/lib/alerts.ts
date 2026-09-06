@@ -558,10 +558,11 @@ async function checkSpecMismatch() {
     if (checks.length === 0) continue;
     const avgBrix = checks.reduce((s, c) => s + c.brix, 0) / checks.length;
 
-    const outOfBrix = avgBrix < brixRange.min || avgBrix > brixRange.max;
+    const outOfBrix = avgBrix < brixRange.min || (brixRange.max != null && avgBrix > brixRange.max);
     if (!outOfBrix) continue;
 
-    const message = `Pallet ${pallet.palletNumber} for ${pallet.client.name} (spec "${spec.specName}") is outside brix spec (${avgBrix.toFixed(1)}, expected ${brixRange.min}-${brixRange.max}) before shipment.`;
+    const expected = brixRange.max != null ? `${brixRange.min}-${brixRange.max}` : `≥${brixRange.min}`;
+    const message = `Pallet ${pallet.palletNumber} for ${pallet.client.name} (spec "${spec.specName}") is outside brix spec (${avgBrix.toFixed(1)}, expected ${expected}) before shipment.`;
     await upsertAlert("SPEC_MISMATCH", pallet.id, "QUALITY", message);
     await upsertAlert("SPEC_MISMATCH", pallet.id, "PRODUCTION", message);
   }

@@ -184,9 +184,17 @@ export function evaluateSpecCompliance(
     measuredValue: brixValue,
     measuredUnit: "°Bx",
     specText: spec?.brix ?? null,
-    specLimitDisplay: brixRange ? `${brixRange.min}–${brixRange.max} °Bx` : null,
+    specLimitDisplay: brixRange
+      ? brixRange.max == null
+        ? `≥ ${brixRange.min} °Bx`
+        : `${brixRange.min}–${brixRange.max} °Bx`
+      : null,
     enforceable: brixRange !== null && brixValue !== null,
-    violated: !!(brixRange && brixValue !== null && (brixValue < brixRange.min || brixValue > brixRange.max)),
+    violated: !!(
+      brixRange &&
+      brixValue !== null &&
+      (brixValue < brixRange.min || (brixRange.max != null && brixValue > brixRange.max))
+    ),
   });
 
   for (const field of CEILING_FIELDS) {
