@@ -51,7 +51,7 @@ export async function getPackagingLowStockWarnings(factoryId: string): Promise<P
   for (const material of materials) {
     const latestItem = await prisma.packagingMaterialItem.findFirst({
       where: { materialId: material.id },
-      orderBy: { dailyLog: { date: "desc" } },
+      orderBy: [{ dailyLog: { date: "desc" } }, { createdAt: "desc" }],
       select: { openingBalance: true, quantityReceived: true, quantityUsed: true, quantityDamaged: true },
     });
     if (!latestItem) continue;
@@ -86,4 +86,56 @@ export async function getPackagingLowStockWarnings(factoryId: string): Promise<P
     }
   }
   return warnings;
+}
+
+/**
+ * Auto-deducts packaging stock the moment a pallet is packed (called from
+ * final-product-entry/actions.ts, once per pallet, on first packing only --
+ * not on later edits to the same pallet). For each material in this
+ * factory's catalog that has quantityPerCarton and/or quantityPerPallet
+ * set, appends one PackagingMaterialItem row continuing the running
+ * balance from whatever the material's most recent row left off (same
+ * chain the manual "add item" form's rows already form -- multiple rows
+ * per material per day is the existing, expected shape, not new here).
+ * Materials with neither field set are untouched, so this is opt-in per
+ * item -- a material added without these ratios just never auto-deducts.
+ */
+export async function recordPackagingConsumptionForPallet(factoryId: string, date: Date, totalCartons: number): Promise<void> {
+  const materials = await prisma.packagingMaterial.findMany({
+    where: { factoryId, OR: [{ quantityPerCarton: { not: null } }, { quantityPerPallet: { not: null } }] },
+  });
+  if (materials.length === 0) return;
+
+  const dailyLog = await prisma.packagingMaterialsDailyLog.upsert({
+    where: { factoryId_date: { factoryId, date } },
+    update: {},
+    create: { factoryId, date },
+  });
+
+  for (const material of materials) {
+    const consumed = (material.quantityPerCarton ?? 0) * totalCartons + (material.quantityPerPallet ?? 0);
+    if (consumed <= 0) continue;
+
+    const latest = await prisma.packagingMaterialItem.findFirst({
+      where: { materialId: material.id },
+      orderBy: [{ dailyLog: { date: "desc" } }, { createdAt: "desc" }],
+      select: { openingBalance: true, quantityReceived: true, quantityUsed: true, quantityDamaged: true },
+    });
+    const priorClosing = latest
+      ? closingBalance(latest.openingBalance, latest.quantityReceived, latest.quantityUsed, latest.quantityDamaged)
+      : null;
+
+    await prisma.packagingMaterialItem.create({
+      data: {
+        dailyLogId: dailyLog.id,
+        materialId: material.id,
+        itemName: material.name,
+        productCode: material.code,
+        productUnit: material.unit,
+        openingBalance: priorClosing,
+        quantityUsed: Math.round(consumed),
+        supplyOrIssueDestination: "Auto-deducted: pallet packing",
+      },
+    });
+  }
 }

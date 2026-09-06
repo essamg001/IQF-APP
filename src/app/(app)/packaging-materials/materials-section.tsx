@@ -28,6 +28,8 @@ export function MaterialsSection({ factoryId, materials }: { factoryId: string; 
                 <th className="px-3 py-1 font-medium">{t.materialUnitLabel}</th>
                 <th className="px-3 py-1 font-medium">{t.minStockLabel}</th>
                 <th className="px-3 py-1 font-medium">{t.consumptionRatioLabel}</th>
+                <th className="px-3 py-1 font-medium">{t.quantityPerCartonLabel}</th>
+                <th className="px-3 py-1 font-medium">{t.quantityPerPalletLabel}</th>
               </tr>
             </thead>
             <tbody>
@@ -38,6 +40,8 @@ export function MaterialsSection({ factoryId, materials }: { factoryId: string; 
                   <td className="px-3 py-1">{m.unit ?? "—"}</td>
                   <td className="px-3 py-1">{m.minStockLevel ?? "—"}</td>
                   <td className="px-3 py-1">{m.consumptionRatioPerTon ?? "—"}</td>
+                  <td className="px-3 py-1">{m.quantityPerCarton ?? "—"}</td>
+                  <td className="px-3 py-1">{m.quantityPerPallet ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -75,6 +79,28 @@ export function MaterialsSection({ factoryId, materials }: { factoryId: string; 
             step="any"
             title={t.consumptionRatioHint}
             placeholder={t.consumptionRatioHint}
+            className="px-2 py-1 text-xs"
+          />
+        </FieldGroup>
+        <FieldGroup label={t.quantityPerCartonLabel}>
+          <Input
+            name="quantityPerCarton"
+            type="number"
+            min="0"
+            step="any"
+            title={t.quantityPerCartonHint}
+            placeholder={t.quantityPerCartonHint}
+            className="px-2 py-1 text-xs"
+          />
+        </FieldGroup>
+        <FieldGroup label={t.quantityPerPalletLabel}>
+          <Input
+            name="quantityPerPallet"
+            type="number"
+            min="0"
+            step="any"
+            title={t.quantityPerPalletHint}
+            placeholder={t.quantityPerPalletHint}
             className="px-2 py-1 text-xs"
           />
         </FieldGroup>

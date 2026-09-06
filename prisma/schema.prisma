@@ -2724,6 +2724,18 @@ model PackagingMaterial {
   // given factory+date) -- lets the low-stock check project days-of-stock
   // remaining from actual output instead of only a static floor.
   consumptionRatioPerTon Float?
+  // These two drive automatic stock deduction the moment a pallet is packed
+  // (see recordPackagingConsumptionForPallet, called from
+  // final-product-entry/actions.ts) -- a separate mechanism from
+  // consumptionRatioPerTon above, which only feeds the low-stock *warning*
+  // projection and never writes anything. quantityPerCarton scales with the
+  // pallet's actual totalCartons (cartons, inner bags -- a partial pallet
+  // rightly consumes fewer of these); quantityPerPallet is a fixed amount
+  // per pallet regardless of fill level (corners, clips, straps, pallet
+  // cover, the pallet itself -- a half-full pallet still needs its own
+  // single pallet base, cover, and set of corners).
+  quantityPerCarton Float?
+  quantityPerPallet Float?
   notes         String?
   isTestData    Boolean  @default(false)
   createdAt     DateTime @default(now())

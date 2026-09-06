@@ -96,6 +96,8 @@ const materialSchema = z.object({
   unit: z.string().optional(),
   minStockLevel: z.coerce.number().nonnegative().optional(),
   consumptionRatioPerTon: z.coerce.number().nonnegative().optional(),
+  quantityPerCarton: z.coerce.number().nonnegative().optional(),
+  quantityPerPallet: z.coerce.number().nonnegative().optional(),
   notes: z.string().optional(),
 });
 

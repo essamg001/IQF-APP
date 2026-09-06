@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activityLog";
 import { revalidatePath } from "next/cache";
 import { parseDateSafe } from "@/lib/dates";
+import { recordPackagingConsumptionForPallet } from "@/lib/packagingMaterials";
+import { FULL_PALLET_CARTON_COUNT } from "@/lib/logistics";
 import { z } from "zod";
 
 const packedPalletSchema = z.object({
@@ -41,7 +43,10 @@ export async function createPackedPalletAction(_prevState: string | undefined, f
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  const lot = await prisma.productionLot.findUnique({ where: { lotNumber: parsed.data.lotNumber.trim() } });
+  const lot = await prisma.productionLot.findUnique({
+    where: { lotNumber: parsed.data.lotNumber.trim() },
+    select: { id: true, factoryId: true },
+  });
   if (!lot) return `Lot ${parsed.data.lotNumber} not found — check the number and try again.`;
 
   // The pallet number is a physical asset ID, reused across many lots over
@@ -70,6 +75,16 @@ export async function createPackedPalletAction(_prevState: string | undefined, f
   const saved = existing
     ? await prisma.pallet.update({ where: { id: existing.id }, data: packingData })
     : await prisma.pallet.create({ data: packingData });
+
+  // Deduct packaging stock exactly once per pallet -- the first time it
+  // gets packing details, whether that's a brand-new row or an existing
+  // row from Post-Freeze Inspection that hadn't been packed yet. A pallet
+  // that already had a packingDate is being edited/corrected here, not
+  // packed for the first time, so it must not consume stock again.
+  if (!existing?.packingDate) {
+    const totalCartonsUsed = packingData.totalCartons ?? (packingData.fullPallet ? FULL_PALLET_CARTON_COUNT : 0);
+    await recordPackagingConsumptionForPallet(lot.factoryId, packingData.packingDate ?? new Date(), totalCartonsUsed);
+  }
 
   const session = await auth();
   await logActivity({
