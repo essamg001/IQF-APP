@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
-const TYPES = ["fire", "ammoniaLeak", "medicalEmergency", "chemicalSpill", "evacuation"] as const;
+const TYPES = ["fire", "ammoniaLeak", "medicalEmergency", "chemicalSpill", "evacuation", "iqfStorageFailure"] as const;
 type EmergencyType = (typeof TYPES)[number];
 
 const TYPE_PARAM: Record<EmergencyType, string> = {
@@ -12,6 +12,7 @@ const TYPE_PARAM: Record<EmergencyType, string> = {
   medicalEmergency: "medical",
   chemicalSpill: "spill",
   evacuation: "evacuation",
+  iqfStorageFailure: "storage-failure",
 };
 const PARAM_TYPE: Record<string, EmergencyType> = {
   fire: "fire",
@@ -19,6 +20,7 @@ const PARAM_TYPE: Record<string, EmergencyType> = {
   medical: "medicalEmergency",
   spill: "chemicalSpill",
   evacuation: "evacuation",
+  "storage-failure": "iqfStorageFailure",
 };
 
 export default async function EmergencyProtocolsPage({
@@ -37,6 +39,7 @@ export default async function EmergencyProtocolsPage({
     medicalEmergency: dict.typeMedicalEmergency,
     chemicalSpill: dict.typeChemicalSpill,
     evacuation: dict.typeEvacuation,
+    iqfStorageFailure: dict.typeIqfStorageFailure,
   };
 
   const section = dict.sections[type];
