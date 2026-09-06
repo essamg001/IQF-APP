@@ -1341,6 +1341,15 @@ model Container {
   loadingSupervisor String?
   loadType          LoadType?
 
+  // A few extra fields from the Product Loading and Despatch Statement
+  // (Form# ACC01127) that the GEN03115 manifest above doesn't capture --
+  // informational only, not part of the pre-departure checklist/sign-off
+  // gating (that stays on the existing 2-rep confirmation).
+  globalGapCertified Boolean?
+  loadingTempC       Float?
+  tempRecorderNumber String?
+  forkliftDriverName String?
+
   // Sign-off once loading is complete: one rep from the load-out team, one
   // from quality. The name is who actually signed (for the certificate/print
   // record); the userId ties it to the logged-in account that submitted it,

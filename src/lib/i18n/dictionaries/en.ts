@@ -2826,6 +2826,13 @@ const en = {
     loadingDateLabel: "Loading date",
     loadingLocationLabel: "Loading location",
     supervisorLabel: "Supervisor",
+    globalGapCertifiedLabel: "GlobalGap certified?",
+    globalGapCertifiedUnset: "Not recorded",
+    globalGapCertifiedYes: "Yes",
+    globalGapCertifiedNo: "No",
+    loadingTempLabel: "Temp. after loading (°C)",
+    tempRecorderNumberLabel: "Temp. recorder #",
+    forkliftDriverNameLabel: "Forklift driver name",
     allocatedPalletsAwaitingLoadTitle: "Allocated Pallets Awaiting Load ({count})",
     allocatedPalletsAwaitingLoadSubtitle:
       "Pallets allocated to this order with tonnage not yet loaded into any container — resolve stickering here before adding them to the manifest below.",

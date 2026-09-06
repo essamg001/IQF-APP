@@ -328,6 +328,10 @@ const loadingDetailsSchema = z.object({
   loadingLocation: z.string().optional(),
   loadingSupervisor: z.string().optional(),
   loadType: z.enum(["PALLETISED", "UNPALLETISED"]).optional(),
+  globalGapCertified: z.enum(["YES", "NO"]).optional(),
+  loadingTempC: z.coerce.number().optional(),
+  tempRecorderNumber: z.string().optional(),
+  forkliftDriverName: z.string().optional(),
 });
 
 export async function updateLoadingDetailsAction(containerId: string, formData: FormData) {
@@ -336,6 +340,10 @@ export async function updateLoadingDetailsAction(containerId: string, formData: 
     loadingLocation: formData.get("loadingLocation") || undefined,
     loadingSupervisor: formData.get("loadingSupervisor") || undefined,
     loadType: formData.get("loadType") || undefined,
+    globalGapCertified: formData.get("globalGapCertified") || undefined,
+    loadingTempC: formData.get("loadingTempC") || undefined,
+    tempRecorderNumber: formData.get("tempRecorderNumber") || undefined,
+    forkliftDriverName: formData.get("forkliftDriverName") || undefined,
   });
   await prisma.container.update({
     where: { id: containerId },
@@ -344,6 +352,10 @@ export async function updateLoadingDetailsAction(containerId: string, formData: 
       loadingSupervisor: parsed.loadingSupervisor,
       loadingDate: parsed.loadingDate ? new Date(parsed.loadingDate) : undefined,
       loadType: parsed.loadType,
+      globalGapCertified: parsed.globalGapCertified ? parsed.globalGapCertified === "YES" : undefined,
+      loadingTempC: parsed.loadingTempC,
+      tempRecorderNumber: parsed.tempRecorderNumber,
+      forkliftDriverName: parsed.forkliftDriverName,
     },
   });
   revalidatePath(`/logistics/${containerId}`);

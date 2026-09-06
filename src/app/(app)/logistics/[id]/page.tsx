@@ -415,6 +415,25 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
           <FieldGroup label={dict.supervisorLabel}>
             <Input name="loadingSupervisor" defaultValue={container.loadingSupervisor ?? ""} className="w-48" />
           </FieldGroup>
+          <FieldGroup label={dict.globalGapCertifiedLabel}>
+            <Select
+              name="globalGapCertified"
+              defaultValue={container.globalGapCertified == null ? "" : container.globalGapCertified ? "YES" : "NO"}
+            >
+              <option value="">{dict.globalGapCertifiedUnset}</option>
+              <option value="YES">{dict.globalGapCertifiedYes}</option>
+              <option value="NO">{dict.globalGapCertifiedNo}</option>
+            </Select>
+          </FieldGroup>
+          <FieldGroup label={dict.loadingTempLabel}>
+            <Input name="loadingTempC" type="number" step="0.1" defaultValue={container.loadingTempC ?? ""} className="w-28" />
+          </FieldGroup>
+          <FieldGroup label={dict.tempRecorderNumberLabel}>
+            <Input name="tempRecorderNumber" defaultValue={container.tempRecorderNumber ?? ""} className="w-36" />
+          </FieldGroup>
+          <FieldGroup label={dict.forkliftDriverNameLabel}>
+            <Input name="forkliftDriverName" defaultValue={container.forkliftDriverName ?? ""} className="w-48" />
+          </FieldGroup>
           <Button type="submit" variant="secondary">
             {dict.save}
           </Button>
