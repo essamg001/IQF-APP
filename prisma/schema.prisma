@@ -61,19 +61,20 @@ enum PurchaseCategory {
   OTHER
 }
 
-// Requested -> Approved/Rejected by Purchasing -> Ordered (tracked to the
+// Requested -> warehouse checks stock -> (available: straight to Received)
+// or (not available: forwarded to Accounting for approval/rejection ->
+// Purchasing acknowledges the approved request -> Ordered, tracked to the
 // farm gate) -> Received (Production confirms physical arrival) ->
 // ConfirmedWorking (Production confirms it actually works, separate from
 // just having arrived -- matters most for equipment).
 enum PurchaseRequestStatus {
   REQUESTED
-  // The on-site warehouse didn't have it in stock -- forwarded to the
-  // Purchasing department, who must acknowledge receipt (a separate,
-  // required click from their actual approve/reject decision) before they
-  // can review it.
-  FORWARDED_TO_PURCHASING
+  // The on-site warehouse didn't have it in stock -- forwarded straight to
+  // Accounting for approval/rejection. Purchasing doesn't see this until
+  // Accounting has approved it (status flips to APPROVED below).
+  FORWARDED_TO_ACCOUNTING
   // The warehouse DID have it -- short-circuits straight to RECEIVED once
-  // the Head of Production confirms, skipping Purchasing/Accounting/Ordered
+  // the Head of Production confirms, skipping Accounting/Purchasing/Ordered
   // entirely. See warehouseAvailable/warehouseCheckedBy on PurchaseRequest.
   FULFILLED_FROM_WAREHOUSE
   APPROVED
@@ -290,7 +291,6 @@ model User {
   requestedPurchaseRequests PurchaseRequest[] @relation("PurchaseRequestedBy")
   warehouseCheckedPurchaseRequests PurchaseRequest[] @relation("PurchaseWarehouseCheckedBy")
   purchasingAcknowledgedRequests   PurchaseRequest[] @relation("PurchaseAcknowledgedBy")
-  reviewedPurchaseRequests  PurchaseRequest[] @relation("PurchaseReviewedBy")
   accountingApprovedPurchaseRequests PurchaseRequest[] @relation("PurchaseAccountingApprovedBy")
   orderedPurchaseRequests   PurchaseRequest[] @relation("PurchaseOrderedBy")
   receivedPurchaseRequests  PurchaseRequest[] @relation("PurchaseReceivedBy")
@@ -2367,9 +2367,9 @@ model PurchaseRequest {
   requestedByUser   User?    @relation("PurchaseRequestedBy", fields: [requestedByUserId], references: [id])
   requestedAt       DateTime @default(now())
 
-  // The on-site warehouse is checked before Purchasing ever sees this --
-  // null means not checked yet, true short-circuits to
-  // FULFILLED_FROM_WAREHOUSE, false flips to FORWARDED_TO_PURCHASING. See
+  // The on-site warehouse is checked before Accounting or Purchasing ever
+  // sees this -- null means not checked yet, true short-circuits to
+  // FULFILLED_FROM_WAREHOUSE, false flips to FORWARDED_TO_ACCOUNTING. See
   // the Release Order form (STO 02406) this mirrors.
   warehouseAvailable     Boolean?
   warehouseCheckedByName String?
@@ -2377,28 +2377,22 @@ model PurchaseRequest {
   warehouseCheckedByUser   User?   @relation("PurchaseWarehouseCheckedBy", fields: [warehouseCheckedByUserId], references: [id])
   warehouseCheckedAt      DateTime?
 
-  // A required, separate click from the actual approve/reject decision
-  // below -- the owner specifically wanted confirmation Purchasing has
-  // seen a forwarded request, independent of whether/when they act on it.
-  purchasingAcknowledgedByName   String?
-  purchasingAcknowledgedByUserId String?
-  purchasingAcknowledgedByUser   User?     @relation("PurchaseAcknowledgedBy", fields: [purchasingAcknowledgedByUserId], references: [id])
-  purchasingAcknowledgedAt       DateTime?
-
-  reviewedByName   String?
-  reviewedByUserId String?
-  reviewedByUser   User?     @relation("PurchaseReviewedBy", fields: [reviewedByUserId], references: [id])
-  reviewedAt       DateTime?
-  rejectionReason  String?
-
-  // Accounting's own sign-off, required in addition to (not instead of)
-  // Purchasing's approval above before markOrderedAction will proceed --
-  // a genuinely separate approval tier, not a duplicate of reviewedBy.
+  // Accounting is the sole approve/reject decision -- the warehouse forwards
+  // straight to them (not Purchasing) when nothing's in stock. Approving
+  // flips status to APPROVED, at which point Purchasing takes over below.
   accountingApprovedByName   String?
   accountingApprovedByUserId String?
   accountingApprovedByUser   User?     @relation("PurchaseAccountingApprovedBy", fields: [accountingApprovedByUserId], references: [id])
   accountingApprovedAt       DateTime?
   accountingRejectionReason  String?
+
+  // A required, separate click from actually placing the order below -- the
+  // owner specifically wanted confirmation Purchasing has seen the
+  // Accounting-approved request, independent of whether/when they order it.
+  purchasingAcknowledgedByName   String?
+  purchasingAcknowledgedByUserId String?
+  purchasingAcknowledgedByUser   User?     @relation("PurchaseAcknowledgedBy", fields: [purchasingAcknowledgedByUserId], references: [id])
+  purchasingAcknowledgedAt       DateTime?
 
   supplierName         String?
   orderReference        String?

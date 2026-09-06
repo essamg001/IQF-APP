@@ -89,13 +89,12 @@ const warehouseCheckSchema = z.object({
 });
 
 /**
- * The real workflow's first step: before Purchasing ever sees a request,
- * the on-site warehouse is checked for stock (mirrors the Release Order
- * form, STO 02406). Available short-circuits straight to
- * FULFILLED_FROM_WAREHOUSE -- Purchasing/Accounting/Ordered never happen at
- * all for this request. Not available forwards it to Purchasing, who then
- * must separately acknowledge receipt before reviewing (see
- * acknowledgePurchasingReceiptAction).
+ * The real workflow's first step: before Accounting or Purchasing ever see
+ * a request, the on-site warehouse is checked for stock (mirrors the
+ * Release Order form, STO 02406). Available short-circuits straight to
+ * FULFILLED_FROM_WAREHOUSE -- Accounting/Purchasing/Ordered never happen at
+ * all for this request. Not available forwards it to Accounting, who
+ * decide before Purchasing ever sees it (see approveAccountingAction).
  */
 export async function checkWarehouseStockAction(id: string, _prevState: string | undefined, formData: FormData) {
   const session = await auth();
@@ -117,13 +116,13 @@ export async function checkWarehouseStockAction(id: string, _prevState: string |
       warehouseCheckedByName: session!.user.name || session!.user.email,
       warehouseCheckedByUserId: session!.user.id,
       warehouseCheckedAt: new Date(),
-      status: available ? "FULFILLED_FROM_WAREHOUSE" : "FORWARDED_TO_PURCHASING",
+      status: available ? "FULFILLED_FROM_WAREHOUSE" : "FORWARDED_TO_ACCOUNTING",
     },
   });
 
   await logActivity({
     actorId: session!.user.id,
-    action: available ? "PURCHASE_REQUEST_FULFILLED_FROM_WAREHOUSE" : "PURCHASE_REQUEST_FORWARDED_TO_PURCHASING",
+    action: available ? "PURCHASE_REQUEST_FULFILLED_FROM_WAREHOUSE" : "PURCHASE_REQUEST_FORWARDED_TO_ACCOUNTING",
     entityType: "PurchaseRequest",
     entityId: id,
   });
@@ -133,11 +132,65 @@ export async function checkWarehouseStockAction(id: string, _prevState: string |
   return "ok";
 }
 
+const accountingSchema = z.object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  rejectionReason: z.string().optional(),
+});
+
 /**
- * Deliberately separate from the actual approve/reject decision below --
- * the owner specifically wanted confirmation Purchasing has seen a
- * forwarded request, independent of when (or whether yet) they act on it.
- * reviewPurchaseRequestAction requires this to be set first.
+ * The sole approve/reject decision in this workflow -- Accounting decides
+ * before Purchasing ever sees the request. Approving flips status to
+ * APPROVED, at which point Purchasing acknowledges receipt (below) and
+ * places the order.
+ */
+export async function approveAccountingAction(id: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canApproveAccounting(session?.user)) {
+    return "Only the Owner or Head of Accounting can approve this.";
+  }
+
+  const parsed = accountingSchema.safeParse({
+    decision: formData.get("decision"),
+    rejectionReason: formData.get("rejectionReason") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+  if (parsed.data.decision === "REJECT" && !parsed.data.rejectionReason?.trim()) {
+    return "A reason is required to reject a request.";
+  }
+
+  const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
+  if (existing.status !== "FORWARDED_TO_ACCOUNTING") return "This request hasn't been forwarded to Accounting.";
+
+  const rejected = parsed.data.decision === "REJECT";
+  await prisma.purchaseRequest.update({
+    where: { id },
+    data: {
+      status: rejected ? "REJECTED" : "APPROVED",
+      accountingApprovedByName: rejected ? undefined : session!.user.name || session!.user.email,
+      accountingApprovedByUserId: rejected ? undefined : session!.user.id,
+      accountingApprovedAt: rejected ? undefined : new Date(),
+      accountingRejectionReason: rejected ? parsed.data.rejectionReason : undefined,
+    },
+  });
+
+  await logActivity({
+    actorId: session!.user.id,
+    action: rejected ? "PURCHASE_REQUEST_ACCOUNTING_REJECTED" : "PURCHASE_REQUEST_ACCOUNTING_APPROVED",
+    entityType: "PurchaseRequest",
+    entityId: id,
+    detail: rejected ? parsed.data.rejectionReason : undefined,
+  });
+
+  revalidatePath(`/purchase-requests/${id}`);
+  revalidatePath("/purchase-requests");
+  return "ok";
+}
+
+/**
+ * Deliberately separate from actually placing the order below -- the owner
+ * specifically wanted confirmation Purchasing has seen an Accounting-approved
+ * request, independent of when (or whether yet) they order it.
+ * markOrderedAction requires this to be set first.
  */
 export async function acknowledgePurchasingReceiptAction(id: string, _prevState: string | undefined, _formData: FormData) {
   const session = await auth();
@@ -146,7 +199,7 @@ export async function acknowledgePurchasingReceiptAction(id: string, _prevState:
   }
 
   const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
-  if (existing.status !== "FORWARDED_TO_PURCHASING") return "This request hasn't been forwarded to Purchasing.";
+  if (existing.status !== "APPROVED") return "This request hasn't been approved by Accounting yet.";
   if (existing.purchasingAcknowledgedAt) return "Already acknowledged.";
 
   await prisma.purchaseRequest.update({
@@ -169,109 +222,6 @@ export async function acknowledgePurchasingReceiptAction(id: string, _prevState:
   return "ok";
 }
 
-const reviewSchema = z.object({
-  decision: z.enum(["APPROVE", "REJECT"]),
-  rejectionReason: z.string().optional(),
-});
-
-export async function reviewPurchaseRequestAction(id: string, _prevState: string | undefined, formData: FormData) {
-  const session = await auth();
-  if (!canManagePurchasing(session?.user)) {
-    return "Only the Owner or Head of Purchasing can approve or reject a request.";
-  }
-
-  const parsed = reviewSchema.safeParse({
-    decision: formData.get("decision"),
-    rejectionReason: formData.get("rejectionReason") || undefined,
-  });
-  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
-  if (parsed.data.decision === "REJECT" && !parsed.data.rejectionReason?.trim()) {
-    return "A reason is required to reject a request.";
-  }
-
-  const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
-  if (existing.status !== "FORWARDED_TO_PURCHASING") return "This request hasn't been forwarded to Purchasing yet.";
-  if (!existing.purchasingAcknowledgedAt) return "Acknowledge receipt of this request before reviewing it.";
-
-  const status = parsed.data.decision === "APPROVE" ? "APPROVED" : "REJECTED";
-  await prisma.purchaseRequest.update({
-    where: { id },
-    data: {
-      status,
-      reviewedByName: session!.user.name || session!.user.email,
-      reviewedByUserId: session!.user.id,
-      reviewedAt: new Date(),
-      rejectionReason: parsed.data.decision === "REJECT" ? parsed.data.rejectionReason : undefined,
-    },
-  });
-
-  await logActivity({
-    actorId: session!.user.id,
-    action: status === "APPROVED" ? "PURCHASE_REQUEST_APPROVED" : "PURCHASE_REQUEST_REJECTED",
-    entityType: "PurchaseRequest",
-    entityId: id,
-    detail: status === "REJECTED" ? parsed.data.rejectionReason : undefined,
-  });
-
-  revalidatePath(`/purchase-requests/${id}`);
-  revalidatePath("/purchase-requests");
-  return "ok";
-}
-
-const accountingSchema = z.object({
-  decision: z.enum(["APPROVE", "REJECT"]),
-  rejectionReason: z.string().optional(),
-});
-
-/**
- * A genuinely separate approval tier from Purchasing's own review above --
- * required in addition to it, not instead of it. markOrderedAction won't
- * proceed until this is set.
- */
-export async function approveAccountingAction(id: string, _prevState: string | undefined, formData: FormData) {
-  const session = await auth();
-  if (!canApproveAccounting(session?.user)) {
-    return "Only the Owner or Head of Accounting can approve this.";
-  }
-
-  const parsed = accountingSchema.safeParse({
-    decision: formData.get("decision"),
-    rejectionReason: formData.get("rejectionReason") || undefined,
-  });
-  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
-  if (parsed.data.decision === "REJECT" && !parsed.data.rejectionReason?.trim()) {
-    return "A reason is required to reject a request.";
-  }
-
-  const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
-  if (existing.status !== "APPROVED") return "This request needs Purchasing's approval first.";
-  if (existing.accountingApprovedAt) return "Accounting has already acted on this request.";
-
-  const rejected = parsed.data.decision === "REJECT";
-  await prisma.purchaseRequest.update({
-    where: { id },
-    data: {
-      status: rejected ? "REJECTED" : undefined,
-      accountingApprovedByName: rejected ? undefined : session!.user.name || session!.user.email,
-      accountingApprovedByUserId: rejected ? undefined : session!.user.id,
-      accountingApprovedAt: rejected ? undefined : new Date(),
-      accountingRejectionReason: rejected ? parsed.data.rejectionReason : undefined,
-    },
-  });
-
-  await logActivity({
-    actorId: session!.user.id,
-    action: rejected ? "PURCHASE_REQUEST_ACCOUNTING_REJECTED" : "PURCHASE_REQUEST_ACCOUNTING_APPROVED",
-    entityType: "PurchaseRequest",
-    entityId: id,
-    detail: rejected ? parsed.data.rejectionReason : undefined,
-  });
-
-  revalidatePath(`/purchase-requests/${id}`);
-  revalidatePath("/purchase-requests");
-  return "ok";
-}
-
 const orderSchema = z.object({
   supplierName: z.string().optional(),
   orderReference: z.string().optional(),
@@ -291,7 +241,7 @@ export async function markOrderedAction(id: string, _prevState: string | undefin
 
   const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
   if (existing.status !== "APPROVED") return "This request must be approved before it can be marked as ordered.";
-  if (!existing.accountingApprovedAt) return "This request needs Accounting's approval before it can be marked as ordered.";
+  if (!existing.purchasingAcknowledgedAt) return "Acknowledge receipt of this request before marking it as ordered.";
 
   const { expectedDeliveryDate, ...rest } = parsed.data;
   await prisma.purchaseRequest.update({

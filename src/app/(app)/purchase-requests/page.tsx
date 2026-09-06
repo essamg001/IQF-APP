@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { canManagePurchasing } from "@/lib/roles";
+import { canManagePurchasing, canApproveAccounting } from "@/lib/roles";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const STATUS_COLOR = {
   REQUESTED: "amber",
-  FORWARDED_TO_PURCHASING: "amber",
+  FORWARDED_TO_ACCOUNTING: "amber",
   FULFILLED_FROM_WAREHOUSE: "blue",
   APPROVED: "blue",
   REJECTED: "red",
@@ -28,7 +28,7 @@ export default async function PurchaseRequestsPage() {
 
   const STATUS_LABEL = {
     REQUESTED: dict.statusRequested,
-    FORWARDED_TO_PURCHASING: dict.statusForwardedToPurchasing,
+    FORWARDED_TO_ACCOUNTING: dict.statusForwardedToAccounting,
     FULFILLED_FROM_WAREHOUSE: dict.statusFulfilledFromWarehouse,
     APPROVED: dict.statusApproved,
     REJECTED: dict.statusRejected,
@@ -46,6 +46,7 @@ export default async function PurchaseRequestsPage() {
 
   const session = await auth();
   const canManage = canManagePurchasing(session?.user);
+  const canApproveAcct = canApproveAccounting(session?.user);
 
   const requests = await prisma.purchaseRequest.findMany({
     include: { factory: true, items: true, _count: { select: { photos: true } } },
@@ -53,13 +54,12 @@ export default async function PurchaseRequestsPage() {
     take: 200,
   });
 
-  // REQUESTED is awaiting the Store Supervisor's warehouse check now, not
-  // Purchasing's -- this badge (gated to canManage) counts what's actually
-  // sitting in Purchasing's own queue: forwarded requests (whether or not
-  // yet acknowledged) and approved-but-not-yet-accounting-approved ones.
-  const pendingCount = requests.filter(
-    (r) => r.status === "FORWARDED_TO_PURCHASING" || (r.status === "APPROVED" && !r.accountingApprovedAt)
-  ).length;
+  // The warehouse forwards straight to Accounting now, not Purchasing --
+  // Accounting's queue is anything awaiting their approve/reject decision;
+  // Purchasing's queue only starts once Accounting has approved (status
+  // APPROVED), whether or not they've acknowledged receipt yet.
+  const pendingAccountingCount = requests.filter((r) => r.status === "FORWARDED_TO_ACCOUNTING").length;
+  const pendingCount = requests.filter((r) => r.status === "APPROVED").length;
 
   return (
     <div>
@@ -68,6 +68,13 @@ export default async function PurchaseRequestsPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {dict.subtitle}
+            {pendingAccountingCount > 0 && canApproveAcct && (
+              <span className="ms-2">
+                <Badge color="amber">
+                  {pendingAccountingCount} {dict.awaitingReview}
+                </Badge>
+              </span>
+            )}
             {pendingCount > 0 && canManage && (
               <span className="ms-2">
                 <Badge color="amber">
