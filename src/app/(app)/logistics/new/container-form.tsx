@@ -8,6 +8,7 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PortInput } from "@/components/port-select";
 import { CarrierInput } from "@/components/carrier-select";
+import { cn } from "@/lib/cn";
 import { useTranslations } from "@/lib/i18n/locale-context";
 import type { Client, Order } from "@prisma/client";
 
@@ -58,11 +59,21 @@ export function ContainerForm({
             exists -- a wrong pick shows a location/count that immediately
             looks off, instead of only surfacing after commit. */}
         {selectedOrderId && (
-          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+          <div
+            className={cn(
+              "rounded-md border px-3 py-2 text-xs",
+              !summary || summary.readyCount < summary.target
+                ? "border-amber-200 bg-amber-50 text-amber-900"
+                : "border-blue-200 bg-blue-50 text-blue-900"
+            )}
+          >
             {summary ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
-                  {dict.orderPalletLocationSummary
+                  {(summary.readyCount >= summary.target
+                    ? dict.orderPalletLocationSummaryReady
+                    : dict.orderPalletLocationSummaryOnHold
+                  )
                     .replace("{room}", summary.roomName)
                     .replace("{ready}", String(summary.readyCount))
                     .replace("{target}", String(summary.target))}

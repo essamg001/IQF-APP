@@ -116,7 +116,14 @@ export function ColdRoomGrid({
     <div className="mt-4 grid grid-cols-[1fr_320px] gap-4">
       <Card className="overflow-x-auto p-3">
         {orderContext && (
-          <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+          <div
+            className={cn(
+              "mb-3 rounded-md border px-3 py-2 text-xs",
+              orderContext.allocated >= orderContext.target
+                ? "border-blue-300 bg-blue-50 text-blue-900"
+                : "border-amber-300 bg-amber-50 text-amber-900"
+            )}
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <strong>{dict.orderContextPrefix.replace("{orderNumber}", orderContext.orderNumber)}</strong>
               {returnTo && (
@@ -128,10 +135,12 @@ export function ColdRoomGrid({
             <p className="mt-1">
               {orderContext.allocated >= orderContext.target
                 ? dict.orderContextFullyReady.replace("{allocated}", String(orderContext.allocated))
-                : dict.orderContextPullNow.replace("{allocated}", String(orderContext.allocated))}
+                : dict.orderContextOnHold
+                    .replace("{allocated}", String(orderContext.allocated))
+                    .replace("{target}", String(orderContext.target))}
             </p>
             {orderContext.allocated < orderContext.target && (
-              <p className="mt-1 text-blue-700">
+              <p className="mt-1">
                 {dict.orderContextStillOwed
                   .replace("{missing}", String(orderContext.target - orderContext.allocated))
                   .replace("{target}", String(orderContext.target))}
@@ -141,7 +150,9 @@ export function ColdRoomGrid({
         )}
         {highlightedSlots.length > 0 && (
           <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-            <p className="font-semibold">{dict.pickListTitle}</p>
+            <p className="font-semibold">
+              {orderContext && orderContext.allocated < orderContext.target ? dict.pickListTitleSoFar : dict.pickListTitle}
+            </p>
             <ul className="mt-1 space-y-0.5">
               {highlightedSlots
                 .sort((a, b) => a.round - b.round || a.rack.localeCompare(b.rack) || a.level - b.level)
