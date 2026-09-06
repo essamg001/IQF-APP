@@ -102,6 +102,37 @@ export async function createContainerAction(_prevState: string | undefined, form
   });
 
   revalidatePath("/logistics");
+
+  // Creating a container is the real "start loading this now" moment --
+  // physically pulling pallets happens here, not at allocation time (which
+  // can sit for days/weeks before a container ever exists). Send whoever
+  // just created it straight to where the pallets actually are, instead of
+  // the container detail page, which has no location info at all. An
+  // order's pallets almost always land in one cold room (allocation
+  // deliberately clusters by lot/storage line) -- the rare pallet or two
+  // elsewhere just isn't highlighted here, but stays visible via the
+  // per-room links on the container/order pages.
+  const orderPallets = await prisma.pallet.findMany({
+    where: { orderId: parsed.data.orderId },
+    select: { id: true, weightTonnes: true, coldRoomId: true, loadLines: { select: { quantityTonnes: true } } },
+  });
+  const pendingPallets = orderPallets.filter(
+    (p) => p.coldRoomId && p.weightTonnes - p.loadLines.reduce((s, l) => s + l.quantityTonnes, 0) > 0.01
+  );
+  const byRoom = new Map<string, string[]>();
+  for (const p of pendingPallets) {
+    const ids = byRoom.get(p.coldRoomId!) ?? [];
+    ids.push(p.id);
+    byRoom.set(p.coldRoomId!, ids);
+  }
+  const topRoom = [...byRoom.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+
+  if (topRoom) {
+    const [roomId, palletIds] = topRoom;
+    redirect(
+      `/storage/map/${roomId}?highlight=${palletIds.join(",")}&orderId=${parsed.data.orderId}&returnTo=${encodeURIComponent(`/logistics/${container.id}`)}`
+    );
+  }
   redirect(`/logistics/${container.id}`);
 }
 

@@ -221,7 +221,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               return [...byRoom.entries()].map(([roomId, { name, palletIds }]) => (
                 <LinkButton
                   key={roomId}
-                  href={`/storage/map/${roomId}?highlight=${palletIds.join(",")}`}
+                  href={`/storage/map/${roomId}?highlight=${palletIds.join(",")}&orderId=${order.id}&returnTo=${encodeURIComponent(`/orders/${order.id}`)}`}
                   variant="secondary"
                 >
                   {dict.viewOnStorageMap.replace("{room}", name)}

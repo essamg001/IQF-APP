@@ -115,7 +115,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
 
   const orderPallets = await prisma.pallet.findMany({
     where: { orderId: container.orderId },
-    include: { lot: true, loadLines: true },
+    include: { lot: true, loadLines: true, coldRoom: true },
     orderBy: { palletNumber: "asc" },
   });
 
@@ -138,6 +138,18 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
     .map((p) => ({ id: p.id, palletNumber: p.palletNumber, remaining: p.remaining, lotNumber: p.lot.lotNumber }));
 
   const pendingPallets = withRemaining.filter((p) => p.remaining > 0.01);
+
+  // One "View on Storage Map" link per cold room these still-pending pallets
+  // are actually shelved in -- almost always just one, since allocation
+  // clusters by lot/storage line, but grouped rather than assumed in case a
+  // rare order does span more than one.
+  const pendingByRoom = new Map<string, { name: string; palletIds: string[] }>();
+  for (const p of pendingPallets) {
+    if (!p.coldRoomId) continue;
+    const entry = pendingByRoom.get(p.coldRoomId) ?? { name: p.coldRoom!.name, palletIds: [] };
+    entry.palletIds.push(p.id);
+    pendingByRoom.set(p.coldRoomId, entry);
+  }
 
   const totalLoadedThisContainer = container.palletLines.reduce((s, l) => s + l.quantityTonnes, 0);
   const capacity = container.loadType ? CAPACITY_TONNES[container.loadType] : null;
@@ -441,10 +453,26 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
       </Card>
 
       <Card>
-        <h2 className="text-sm font-semibold text-slate-900">
-          {dict.allocatedPalletsAwaitingLoadTitle.replace("{count}", String(pendingPallets.length))}
-        </h2>
-        <p className="text-xs text-slate-500">{dict.allocatedPalletsAwaitingLoadSubtitle}</p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {dict.allocatedPalletsAwaitingLoadTitle.replace("{count}", String(pendingPallets.length))}
+            </h2>
+            <p className="text-xs text-slate-500">{dict.allocatedPalletsAwaitingLoadSubtitle}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[...pendingByRoom.entries()].map(([roomId, { name, palletIds }]) => (
+              <LinkButton
+                key={roomId}
+                href={`/storage/map/${roomId}?highlight=${palletIds.join(",")}&orderId=${container.orderId}&returnTo=${encodeURIComponent(`/logistics/${container.id}`)}`}
+                variant="secondary"
+                className="text-xs"
+              >
+                {fullDict.orders.viewOnStorageMap.replace("{room}", name)}
+              </LinkButton>
+            ))}
+          </div>
+        </div>
         <div className="mt-3 divide-y divide-slate-100">
           {pendingPallets.map((p) => (
             <div key={p.id} className="flex items-center justify-between py-2 text-sm">

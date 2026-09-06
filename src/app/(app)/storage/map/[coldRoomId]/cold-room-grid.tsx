@@ -71,6 +71,8 @@ export function ColdRoomGrid({
   suggestedSlotId,
   unassignedPallets,
   highlightPalletIds,
+  orderContext,
+  returnTo,
   pullAsides,
 }: {
   coldRoomId: string;
@@ -81,6 +83,10 @@ export function ColdRoomGrid({
   suggestedSlotId: string | null;
   unassignedPallets: UnassignedPallet[];
   highlightPalletIds?: string[];
+  /** Arrived here from an order/container flow -- shows "X of Y ready, Z still needed" alongside the pick list. */
+  orderContext?: { orderNumber: string; allocated: number; target: number } | null;
+  /** Where to send someone back to once they've found what they came for (e.g. the container they're loading). */
+  returnTo?: string;
   pullAsides: PullAside[];
 }) {
   const fullDict = useTranslations();
@@ -109,6 +115,24 @@ export function ColdRoomGrid({
   return (
     <div className="mt-4 grid grid-cols-[1fr_320px] gap-4">
       <Card className="overflow-x-auto p-3">
+        {orderContext && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+            <span>
+              <strong>{dict.orderContextPrefix.replace("{orderNumber}", orderContext.orderNumber)}</strong>{" "}
+              {orderContext.allocated >= orderContext.target
+                ? dict.orderContextFullyReady.replace("{allocated}", String(orderContext.allocated))
+                : dict.orderContextPartial
+                    .replace("{allocated}", String(orderContext.allocated))
+                    .replace("{target}", String(orderContext.target))
+                    .replace("{missing}", String(orderContext.target - orderContext.allocated))}
+            </span>
+            {returnTo && (
+              <a href={returnTo} className="shrink-0 font-medium underline hover:no-underline">
+                {dict.goToContainerLink}
+              </a>
+            )}
+          </div>
+        )}
         {highlightedSlots.length > 0 && (
           <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-900">
             <p className="font-semibold">{dict.pickListTitle}</p>

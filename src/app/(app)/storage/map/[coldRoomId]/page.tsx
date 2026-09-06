@@ -23,15 +23,25 @@ export default async function ColdRoomMapPage({
   searchParams,
 }: {
   params: Promise<{ coldRoomId: string }>;
-  searchParams: Promise<{ highlight?: string }>;
+  searchParams: Promise<{ highlight?: string; orderId?: string; returnTo?: string }>;
 }) {
   const { coldRoomId } = await params;
-  const { highlight } = await searchParams;
+  const { highlight, orderId, returnTo } = await searchParams;
   const highlightPalletIds = highlight ? highlight.split(",").filter(Boolean) : undefined;
   const dict = getDictionary(await resolveLocale()).storage;
 
   const coldRoom = await prisma.coldRoom.findUnique({ where: { id: coldRoomId } });
   if (!coldRoom) notFound();
+
+  // When arrived here from an order/container flow, "X of Y ready, Z still
+  // needed" makes the shortfall visible right where someone's about to
+  // physically pull pallets -- not just on the order page they came from,
+  // which they may not go back to before the confusion sets in.
+  const orderContext = orderId
+    ? await prisma.order
+        .findUnique({ where: { id: orderId }, select: { orderNumber: true, quantityPallets: true, _count: { select: { pallets: true } } } })
+        .then((o) => (o ? { orderNumber: o.orderNumber, allocated: o._count.pallets, target: o.quantityPallets } : null))
+    : null;
 
   const [slots, unassignedPallets, pullAsides] = await Promise.all([
     prisma.coldRoomSlot.findMany({
@@ -194,6 +204,8 @@ export default async function ColdRoomMapPage({
         slots={slotsForClient}
         suggestedSlotId={suggestedSlot?.id ?? null}
         highlightPalletIds={highlightPalletIds}
+        orderContext={orderContext}
+        returnTo={returnTo}
         pullAsides={pullAsidesForClient}
         unassignedPallets={unassignedPallets.map((p) => ({
           id: p.id,
