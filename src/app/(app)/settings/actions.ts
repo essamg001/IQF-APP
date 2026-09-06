@@ -257,6 +257,44 @@ export async function toggleHeadOfPurchasingAction(id: string) {
   revalidatePath("/settings");
 }
 
+// Not gated to a specific Role either -- there's no dedicated "Warehouse"
+// role, same reasoning as toggleHeadOfMaintenanceAction above.
+export async function toggleStoreSupervisorAction(id: string) {
+  if (!(await requireOwner())) return;
+  const user = await prisma.user.findUniqueOrThrow({ where: { id } });
+  await prisma.user.update({ where: { id }, data: { isStoreSupervisor: !user.isStoreSupervisor } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "USER_STORE_SUPERVISOR_TOGGLED",
+    entityType: "User",
+    entityId: id,
+    detail: `${user.name} → ${!user.isStoreSupervisor}`,
+  });
+
+  revalidatePath("/settings");
+}
+
+// Not gated to a specific Role either -- there's no dedicated "Accounting"
+// role, same reasoning as toggleHeadOfMaintenanceAction above.
+export async function toggleHeadOfAccountingAction(id: string) {
+  if (!(await requireOwner())) return;
+  const user = await prisma.user.findUniqueOrThrow({ where: { id } });
+  await prisma.user.update({ where: { id }, data: { isHeadOfAccounting: !user.isHeadOfAccounting } });
+
+  const session = await auth();
+  await logActivity({
+    actorId: session?.user.id,
+    action: "USER_HEAD_OF_ACCOUNTING_TOGGLED",
+    entityType: "User",
+    entityId: id,
+    detail: `${user.name} → ${!user.isHeadOfAccounting}`,
+  });
+
+  revalidatePath("/settings");
+}
+
 const farmAccreditationSchema = z.object({
   globalGapNumber: z.string().optional(),
   globalGapExpiry: z.string().optional(),

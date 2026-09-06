@@ -11,6 +11,8 @@ import { getDictionary } from "@/lib/i18n/getDictionary";
 
 const STATUS_COLOR = {
   REQUESTED: "amber",
+  FORWARDED_TO_PURCHASING: "amber",
+  FULFILLED_FROM_WAREHOUSE: "blue",
   APPROVED: "blue",
   REJECTED: "red",
   ORDERED: "blue",
@@ -26,6 +28,8 @@ export default async function PurchaseRequestsPage() {
 
   const STATUS_LABEL = {
     REQUESTED: dict.statusRequested,
+    FORWARDED_TO_PURCHASING: dict.statusForwardedToPurchasing,
+    FULFILLED_FROM_WAREHOUSE: dict.statusFulfilledFromWarehouse,
     APPROVED: dict.statusApproved,
     REJECTED: dict.statusRejected,
     ORDERED: dict.statusOrdered,
@@ -49,7 +53,13 @@ export default async function PurchaseRequestsPage() {
     take: 200,
   });
 
-  const pendingCount = requests.filter((r) => r.status === "REQUESTED").length;
+  // REQUESTED is awaiting the Store Supervisor's warehouse check now, not
+  // Purchasing's -- this badge (gated to canManage) counts what's actually
+  // sitting in Purchasing's own queue: forwarded requests (whether or not
+  // yet acknowledged) and approved-but-not-yet-accounting-approved ones.
+  const pendingCount = requests.filter(
+    (r) => r.status === "FORWARDED_TO_PURCHASING" || (r.status === "APPROVED" && !r.accountingApprovedAt)
+  ).length;
 
   return (
     <div>

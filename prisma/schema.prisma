@@ -67,6 +67,15 @@ enum PurchaseCategory {
 // just having arrived -- matters most for equipment).
 enum PurchaseRequestStatus {
   REQUESTED
+  // The on-site warehouse didn't have it in stock -- forwarded to the
+  // Purchasing department, who must acknowledge receipt (a separate,
+  // required click from their actual approve/reject decision) before they
+  // can review it.
+  FORWARDED_TO_PURCHASING
+  // The warehouse DID have it -- short-circuits straight to RECEIVED once
+  // the Head of Production confirms, skipping Purchasing/Accounting/Ordered
+  // entirely. See warehouseAvailable/warehouseCheckedBy on PurchaseRequest.
+  FULFILLED_FROM_WAREHOUSE
   APPROVED
   REJECTED
   ORDERED
@@ -154,6 +163,7 @@ enum AlertType {
   SPEC_MISMATCH
   CONTAINER_OVERDUE
   ORDER_ALLOCATION_OVERDUE
+  PURCHASE_REQUEST_OVERDUE
   LOW_STOCK
   MICROBIOLOGY_PENDING
   MICROBIOLOGY_LOAD_ATTEMPT
@@ -238,6 +248,17 @@ model User {
   // request -- same narrow-accountability reasoning as isHeadOfMaintenance.
   // Not tied to a Role since there's no dedicated "Purchasing" role either.
   isHeadOfPurchasing Boolean @default(false)
+  // Checks the on-site warehouse for stock before a purchase request gets
+  // forwarded to Purchasing -- a distinct real-world role from Head of
+  // Purchasing (matches the real Release Order form's own "Store
+  // Supervisor" signature line), not tied to a Role since there's no
+  // dedicated "Warehouse" role either.
+  isStoreSupervisor Boolean @default(false)
+  // Accounting's final sign-off on a purchase request before Purchasing can
+  // actually place the order -- same narrow-accountability reasoning as
+  // every other isHeadOf* flag. No dedicated "Accounting" role exists
+  // either.
+  isHeadOfAccounting Boolean @default(false)
   station            Station?
   locale             Locale   @default(EN)
   createdAt          DateTime @default(now())
@@ -267,7 +288,10 @@ model User {
   completedMasterCleaningTasks MasterCleaningTaskLog[]
 
   requestedPurchaseRequests PurchaseRequest[] @relation("PurchaseRequestedBy")
+  warehouseCheckedPurchaseRequests PurchaseRequest[] @relation("PurchaseWarehouseCheckedBy")
+  purchasingAcknowledgedRequests   PurchaseRequest[] @relation("PurchaseAcknowledgedBy")
   reviewedPurchaseRequests  PurchaseRequest[] @relation("PurchaseReviewedBy")
+  accountingApprovedPurchaseRequests PurchaseRequest[] @relation("PurchaseAccountingApprovedBy")
   orderedPurchaseRequests   PurchaseRequest[] @relation("PurchaseOrderedBy")
   receivedPurchaseRequests  PurchaseRequest[] @relation("PurchaseReceivedBy")
   workingConfirmedPurchaseRequests PurchaseRequest[] @relation("PurchaseWorkingConfirmedBy")
@@ -2343,11 +2367,38 @@ model PurchaseRequest {
   requestedByUser   User?    @relation("PurchaseRequestedBy", fields: [requestedByUserId], references: [id])
   requestedAt       DateTime @default(now())
 
+  // The on-site warehouse is checked before Purchasing ever sees this --
+  // null means not checked yet, true short-circuits to
+  // FULFILLED_FROM_WAREHOUSE, false flips to FORWARDED_TO_PURCHASING. See
+  // the Release Order form (STO 02406) this mirrors.
+  warehouseAvailable     Boolean?
+  warehouseCheckedByName String?
+  warehouseCheckedByUserId String?
+  warehouseCheckedByUser   User?   @relation("PurchaseWarehouseCheckedBy", fields: [warehouseCheckedByUserId], references: [id])
+  warehouseCheckedAt      DateTime?
+
+  // A required, separate click from the actual approve/reject decision
+  // below -- the owner specifically wanted confirmation Purchasing has
+  // seen a forwarded request, independent of whether/when they act on it.
+  purchasingAcknowledgedByName   String?
+  purchasingAcknowledgedByUserId String?
+  purchasingAcknowledgedByUser   User?     @relation("PurchaseAcknowledgedBy", fields: [purchasingAcknowledgedByUserId], references: [id])
+  purchasingAcknowledgedAt       DateTime?
+
   reviewedByName   String?
   reviewedByUserId String?
   reviewedByUser   User?     @relation("PurchaseReviewedBy", fields: [reviewedByUserId], references: [id])
   reviewedAt       DateTime?
   rejectionReason  String?
+
+  // Accounting's own sign-off, required in addition to (not instead of)
+  // Purchasing's approval above before markOrderedAction will proceed --
+  // a genuinely separate approval tier, not a duplicate of reviewedBy.
+  accountingApprovedByName   String?
+  accountingApprovedByUserId String?
+  accountingApprovedByUser   User?     @relation("PurchaseAccountingApprovedBy", fields: [accountingApprovedByUserId], references: [id])
+  accountingApprovedAt       DateTime?
+  accountingRejectionReason  String?
 
   supplierName         String?
   orderReference        String?
@@ -2356,6 +2407,12 @@ model PurchaseRequest {
   orderedByUserId       String?
   orderedByUser         User?     @relation("PurchaseOrderedBy", fields: [orderedByUserId], references: [id])
   orderedAt             DateTime?
+
+  // Recorded against the same expectedDeliveryDate rather than overwriting
+  // it, so the original commitment stays visible alongside how late it
+  // actually ran -- checked by PURCHASE_REQUEST_OVERDUE (src/lib/alerts.ts).
+  revisedDeliveryDate DateTime?
+  delayReason         String?
 
   receivedByName   String?
   receivedByUserId String?

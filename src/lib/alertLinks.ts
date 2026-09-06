@@ -90,6 +90,9 @@ export async function resolveAlertHrefs(
       case "ORDER_ALLOCATION_OVERDUE":
         hrefs.set(a.id, `/orders/${id}`);
         break;
+      case "PURCHASE_REQUEST_OVERDUE":
+        hrefs.set(a.id, `/purchase-requests/${id}`);
+        break;
       // No default: an alert type with no known destination stays unlinked
       // rather than pointing somewhere wrong.
     }

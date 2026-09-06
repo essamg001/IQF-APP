@@ -7,11 +7,13 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatDate } from "@/lib/dates";
-import { canManagePurchasing, canSignAsHeadOfProduction } from "@/lib/roles";
+import { canManagePurchasing, canSignAsHeadOfProduction, canCheckWarehouseStock, canApproveAccounting } from "@/lib/roles";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import {
   reviewPurchaseRequestAction,
+  approveAccountingAction,
+  acknowledgePurchasingReceiptAction,
   markOrderedAction,
   markReceivedAction,
   confirmWorkingAction,
@@ -21,9 +23,13 @@ import {
 import { ReviewForm } from "./review-form";
 import { OrderForm } from "./order-form";
 import { ConfirmActionForm } from "./confirm-action-form";
+import { WarehouseCheckForm } from "./warehouse-check-form";
+import { DelayForm } from "./delay-form";
 
 const STATUS_COLOR = {
   REQUESTED: "amber",
+  FORWARDED_TO_PURCHASING: "amber",
+  FULFILLED_FROM_WAREHOUSE: "blue",
   APPROVED: "blue",
   REJECTED: "red",
   ORDERED: "blue",
@@ -50,6 +56,8 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
 
   const STATUS_LABEL = {
     REQUESTED: dict.statusRequested,
+    FORWARDED_TO_PURCHASING: dict.statusForwardedToPurchasing,
+    FULFILLED_FROM_WAREHOUSE: dict.statusFulfilledFromWarehouse,
     APPROVED: dict.statusApproved,
     REJECTED: dict.statusRejected,
     ORDERED: dict.statusOrdered,
@@ -79,6 +87,8 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
 
   const canManage = canManagePurchasing(session?.user);
   const canReport = canSignAsHeadOfProduction(session?.user);
+  const canCheckWarehouse = canCheckWarehouseStock(session?.user);
+  const canApproveAcct = canApproveAccounting(session?.user);
   const canSeeCost = session?.user.role === "OWNER" || session?.user.isHeadOfPurchasing;
 
   return (
@@ -131,12 +141,26 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">{dict.purchasingCard}</h2>
           <dl className="mt-3 space-y-2 text-sm">
+            <Row label={dict.rowWarehouseCheckedBy} value={request.warehouseCheckedByName} />
+            {request.warehouseAvailable != null && (
+              <Row
+                label={dict.rowWarehouseAvailable}
+                value={request.warehouseAvailable ? common.yes : common.no}
+              />
+            )}
+            <Row label={dict.rowPurchasingAcknowledgedBy} value={request.purchasingAcknowledgedByName} />
             <Row label={dict.rowReviewedBy} value={request.reviewedByName} />
             <Row
               label={dict.rowReviewed}
               value={request.reviewedAt ? formatDate(request.reviewedAt, "dd MMM yyyy HH:mm", locale) : null}
             />
-            {request.status === "REJECTED" && <Row label={dict.rowRejectionReason} value={request.rejectionReason} />}
+            {request.status === "REJECTED" && request.rejectionReason && (
+              <Row label={dict.rowRejectionReason} value={request.rejectionReason} />
+            )}
+            <Row label={dict.rowAccountingApprovedBy} value={request.accountingApprovedByName} />
+            {request.status === "REJECTED" && request.accountingRejectionReason && (
+              <Row label={dict.rowAccountingRejectionReason} value={request.accountingRejectionReason} />
+            )}
             <Row label={dict.rowSupplier} value={request.supplierName} />
             <Row label={dict.rowOrderReference} value={request.orderReference} />
             {canSeeCost && (
@@ -146,6 +170,11 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
               label={dict.rowExpectedDelivery}
               value={request.expectedDeliveryDate ? formatDate(request.expectedDeliveryDate, "dd MMM yyyy", locale) : null}
             />
+            <Row
+              label={dict.rowRevisedDelivery}
+              value={request.revisedDeliveryDate ? formatDate(request.revisedDeliveryDate, "dd MMM yyyy", locale) : null}
+            />
+            <Row label={dict.rowDelayReason} value={request.delayReason} />
             <Row label={dict.rowReceivedBy} value={request.receivedByName} />
             <Row
               label={dict.rowReceived}
@@ -159,6 +188,35 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
 
       {request.status === "REQUESTED" && (
         <Card>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.warehouseCheckTitle}</h2>
+          <p className="mt-1 text-xs text-slate-500">{dict.warehouseCheckSubtitle}</p>
+          {canCheckWarehouse ? (
+            <WarehouseCheckForm requestId={request.id} />
+          ) : (
+            <p className="mt-2 text-xs text-slate-400">{dict.onlyWarehouseCheck}</p>
+          )}
+        </Card>
+      )}
+
+      {request.status === "FORWARDED_TO_PURCHASING" && !request.purchasingAcknowledgedAt && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.acknowledgeReceiptTitle}</h2>
+          <p className="mt-1 text-xs text-slate-500">{dict.acknowledgeReceiptSubtitle}</p>
+          {canManage ? (
+            <ConfirmActionForm
+              requestId={request.id}
+              action={acknowledgePurchasingReceiptAction}
+              confirmMessage={dict.acknowledgeReceiptConfirm}
+              buttonLabel={dict.acknowledgeReceiptButton}
+            />
+          ) : (
+            <p className="mt-2 text-xs text-slate-400">{dict.onlyPurchasingReview}</p>
+          )}
+        </Card>
+      )}
+
+      {request.status === "FORWARDED_TO_PURCHASING" && request.purchasingAcknowledgedAt && (
+        <Card>
           <h2 className="text-sm font-semibold text-slate-900">{dict.reviewSectionTitle}</h2>
           {canManage ? (
             <ReviewForm requestId={request.id} action={reviewPurchaseRequestAction} />
@@ -168,7 +226,19 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
         </Card>
       )}
 
-      {request.status === "APPROVED" && (
+      {request.status === "APPROVED" && !request.accountingApprovedAt && (
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">{dict.accountingApprovalTitle}</h2>
+          <p className="mt-1 text-xs text-slate-500">{dict.accountingApprovalSubtitle}</p>
+          {canApproveAcct ? (
+            <ReviewForm requestId={request.id} action={approveAccountingAction} />
+          ) : (
+            <p className="mt-2 text-xs text-slate-400">{dict.onlyAccountingApproval}</p>
+          )}
+        </Card>
+      )}
+
+      {request.status === "APPROVED" && request.accountingApprovedAt && (
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">{dict.markOrderedTitle}</h2>
           {canManage ? (
@@ -180,8 +250,36 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
       )}
 
       {request.status === "ORDERED" && (
+        <>
+          <Card>
+            <h2 className="text-sm font-semibold text-slate-900">{dict.confirmReceiptTitle}</h2>
+            {canReport ? (
+              <ConfirmActionForm
+                requestId={request.id}
+                action={markReceivedAction}
+                confirmMessage={dict.confirmReceivedMessage.replace("{count}", String(request.items.length))}
+                buttonLabel={dict.markReceivedButton}
+              />
+            ) : (
+              <p className="mt-2 text-xs text-slate-400">{dict.onlyProductionDo}</p>
+            )}
+          </Card>
+          <Card>
+            <h2 className="text-sm font-semibold text-slate-900">{dict.recordDelayTitle}</h2>
+            <p className="mt-1 text-xs text-slate-500">{dict.recordDelaySubtitle}</p>
+            {canManage ? (
+              <DelayForm requestId={request.id} />
+            ) : (
+              <p className="mt-2 text-xs text-slate-400">{dict.onlyPurchasingDo}</p>
+            )}
+          </Card>
+        </>
+      )}
+
+      {request.status === "FULFILLED_FROM_WAREHOUSE" && (
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">{dict.confirmReceiptTitle}</h2>
+          <p className="mt-1 text-xs text-slate-500">{dict.fulfilledFromWarehouseSubtitle}</p>
           {canReport ? (
             <ConfirmActionForm
               requestId={request.id}

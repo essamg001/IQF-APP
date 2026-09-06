@@ -15,6 +15,8 @@ declare module "next-auth" {
       isHeadOfProduction: boolean;
       isHeadOfMaintenance: boolean;
       isHeadOfPurchasing: boolean;
+      isStoreSupervisor: boolean;
+      isHeadOfAccounting: boolean;
       station: Station | null;
       locale: Locale;
     };
@@ -25,6 +27,8 @@ declare module "next-auth" {
     isHeadOfProduction: boolean;
     isHeadOfMaintenance: boolean;
     isHeadOfPurchasing: boolean;
+    isStoreSupervisor: boolean;
+    isHeadOfAccounting: boolean;
     station: Station | null;
     locale: Locale;
   }
@@ -59,6 +63,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           isHeadOfProduction: user.isHeadOfProduction,
           isHeadOfMaintenance: user.isHeadOfMaintenance,
           isHeadOfPurchasing: user.isHeadOfPurchasing,
+          isStoreSupervisor: user.isStoreSupervisor,
+          isHeadOfAccounting: user.isHeadOfAccounting,
           station: user.station,
           locale: user.locale,
         };
@@ -74,6 +80,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.isHeadOfProduction = user.isHeadOfProduction;
         token.isHeadOfMaintenance = user.isHeadOfMaintenance;
         token.isHeadOfPurchasing = user.isHeadOfPurchasing;
+        token.isStoreSupervisor = user.isStoreSupervisor;
+        token.isHeadOfAccounting = user.isHeadOfAccounting;
         token.station = user.station;
         token.locale = user.locale;
       }
@@ -87,6 +95,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.isHeadOfProduction = token.isHeadOfProduction as boolean;
         session.user.isHeadOfMaintenance = token.isHeadOfMaintenance as boolean;
         session.user.isHeadOfPurchasing = token.isHeadOfPurchasing as boolean;
+        session.user.isStoreSupervisor = token.isStoreSupervisor as boolean;
+        session.user.isHeadOfAccounting = token.isHeadOfAccounting as boolean;
         session.user.station = (token.station as Station | null) ?? null;
         session.user.locale = (token.locale as Locale) ?? "EN";
       }

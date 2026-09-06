@@ -4,7 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { saveUploadedFile } from "@/lib/files";
 import { logActivity } from "@/lib/activityLog";
-import { canManagePurchasing, canSignAsHeadOfProduction } from "@/lib/roles";
+import {
+  canManagePurchasing,
+  canSignAsHeadOfProduction,
+  canSubmitPurchaseRequest,
+  canCheckWarehouseStock,
+  canApproveAccounting,
+} from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -21,12 +27,13 @@ const requestSchema = z.object({
   items: z.array(lineItemSchema).min(1, "Add at least one item."),
 });
 
-// Requests come from the Head of Production specifically, same
-// narrow-accountability gate as reporting a Structural Issue.
+// Requests come from Head of Production or Head of Maintenance -- the two
+// teams the owner named, not the whole Production role (no dedicated
+// "Maintenance" role exists at all).
 export async function createPurchaseRequestAction(_prevState: string | undefined, formData: FormData) {
   const session = await auth();
-  if (!canSignAsHeadOfProduction(session?.user)) {
-    return "Only the Owner or Head of Production can submit a purchase request.";
+  if (!canSubmitPurchaseRequest(session?.user)) {
+    return "Only the Owner, Head of Production, or Head of Maintenance can submit a purchase request.";
   }
 
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
@@ -77,6 +84,91 @@ export async function createPurchaseRequestAction(_prevState: string | undefined
   redirect(`/purchase-requests/${created.id}`);
 }
 
+const warehouseCheckSchema = z.object({
+  available: z.enum(["YES", "NO"]),
+});
+
+/**
+ * The real workflow's first step: before Purchasing ever sees a request,
+ * the on-site warehouse is checked for stock (mirrors the Release Order
+ * form, STO 02406). Available short-circuits straight to
+ * FULFILLED_FROM_WAREHOUSE -- Purchasing/Accounting/Ordered never happen at
+ * all for this request. Not available forwards it to Purchasing, who then
+ * must separately acknowledge receipt before reviewing (see
+ * acknowledgePurchasingReceiptAction).
+ */
+export async function checkWarehouseStockAction(id: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canCheckWarehouseStock(session?.user)) {
+    return "Only the Owner or a Store Supervisor can check warehouse stock.";
+  }
+
+  const parsed = warehouseCheckSchema.safeParse({ available: formData.get("available") });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
+  if (existing.status !== "REQUESTED") return "Warehouse stock has already been checked for this request.";
+
+  const available = parsed.data.available === "YES";
+  await prisma.purchaseRequest.update({
+    where: { id },
+    data: {
+      warehouseAvailable: available,
+      warehouseCheckedByName: session!.user.name || session!.user.email,
+      warehouseCheckedByUserId: session!.user.id,
+      warehouseCheckedAt: new Date(),
+      status: available ? "FULFILLED_FROM_WAREHOUSE" : "FORWARDED_TO_PURCHASING",
+    },
+  });
+
+  await logActivity({
+    actorId: session!.user.id,
+    action: available ? "PURCHASE_REQUEST_FULFILLED_FROM_WAREHOUSE" : "PURCHASE_REQUEST_FORWARDED_TO_PURCHASING",
+    entityType: "PurchaseRequest",
+    entityId: id,
+  });
+
+  revalidatePath(`/purchase-requests/${id}`);
+  revalidatePath("/purchase-requests");
+  return "ok";
+}
+
+/**
+ * Deliberately separate from the actual approve/reject decision below --
+ * the owner specifically wanted confirmation Purchasing has seen a
+ * forwarded request, independent of when (or whether yet) they act on it.
+ * reviewPurchaseRequestAction requires this to be set first.
+ */
+export async function acknowledgePurchasingReceiptAction(id: string, _prevState: string | undefined, _formData: FormData) {
+  const session = await auth();
+  if (!canManagePurchasing(session?.user)) {
+    return "Only the Owner or Head of Purchasing can acknowledge receipt.";
+  }
+
+  const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
+  if (existing.status !== "FORWARDED_TO_PURCHASING") return "This request hasn't been forwarded to Purchasing.";
+  if (existing.purchasingAcknowledgedAt) return "Already acknowledged.";
+
+  await prisma.purchaseRequest.update({
+    where: { id },
+    data: {
+      purchasingAcknowledgedByName: session!.user.name || session!.user.email,
+      purchasingAcknowledgedByUserId: session!.user.id,
+      purchasingAcknowledgedAt: new Date(),
+    },
+  });
+
+  await logActivity({
+    actorId: session!.user.id,
+    action: "PURCHASE_REQUEST_PURCHASING_ACKNOWLEDGED",
+    entityType: "PurchaseRequest",
+    entityId: id,
+  });
+
+  revalidatePath(`/purchase-requests/${id}`);
+  return "ok";
+}
+
 const reviewSchema = z.object({
   decision: z.enum(["APPROVE", "REJECT"]),
   rejectionReason: z.string().optional(),
@@ -98,7 +190,8 @@ export async function reviewPurchaseRequestAction(id: string, _prevState: string
   }
 
   const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
-  if (existing.status !== "REQUESTED") return "This request has already been reviewed.";
+  if (existing.status !== "FORWARDED_TO_PURCHASING") return "This request hasn't been forwarded to Purchasing yet.";
+  if (!existing.purchasingAcknowledgedAt) return "Acknowledge receipt of this request before reviewing it.";
 
   const status = parsed.data.decision === "APPROVE" ? "APPROVED" : "REJECTED";
   await prisma.purchaseRequest.update({
@@ -125,6 +218,60 @@ export async function reviewPurchaseRequestAction(id: string, _prevState: string
   return "ok";
 }
 
+const accountingSchema = z.object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  rejectionReason: z.string().optional(),
+});
+
+/**
+ * A genuinely separate approval tier from Purchasing's own review above --
+ * required in addition to it, not instead of it. markOrderedAction won't
+ * proceed until this is set.
+ */
+export async function approveAccountingAction(id: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canApproveAccounting(session?.user)) {
+    return "Only the Owner or Head of Accounting can approve this.";
+  }
+
+  const parsed = accountingSchema.safeParse({
+    decision: formData.get("decision"),
+    rejectionReason: formData.get("rejectionReason") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+  if (parsed.data.decision === "REJECT" && !parsed.data.rejectionReason?.trim()) {
+    return "A reason is required to reject a request.";
+  }
+
+  const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
+  if (existing.status !== "APPROVED") return "This request needs Purchasing's approval first.";
+  if (existing.accountingApprovedAt) return "Accounting has already acted on this request.";
+
+  const rejected = parsed.data.decision === "REJECT";
+  await prisma.purchaseRequest.update({
+    where: { id },
+    data: {
+      status: rejected ? "REJECTED" : undefined,
+      accountingApprovedByName: rejected ? undefined : session!.user.name || session!.user.email,
+      accountingApprovedByUserId: rejected ? undefined : session!.user.id,
+      accountingApprovedAt: rejected ? undefined : new Date(),
+      accountingRejectionReason: rejected ? parsed.data.rejectionReason : undefined,
+    },
+  });
+
+  await logActivity({
+    actorId: session!.user.id,
+    action: rejected ? "PURCHASE_REQUEST_ACCOUNTING_REJECTED" : "PURCHASE_REQUEST_ACCOUNTING_APPROVED",
+    entityType: "PurchaseRequest",
+    entityId: id,
+    detail: rejected ? parsed.data.rejectionReason : undefined,
+  });
+
+  revalidatePath(`/purchase-requests/${id}`);
+  revalidatePath("/purchase-requests");
+  return "ok";
+}
+
 const orderSchema = z.object({
   supplierName: z.string().optional(),
   orderReference: z.string().optional(),
@@ -144,6 +291,7 @@ export async function markOrderedAction(id: string, _prevState: string | undefin
 
   const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
   if (existing.status !== "APPROVED") return "This request must be approved before it can be marked as ordered.";
+  if (!existing.accountingApprovedAt) return "This request needs Accounting's approval before it can be marked as ordered.";
 
   const { expectedDeliveryDate, ...rest } = parsed.data;
   await prisma.purchaseRequest.update({
@@ -170,9 +318,58 @@ export async function markOrderedAction(id: string, _prevState: string | undefin
   return "ok";
 }
 
+const delaySchema = z.object({
+  revisedDeliveryDate: z.string().min(1),
+  delayReason: z.string().min(1, "A reason is required to record a delay."),
+});
+
+/**
+ * Recorded against the original expectedDeliveryDate rather than
+ * overwriting it, so the commitment that was actually missed stays visible
+ * alongside how late it ran. Purchasing owns tracking this with the
+ * supplier, same gate as ordering.
+ */
+export async function recordDeliveryDelayAction(id: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canManagePurchasing(session?.user)) {
+    return "Only the Owner or Head of Purchasing can record a delivery delay.";
+  }
+
+  const parsed = delaySchema.safeParse({
+    revisedDeliveryDate: formData.get("revisedDeliveryDate"),
+    delayReason: formData.get("delayReason"),
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
+  if (existing.status !== "ORDERED") return "This request isn't on order.";
+
+  await prisma.purchaseRequest.update({
+    where: { id },
+    data: {
+      revisedDeliveryDate: new Date(parsed.data.revisedDeliveryDate),
+      delayReason: parsed.data.delayReason,
+    },
+  });
+
+  await logActivity({
+    actorId: session!.user.id,
+    action: "PURCHASE_REQUEST_DELAY_RECORDED",
+    entityType: "PurchaseRequest",
+    entityId: id,
+    detail: parsed.data.delayReason,
+  });
+
+  revalidatePath(`/purchase-requests/${id}`);
+  return "ok";
+}
+
 // Same gate as submitting the request -- the Owner described this as the
 // Head of Production's confirmation, not open to whoever happens to be at
-// the gate.
+// the gate. Reachable from ORDERED (the externally-purchased path) or
+// FULFILLED_FROM_WAREHOUSE (the warehouse-stock path) -- both converge on
+// this same sign-off, since the owner confirmed it's the same role either
+// way.
 export async function markReceivedAction(id: string, _prevState: string | undefined, _formData: FormData) {
   const session = await auth();
   if (!canSignAsHeadOfProduction(session?.user)) {
@@ -180,7 +377,9 @@ export async function markReceivedAction(id: string, _prevState: string | undefi
   }
 
   const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id } });
-  if (existing.status !== "ORDERED") return "This request hasn't been marked as ordered yet.";
+  if (existing.status !== "ORDERED" && existing.status !== "FULFILLED_FROM_WAREHOUSE") {
+    return "This request isn't ready to be marked received yet.";
+  }
 
   await prisma.purchaseRequest.update({
     where: { id },

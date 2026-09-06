@@ -88,6 +88,41 @@ export function canManagePurchasing(user: { role: Role; isHeadOfPurchasing: bool
 }
 
 /**
+ * Submitting a purchase request -- Head of Production or Head of
+ * Maintenance specifically (the two teams the owner named), not the whole
+ * Production role. No dedicated "Maintenance" role exists at all, only this
+ * flag on whoever holds that responsibility.
+ */
+export function canSubmitPurchaseRequest(
+  user: { role: Role; isHeadOfProduction: boolean; isHeadOfMaintenance: boolean } | undefined | null
+) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfProduction || user.isHeadOfMaintenance;
+}
+
+/**
+ * Checking on-site warehouse stock before a purchase request is forwarded
+ * to Purchasing -- a distinct real-world role from Head of Purchasing
+ * (matches the real Release Order form's own "Store Supervisor" signature
+ * line). No dedicated "Warehouse" role exists either.
+ */
+export function canCheckWarehouseStock(user: { role: Role; isStoreSupervisor: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isStoreSupervisor;
+}
+
+/**
+ * Accounting's final sign-off on a purchase request, required in addition
+ * to (not instead of) Purchasing's own approval -- same narrow-
+ * accountability reasoning as every other isHeadOf* gate. No dedicated
+ * "Accounting" role exists either.
+ */
+export function canApproveAccounting(user: { role: Role; isHeadOfAccounting: boolean } | undefined | null) {
+  if (!user) return false;
+  return user.role === "OWNER" || user.isHeadOfAccounting;
+}
+
+/**
  * Client records carry commercial terms and specs (including the CFU limit
  * that hard-gates allocation/load-out) -- Sales owns these relationships, so
  * access matches canSeePricing rather than being open to every role.

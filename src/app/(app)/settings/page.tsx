@@ -20,6 +20,8 @@ import {
   toggleHeadOfProductionAction,
   toggleHeadOfMaintenanceAction,
   toggleHeadOfPurchasingAction,
+  toggleStoreSupervisorAction,
+  toggleHeadOfAccountingAction,
   updateFarmAccreditationAction,
 } from "./actions";
 import { AddUserForm } from "./add-user-form";
@@ -142,6 +144,36 @@ export default async function SettingsPage({
                         className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
                       >
                         {u.isHeadOfPurchasing ? dict.removeButton : dict.makeHeadOfPurchasingLink}
+                      </ConfirmSubmitButton>
+                    </form>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    {u.isStoreSupervisor && <Badge color="green">{dict.storeSupervisorBadge}</Badge>}
+                    <form action={toggleStoreSupervisorAction.bind(null, u.id)}>
+                      <ConfirmSubmitButton
+                        confirmMessage={
+                          u.isStoreSupervisor
+                            ? dict.removeStoreSupervisorConfirm.replace("{name}", u.name)
+                            : dict.makeStoreSupervisorConfirm.replace("{name}", u.name)
+                        }
+                        className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                      >
+                        {u.isStoreSupervisor ? dict.removeButton : dict.makeStoreSupervisorLink}
+                      </ConfirmSubmitButton>
+                    </form>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    {u.isHeadOfAccounting && <Badge color="green">{dict.headOfAccountingBadge}</Badge>}
+                    <form action={toggleHeadOfAccountingAction.bind(null, u.id)}>
+                      <ConfirmSubmitButton
+                        confirmMessage={
+                          u.isHeadOfAccounting
+                            ? dict.removeHeadOfAccountingConfirm.replace("{name}", u.name)
+                            : dict.makeHeadOfAccountingConfirm.replace("{name}", u.name)
+                        }
+                        className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
+                      >
+                        {u.isHeadOfAccounting ? dict.removeButton : dict.makeHeadOfAccountingLink}
                       </ConfirmSubmitButton>
                     </form>
                   </span>

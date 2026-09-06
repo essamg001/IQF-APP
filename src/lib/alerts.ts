@@ -39,7 +39,31 @@ export async function generateAlerts() {
     checkPalletsAwaitingReshelf(),
     checkPackagingLowStock(),
     checkOrderAllocationOverdue(),
+    checkPurchaseRequestOverdue(),
   ]);
+}
+
+/**
+ * An ordered purchase request whose delivery commitment (revised, if one
+ * was recorded, else the original) has already passed -- previously only
+ * visible by opening that specific request. Fires to whoever manages
+ * purchasing, same audience that already owns tracking delays.
+ */
+async function checkPurchaseRequestOverdue() {
+  const requests = await prisma.purchaseRequest.findMany({
+    where: { status: "ORDERED", expectedDeliveryDate: { not: null } },
+    select: { id: true, supplierName: true, expectedDeliveryDate: true, revisedDeliveryDate: true, items: { select: { itemDescription: true }, take: 1 } },
+  });
+
+  for (const request of requests) {
+    const dueDate = request.revisedDeliveryDate ?? request.expectedDeliveryDate!;
+    if (dueDate >= new Date()) continue;
+
+    const daysOverdue = differenceInDays(new Date(), dueDate);
+    const itemLabel = request.items[0]?.itemDescription ?? "item(s)";
+    const message = `Purchase request for ${itemLabel}${request.supplierName ? ` (${request.supplierName})` : ""} is ${daysOverdue} day(s) overdue against its ${request.revisedDeliveryDate ? "revised" : "expected"} delivery date.`;
+    await upsertAlert("PURCHASE_REQUEST_OVERDUE", request.id, "OWNER", message);
+  }
 }
 
 /**
