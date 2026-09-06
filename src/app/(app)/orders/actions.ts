@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { suggestAllocation } from "@/lib/allocation";
-import { ORDER_STAGE_SEQUENCE } from "@/lib/orderLifecycle";
+import { ORDER_STAGE_SEQUENCE, normalizedStageIndex } from "@/lib/orderLifecycle";
 import { logActivity } from "@/lib/activityLog";
 import { canSeeFinancials } from "@/lib/roles";
 import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
@@ -178,52 +178,147 @@ export async function allocatePalletsAction(orderId: string) {
   revalidatePath("/storage");
 }
 
-export async function advanceOrderStageAction(
-  orderId: string,
-  _prevState: string | undefined,
-  _formData: FormData
-) {
-  const order = await prisma.order.findUniqueOrThrow({
-    where: { id: orderId },
-    include: { pallets: { select: { status: true, palletNumber: true } } },
-  });
-  const idx = ORDER_STAGE_SEQUENCE.indexOf(order.stage);
-  const next = ORDER_STAGE_SEQUENCE[idx + 1];
-  if (!next) return;
+const deliveredSchema = z.object({
+  deliveredAt: z.string().min(1),
+  deliveryReference: z.string().optional(),
+});
 
-  // Advancing to Shipped is a confirmation that shipping already happened
-  // correctly, not a command that ships things -- a pallet only ever becomes
-  // SHIPPED via addPalletLoadLineAction (logistics/actions.ts), which checks
-  // microbiology/shift-hold at the moment it's loaded. Refusing to advance
-  // until every allocated pallet is already SHIPPED means there's no second,
-  // ungated door to the same status.
-  if (next === "SHIPPED") {
-    if (order.pallets.length === 0) {
-      return "Cannot mark as Shipped: no pallets have been allocated to this order yet.";
-    }
-    if (order.pallets.length < order.quantityPallets) {
-      return `Cannot mark as Shipped: only ${order.pallets.length} of ${order.quantityPallets} pallets have been allocated to this order. Allocate the rest first.`;
-    }
-    const notYetShipped = order.pallets.filter((p) => p.status !== "SHIPPED");
-    if (notYetShipped.length > 0) {
-      const sample = notYetShipped.slice(0, 3).map((p) => p.palletNumber).join(", ");
-      const more = notYetShipped.length > 3 ? ` and ${notYetShipped.length - 3} more` : "";
-      return `Cannot mark as Shipped: ${notYetShipped.length} pallet(s) haven't been fully loaded into a container yet (${sample}${more}). Load them out in Logistics -- each one ships automatically once fully loaded and cleared.`;
-    }
+/**
+ * Delivered is a confirmation that the client actually received the goods --
+ * nothing in the data can prove that, so unlike Shipped this stays manual.
+ * Captures who/when/what-reference, the same accountability pattern every
+ * other sign-off in this app already uses (e.g. Container's
+ * loadOutRepName/loadOutSignedAt), instead of being a bare stage flip.
+ */
+export async function markOrderDeliveredAction(orderId: string, _prevState: string | undefined, formData: FormData) {
+  const parsed = deliveredSchema.safeParse({
+    deliveredAt: formData.get("deliveredAt"),
+    deliveryReference: formData.get("deliveryReference") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+  if (order.cancelledAt) return "This order was cancelled.";
+  if (normalizedStageIndex(order.stage) !== ORDER_STAGE_SEQUENCE.indexOf("SHIPPED")) {
+    return "Cannot mark as Delivered: this order hasn't been marked Shipped yet.";
   }
 
-  await prisma.order.update({ where: { id: orderId }, data: { stage: next } });
-
   const session = await auth();
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      stage: "DELIVERED",
+      deliveredAt: new Date(parsed.data.deliveredAt),
+      deliveredByName: session?.user.name || session?.user.email,
+      deliveredByUserId: session?.user.id,
+      deliveryReference: parsed.data.deliveryReference,
+    },
+  });
+
   await logActivity({
     actorId: session?.user.id,
-    action: "ORDER_STAGE_ADVANCED",
+    action: "ORDER_MARKED_DELIVERED",
     entityType: "Order",
     entityId: orderId,
-    detail: `${order.stage} → ${next}`,
+    detail: parsed.data.deliveryReference,
+  });
+
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/orders");
+}
+
+const paidSchema = z.object({
+  paidAt: z.string().min(1),
+  paymentReference: z.string().optional(),
+});
+
+/** Same reasoning as markOrderDeliveredAction -- payment is a real-world fact only a human can attest to. */
+export async function markOrderPaidAction(orderId: string, _prevState: string | undefined, formData: FormData) {
+  const parsed = paidSchema.safeParse({
+    paidAt: formData.get("paidAt"),
+    paymentReference: formData.get("paymentReference") || undefined,
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
+
+  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+  if (order.cancelledAt) return "This order was cancelled.";
+  if (normalizedStageIndex(order.stage) !== ORDER_STAGE_SEQUENCE.indexOf("DELIVERED")) {
+    return "Cannot mark as Paid: this order hasn't been marked Delivered yet.";
+  }
+
+  const session = await auth();
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      stage: "PAID",
+      paidAt: new Date(parsed.data.paidAt),
+      paidByName: session?.user.name || session?.user.email,
+      paidByUserId: session?.user.id,
+      paymentReference: parsed.data.paymentReference,
+    },
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "ORDER_MARKED_PAID",
+    entityType: "Order",
+    entityId: orderId,
+    detail: parsed.data.paymentReference,
+  });
+
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/orders");
+  revalidatePath("/financials");
+}
+
+const cancelSchema = z.object({
+  cancellationReason: z.string().min(1),
+});
+
+/**
+ * A client backing out previously had no real path -- the order just sat at
+ * CONFIRMED forever. Refuses once shipping has actually happened (nothing
+ * left to cancel by that point -- a real return/claim is the right tool
+ * instead). Any pallets already allocated but not yet shipped are released
+ * back to stock, same shape as how they were picked up in the first place.
+ */
+export async function cancelOrderAction(orderId: string, _prevState: string | undefined, formData: FormData) {
+  const parsed = cancelSchema.safeParse({ cancellationReason: formData.get("cancellationReason") });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "A cancellation reason is required.";
+
+  const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+  if (order.cancelledAt) return "This order is already cancelled.";
+  if (normalizedStageIndex(order.stage) >= ORDER_STAGE_SEQUENCE.indexOf("SHIPPED")) {
+    return "Cannot cancel: this order has already shipped. Use a claim/return instead.";
+  }
+
+  const session = await auth();
+  await prisma.$transaction(async (tx) => {
+    await tx.pallet.updateMany({
+      where: { orderId, status: "ALLOCATED" },
+      data: { status: "IN_STORAGE", clientId: null, orderId: null },
+    });
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        cancelledAt: new Date(),
+        cancelledByName: session?.user.name || session?.user.email,
+        cancelledByUserId: session?.user.id,
+        cancellationReason: parsed.data.cancellationReason,
+      },
+    });
+  });
+
+  await logActivity({
+    actorId: session?.user.id,
+    action: "ORDER_CANCELLED",
+    entityType: "Order",
+    entityId: orderId,
+    detail: parsed.data.cancellationReason,
   });
 
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");
   revalidatePath("/storage");
+  revalidatePath("/available-to-sell");
 }

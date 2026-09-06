@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/cn";
 import type { Grade, Format } from "@prisma/client";
 import { bothLabsApprovedFilter, notBothLabsApprovedFilter } from "@/lib/microbiology";
 import { isMrlCleared } from "@/lib/mrl";
@@ -11,7 +12,12 @@ import { getDictionary } from "@/lib/i18n/getDictionary";
 const GRADES: Grade[] = ["A", "B"];
 const FORMATS: Format[] = ["WHOLE", "SLICED", "DICED"];
 
-export default async function AvailableToSellPage() {
+export default async function AvailableToSellPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ highlight?: string }>;
+}) {
+  const { highlight } = await searchParams;
   const locale = await resolveLocale();
   const fullDict = getDictionary(locale);
   const dict = fullDict.availableToSell;
@@ -38,7 +44,13 @@ export default async function AvailableToSellPage() {
       select: { weightTonnes: true, lot: { select: { grade: true, format: true } } },
     }),
     prisma.order.findMany({
-      where: { stage: { in: ["CONFIRMED", "IN_PRODUCTION", "PACKED"] } },
+      // Legacy IN_PRODUCTION/PACKED rows can still exist (those stages were
+      // retired from the manual sequence but not the enum, for old data) --
+      // still counts as pending demand until it actually ships. A cancelled
+      // order's pallets were already released back to stock, so its demand
+      // is gone too -- excluded here, or this would keep showing a
+      // shortfall for stock nobody needs anymore.
+      where: { stage: { in: ["CONFIRMED", "IN_PRODUCTION", "PACKED"] }, cancelledAt: null },
       select: { grade: true, format: true, quantityPallets: true, _count: { select: { pallets: true } } },
     }),
   ]);
@@ -92,7 +104,13 @@ export default async function AvailableToSellPage() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={`${r.grade}-${r.format}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+              <tr
+                key={`${r.grade}-${r.format}`}
+                className={cn(
+                  "border-b border-slate-100 last:border-0 hover:bg-slate-50",
+                  highlight === `${r.grade}-${r.format}` && "bg-amber-50 ring-1 ring-inset ring-amber-300"
+                )}
+              >
                 <td className="px-4 py-2">
                   <Badge color={r.grade === "A" ? "green" : "amber"}>{orders.gradeLabel.replace("{grade}", r.grade)}</Badge>{" "}
                   <span className="text-slate-700">{FORMAT_LABEL[r.format]}</span>

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { AlertType, Role } from "@prisma/client";
 import { differenceInDays } from "date-fns";
 import { sendEmail } from "@/lib/email";
-import { parseBrixRange } from "@/lib/allocation";
+import { parseBrixRange, explainZeroAllocation } from "@/lib/allocation";
 import { formatViolation, formatTrendWarning, type LimitViolation, type TrendWarning } from "@/lib/qualityLimits";
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
 import { getCompanySettings } from "@/lib/companySettings";
@@ -11,6 +11,8 @@ import { getPackagingLowStockWarnings } from "@/lib/packagingMaterials";
 const MICRO_PENDING_DAYS_THRESHOLD = 3;
 const GLOBALGAP_EXPIRY_WARNING_DAYS = 30;
 const CERTIFICATION_EXPIRY_WARNING_DAYS = 30;
+const ORDER_ALLOCATION_ALERT_DAYS = 7;
+const ORDER_SHIP_DATE_ALERT_DAYS = 3;
 
 async function upsertAlert(type: AlertType, relatedEntityId: string, targetRole: Role, message: string) {
   const existing = await prisma.alert.findFirst({
@@ -22,7 +24,7 @@ async function upsertAlert(type: AlertType, relatedEntityId: string, targetRole:
   });
 
   const recipients = await prisma.user.findMany({ where: { role: targetRole } });
-  await Promise.all(recipients.map((u) => sendEmail(u.email, `IQF Alert: ${type.replace("_", " ")}`, message)));
+  await Promise.all(recipients.map((u) => sendEmail(u.email, `IQF Alert: ${type.replace(/_/g, " ")}`, message)));
 }
 
 /** Scans current state and raises alerts for newly-detected conditions. Safe to call repeatedly. */
@@ -36,7 +38,48 @@ export async function generateAlerts() {
     checkCertificationExpiry(),
     checkPalletsAwaitingReshelf(),
     checkPackagingLowStock(),
+    checkOrderAllocationOverdue(),
   ]);
+}
+
+/**
+ * A confirmed order with zero pallets allocated because no matching
+ * in-storage stock exists at all is a structural gap, not something that
+ * resolves itself by waiting -- previously the only way to notice was
+ * opening that specific order. Deliberately narrower than "any blocked
+ * order": LAB_PENDING/spec-fail reasons are excluded since those are
+ * already actively progressing (a lab result can land any day), and only
+ * fires once it's actually been a while or the ship date is close, so a
+ * brand-new order doesn't immediately page Sales.
+ */
+async function checkOrderAllocationOverdue() {
+  const orders = await prisma.order.findMany({
+    // Includes legacy IN_PRODUCTION/PACKED rows too (those stages were
+    // retired from the manual sequence but old rows can still carry them,
+    // and a zero-pallet order stuck at one is exactly the situation this
+    // alert exists for -- see [[order_lifecycle_redesign]]'s note on order
+    // 10001, which is precisely this shape).
+    where: { cancelledAt: null, stage: { in: ["CONFIRMED", "IN_PRODUCTION", "PACKED"] } },
+    include: { client: { select: { name: true } }, _count: { select: { pallets: true } } },
+  });
+
+  for (const order of orders) {
+    if (order._count.pallets > 0) continue;
+    const reason = await explainZeroAllocation({ grade: order.grade, format: order.format });
+    if (reason !== "NO_STOCK") continue;
+
+    const daysSinceOrder = differenceInDays(new Date(), order.orderDate);
+    const daysToShip = order.shipDate ? differenceInDays(order.shipDate, new Date()) : null;
+    const overdue = daysSinceOrder >= ORDER_ALLOCATION_ALERT_DAYS || (daysToShip != null && daysToShip <= ORDER_SHIP_DATE_ALERT_DAYS);
+    if (!overdue) continue;
+
+    const shipInfo =
+      daysToShip != null
+        ? `, ship date ${daysToShip >= 0 ? `in ${daysToShip} day(s)` : `${Math.abs(daysToShip)} day(s) overdue`}`
+        : "";
+    const message = `Order ${order.orderNumber} (${order.client.name}) has had zero pallets allocated for ${daysSinceOrder} day(s) -- no in-storage stock of Grade ${order.grade} ${order.format} exists yet${shipInfo}.`;
+    await upsertAlert("ORDER_ALLOCATION_OVERDUE", order.id, "SALES", message);
+  }
 }
 
 /**

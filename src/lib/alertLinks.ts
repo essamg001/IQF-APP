@@ -87,6 +87,9 @@ export async function resolveAlertHrefs(
       case "LOW_STOCK":
         hrefs.set(a.id, "/storage");
         break;
+      case "ORDER_ALLOCATION_OVERDUE":
+        hrefs.set(a.id, `/orders/${id}`);
+        break;
       // No default: an alert type with no known destination stays unlinked
       // rather than pointing somewhere wrong.
     }

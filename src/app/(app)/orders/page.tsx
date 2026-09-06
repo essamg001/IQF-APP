@@ -66,7 +66,7 @@ export default async function OrdersPage() {
 
   const lifecycleByOrder = new Map<string, Awaited<ReturnType<typeof getOrderLifecycleStatus>>>();
   for (const o of orders) {
-    if (o.stage === "DELIVERED" || o.stage === "PAID") continue;
+    if (o.cancelledAt || o.stage === "DELIVERED" || o.stage === "PAID") continue;
     lifecycleByOrder.set(o.id, await getOrderLifecycleStatus(o));
   }
 
@@ -116,11 +116,20 @@ export default async function OrdersPage() {
                 <td className="px-4 py-2">{o._count.pallets} / {o.quantityPallets}</td>
                 <td className="px-4 py-2">
                   {(() => {
+                    if (o.cancelledAt) return <Badge color="red">{dict.cancelledBadge}</Badge>;
                     const steps = lifecycleByOrder.get(o.id);
                     if (!steps) return <Badge color={STAGE_COLOR[o.stage]}>{stageLabel(dict, o.stage)}</Badge>;
                     const summary = summarizeLifecycle(steps);
+                    const color =
+                      summary.tone !== "blocked"
+                        ? summary.tone === "done"
+                          ? "green"
+                          : "blue"
+                        : summary.urgency === "critical"
+                          ? "red"
+                          : "amber";
                     return (
-                      <Badge color={summary.tone === "blocked" ? "amber" : summary.tone === "done" ? "green" : "blue"}>
+                      <Badge color={color} title={summary.detail}>
                         {stepLabel(dict, summary.key)}
                       </Badge>
                     );

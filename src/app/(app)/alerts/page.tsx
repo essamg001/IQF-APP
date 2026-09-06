@@ -37,6 +37,7 @@ const CRITICAL_ALERT_TYPES = new Set<AlertType>([
 ]);
 const WARNING_ALERT_TYPES = new Set<AlertType>([
   "CONTAINER_OVERDUE",
+  "ORDER_ALLOCATION_OVERDUE",
   "LOW_STOCK",
   "MICROBIOLOGY_PENDING",
   "EARLY_WARNING",
@@ -63,6 +64,7 @@ export default async function AlertsPage() {
   const TYPE_LABEL = {
     SPEC_MISMATCH: dict.typeSpecMismatch,
     CONTAINER_OVERDUE: dict.typeContainerOverdue,
+    ORDER_ALLOCATION_OVERDUE: dict.typeOrderAllocationOverdue,
     LOW_STOCK: dict.typeLowStock,
     MICROBIOLOGY_PENDING: dict.typeMicrobiologyPending,
     MICROBIOLOGY_LOAD_ATTEMPT: dict.typeMicrobiologyLoadAttempt,

@@ -12,13 +12,15 @@ export function Badge({
   color = "slate",
   className,
   children,
+  title,
 }: {
   color?: keyof typeof colorMap;
   className?: string;
   children: React.ReactNode;
+  title?: string;
 }) {
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", colorMap[color], className)}>
+    <span title={title} className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", colorMap[color], className)}>
       {children}
     </span>
   );

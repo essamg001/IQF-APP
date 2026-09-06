@@ -5,9 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button, LinkButton } from "@/components/ui/button";
 import { formatDate } from "@/lib/dates";
 import { updateOrderQuantityAction } from "../actions";
-import { AdvanceStageButton } from "./advance-stage-button";
+import { MarkDeliveredForm } from "./mark-delivered-form";
+import { MarkPaidForm } from "./mark-paid-form";
+import { CancelOrderForm } from "./cancel-order-form";
 import { LifecycleTracker } from "./lifecycle-tracker";
-import { getOrderLifecycleStatus, ORDER_STAGE_SEQUENCE } from "@/lib/orderLifecycle";
+import { getOrderLifecycleStatus, normalizedStageIndex, ORDER_STAGE_SEQUENCE } from "@/lib/orderLifecycle";
 import { Input, FieldGroup } from "@/components/ui/field";
 import { FULL_PALLET_WEIGHT_TONNES } from "@/lib/logistics";
 import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badge";
@@ -15,17 +17,6 @@ import { cn } from "@/lib/cn";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
-
-function stageLabel(dict: Dictionary["orders"], stage: (typeof ORDER_STAGE_SEQUENCE)[number]) {
-  return {
-    CONFIRMED: dict.stageConfirmed,
-    IN_PRODUCTION: dict.stageInProduction,
-    PACKED: dict.stagePacked,
-    SHIPPED: dict.stageShipped,
-    DELIVERED: dict.stageDelivered,
-    PAID: dict.stagePaid,
-  }[stage];
-}
 
 function formatLabel(dict: Dictionary["orders"], format: "WHOLE" | "SLICED" | "DICED") {
   return { WHOLE: dict.formatWhole, SLICED: dict.formatSliced, DICED: dict.formatDiced }[format];
@@ -82,8 +73,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   });
   if (!order) notFound();
 
-  const lifecycleSteps = await getOrderLifecycleStatus(order);
-
   const containerIds = order.containers.map((c) => c.id);
   const relatedClaims =
     containerIds.length > 0
@@ -92,12 +81,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         })
       : [];
 
-  const nextStage = ORDER_STAGE_SEQUENCE[ORDER_STAGE_SEQUENCE.indexOf(order.stage) + 1];
-  // Shipped is now auto-advanced the moment every allocated pallet actually
-  // ships (see maybeAutoAdvanceToShipped) -- a manual button for it would
-  // either be redundant (already true) or just repeat what the tracker's own
-  // Loaded step already explains, so it's the one transition left out here.
-  const showManualAdvance = nextStage && nextStage !== "SHIPPED";
+  const isCancelled = !!order.cancelledAt;
+  const stageIdx = normalizedStageIndex(order.stage);
+  // Cancelling only makes sense before anything has actually shipped -- once
+  // it has, there's nothing left to "cancel" (a real return/claim is the
+  // right tool instead), enforced again server-side in cancelOrderAction.
+  const canCancel = !isCancelled && stageIdx < ORDER_STAGE_SEQUENCE.indexOf("SHIPPED");
+  const lifecycleSteps = isCancelled ? null : await getOrderLifecycleStatus(order);
 
   return (
     <div className="space-y-6">
@@ -108,34 +98,51 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             {order.client.name} · {dict.gradeLabel.replace("{grade}", order.grade)} · {formatLabel(dict, order.format)}
           </p>
         </div>
-        {showManualAdvance && <AdvanceStageButton orderId={order.id} label={stageLabel(dict, nextStage)} />}
+        {canCancel && <CancelOrderForm orderId={order.id} />}
       </div>
 
-      <Card>
-        <LifecycleTracker
-          steps={lifecycleSteps}
-          labels={{
-            CONFIRMED: dict.stageConfirmed,
-            ALLOCATED: dict.stepAllocated,
-            LAB_CLEARED: dict.stepLabCleared,
-            LOADED: dict.stepLoaded,
-            SHIPPED: dict.stageShipped,
-            DELIVERED: dict.stageDelivered,
-            PAID: dict.stagePaid,
-          }}
-          actions={{
-            ALLOCATED: order.pallets.length < order.quantityPallets && (
-              <LinkButton
-                href={`/orders/${order.id}/allocate`}
-                variant="secondary"
-                className="px-3 py-1.5 text-sm"
-              >
-                {dict.allocatePallets}
-              </LinkButton>
-            ),
-          }}
-        />
-      </Card>
+      {isCancelled ? (
+        <Card className="border-red-200 bg-red-50">
+          <div className="flex items-center gap-2">
+            <Badge color="red">{dict.cancelledBadge}</Badge>
+          </div>
+          <p className="mt-2 text-sm text-red-800">
+            {dict.cancelledDetail
+              .replace("{date}", formatDate(order.cancelledAt!, "dd MMM yyyy", locale))
+              .replace("{name}", order.cancelledByName ?? "—")
+              .replace("{reason}", order.cancellationReason ?? "—")}
+          </p>
+        </Card>
+      ) : (
+        <Card>
+          <LifecycleTracker
+            steps={lifecycleSteps!}
+            labels={{
+              CONFIRMED: dict.stageConfirmed,
+              ALLOCATED: dict.stepAllocated,
+              LAB_CLEARED: dict.stepLabCleared,
+              LOADED: dict.stepLoaded,
+              SHIPPED: dict.stageShipped,
+              DELIVERED: dict.stageDelivered,
+              PAID: dict.stagePaid,
+            }}
+            manualStepTitle={dict.manualStepTitle}
+            actions={{
+              ALLOCATED: order.pallets.length < order.quantityPallets && (
+                <LinkButton
+                  href={`/orders/${order.id}/allocate`}
+                  variant="secondary"
+                  className="px-3 py-1.5 text-sm"
+                >
+                  {dict.allocatePallets}
+                </LinkButton>
+              ),
+              DELIVERED: <MarkDeliveredForm orderId={order.id} />,
+              PAID: <MarkPaidForm orderId={order.id} />,
+            }}
+          />
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <Card>

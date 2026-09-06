@@ -153,6 +153,7 @@ enum ClaimStatus {
 enum AlertType {
   SPEC_MISMATCH
   CONTAINER_OVERDUE
+  ORDER_ALLOCATION_OVERDUE
   LOW_STOCK
   MICROBIOLOGY_PENDING
   MICROBIOLOGY_LOAD_ATTEMPT
@@ -281,6 +282,10 @@ model User {
   reportedNonConformanceReports  NonConformanceReport[] @relation("NonConformanceReportedBy")
   verifiedNonConformanceReports  NonConformanceReport[] @relation("NonConformanceVerifiedBy")
   uploadedNonConformanceReportPhotos NonConformanceReportPhoto[] @relation("NonConformanceReportPhotoUploadedBy")
+
+  cancelledOrders Order[] @relation("OrderCancelledBy")
+  deliveredOrders Order[] @relation("OrderDeliveredBy")
+  paidOrders      Order[] @relation("OrderPaidBy")
 
   recordedFactoryVisits         FactoryVisit[]
   uploadedAuditFindingPhotos     ClientAuditFindingPhoto[]
@@ -1265,6 +1270,38 @@ model Order {
   shipDate        DateTime?
   isHistorical    Boolean    @default(false)
   createdAt       DateTime   @default(now())
+
+  // A client backing out is a real outcome the lifecycle previously had no
+  // path for -- an order with no way to cancel just sits at CONFIRMED
+  // forever. Kept as its own timestamp rather than an OrderStage value since
+  // cancellation is an orthogonal terminal state reachable from more than
+  // one point in the sequence, not a "next" step in it. Allocated pallets
+  // are released back to stock (status/clientId/orderId cleared) at the
+  // point of cancellation -- see cancelOrderAction.
+  cancelledAt        DateTime?
+  cancelledByName    String?
+  cancelledByUserId  String?
+  cancelledByUser    User?     @relation("OrderCancelledBy", fields: [cancelledByUserId], references: [id])
+  cancellationReason String?
+
+  // Delivered/Paid are the only two steps left that are genuine real-world
+  // attestations nothing in the data can derive on its own -- everything
+  // before Shipped is computed, and Shipped itself auto-advances the moment
+  // every allocated pallet actually ships. These two capture who/when/what
+  // reference, the same accountability pattern every other sign-off in this
+  // app already uses (e.g. Container's loadOutRepName/loadOutSignedAt),
+  // instead of being a bare stage flip.
+  deliveredAt       DateTime?
+  deliveredByName   String?
+  deliveredByUserId String?
+  deliveredByUser   User?     @relation("OrderDeliveredBy", fields: [deliveredByUserId], references: [id])
+  deliveryReference String? // e.g. POD number, carrier tracking confirmation
+
+  paidAt           DateTime?
+  paidByName       String?
+  paidByUserId     String?
+  paidByUser       User?     @relation("OrderPaidBy", fields: [paidByUserId], references: [id])
+  paymentReference String? // e.g. wire reference, invoice number
 
   pallets       Pallet[]
   containers    Container[]
