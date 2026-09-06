@@ -109,8 +109,8 @@ function formLabelFor(dict: Dictionary["postFreezeInspection"], lotFormat: Forma
 export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] }) {
   const [state, formAction, pending] = useActionState(createPostFreezeCheckAction, undefined);
   const [lotNumber, setLotNumber] = useState("");
-  const [operationDate, setOperationDate] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
+  const [operationDate, setOperationDate] = useState(() => toDateOnlyString(new Date()));
+  const [expiryDate, setExpiryDate] = useState(() => toDateOnlyString(addYears(new Date(), 2)));
 
   const selectedLot = lots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase());
   const pallets = selectedLot?.pallets ?? [];

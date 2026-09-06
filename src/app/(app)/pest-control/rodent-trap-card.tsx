@@ -40,7 +40,14 @@ export function RodentTrapCard({
   const [state, formAction, pending] = useActionState(addRodentTrapCheckAction, undefined);
   const formRef = useRef<HTMLFormElement>(null);
   const errorMessage = state && state !== "ok" ? state : undefined;
-  const todayStr = `${year}-${String(month).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
+  // Only defaults to today when the page is actually viewing the current
+  // month/year -- combining a past/future month selection with today's
+  // real day-of-month produced a nonsensical date (e.g. viewing August
+  // while it's really September silently defaulted new checks to "Aug 6"),
+  // so a non-current month leaves the field blank for a deliberate pick.
+  const now = new Date();
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+  const todayStr = isCurrentMonth ? now.toISOString().slice(0, 10) : undefined;
   const dict = useTranslations();
   const t = dict.pestControl;
   const STATUS_LABEL: Record<RodentTrapStatus, string> = Object.fromEntries(

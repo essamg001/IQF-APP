@@ -406,7 +406,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
             <Input
               name="loadingDate"
               type="date"
-              defaultValue={container.loadingDate ? container.loadingDate.toISOString().slice(0, 10) : ""}
+              defaultValue={(container.loadingDate ?? new Date()).toISOString().slice(0, 10)}
             />
           </FieldGroup>
           <FieldGroup label={dict.loadingLocationLabel}>

@@ -71,7 +71,7 @@ export function StaffTrainingForm({
         </datalist>
       </FieldGroup>
       <FieldGroup label={dict.formTrainedDate}>
-        <Input name="trainedDate" type="date" required />
+        <Input name="trainedDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
       </FieldGroup>
       <FieldGroup label={dict.formExpiryDate}>
         <Input name="expiryDate" type="date" />

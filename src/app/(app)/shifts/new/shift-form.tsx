@@ -61,7 +61,7 @@ export function ShiftForm({
   );
   const [factoryId, shiftType] = selection.split("::");
 
-  const [date, setDate] = useState(initial?.date ?? "");
+  const [date, setDate] = useState(() => initial?.date ?? new Date().toISOString().slice(0, 10));
   const [startTime, setStartTime] = useState("");
   // Tracks whether the user has hand-edited start time for the current
   // factory/date/shift combo, so a matching Daily Report value can prefill

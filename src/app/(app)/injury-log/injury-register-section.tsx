@@ -78,7 +78,7 @@ export function InjuryRegisterSection({
         <input type="hidden" name="factoryId" value={factoryId} />
         <div className="grid grid-cols-3 gap-3">
           <FieldGroup label={dict.common.date}>
-            <Input name="date" type="date" required />
+            <Input name="date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
           </FieldGroup>
           <FieldGroup label={t.colName}>
             <Input name="employeeName" list="injury-employee-names" required />
