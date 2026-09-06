@@ -116,20 +116,26 @@ export function ColdRoomGrid({
     <div className="mt-4 grid grid-cols-[1fr_320px] gap-4">
       <Card className="overflow-x-auto p-3">
         {orderContext && (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-            <span>
-              <strong>{dict.orderContextPrefix.replace("{orderNumber}", orderContext.orderNumber)}</strong>{" "}
+          <div className="mb-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <strong>{dict.orderContextPrefix.replace("{orderNumber}", orderContext.orderNumber)}</strong>
+              {returnTo && (
+                <a href={returnTo} className="shrink-0 font-medium underline hover:no-underline">
+                  {dict.goToContainerLink}
+                </a>
+              )}
+            </div>
+            <p className="mt-1">
               {orderContext.allocated >= orderContext.target
                 ? dict.orderContextFullyReady.replace("{allocated}", String(orderContext.allocated))
-                : dict.orderContextPartial
-                    .replace("{allocated}", String(orderContext.allocated))
-                    .replace("{target}", String(orderContext.target))
-                    .replace("{missing}", String(orderContext.target - orderContext.allocated))}
-            </span>
-            {returnTo && (
-              <a href={returnTo} className="shrink-0 font-medium underline hover:no-underline">
-                {dict.goToContainerLink}
-              </a>
+                : dict.orderContextPullNow.replace("{allocated}", String(orderContext.allocated))}
+            </p>
+            {orderContext.allocated < orderContext.target && (
+              <p className="mt-1 text-blue-700">
+                {dict.orderContextStillOwed
+                  .replace("{missing}", String(orderContext.target - orderContext.allocated))
+                  .replace("{target}", String(orderContext.target))}
+              </p>
             )}
           </div>
         )}
