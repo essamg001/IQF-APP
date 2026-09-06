@@ -13,6 +13,7 @@ type LineItem = {
   itemDescription: string;
   quantity?: string;
   reason?: string;
+  sourceType?: string;
 };
 
 const EMPTY_ITEM: LineItem = { category: "CLEANING_MATERIALS", itemDescription: "" };
@@ -49,7 +50,7 @@ function ItemRow({
           </button>
         )}
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-3">
+      <div className="mt-3 grid grid-cols-4 gap-3">
         <FieldGroup label={dict.colCategory}>
           <Select value={item.category} onChange={(e) => set("category", e.target.value)}>
             <option value="CLEANING_MATERIALS">{dict.categoryCleaningMaterials}</option>
@@ -64,6 +65,13 @@ function ItemRow({
             onChange={(e) => set("quantity", e.target.value)}
             placeholder={dict.formQuantityPlaceholder}
           />
+        </FieldGroup>
+        <FieldGroup label={dict.colSource}>
+          <Select value={item.sourceType ?? ""} onChange={(e) => set("sourceType", e.target.value)}>
+            <option value="">{dict.sourceUnspecified}</option>
+            <option value="LOCAL">{dict.sourceLocal}</option>
+            <option value="IMPORTED">{dict.sourceImported}</option>
+          </Select>
         </FieldGroup>
         <FieldGroup label={dict.formReason}>
           <Input value={item.reason ?? ""} onChange={(e) => set("reason", e.target.value)} placeholder={dict.formReasonPlaceholder} />

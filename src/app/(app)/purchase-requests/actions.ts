@@ -20,6 +20,7 @@ const lineItemSchema = z.object({
   itemDescription: z.string().min(1),
   quantity: z.string().optional(),
   reason: z.string().optional(),
+  sourceType: z.string().optional().transform((v) => (v === "LOCAL" || v === "IMPORTED" ? v : undefined)),
 });
 
 const requestSchema = z.object({

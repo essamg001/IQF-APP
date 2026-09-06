@@ -61,6 +61,13 @@ enum PurchaseCategory {
   OTHER
 }
 
+// Informational only -- doesn't gate or branch the approval workflow, just
+// flags whether an item is sourced from the Egyptian market or imported.
+enum PurchaseItemSource {
+  LOCAL
+  IMPORTED
+}
+
 // Requested -> warehouse checks stock -> (available: straight to Received)
 // or (not available: forwarded to Accounting for approval/rejection ->
 // Purchasing acknowledges the approved request -> Ordered, tracked to the
@@ -2442,6 +2449,7 @@ model PurchaseRequestItem {
   itemDescription   String
   quantity          String?
   reason            String?
+  sourceType        PurchaseItemSource?
   createdAt         DateTime         @default(now())
 
   @@index([purchaseRequestId])

@@ -108,6 +108,7 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
                 <th className="px-2 py-1 font-medium">{dict.colItem}</th>
                 <th className="px-2 py-1 font-medium">{dict.colCategory}</th>
                 <th className="px-2 py-1 font-medium">{dict.rowQuantity}</th>
+                <th className="px-2 py-1 font-medium">{dict.colSource}</th>
                 <th className="px-2 py-1 font-medium">{dict.rowReason}</th>
               </tr>
             </thead>
@@ -119,6 +120,9 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
                     <Badge color="slate">{CATEGORY_LABEL[i.category]}</Badge>
                   </td>
                   <td className="px-2 py-1 text-slate-600">{i.quantity ?? "—"}</td>
+                  <td className="px-2 py-1 text-slate-600">
+                    {i.sourceType === "LOCAL" ? dict.sourceLocal : i.sourceType === "IMPORTED" ? dict.sourceImported : "—"}
+                  </td>
                   <td className="px-2 py-1 text-slate-600">{i.reason ?? "—"}</td>
                 </tr>
               ))}
