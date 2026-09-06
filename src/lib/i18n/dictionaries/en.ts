@@ -2961,7 +2961,7 @@ const en = {
     signaturePlaceholder: "Type your name again to sign",
     noteOptionalLabel: "Note (optional)",
     signOffAndLoadAnyway: "Sign off & load anyway",
-    releaseSpecFailedPalletNote: "Or release this pallet back to general stock instead — it'll no longer count toward this order, and can be allocated to a client whose spec it actually meets.",
+    releaseSpecFailedPalletNote: "Or release this pallet back to general stock instead — it'll no longer count toward this order, and can be allocated to a client whose spec it actually meets. If it currently holds a slot, it's pulled aside for someone to re-shelve at its actual position, rather than leaving the map showing a stale slot.",
     releaseSpecFailedPalletConfirm: "Release {pallet} back to general stock? It'll be removed from this order and become available to allocate elsewhere.",
     releaseSpecFailedPalletButton: "Release back to stock",
     releasing: "Releasing…",

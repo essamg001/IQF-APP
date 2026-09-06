@@ -752,11 +752,20 @@ const releaseSpecFailedPalletSchema = z.object({
  * Pallets Awaiting Load" list with no resolution. The order's own allocated
  * count drops by one, which the existing lifecycle tracker already
  * surfaces as needing one more pallet -- no separate bookkeeping needed.
- * Doesn't move the pallet: coldRoomId/slot are untouched, since it's
- * already sitting exactly where it's sitting -- /storage/{palletId} always
- * shows that, allocated or not. Open to anyone at load-out, not gated like
- * the override -- rejecting a non-conforming pallet is the conservative
- * choice, unlike shipping it anyway.
+ *
+ * Also opens a PalletPullAside record if the pallet currently holds a slot
+ * -- the owner pointed out the real physical reality this was missing:
+ * allocation deliberately empties one storage line at a time (see
+ * pickWithinLotByLine), so a rejected pallet left behind in that same line
+ * is very likely the sole survivor of an otherwise-emptied line once the
+ * rest gets physically pulled for this load. A forklift driver would
+ * realistically consolidate it (to the back of the line, per the existing
+ * re-shelving convention), which the app had no way to record -- leaving
+ * Pallet.slot pointing at a position the pallet may no longer actually be
+ * in. This reuses the exact same pull-aside/reshelve flow already used
+ * elsewhere on the storage map (suggestReshelfSlot proposes the same
+ * line's highest empty level), rather than guessing a new position itself
+ * -- a person confirms where it actually ended up.
  */
 export async function releaseSpecFailedPalletAction(_prevState: string | undefined, formData: FormData) {
   const parsed = releaseSpecFailedPalletSchema.safeParse({
@@ -768,14 +777,34 @@ export async function releaseSpecFailedPalletAction(_prevState: string | undefin
 
   const pallet = await prisma.pallet.findUniqueOrThrow({
     where: { id: parsed.data.palletId },
-    include: { order: { select: { orderNumber: true } } },
+    include: { order: { select: { orderNumber: true } }, slot: true },
   });
   if (pallet.status !== "ALLOCATED") return "This pallet is no longer allocated -- nothing to release.";
 
   const session = await auth();
-  await prisma.pallet.update({
-    where: { id: parsed.data.palletId },
-    data: { status: "IN_STORAGE", clientId: null, orderId: null },
+  const name = session?.user.name || session?.user.email;
+  const reasonNote = `Released from order ${pallet.order?.orderNumber ?? "—"} -- failed client spec${parsed.data.note ? `: ${parsed.data.note}` : ""}`;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.pallet.update({
+      where: { id: parsed.data.palletId },
+      data: { status: "IN_STORAGE", clientId: null, orderId: null },
+    });
+
+    if (pallet.slot) {
+      await tx.coldRoomSlot.update({ where: { id: pallet.slot.id }, data: { palletId: null } });
+      await tx.palletPullAside.create({
+        data: {
+          palletId: pallet.id,
+          coldRoomId: pallet.slot.coldRoomId,
+          round: pallet.slot.round,
+          rack: pallet.slot.rack,
+          reason: reasonNote,
+          pulledByName: name,
+          pulledByUserId: session?.user.id,
+        },
+      });
+    }
   });
 
   await logActivity({
@@ -783,12 +812,13 @@ export async function releaseSpecFailedPalletAction(_prevState: string | undefin
     action: "PALLET_RELEASED_SPEC_FAIL",
     entityType: "Pallet",
     entityId: pallet.id,
-    detail: `Released ${pallet.palletNumber} from order ${pallet.order?.orderNumber ?? "—"} -- failed client spec${parsed.data.note ? `: ${parsed.data.note}` : ""}`,
+    detail: reasonNote,
   });
 
   revalidatePath(`/logistics/${parsed.data.containerId}`);
   if (pallet.orderId) revalidatePath(`/orders/${pallet.orderId}`);
   revalidatePath("/storage");
+  if (pallet.slot) revalidatePath(`/storage/map/${pallet.slot.coldRoomId}`);
   return "ok";
 }
 
