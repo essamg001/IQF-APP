@@ -96,6 +96,12 @@ export async function suggestAllocation(
   const allEligiblePallets = await client.pallet.findMany({
     where: {
       status: "IN_STORAGE",
+      // A pallet gets its Pallet row at Post-Freeze Inspection, tied to a
+      // lot, before it's ever actually packed -- packingDate is only set
+      // once Final Product Entry runs for it. Until then it has no real
+      // carton count/weight/packing details, so it isn't ready to promise
+      // to a client even though its lot may already be lab-cleared.
+      packingDate: { not: null },
       lot: { grade, format, shift: { is: { onHold: false } }, ...bothLabsApprovedFilter },
     },
     include: { lot: { include: { qualityChecks: true, microbiologyResults: true, mrlResult: true } }, slot: true },

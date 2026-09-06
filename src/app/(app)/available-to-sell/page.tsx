@@ -32,6 +32,12 @@ export default async function AvailableToSellPage({
     prisma.pallet.findMany({
       where: {
         status: "IN_STORAGE",
+        // Same gate as suggestAllocation (src/lib/allocation.ts) -- a pallet
+        // without packingDate hasn't been through Final Product Entry yet,
+        // so it has no confirmed carton count/weight and isn't actually
+        // ready to promise to a client no matter how its lot's lab results
+        // look.
+        packingDate: { not: null },
         lot: { shift: { is: { onHold: false } }, ...bothLabsApprovedFilter },
       },
       select: { weightTonnes: true, lot: { select: { grade: true, format: true, mrlResult: true } } },
