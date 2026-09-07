@@ -2451,8 +2451,9 @@ const en = {
     rawMaterialCostLabel: "Raw Material Cost",
     packagingCostLabel: "Packaging Cost",
     wasteCostLabel: "Waste Cost",
+    laborCostLabel: "Labor Cost",
     partialMarginLabel: "Partial Margin",
-    partialMarginNote: "Net order value minus logistics, purchasing, raw material, packaging, and waste costs entered so far. Excludes labor (see below) — not a full P&L.",
+    partialMarginNote: "Net order value minus logistics, purchasing, raw material, packaging, waste, and labor costs entered so far. Still not a full P&L — other overhead (rent, admin, financing) isn't tracked anywhere in the app.",
     costInputNote: "Most factories/items don't have this cost captured yet — the figure above reflects only what's been entered so far, not the true total.",
     ordersSectionTitle: "Orders",
     logisticsSectionTitle: "Logistics / Containers",
@@ -2465,8 +2466,9 @@ const en = {
     colClaimAmount: "Amount",
     colClaimStatus: "Status",
     laborSectionTitle: "Labor",
-    laborSectionDescription:
-      "A blended hourly wage rate can be set per factory in Settings. No cost rollup yet — Daily Labour tracks headcount, not hours actually worked, so a real figure would mean guessing a shift length rather than reading one.",
+    laborSectionDescription: "A blended hourly wage rate can be set per factory in Settings.",
+    laborCostFootnote:
+      "Labor Cost above = headcount (Daily Labour) × shift duration (Log Shift start/end time) × this rate, summed per shift — only for shifts with a recorded end time and a factory with a rate set. Not every shift has both yet, so this can undercount.",
     noOrdersYet: "No orders yet.",
     noContainersYet: "No containers yet.",
   },

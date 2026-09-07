@@ -21,6 +21,7 @@ import {
   getPackagingCostUsd,
   getWasteCostUsd,
   getLogisticsCostByCategory,
+  getLaborCostUsd,
 } from "@/lib/financials";
 
 const CLAIM_REASON_LABEL_KEY = {
@@ -108,18 +109,20 @@ export default async function FinancialsPage() {
   });
   const totalLogisticsCosts = containers.reduce((s, c) => s + c.costs.reduce((s2, x) => s2 + x.amountUsd, 0), 0);
 
-  const [purchasingSpend, rawMaterialCost, packagingCost, wasteCost, logisticsByCategory, claims, factories] =
+  const [purchasingSpend, rawMaterialCost, packagingCost, wasteCost, laborCost, logisticsByCategory, claims, factories] =
     await Promise.all([
       getPurchasingSpendUsd(),
       getRawMaterialCostUsd(),
       getPackagingCostUsd(),
       getWasteCostUsd(),
+      getLaborCostUsd(),
       getLogisticsCostByCategory(),
       prisma.claim.findMany({ include: { client: true }, orderBy: { claimDate: "desc" }, take: 200 }),
       prisma.factory.findMany({ select: { id: true, name: true, hourlyWageUsd: true }, orderBy: { name: "asc" } }),
     ]);
 
-  const partialMargin = totalNetOrderValue - totalLogisticsCosts - purchasingSpend - rawMaterialCost - packagingCost - wasteCost;
+  const partialMargin =
+    totalNetOrderValue - totalLogisticsCosts - purchasingSpend - rawMaterialCost - packagingCost - wasteCost - laborCost;
 
   return (
     <div className="space-y-6">
@@ -155,6 +158,10 @@ export default async function FinancialsPage() {
         <Card>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{financialsDict.wasteCostLabel}</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">${wasteCost.toLocaleString()}</p>
+        </Card>
+        <Card>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{financialsDict.laborCostLabel}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">${laborCost.toLocaleString()}</p>
         </Card>
       </div>
       <p className="text-xs text-slate-400">{financialsDict.costInputNote}</p>
@@ -195,6 +202,7 @@ export default async function FinancialsPage() {
               </div>
             ))}
           </dl>
+          <p className="mt-3 text-xs text-slate-400">{financialsDict.laborCostFootnote}</p>
         </Card>
       </div>
 

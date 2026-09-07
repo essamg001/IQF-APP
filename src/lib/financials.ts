@@ -57,3 +57,45 @@ export async function getLogisticsCostByCategory(): Promise<{ category: string; 
   });
   return grouped.map((g) => ({ category: g.category, totalUsd: g._sum.amountUsd ?? 0 }));
 }
+
+// Labor cost -- hours worked come from ShiftLog.startTime/endTime (owner
+// confirmed 2026-09-07: employees don't leave mid-shift, so the shift's own
+// duration IS the real hours-worked figure for everyone logged against it,
+// not an assumption). Headcount comes from DailyLabourEntry, summed across
+// every department/role for that same factory+date+shiftType -- the two
+// models share exactly that key (ShiftLog's own @@unique constraint), so
+// the join is exact, not fuzzy. A shift only contributes once it has a real
+// endTime (most don't until Daily Report records line uptime -- see
+// ShiftLog.endTime's own comment) and its factory has a wage rate on file;
+// otherwise it's skipped, not assumed.
+export async function getLaborCostUsd(): Promise<number> {
+  const [shifts, labourEntries] = await Promise.all([
+    prisma.shiftLog.findMany({
+      where: { endTime: { not: null }, factory: { hourlyWageUsd: { not: null } } },
+      select: { factoryId: true, date: true, shiftType: true, startTime: true, endTime: true, factory: { select: { hourlyWageUsd: true } } },
+    }),
+    prisma.dailyLabourEntry.findMany({
+      select: { factoryId: true, date: true, shiftType: true, headcount: true },
+    }),
+  ]);
+
+  const headcountByShift = new Map<string, number>();
+  for (const entry of labourEntries) {
+    if (entry.headcount == null) continue;
+    const key = `${entry.factoryId}|${entry.date.getTime()}|${entry.shiftType}`;
+    headcountByShift.set(key, (headcountByShift.get(key) ?? 0) + entry.headcount);
+  }
+
+  let total = 0;
+  for (const shift of shifts) {
+    const key = `${shift.factoryId}|${shift.date.getTime()}|${shift.shiftType}`;
+    const headcount = headcountByShift.get(key);
+    if (!headcount) continue;
+
+    const hours = (shift.endTime!.getTime() - shift.startTime.getTime()) / (1000 * 60 * 60);
+    if (hours <= 0) continue;
+
+    total += headcount * hours * shift.factory.hourlyWageUsd!;
+  }
+  return total;
+}
