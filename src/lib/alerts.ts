@@ -3,7 +3,7 @@ import type { AlertType, Role } from "@prisma/client";
 import { differenceInDays } from "date-fns";
 import { sendEmail } from "@/lib/email";
 import { parseBrixRange, explainZeroAllocation } from "@/lib/allocation";
-import { formatViolation, formatTrendWarning, type LimitViolation, type TrendWarning } from "@/lib/qualityLimits";
+import { formatViolation, formatViolationAr, formatTrendWarning, formatTrendWarningAr, type LimitViolation, type TrendWarning } from "@/lib/qualityLimits";
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
 import { getCompanySettings } from "@/lib/companySettings";
 import { getPackagingLowStockWarnings } from "@/lib/packagingMaterials";
@@ -15,13 +15,13 @@ const CERTIFICATION_EXPIRY_WARNING_DAYS = 30;
 const ORDER_ALLOCATION_ALERT_DAYS = 7;
 const ORDER_SHIP_DATE_ALERT_DAYS = 3;
 
-async function upsertAlert(type: AlertType, relatedEntityId: string, targetRole: Role, message: string) {
+async function upsertAlert(type: AlertType, relatedEntityId: string, targetRole: Role, message: string, messageAr?: string) {
   const existing = await prisma.alert.findFirst({
     where: { type, relatedEntityId, targetRole, status: "UNREAD" },
   });
   if (existing) return;
   await prisma.alert.create({
-    data: { type, relatedEntityType: type, relatedEntityId, targetRole, message },
+    data: { type, relatedEntityType: type, relatedEntityId, targetRole, message, messageAr },
   });
 
   const recipients = await prisma.user.findMany({ where: { role: targetRole } });
@@ -64,7 +64,8 @@ async function checkPurchaseRequestOverdue() {
     const daysOverdue = differenceInDays(new Date(), dueDate);
     const itemLabel = request.items[0]?.itemDescription ?? "item(s)";
     const message = `Purchase request for ${itemLabel}${request.supplierName ? ` (${request.supplierName})` : ""} is ${daysOverdue} day(s) overdue against its ${request.revisedDeliveryDate ? "revised" : "expected"} delivery date.`;
-    await upsertAlert("PURCHASE_REQUEST_OVERDUE", request.id, "OWNER", message);
+    const messageAr = `طلب الشراء الخاص بـ ${itemLabel}${request.supplierName ? ` (${request.supplierName})` : ""} متأخر ${daysOverdue} يوم عن موعد التسليم ${request.revisedDeliveryDate ? "المعدَّل" : "المتوقع"}.`;
+    await upsertAlert("PURCHASE_REQUEST_OVERDUE", request.id, "OWNER", message, messageAr);
   }
 }
 
@@ -104,7 +105,12 @@ async function checkOrderAllocationOverdue() {
         ? `, ship date ${daysToShip >= 0 ? `in ${daysToShip} day(s)` : `${Math.abs(daysToShip)} day(s) overdue`}`
         : "";
     const message = `Order ${order.orderNumber} (${order.client.name}) has had zero pallets allocated for ${daysSinceOrder} day(s) -- no in-storage stock of Grade ${order.grade} ${order.format} exists yet${shipInfo}.`;
-    await upsertAlert("ORDER_ALLOCATION_OVERDUE", order.id, "SALES", message);
+    const shipInfoAr =
+      daysToShip != null
+        ? `، تاريخ الشحن ${daysToShip >= 0 ? `خلال ${daysToShip} يوم` : `متأخر ${Math.abs(daysToShip)} يوم`}`
+        : "";
+    const messageAr = `الطلب ${order.orderNumber} (${order.client.name}) بدون أي باليتات مخصصة منذ ${daysSinceOrder} يوم -- لا يوجد مخزون بالمستودع من الدرجة ${order.grade} ${order.format} حتى الآن${shipInfoAr}.`;
+    await upsertAlert("ORDER_ALLOCATION_OVERDUE", order.id, "SALES", message, messageAr);
   }
 }
 
@@ -120,6 +126,7 @@ export async function raiseMicrobiologyLoadAttemptAlert(params: {
   microStatus: string;
 }) {
   const message = `Blocked: attempt to load pallet ${params.palletNumber} (Lot ${params.lotNumber}) into container ${params.containerNumber} without microbiology approval (status: ${params.microStatus.replace("_", " ")}).`;
+  const messageAr = `تم الحظر: محاولة تحميل الباليت ${params.palletNumber} (الدفعة ${params.lotNumber}) في الحاوية ${params.containerNumber} بدون اعتماد الميكروبيولوجي (الحالة: ${params.microStatus.replace("_", " ")}).`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -129,6 +136,7 @@ export async function raiseMicrobiologyLoadAttemptAlert(params: {
         relatedEntityId: params.palletId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -145,6 +153,7 @@ export async function raiseMrlLoadAttemptAlert(params: {
   mrlStatus: string;
 }) {
   const message = `Blocked: attempt to load pallet ${params.palletNumber} (Lot ${params.lotNumber}) into container ${params.containerNumber} without MRL approval (status: ${params.mrlStatus.replace("_", " ")}).`;
+  const messageAr = `تم الحظر: محاولة تحميل الباليت ${params.palletNumber} (الدفعة ${params.lotNumber}) في الحاوية ${params.containerNumber} بدون اعتماد فحص المتبقيات (MRL) (الحالة: ${params.mrlStatus.replace("_", " ")}).`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -154,6 +163,7 @@ export async function raiseMrlLoadAttemptAlert(params: {
         relatedEntityId: params.palletId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -178,6 +188,7 @@ export async function raiseCfuLimitLoadAttemptAlert(params: {
   maxCfuPerGram: number;
 }) {
   const message = `Blocked: attempt to load pallet ${params.palletNumber} (Lot ${params.lotNumber}) into container ${params.containerNumber} — Total Plate Count ${params.cfuValue.toLocaleString()} cfu/g exceeds ${params.clientName}'s spec limit of ${params.maxCfuPerGram.toLocaleString()} cfu/g.`;
+  const messageAr = `تم الحظر: محاولة تحميل الباليت ${params.palletNumber} (الدفعة ${params.lotNumber}) في الحاوية ${params.containerNumber} — التعداد الكلي للبكتيريا ${params.cfuValue.toLocaleString()} cfu/g يتجاوز الحد المسموح به لدى ${params.clientName} وهو ${params.maxCfuPerGram.toLocaleString()} cfu/g.`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -187,6 +198,7 @@ export async function raiseCfuLimitLoadAttemptAlert(params: {
         relatedEntityId: params.palletId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -229,6 +241,10 @@ export async function raiseSpecExceptionAlert(
     params.stage === "attempt"
       ? `Blocked: attempt to load pallet ${params.palletNumber} (Lot ${params.lotNumber}) into container ${params.containerNumber} — fails ${params.clientName}'s spec: ${params.violations.join("; ")}.`
       : `SPEC EXCEPTION APPROVED — pallet ${params.palletNumber} (Lot ${params.lotNumber}) loaded into ${params.containerNumber} despite failing ${params.clientName}'s spec (${params.violations.join("; ")}) — signed off by ${params.approvedByName}${params.note ? ` ("${params.note}")` : ""}.`;
+  const messageAr =
+    params.stage === "attempt"
+      ? `تم الحظر: محاولة تحميل الباليت ${params.palletNumber} (الدفعة ${params.lotNumber}) في الحاوية ${params.containerNumber} — لا يطابق مواصفات ${params.clientName}: ${params.violations.join("؛ ")}.`
+      : `تمت الموافقة على استثناء من المواصفة — الباليت ${params.palletNumber} (الدفعة ${params.lotNumber}) تم تحميله في ${params.containerNumber} رغم عدم مطابقته لمواصفات ${params.clientName} (${params.violations.join("؛ ")}) — تم اعتماده بواسطة ${params.approvedByName}${params.note ? ` ("${params.note}")` : ""}.`;
   const subject = params.stage === "attempt" ? "IQF Alert: Blocked Load Attempt" : "IQF Alert: Spec Exception Approved";
 
   for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
@@ -239,6 +255,7 @@ export async function raiseSpecExceptionAlert(
         relatedEntityId: params.palletId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -259,9 +276,13 @@ export async function raiseMicrobiologyRejectionAlert(params: {
   rejectionReason: string | null;
 }) {
   const severityLabel = params.severity === "FAILED_SEVERE" ? "SEVERE" : "MINOR";
+  const severityLabelAr = params.severity === "FAILED_SEVERE" ? "شديد" : "بسيط";
   const quantityPart = params.rejectedQuantityTonnes ? `${params.rejectedQuantityTonnes}t` : "quantity not yet specified";
+  const quantityPartAr = params.rejectedQuantityTonnes ? `${params.rejectedQuantityTonnes} طن` : "الكمية غير محددة بعد";
   const reasonPart = params.rejectionReason || "reason not yet specified";
+  const reasonPartAr = params.rejectionReason || "السبب غير محدد بعد";
   const message = `Lab REJECTED Lot ${params.lotNumber} (${severityLabel}) — ${quantityPart} — reason: ${reasonPart}. Do not export this fruit.`;
+  const messageAr = `رفض المعمل الدفعة ${params.lotNumber} (${severityLabelAr}) — ${quantityPartAr} — السبب: ${reasonPartAr}. لا يجوز تصدير هذه الدفعة.`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -271,6 +292,7 @@ export async function raiseMicrobiologyRejectionAlert(params: {
         relatedEntityId: params.lotId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -286,7 +308,7 @@ export async function raiseMicrobiologyRejectionAlert(params: {
  * so re-running the check after the fact (or on a sibling lot's result)
  * doesn't reset the hold timer or spam duplicate alerts.
  */
-export async function raiseShiftOnHoldAlert(params: { shiftId: string; reason: string }) {
+export async function raiseShiftOnHoldAlert(params: { shiftId: string; reason: string; reasonAr?: string }) {
   const shift = await prisma.shiftLog.findUnique({ where: { id: params.shiftId } });
   if (!shift || shift.onHold) return;
 
@@ -303,6 +325,7 @@ export async function raiseShiftOnHoldAlert(params: { shiftId: string; reason: s
         relatedEntityId: params.shiftId,
         targetRole: role,
         message: params.reason,
+        messageAr: params.reasonAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -325,7 +348,9 @@ export async function raiseQualityLimitAlert(params: {
 }) {
   if (params.violations.length === 0) return;
   const violationText = params.violations.map(formatViolation).join("; ");
+  const violationTextAr = params.violations.map(formatViolationAr).join("؛ ");
   const message = `${params.checkpointLabel} — ${params.identifier}: out of spec — ${violationText}.`;
+  const messageAr = `${params.checkpointLabel} — ${params.identifier}: خارج المواصفة — ${violationTextAr}.`;
 
   await prisma.qualityCheck.update({ where: { id: params.checkId }, data: { overrideStatus: "PENDING" } });
 
@@ -337,6 +362,7 @@ export async function raiseQualityLimitAlert(params: {
         relatedEntityId: params.checkId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -353,10 +379,12 @@ export async function raiseQualityLimitAlert(params: {
 export async function raiseQualityOverrideAlert(params: {
   checkId: string;
   originalMessage: string;
+  originalMessageAr?: string;
   approvedByName: string;
   note?: string | null;
 }) {
   const message = `RISK APPROVED — ${params.originalMessage} — signed off to proceed anyway by ${params.approvedByName}${params.note ? ` ("${params.note}")` : ""}.`;
+  const messageAr = `تمت الموافقة على المخاطرة — ${params.originalMessageAr ?? params.originalMessage} — تم اعتماد الاستمرار بواسطة ${params.approvedByName}${params.note ? ` ("${params.note}")` : ""}.`;
 
   for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
     await prisma.alert.create({
@@ -366,6 +394,7 @@ export async function raiseQualityOverrideAlert(params: {
         relatedEntityId: params.checkId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -388,7 +417,9 @@ export async function raiseFieldTrendAlert(params: {
 }) {
   if (params.warnings.length === 0) return;
   const warningText = params.warnings.map(formatTrendWarning).join("; ");
+  const warningTextAr = params.warnings.map(formatTrendWarningAr).join("؛ ");
   const message = `${params.checkpointLabel} — ${params.identifier}: quality trending toward its limit — ${warningText}.`;
+  const messageAr = `${params.checkpointLabel} — ${params.identifier}: الجودة تتجه نحو الحد الأقصى/الأدنى — ${warningTextAr}.`;
 
   // Keyed by field + which metrics are currently trending, not just field --
   // a field can trend on one metric (e.g. Brix) while a later check finds a
@@ -399,7 +430,7 @@ export async function raiseFieldTrendAlert(params: {
   const relatedEntityId = `${params.fieldId}::${metricsKey}`;
 
   for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
-    await upsertAlert("EARLY_WARNING", relatedEntityId, role, message);
+    await upsertAlert("EARLY_WARNING", relatedEntityId, role, message, messageAr);
   }
 }
 
@@ -418,6 +449,7 @@ export async function raiseSprayRestrictionBlockedAlert(params: {
   clearDate: Date;
 }) {
   const message = `Blocked: Harvest Ticket ${params.harvestTicketSerial} includes field "${params.fieldName}", still inside its no-harvest window from a ${params.chemicalName} spray on ${params.sprayDate.toDateString()} -- clear to harvest on ${params.clearDate.toDateString()}.`;
+  const messageAr = `تم الحظر: تذكرة الحصاد ${params.harvestTicketSerial} تتضمن الحقل "${params.fieldName}"، وهو لا يزال داخل فترة منع الحصاد بعد رش ${params.chemicalName} بتاريخ ${params.sprayDate.toDateString()} -- يُسمح بالحصاد اعتبارًا من ${params.clearDate.toDateString()}.`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -427,6 +459,7 @@ export async function raiseSprayRestrictionBlockedAlert(params: {
         relatedEntityId: params.fieldId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -447,6 +480,7 @@ export async function raiseBladeKnifeMismatchAlert(params: {
   returnedKnifeNumber: string;
 }) {
   const message = `Blade/knife mismatch: ${params.workerName} issued knife #${params.issuedKnifeNumber} but returned #${params.returnedKnifeNumber} -- a piece may be unaccounted for.`;
+  const messageAr = `عدم تطابق السكين: تم صرف السكين رقم ${params.issuedKnifeNumber} لـ ${params.workerName} لكن تم إرجاع السكين رقم ${params.returnedKnifeNumber} -- قد يكون هناك جزء مفقود.`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -456,6 +490,7 @@ export async function raiseBladeKnifeMismatchAlert(params: {
         relatedEntityId: params.recordId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -476,6 +511,7 @@ export async function raiseScaleOutOfToleranceAlert(params: {
   maxPermissibleErrorG: number;
 }) {
   const message = `Scale #${params.scaleNumber} is out of tolerance: deviation ${params.deviationG}g exceeds its ±${params.maxPermissibleErrorG}g limit -- weights recorded on this scale may be wrong.`;
+  const messageAr = `الميزان رقم ${params.scaleNumber} خارج نطاق التفاوت المسموح: الانحراف ${params.deviationG} جم يتجاوز الحد ±${params.maxPermissibleErrorG} جم -- الأوزان المسجلة على هذا الميزان قد تكون غير دقيقة.`;
 
   for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
     await prisma.alert.create({
@@ -485,6 +521,7 @@ export async function raiseScaleOutOfToleranceAlert(params: {
         relatedEntityId: params.scaleId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -504,8 +541,11 @@ export async function raiseRodentDetectedAlert(params: {
   status: "LIVE_RODENT" | "DEAD_RODENT";
 }) {
   const trapTypeLabel = params.trapType === "BAIT_STATION" ? "bait station" : "glue trap";
+  const trapTypeLabelAr = params.trapType === "BAIT_STATION" ? "محطة طُعم" : "مصيدة لاصقة";
   const findingLabel = params.status === "LIVE_RODENT" ? "a live rodent" : "a dead rodent";
+  const findingLabelAr = params.status === "LIVE_RODENT" ? "قارض حي" : "قارض نافق";
   const message = `Rodent ${trapTypeLabel} #${params.trapNumber} check found ${findingLabel}.`;
+  const messageAr = `فحص ${trapTypeLabelAr} القوارض رقم ${params.trapNumber} كشف عن ${findingLabelAr}.`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -515,6 +555,7 @@ export async function raiseRodentDetectedAlert(params: {
         relatedEntityId: params.trapId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -536,6 +577,7 @@ export async function raiseToolInventoryDiscrepancyAlert(params: {
   countedTotal: number;
 }) {
   const message = `Tool inventory discrepancy: "${params.toolName}" — ${params.countedTotal} accounted for at check-out, but ${params.registeredCount} are registered. A piece may be unaccounted for.`;
+  const messageAr = `تباين في جرد الأدوات: "${params.toolName}" — تم حصر ${params.countedTotal} عند التسليم، بينما المسجل ${params.registeredCount}. قد يكون هناك جزء مفقود.`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -545,6 +587,7 @@ export async function raiseToolInventoryDiscrepancyAlert(params: {
         relatedEntityId: params.checkId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -565,7 +608,9 @@ export async function raiseBladeKnifeDamagedAlert(params: {
   condition: "DAMAGED" | "PIECE_MISSING";
 }) {
   const conditionLabel = params.condition === "DAMAGED" ? "damaged" : "missing a piece";
+  const conditionLabelAr = params.condition === "DAMAGED" ? "تالفًا" : "ناقص جزء";
   const message = `Knife #${params.knifeNumber} returned by ${params.workerName} came back ${conditionLabel} -- a fragment may be unaccounted for.`;
+  const messageAr = `السكين رقم ${params.knifeNumber} الذي أعاده ${params.workerName} عاد ${conditionLabelAr} -- قد يكون هناك جزء مفقود.`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -575,6 +620,7 @@ export async function raiseBladeKnifeDamagedAlert(params: {
         relatedEntityId: params.recordId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -591,6 +637,7 @@ export async function raiseBladeKnifeDamagedAlert(params: {
  */
 export async function raiseShiftMissingPostDecapLinkAlert(params: { lotId: string; lotNumber: string }) {
   const message = `Lot ${params.lotNumber} was logged with no matching accepted Post-Decap Quality check for its shift -- its supplying field(s) were entered manually and aren't confirmed by a decap record.`;
+  const messageAr = `تم تسجيل الدفعة ${params.lotNumber} بدون فحص جودة ما بعد التقشير معتمد ومطابق لهذه الشِفت -- تم إدخال الحقل/الحقول الموردة يدويًا وغير مؤكدة بسجل تقشير.`;
 
   for (const role of ["QUALITY", "PRODUCTION"] as const) {
     await prisma.alert.create({
@@ -600,6 +647,7 @@ export async function raiseShiftMissingPostDecapLinkAlert(params: { lotId: strin
         relatedEntityId: params.lotId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -632,8 +680,9 @@ async function checkSpecMismatch() {
 
     const expected = brixRange.max != null ? `${brixRange.min}-${brixRange.max}` : `≥${brixRange.min}`;
     const message = `Pallet ${pallet.palletNumber} for ${pallet.client.name} (spec "${spec.specName}") is outside brix spec (${avgBrix.toFixed(1)}, expected ${expected}) before shipment.`;
-    await upsertAlert("SPEC_MISMATCH", pallet.id, "QUALITY", message);
-    await upsertAlert("SPEC_MISMATCH", pallet.id, "PRODUCTION", message);
+    const messageAr = `الباليت ${pallet.palletNumber} الخاص بـ ${pallet.client.name} (مواصفة "${spec.specName}") خارج نطاق البركس المحدد (${avgBrix.toFixed(1)}، المتوقع ${expected}) قبل الشحن.`;
+    await upsertAlert("SPEC_MISMATCH", pallet.id, "QUALITY", message, messageAr);
+    await upsertAlert("SPEC_MISMATCH", pallet.id, "PRODUCTION", message, messageAr);
   }
 }
 
@@ -653,16 +702,18 @@ async function checkContainerOverdue() {
 
     if (daysElapsed > c.expectedTransitDays) {
       const message = `Container ${c.containerNumber} (${c.order.client.name}) is overdue vs. its expected ${c.expectedTransitDays}-day transit.`;
-      await upsertAlert("CONTAINER_OVERDUE", c.id, "LOGISTICS", message);
-      await upsertAlert("CONTAINER_OVERDUE", c.id, "SALES", message);
-      await upsertAlert("CONTAINER_OVERDUE", c.id, "PRODUCTION", message);
+      const messageAr = `الحاوية ${c.containerNumber} (${c.order.client.name}) متأخرة عن مدة الشحن المتوقعة وهي ${c.expectedTransitDays} يوم.`;
+      await upsertAlert("CONTAINER_OVERDUE", c.id, "LOGISTICS", message, messageAr);
+      await upsertAlert("CONTAINER_OVERDUE", c.id, "SALES", message, messageAr);
+      await upsertAlert("CONTAINER_OVERDUE", c.id, "PRODUCTION", message, messageAr);
     } else if (daysElapsed >= c.expectedTransitDays * 0.8) {
       // A real early warning -- fired while there's still time to act on a
       // developing delay, not just a postmortem once the expected date has
       // already passed (that's what CONTAINER_OVERDUE above is for).
       const message = `Container ${c.containerNumber} (${c.order.client.name}) is at day ${daysElapsed} of its expected ${c.expectedTransitDays}-day transit -- approaching its expected arrival, worth checking on.`;
-      await upsertAlert("EARLY_WARNING", c.id, "LOGISTICS", message);
-      await upsertAlert("EARLY_WARNING", c.id, "SALES", message);
+      const messageAr = `الحاوية ${c.containerNumber} (${c.order.client.name}) في اليوم ${daysElapsed} من مدة الشحن المتوقعة (${c.expectedTransitDays} يوم) -- تقترب من موعد الوصول المتوقع، يستحق المتابعة.`;
+      await upsertAlert("EARLY_WARNING", c.id, "LOGISTICS", message, messageAr);
+      await upsertAlert("EARLY_WARNING", c.id, "SALES", message, messageAr);
     }
   }
 }
@@ -679,6 +730,7 @@ export async function raiseTemperatureExcursionAlert(params: {
   setPointC: number;
 }) {
   const message = `Container ${params.containerNumber}: reefer reading ${params.temperatureC}°C is off its ${params.setPointC}°C set-point -- possible temperature excursion in transit.`;
+  const messageAr = `الحاوية ${params.containerNumber}: قراءة الميزان الحراري ${params.temperatureC}°م تختلف عن نقطة الضبط ${params.setPointC}°م -- احتمال تجاوز حراري أثناء الشحن.`;
 
   for (const role of ["LOGISTICS", "QUALITY", "OWNER"] as const) {
     await prisma.alert.create({
@@ -688,6 +740,7 @@ export async function raiseTemperatureExcursionAlert(params: {
         relatedEntityId: params.containerId,
         targetRole: role,
         message,
+        messageAr,
       },
     });
     const recipients = await prisma.user.findMany({ where: { role } });
@@ -724,9 +777,10 @@ async function checkLowStock() {
     if (available >= needed) continue;
 
     const message = `Low stock: Grade ${grade} ${format} has ${available} pallet(s) available but ${needed} needed for pending orders.`;
-    await upsertAlert("LOW_STOCK", key, "SALES", message);
-    await upsertAlert("LOW_STOCK", key, "OWNER", message);
-    await upsertAlert("LOW_STOCK", key, "PRODUCTION", message);
+    const messageAr = `مخزون منخفض: الدرجة ${grade} ${format} متوفر منها ${available} باليت لكن المطلوب ${needed} للطلبات المعلقة.`;
+    await upsertAlert("LOW_STOCK", key, "SALES", message, messageAr);
+    await upsertAlert("LOW_STOCK", key, "OWNER", message, messageAr);
+    await upsertAlert("LOW_STOCK", key, "PRODUCTION", message, messageAr);
   }
 }
 
@@ -740,11 +794,13 @@ async function checkMicrobiologyPending() {
     const days = differenceInDays(new Date(), m.lot.createdAt);
     if (days < MICRO_PENDING_DAYS_THRESHOLD) continue;
     const labLabel = m.labType === "IN_HOUSE" ? "In-House" : "External";
+    const labLabelAr = m.labType === "IN_HOUSE" ? "الداخلي" : "الخارجي";
     const message = `Lot ${m.lot.lotNumber} has been awaiting its ${labLabel} lab result for ${days} day(s).`;
+    const messageAr = `الدفعة ${m.lot.lotNumber} بانتظار نتيجة المعمل ${labLabelAr} منذ ${days} يوم.`;
     // Keyed per result (not per lot) since a lot now has two independent
     // results, each of which can be pending on its own schedule.
-    await upsertAlert("MICROBIOLOGY_PENDING", m.id, "QUALITY", message);
-    await upsertAlert("MICROBIOLOGY_PENDING", m.id, "PRODUCTION", message);
+    await upsertAlert("MICROBIOLOGY_PENDING", m.id, "QUALITY", message, messageAr);
+    await upsertAlert("MICROBIOLOGY_PENDING", m.id, "PRODUCTION", message, messageAr);
   }
 }
 
@@ -759,13 +815,18 @@ async function checkGlobalGapExpiry() {
   if (daysLeft > GLOBALGAP_EXPIRY_WARNING_DAYS) return;
 
   const numberLabel = settings.globalGapNumber ? `#${settings.globalGapNumber}` : "on file";
+  const numberLabelAr = settings.globalGapNumber ? `رقم ${settings.globalGapNumber}` : "المسجلة";
   const message =
     daysLeft < 0
       ? `GlobalG.A.P. certification (${numberLabel}) expired ${Math.abs(daysLeft)} day(s) ago.`
       : `GlobalG.A.P. certification (${numberLabel}) expires in ${daysLeft} day(s).`;
+  const messageAr =
+    daysLeft < 0
+      ? `شهادة GlobalG.A.P. (${numberLabelAr}) انتهت صلاحيتها منذ ${Math.abs(daysLeft)} يوم.`
+      : `شهادة GlobalG.A.P. (${numberLabelAr}) تنتهي صلاحيتها خلال ${daysLeft} يوم.`;
 
-  await upsertAlert("GLOBALGAP_EXPIRING", settings.id, "OWNER", message);
-  await upsertAlert("GLOBALGAP_EXPIRING", settings.id, "QUALITY", message);
+  await upsertAlert("GLOBALGAP_EXPIRING", settings.id, "OWNER", message, messageAr);
+  await upsertAlert("GLOBALGAP_EXPIRING", settings.id, "QUALITY", message, messageAr);
 }
 
 // Facility-level certifications (BRCGS, SMETA, FDA, Kosher, etc.) -- one
@@ -781,9 +842,13 @@ async function checkCertificationExpiry() {
       daysLeft < 0
         ? `${cert.name} certification expired ${Math.abs(daysLeft)} day(s) ago.`
         : `${cert.name} certification expires in ${daysLeft} day(s).`;
+    const messageAr =
+      daysLeft < 0
+        ? `شهادة ${cert.name} انتهت صلاحيتها منذ ${Math.abs(daysLeft)} يوم.`
+        : `شهادة ${cert.name} تنتهي صلاحيتها خلال ${daysLeft} يوم.`;
 
-    await upsertAlert("CERTIFICATION_EXPIRING", cert.id, "OWNER", message);
-    await upsertAlert("CERTIFICATION_EXPIRING", cert.id, "QUALITY", message);
+    await upsertAlert("CERTIFICATION_EXPIRING", cert.id, "OWNER", message, messageAr);
+    await upsertAlert("CERTIFICATION_EXPIRING", cert.id, "QUALITY", message, messageAr);
   }
 }
 
@@ -801,8 +866,9 @@ async function checkPalletsAwaitingReshelf() {
   for (const p of pending) {
     const hoursAgo = Math.round((Date.now() - p.pulledAt.getTime()) / (1000 * 60 * 60));
     const message = `${p.pallet.palletNumber} was pulled aside from ${p.coldRoom.name} Level ${p.round} / Rack ${p.rack} ${hoursAgo} hour(s) ago and hasn't been re-shelved yet.`;
-    await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "OWNER", message);
-    await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "LOGISTICS", message);
+    const messageAr = `تم سحب الباليت ${p.pallet.palletNumber} جانبًا من ${p.coldRoom.name} المستوى ${p.round} / الرف ${p.rack} منذ ${hoursAgo} ساعة ولم يتم إعادة تخزينه بعد.`;
+    await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "OWNER", message, messageAr);
+    await upsertAlert("PALLET_AWAITING_RESHELVE", p.id, "LOGISTICS", message, messageAr);
   }
 }
 
@@ -821,8 +887,12 @@ async function checkPackagingLowStock() {
         w.reason === "BELOW_MINIMUM"
           ? `${w.material.name} (${factory.name}) is at ${w.closingBalance}${w.material.unit ? ` ${w.material.unit}` : ""}, at or below its minimum stock level of ${w.material.minStockLevel}.`
           : `${w.material.name} (${factory.name}) is projected to run out in ${w.daysOfStockLeft!.toFixed(1)} day(s) at the current production pace (${w.closingBalance}${w.material.unit ? ` ${w.material.unit}` : ""} on hand).`;
-      await upsertAlert("PACKAGING_LOW_STOCK", w.material.id, "OWNER", message);
-      await upsertAlert("PACKAGING_LOW_STOCK", w.material.id, "PRODUCTION", message);
+      const messageAr =
+        w.reason === "BELOW_MINIMUM"
+          ? `${w.material.name} (${factory.name}) عند ${w.closingBalance}${w.material.unit ? ` ${w.material.unit}` : ""}، عند أو أقل من الحد الأدنى للمخزون وهو ${w.material.minStockLevel}.`
+          : `${w.material.name} (${factory.name}) من المتوقع نفاده خلال ${w.daysOfStockLeft!.toFixed(1)} يوم بمعدل الإنتاج الحالي (المتوفر حاليًا ${w.closingBalance}${w.material.unit ? ` ${w.material.unit}` : ""}).`;
+      await upsertAlert("PACKAGING_LOW_STOCK", w.material.id, "OWNER", message, messageAr);
+      await upsertAlert("PACKAGING_LOW_STOCK", w.material.id, "PRODUCTION", message, messageAr);
     }
   }
 }
@@ -836,6 +906,7 @@ async function checkWarehouseStockLow() {
   const warnings = await getWarehouseStockLowStockWarnings();
   for (const w of warnings) {
     const message = `${w.item.name} is at ${w.closingBalance}${w.item.unit ? ` ${w.item.unit}` : ""}, at or below its minimum stock level of ${w.item.minStockLevel}.`;
-    await upsertAlert("WAREHOUSE_STOCK_LOW", w.item.id, "OWNER", message);
+    const messageAr = `${w.item.name} عند ${w.closingBalance}${w.item.unit ? ` ${w.item.unit}` : ""}، عند أو أقل من الحد الأدنى للمخزون وهو ${w.item.minStockLevel}.`;
+    await upsertAlert("WAREHOUSE_STOCK_LOW", w.item.id, "OWNER", message, messageAr);
   }
 }

@@ -137,6 +137,11 @@ export default async function AlertsPage() {
           <tbody>
             {alerts.map((a) => {
               const check = a.type === "QUALITY_LIMIT_EXCEEDED" ? checkById.get(a.relatedEntityId!) : undefined;
+              // Arabic message is built alongside the English one at alert
+              // creation time (see src/lib/alerts.ts) -- fall back to
+              // English for alerts created before that field existed, or
+              // for the handful of call sites that don't supply one.
+              const displayMessage = locale === "AR" ? (a.messageAr ?? a.message) : a.message;
               return (
                 <tr key={a.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2">
@@ -145,10 +150,10 @@ export default async function AlertsPage() {
                   <td className="px-4 py-2">
                     {alertHrefs.has(a.id) ? (
                       <Link href={alertHrefs.get(a.id)!} className="text-emerald-700 hover:underline">
-                        {a.message}
+                        {displayMessage}
                       </Link>
                     ) : (
-                      a.message
+                      displayMessage
                     )}
                   </td>
                   <td className="px-4 py-2">{formatDate(a.createdAt, "dd MMM yyyy HH:mm", locale)}</td>

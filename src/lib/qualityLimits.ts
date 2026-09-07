@@ -256,6 +256,15 @@ export function formatViolation(v: LimitViolation): string {
   return `${v.label} ${v.value} (${limit})`;
 }
 
+// Arabic sentence wrapper -- the field label itself (e.g. "Brix",
+// "Temperature") stays as-is rather than being translated, same policy as
+// every other identifier/technical-field-name in this app's bilingual
+// alert text (see formatViolationAr's caller in alerts.ts).
+export function formatViolationAr(v: LimitViolation): string {
+  const limit = v.max != null ? `الحد الأقصى ≤${v.max}` : `الحد الأدنى ≥${v.min}`;
+  return `${v.label} ${v.value} (${limit})`;
+}
+
 /**
  * Encodes a server action's success result -- the computed decision plus any
  * limit violations -- into the single string these forms' useActionState
@@ -320,4 +329,9 @@ export function checkFieldTrend(
 export function formatTrendWarning(w: TrendWarning): string {
   const limitText = w.limit.max != null ? `limit ≤${w.limit.max}` : `limit ≥${w.limit.min}`;
   return `${w.label} trending toward its limit: ${w.recentValues.map((v) => v.toFixed(1)).join(" → ")} (${limitText})`;
+}
+
+export function formatTrendWarningAr(w: TrendWarning): string {
+  const limitText = w.limit.max != null ? `الحد الأقصى ≤${w.limit.max}` : `الحد الأدنى ≥${w.limit.min}`;
+  return `${w.label} يتجه نحو حده: ${w.recentValues.map((v) => v.toFixed(1)).join(" ← ")} (${limitText})`;
 }

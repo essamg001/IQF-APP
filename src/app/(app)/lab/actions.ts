@@ -256,9 +256,11 @@ export async function updateLabResultAction(
     const approved = siblingResults.find((r) => r.status === "APPROVED");
     const failed = siblingResults.find((r) => r.status === "FAILED_MINOR" || r.status === "FAILED_SEVERE");
     const labLabel = (t?: string) => (t === "IN_HOUSE" ? "In-House" : "External");
+    const labLabelAr = (t?: string) => (t === "IN_HOUSE" ? "الداخلي" : "الخارجي");
     await raiseShiftOnHoldAlert({
       shiftId: existing.lot.shiftId,
       reason: `Split microbiology result on Lot ${existing.lot.lotNumber}: ${labLabel(approved?.labType)} lab Approved it, but ${labLabel(failed?.labType)} lab ${failed?.status === "FAILED_SEVERE" ? "Failed (Severe)" : "Failed (Minor)"}. Every lot from this shift is on hold pending further testing.`,
+      reasonAr: `نتيجة ميكروبيولوجية متضاربة على الدفعة ${existing.lot.lotNumber}: المعمل ${labLabelAr(approved?.labType)} اعتمدها، بينما المعمل ${labLabelAr(failed?.labType)} رفضها (${failed?.status === "FAILED_SEVERE" ? "رفض شديد" : "رفض بسيط"}). جميع دفعات هذه الشِفت موقوفة لحين إجراء مزيد من الفحص.`,
     });
   }
 

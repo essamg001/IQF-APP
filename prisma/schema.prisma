@@ -1776,6 +1776,14 @@ model Alert {
   id                String      @id @default(cuid())
   type              AlertType
   message           String
+  // The Arabic-language mirror of `message` -- built alongside it at alert
+  // creation time (dynamic data, e.g. pallet numbers, is embedded in a full
+  // Arabic sentence, not translated at render time). Nullable: alerts
+  // created before this field existed, and a handful of call sites that
+  // pass in an already-formatted `reason`/`originalMessage` string from
+  // elsewhere in the app without an Arabic counterpart, fall back to
+  // showing the English message.
+  messageAr         String?
   relatedEntityType String?
   relatedEntityId   String?
   targetRole        Role

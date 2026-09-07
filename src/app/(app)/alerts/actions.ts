@@ -99,6 +99,7 @@ export async function approveAtRiskAction(checkId: string, _prevState: string | 
   await raiseQualityOverrideAlert({
     checkId,
     originalMessage: originalAlert?.message ?? "An out-of-spec quality check",
+    originalMessageAr: originalAlert?.messageAr ?? "فحص جودة خارج المواصفة",
     approvedByName: parsed.data.name,
     note: parsed.data.note,
   });
