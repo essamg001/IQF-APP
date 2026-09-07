@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { canSeeFinancials } from "@/lib/roles";
 import { ReceiptForm } from "./receipt-form";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
@@ -79,6 +80,7 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
   }
 
   const { id } = await params;
+  const canSeeCost = canSeeFinancials(session.user);
   const locale = await resolveLocale();
   const dict = getDictionary(locale).harvestTickets;
   const COMPLIANCE_LABEL = complianceLabel(dict);
@@ -255,6 +257,7 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
               <DetailRow label={dict.palletsReceived} value={ticket.palletsReceived} />
               <DetailRow label={dict.grossWeightKg} value={ticket.grossWeightKg} />
               <DetailRow label={dict.netWeightKg} value={ticket.netWeightKg} />
+              {canSeeCost && <DetailRow label={dict.pricePerKgUsd} value={ticket.pricePerKgUsd != null ? `$${ticket.pricePerKgUsd}` : null} />}
               <DetailRow label={dict.electronicWeightCardNo} value={ticket.electronicWeightCardNo} />
               <DetailRow label={dict.productTempC} value={ticket.productTempC} />
               <DetailRow label={dict.optimumTempC} value={ticket.optimumTempC} />
@@ -262,7 +265,7 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
               <DetailRow label={dict.receivedBy} value={ticket.receivedByName} />
             </div>
           ) : (
-            <ReceiptForm ticketId={ticket.id} />
+            <ReceiptForm ticketId={ticket.id} canSeeCost={canSeeCost} />
           )}
         </div>
       </Card>

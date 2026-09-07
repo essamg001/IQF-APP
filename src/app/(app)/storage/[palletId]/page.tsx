@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { canSeeFinancials } from "@/lib/roles";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +44,8 @@ function formatLabel(dict: Dictionary["storage"], format: "WHOLE" | "SLICED" | "
 
 export default async function PalletDetailPage({ params }: { params: Promise<{ palletId: string }> }) {
   const { palletId } = await params;
+  const session = await auth();
+  const canSeeCost = canSeeFinancials(session?.user);
   const locale = await resolveLocale();
   const fullDict = getDictionary(locale);
   const dict = fullDict.storage;
@@ -234,6 +238,11 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
                     {dict.wasteEntry.replace("{quantity}", String(w.quantity)).replace("{reason}", w.reason)}
                   </p>
                   <p className="text-xs text-slate-500">{w.date.toDateString()}</p>
+                  {canSeeCost && w.costUsd != null && (
+                    <p className="text-xs text-slate-500">
+                      {dict.wasteCostLabel}: ${w.costUsd.toLocaleString()}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
@@ -249,6 +258,11 @@ export default async function PalletDetailPage({ params }: { params: Promise<{ p
                 <FieldGroup label={dict.quantityTonnesLabel}>
                   <Input name="quantity" type="number" step="0.1" defaultValue={pallet.weightTonnes} />
                 </FieldGroup>
+                {canSeeCost && (
+                  <FieldGroup label={dict.wasteCostLabel}>
+                    <Input name="costUsd" type="number" step="0.01" min="0" />
+                  </FieldGroup>
+                )}
                 <ConfirmSubmitButton
                   confirmMessage={dict.markWasteConfirm.replace("{number}", pallet.palletNumber)}
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"

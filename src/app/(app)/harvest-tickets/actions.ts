@@ -163,6 +163,7 @@ const receiptSchema = z.object({
   palletsReceived: z.coerce.number().int().min(0).optional(),
   grossWeightKg: z.coerce.number().min(0).optional(),
   netWeightKg: z.coerce.number().min(0).optional(),
+  pricePerKgUsd: z.coerce.number().min(0).optional(),
   electronicWeightCardNo: z.string().optional(),
   productTempC: z.coerce.number().optional(),
   optimumTempC: z.coerce.number().optional(),

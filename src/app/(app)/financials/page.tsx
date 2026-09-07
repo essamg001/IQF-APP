@@ -15,6 +15,27 @@ import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { PrintButton } from "@/components/ui/print-button";
 import Link from "next/link";
+import {
+  getPurchasingSpendUsd,
+  getRawMaterialCostUsd,
+  getPackagingCostUsd,
+  getWasteCostUsd,
+  getLogisticsCostByCategory,
+} from "@/lib/financials";
+
+const CLAIM_REASON_LABEL_KEY = {
+  QUALITY: "claimReasonQuality",
+  PACKAGING: "claimReasonPackaging",
+  FOREIGN_MATERIAL: "claimReasonForeignMaterial",
+  TRANSPORT: "claimReasonTransport",
+} as const;
+
+const CLAIM_STATUS_LABEL_KEY = {
+  OPEN: "claimStatusOpen",
+  UNDER_REVIEW: "claimStatusUnderReview",
+  RESOLVED_CREDITED: "claimStatusResolvedCredited",
+  CLOSED: "claimStatusClosed",
+} as const;
 
 // Same math as the order detail page used to run before its value display
 // moved here: a claim can list several containers, each with its own
@@ -74,6 +95,7 @@ export default async function FinancialsPage() {
   });
   const netValues = await Promise.all(orders.map(computeNetOrderValue));
   const totalOrderValue = orders.reduce((s, o) => s + o.valueUsd, 0);
+  const totalNetOrderValue = netValues.reduce((s, v) => s + v, 0);
 
   const containers = await prisma.container.findMany({
     include: {
@@ -86,6 +108,19 @@ export default async function FinancialsPage() {
   });
   const totalLogisticsCosts = containers.reduce((s, c) => s + c.costs.reduce((s2, x) => s2 + x.amountUsd, 0), 0);
 
+  const [purchasingSpend, rawMaterialCost, packagingCost, wasteCost, logisticsByCategory, claims, factories] =
+    await Promise.all([
+      getPurchasingSpendUsd(),
+      getRawMaterialCostUsd(),
+      getPackagingCostUsd(),
+      getWasteCostUsd(),
+      getLogisticsCostByCategory(),
+      prisma.claim.findMany({ include: { client: true }, orderBy: { claimDate: "desc" }, take: 200 }),
+      prisma.factory.findMany({ select: { id: true, name: true, hourlyWageUsd: true }, orderBy: { name: "asc" } }),
+    ]);
+
+  const partialMargin = totalNetOrderValue - totalLogisticsCosts - purchasingSpend - rawMaterialCost - packagingCost - wasteCost;
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
@@ -96,7 +131,7 @@ export default async function FinancialsPage() {
         <PrintButton />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <Card>
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{financialsDict.totalOrderValueLabel}</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">${totalOrderValue.toLocaleString()}</p>
@@ -105,7 +140,102 @@ export default async function FinancialsPage() {
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{financialsDict.totalLogisticsCostsLabel}</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">${totalLogisticsCosts.toLocaleString()}</p>
         </Card>
+        <Card>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{financialsDict.purchasingSpendLabel}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">${purchasingSpend.toLocaleString()}</p>
+        </Card>
+        <Card>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{financialsDict.rawMaterialCostLabel}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">${rawMaterialCost.toLocaleString()}</p>
+        </Card>
+        <Card>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{financialsDict.packagingCostLabel}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">${packagingCost.toLocaleString()}</p>
+        </Card>
+        <Card>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{financialsDict.wasteCostLabel}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">${wasteCost.toLocaleString()}</p>
+        </Card>
       </div>
+      <p className="text-xs text-slate-400">{financialsDict.costInputNote}</p>
+
+      <Card className="border-emerald-200 bg-emerald-50">
+        <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">{financialsDict.partialMarginLabel}</p>
+        <p className="mt-1 text-2xl font-semibold text-emerald-900">${partialMargin.toLocaleString()}</p>
+        <p className="mt-1 text-xs text-emerald-700">{financialsDict.partialMarginNote}</p>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">{financialsDict.logisticsByCategoryTitle}</h2>
+          {logisticsByCategory.length > 0 ? (
+            <dl className="mt-3 space-y-1 text-sm">
+              {logisticsByCategory.map((row) => (
+                <div key={row.category} className="flex justify-between gap-4">
+                  <dt className="text-slate-500">{COST_CATEGORY_LABEL[row.category] ?? row.category}</dt>
+                  <dd className="text-end text-slate-800">${row.totalUsd.toLocaleString()}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="mt-2 text-sm text-slate-400">{financialsDict.noCostsYet}</p>
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="text-sm font-semibold text-slate-900">{financialsDict.laborSectionTitle}</h2>
+          <p className="mt-1 text-xs text-slate-500">{financialsDict.laborSectionDescription}</p>
+          <dl className="mt-3 space-y-1 text-sm">
+            {factories.map((f) => (
+              <div key={f.id} className="flex justify-between gap-4">
+                <dt className="text-slate-500">{f.name}</dt>
+                <dd className="text-end text-slate-800">
+                  {f.hourlyWageUsd != null ? `$${f.hourlyWageUsd}/hr` : "—"}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      </div>
+
+      <Card className="overflow-x-auto p-0">
+        <div className="px-4 py-3">
+          <h2 className="text-sm font-semibold text-slate-900">{financialsDict.claimsSectionTitle}</h2>
+        </div>
+        <table className="w-full text-start text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
+            <tr>
+              <th className="px-4 py-2 font-medium">{financialsDict.colClaimClient}</th>
+              <th className="px-4 py-2 font-medium">{financialsDict.colClaimReason}</th>
+              <th className="px-4 py-2 font-medium">{financialsDict.colClaimAmount}</th>
+              <th className="px-4 py-2 font-medium">{financialsDict.colClaimStatus}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {claims.map((c) => (
+              <tr key={c.id} className="border-b border-slate-100 last:border-0">
+                <td className="px-4 py-2">
+                  <Link href={`/claims/${c.id}`} className="font-medium text-emerald-700 hover:underline">
+                    {c.client.name}
+                  </Link>
+                </td>
+                <td className="px-4 py-2">{dict[CLAIM_REASON_LABEL_KEY[c.reason]]}</td>
+                <td className="px-4 py-2">${c.valueUsd.toLocaleString()}</td>
+                <td className="px-4 py-2">
+                  <Badge color={isCreditedClaim(c.status) ? "red" : "slate"}>{dict[CLAIM_STATUS_LABEL_KEY[c.status]]}</Badge>
+                </td>
+              </tr>
+            ))}
+            {claims.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
+                  {financialsDict.noClaimsYet}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Card>
 
       <Card className="overflow-x-auto p-0">
         <div className="px-4 py-3">

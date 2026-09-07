@@ -6,7 +6,7 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/locale-context";
 
-export function ReceiptForm({ ticketId }: { ticketId: string }) {
+export function ReceiptForm({ ticketId, canSeeCost }: { ticketId: string; canSeeCost: boolean }) {
   const [state, formAction, pending] = useActionState(recordReceiptAction.bind(null, ticketId), undefined);
   const errorMessage = typeof state === "string" && state !== "ok" ? state : undefined;
   const fullDict = useTranslations();
@@ -36,6 +36,11 @@ export function ReceiptForm({ ticketId }: { ticketId: string }) {
         <FieldGroup label={dict.netWeightKg}>
           <Input name="netWeightKg" type="number" step="0.1" />
         </FieldGroup>
+        {canSeeCost && (
+          <FieldGroup label={dict.pricePerKgUsd}>
+            <Input name="pricePerKgUsd" type="number" step="0.001" min="0" />
+          </FieldGroup>
+        )}
         <FieldGroup label={dict.electronicWeightCardNo}>
           <Input name="electronicWeightCardNo" />
         </FieldGroup>

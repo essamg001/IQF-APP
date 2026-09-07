@@ -70,6 +70,22 @@ export async function updateFactoryAccreditationAction(factoryId: string, formDa
   revalidatePath("/settings");
 }
 
+const factoryLaborRateSchema = z.object({
+  hourlyWageUsd: z.coerce.number().nonnegative().optional(),
+});
+
+// A flat blended rate, deliberately kept separate from accreditation above --
+// distinct concern (costing skeleton input, see /financials), just happens
+// to also live on Factory. Gated the same way as accreditation: Owner only.
+export async function updateFactoryLaborRateAction(factoryId: string, formData: FormData) {
+  if (!(await requireOwner())) return;
+
+  const raw = formData.get("hourlyWageUsd");
+  const parsed = factoryLaborRateSchema.parse({ hourlyWageUsd: raw === "" ? undefined : raw });
+  await prisma.factory.update({ where: { id: factoryId }, data: parsed });
+  revalidatePath("/settings");
+}
+
 export async function addColdRoomAction(formData: FormData) {
   if (!(await requireOwner())) return;
 

@@ -455,6 +455,14 @@ model Factory {
   // Equipment Verification can compare actual vs. target directly.
   chlorineSetPointPpm Float?
 
+  // A flat blended hourly rate -- the input side of the costing skeleton
+  // (src/app/(app)/financials/page.tsx). Deliberately NOT multiplied into a
+  // labor cost rollup yet: DailyLabourEntry records headcount per
+  // department/role but not hours actually worked, so a real cost figure
+  // would require guessing a shift-length assumption rather than reading
+  // one. Rate capture now, rollup once real hours are tracked.
+  hourlyWageUsd Float?
+
   shifts ShiftLog[]
   lots   ProductionLot[]
 
@@ -702,6 +710,10 @@ model HarvestTicket {
   palletsReceived        Int?
   grossWeightKg          Float?
   netWeightKg            Float?
+  // Price paid to the farm per kg of raw material received -- the input
+  // side of the costing skeleton (src/app/(app)/financials/page.tsx). Null
+  // for every ticket until real pricing data is entered.
+  pricePerKgUsd          Float?
   electronicWeightCardNo String?
   productTempC           Float?
   optimumTempC           Float?
@@ -1254,6 +1266,12 @@ model Waste {
   quantity Float
   reason   String
   date     DateTime  @default(now())
+  // Dollar value of this write-off -- the input side of the costing
+  // skeleton (src/app/(app)/financials/page.tsx). Entered directly per
+  // event rather than a cost-per-tonne rate, since waste reasons vary
+  // widely in what they're actually worth (a spoiled finished pallet is
+  // worth far more than raw fruit rejected off the belt).
+  costUsd  Float?
 }
 
 enum WasteClassification {
@@ -2910,6 +2928,11 @@ model PackagingMaterial {
   // single pallet base, cover, and set of corners).
   quantityPerCarton Float?
   quantityPerPallet Float?
+  // Cost per `unit` of this material -- the input side of the costing
+  // skeleton (src/app/(app)/financials/page.tsx). Multiplied against
+  // PackagingMaterialItem.quantityUsed to get real packaging spend once
+  // both are on file.
+  costPerUnitUsd Float?
   notes         String?
   isTestData    Boolean  @default(false)
   createdAt     DateTime @default(now())

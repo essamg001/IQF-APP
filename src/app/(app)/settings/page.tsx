@@ -12,6 +12,7 @@ import { getDictionary } from "@/lib/i18n/getDictionary";
 import {
   addFactoryAction,
   updateFactoryAccreditationAction,
+  updateFactoryLaborRateAction,
   addColdRoomAction,
   addFieldAction,
   deleteFieldAction,
@@ -240,6 +241,17 @@ export default async function SettingsPage({
                   </FieldGroup>
                   <FieldGroup label={dict.nfsaAccreditationCodeLabel}>
                     <Input name="nfsaAccreditationCode" defaultValue={f.nfsaAccreditationCode ?? ""} className="w-40 text-xs" />
+                  </FieldGroup>
+                  <Button type="submit" variant="secondary" className="text-xs">
+                    {dict.saveButton}
+                  </Button>
+                </form>
+                <form
+                  action={updateFactoryLaborRateAction.bind(null, f.id)}
+                  className="mt-2 flex flex-wrap items-end gap-2"
+                >
+                  <FieldGroup label={dict.hourlyWageLabel}>
+                    <Input name="hourlyWageUsd" type="number" step="0.01" min="0" defaultValue={f.hourlyWageUsd ?? ""} className="w-40 text-xs" />
                   </FieldGroup>
                   <Button type="submit" variant="secondary" className="text-xs">
                     {dict.saveButton}

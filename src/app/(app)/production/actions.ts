@@ -125,6 +125,12 @@ export async function markWasteAction(palletId: string, formData: FormData) {
   const quantity = Number(formData.get("quantity") ?? 1);
   if (!reason) return;
 
+  // Only rendered for users who can see cost data (canSeeFinancials) -- a
+  // user without that access simply never sends this field, so it stays
+  // null rather than needing its own server-side permission check.
+  const costUsdRaw = formData.get("costUsd");
+  const costUsd = costUsdRaw && String(costUsdRaw).trim() !== "" ? Number(costUsdRaw) : undefined;
+
   const session = await auth();
 
   await prisma.$transaction(async (tx) => {
@@ -134,7 +140,7 @@ export async function markWasteAction(palletId: string, formData: FormData) {
     // Available to Sell's committed figure, and the allocated-pallets
     // display all correctly reflect that this pallet no longer counts.
     await tx.pallet.update({ where: { id: palletId }, data: { status: "WASTE", orderId: null, clientId: null } });
-    await tx.waste.create({ data: { palletId, reason, quantity } });
+    await tx.waste.create({ data: { palletId, reason, quantity, costUsd } });
   });
 
   await logActivity({

@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/locale-context";
 import type { PackagingMaterial } from "@prisma/client";
 
-export function MaterialsSection({ factoryId, materials }: { factoryId: string; materials: PackagingMaterial[] }) {
+export function MaterialsSection({
+  factoryId,
+  materials,
+  canSeeCost,
+}: {
+  factoryId: string;
+  materials: PackagingMaterial[];
+  canSeeCost: boolean;
+}) {
   const [state, formAction, pending] = useActionState(addPackagingMaterialAction, undefined);
   const formRef = useRef<HTMLFormElement>(null);
   const errorMessage = state && state !== "ok" ? state : undefined;
@@ -30,6 +38,7 @@ export function MaterialsSection({ factoryId, materials }: { factoryId: string; 
                 <th className="px-3 py-1 font-medium">{t.consumptionRatioLabel}</th>
                 <th className="px-3 py-1 font-medium">{t.quantityPerCartonLabel}</th>
                 <th className="px-3 py-1 font-medium">{t.quantityPerPalletLabel}</th>
+                {canSeeCost && <th className="px-3 py-1 font-medium">{t.costPerUnitLabel}</th>}
               </tr>
             </thead>
             <tbody>
@@ -42,6 +51,7 @@ export function MaterialsSection({ factoryId, materials }: { factoryId: string; 
                   <td className="px-3 py-1">{m.consumptionRatioPerTon ?? "—"}</td>
                   <td className="px-3 py-1">{m.quantityPerCarton ?? "—"}</td>
                   <td className="px-3 py-1">{m.quantityPerPallet ?? "—"}</td>
+                  {canSeeCost && <td className="px-3 py-1">{m.costPerUnitUsd != null ? `$${m.costPerUnitUsd}` : "—"}</td>}
                 </tr>
               ))}
             </tbody>
@@ -104,6 +114,11 @@ export function MaterialsSection({ factoryId, materials }: { factoryId: string; 
             className="px-2 py-1 text-xs"
           />
         </FieldGroup>
+        {canSeeCost && (
+          <FieldGroup label={t.costPerUnitLabel}>
+            <Input name="costPerUnitUsd" type="number" min="0" step="0.01" className="px-2 py-1 text-xs" />
+          </FieldGroup>
+        )}
         <div className="col-span-5 flex items-center gap-3">
           <Button type="submit" variant="secondary" disabled={pending} className="px-2 py-1 text-xs">
             {pending ? dict.common.saving : t.addMaterial}
