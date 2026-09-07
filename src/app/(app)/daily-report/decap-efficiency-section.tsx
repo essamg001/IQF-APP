@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { DecapEfficiencyForm } from "./decap-efficiency-form";
 import { useTranslations } from "@/lib/i18n/locale-context";
@@ -9,19 +10,24 @@ export function DecapEfficiencySection({
   weightInKg,
   weightOutKg,
   calyxKg,
+  rejectedKg,
+  fromRealWeighings,
 }: {
   date: string;
   weightInKg: number;
   weightOutKg: number | null;
   calyxKg: number | null;
+  rejectedKg: number | null;
+  fromRealWeighings: boolean;
 }) {
   const fullDict = useTranslations();
   const dict = fullDict.dailyReport;
 
   const out = weightOutKg ?? 0;
   const calyx = calyxKg ?? 0;
-  const lost = weightInKg > 0 ? weightInKg - out - calyx : 0;
-  const hasData = weightInKg > 0 && (weightOutKg != null || calyxKg != null);
+  const rejected = rejectedKg ?? 0;
+  const lost = weightInKg > 0 ? weightInKg - out - calyx - rejected : 0;
+  const hasData = weightInKg > 0 && (weightOutKg != null || calyxKg != null || rejectedKg != null);
 
   const pct = (v: number) => (weightInKg > 0 ? Math.max(0, (v / weightInKg) * 100) : 0);
   const efficiencyPct = weightInKg > 0 && weightOutKg != null ? (out / weightInKg) * 100 : null;
@@ -32,10 +38,19 @@ export function DecapEfficiencySection({
       <p className="mt-1 text-xs text-slate-500">{dict.decapDescription}</p>
 
       <div className="mt-3">
-        <DecapEfficiencyForm date={date} weightOutKg={weightOutKg} calyxKg={calyxKg} />
+        {fromRealWeighings ? (
+          <p className="no-print text-xs text-slate-500">
+            {dict.decapFromRealWeighings}{" "}
+            <Link href={`/decap-weighing?date=${date}`} className="text-emerald-700 hover:underline">
+              /decap-weighing
+            </Link>
+          </p>
+        ) : (
+          <DecapEfficiencyForm date={date} weightOutKg={weightOutKg} calyxKg={calyxKg} />
+        )}
       </div>
 
-      <div className="mt-4 grid grid-cols-4 gap-3 text-center">
+      <div className="mt-4 grid grid-cols-5 gap-3 text-center">
         <div>
           <p className="text-xs text-slate-500">{dict.weightInLabel}</p>
           <p className="text-lg font-semibold text-slate-900">{weightInKg.toFixed(1)} kg</p>
@@ -47,6 +62,10 @@ export function DecapEfficiencySection({
         <div>
           <p className="text-xs text-slate-500">{dict.calyxLabel}</p>
           <p className="text-lg font-semibold text-slate-600">{calyxKg != null ? `${calyx.toFixed(1)} kg` : "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">{dict.rejectedLabel}</p>
+          <p className="text-lg font-semibold text-amber-700">{rejectedKg != null ? `${rejected.toFixed(1)} kg` : "—"}</p>
         </div>
         <div>
           <p className="text-xs text-slate-500">{dict.lost}</p>
@@ -72,6 +91,12 @@ export function DecapEfficiencySection({
             />
             <div className="w-0.5 bg-white" />
             <div
+              className="flex items-center justify-center bg-amber-500 text-[10px] font-medium text-white"
+              style={{ width: `${pct(rejected)}%` }}
+              title={dict.rejectedTooltip.replace("{value}", rejected.toFixed(1)).replace("{pct}", pct(rejected).toFixed(0))}
+            />
+            <div className="w-0.5 bg-white" />
+            <div
               className="flex items-center justify-center bg-red-500 text-[10px] font-medium text-white"
               style={{ width: `${pct(lost)}%` }}
               title={dict.lostTooltip.replace("{value}", lost.toFixed(1)).replace("{pct}", pct(lost).toFixed(0))}
@@ -83,6 +108,9 @@ export function DecapEfficiencySection({
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-slate-400" /> {dict.calyxLegend.replace("{pct}", pct(calyx).toFixed(0))}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm bg-amber-500" /> {dict.rejectedLegend.replace("{pct}", pct(rejected).toFixed(0))}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-red-500" /> {dict.lostLegend.replace("{pct}", pct(lost).toFixed(0))}

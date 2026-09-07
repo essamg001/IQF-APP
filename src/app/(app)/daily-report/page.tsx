@@ -10,6 +10,7 @@ import { PackingSection } from "./packing-section";
 import { EfficiencySection } from "./efficiency-section";
 import { TemperatureSection } from "./temperature-section";
 import { DecapEfficiencySection } from "./decap-efficiency-section";
+import { getDecapWeighingTotalsForDate } from "@/lib/decapWeighing";
 import { LabourSection } from "./labour-section";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
@@ -41,6 +42,7 @@ export default async function DailyReportPage({
     efficiencyRows,
     temperatureLogs,
     decapLog,
+    decapWeighingTotals,
     decapWeightInAgg,
     labourEntries,
   ] = await Promise.all([
@@ -67,6 +69,7 @@ export default async function DailyReportPage({
       where: { recordedAt: { gte: dayStart, lt: dayEnd } },
     }),
     prisma.decapDailyLog.findUnique({ where: { date: dayStart } }),
+    getDecapWeighingTotalsForDate(dayStart),
     prisma.harvestTicket.aggregate({
       where: { receivedDate: { gte: dayStart, lt: dayEnd } },
       _sum: { netWeightKg: true },
@@ -105,8 +108,10 @@ export default async function DailyReportPage({
       <DecapEfficiencySection
         date={dateStr}
         weightInKg={decapWeightInAgg._sum.netWeightKg ?? 0}
-        weightOutKg={decapLog?.weightOutKg ?? null}
-        calyxKg={decapLog?.calyxKg ?? null}
+        weightOutKg={decapWeighingTotals.productExitKg ?? decapLog?.weightOutKg ?? null}
+        calyxKg={decapWeighingTotals.calyxKg ?? decapLog?.calyxKg ?? null}
+        rejectedKg={decapWeighingTotals.rejectedKg}
+        fromRealWeighings={decapWeighingTotals.weighingCount > 0}
       />
 
       {factories.map((f) => (

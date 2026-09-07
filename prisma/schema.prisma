@@ -781,11 +781,12 @@ model ShiftLog {
 // is the same answer for both IQF1 and IQF2 -- one DecapShift row covers
 // both, unlike ShiftLog which is always factory-specific.
 model DecapShift {
-  id            String         @id @default(cuid())
+  id            String          @id @default(cuid())
   date          DateTime
   shiftType     ShiftType
   qualityChecks QualityCheck[]
-  createdAt     DateTime       @default(now())
+  weighings     DecapWeighing[]
+  createdAt     DateTime        @default(now())
 
   @@unique([date, shiftType])
 }
@@ -2084,6 +2085,57 @@ model DecapDailyLog {
   weightOutKg Float?
   calyxKg     Float?
   createdAt   DateTime @default(now())
+}
+
+// One row per weighing event, digitized from the real "Electronic Weight
+// Card" (Magrabi Agriculture, ACC01121) -- confirmed with the owner
+// (2026-09-07) that this same card format is filled out once per weighing
+// event of any kind, not just product leaving decap: intake, product exit,
+// calyx, and rejected/compost all get their own card. Tied to DecapShift
+// (date + shiftType), never to a Factory -- a truck's destination factory
+// isn't known until it reaches that factory's own arrival office (same
+// reasoning as DecapShift itself; see [[multi_field_lot_shift_automation]]).
+enum DecapWeighingType {
+  INTAKE
+  PRODUCT_EXIT
+  CALYX
+  REJECTED
+}
+
+model DecapWeighing {
+  id          String            @id @default(cuid())
+  decapShiftId String
+  decapShift  DecapShift        @relation(fields: [decapShiftId], references: [id])
+  weighingType DecapWeighingType
+  // The card's own "Site" field -- which of the 3 pack houses. Free text for
+  // now (owner will supply the real 3 names later); don't force it into an
+  // enum until then.
+  packHouse   String?
+  serialNumber String?
+  vehicleNumber String?
+  weighedAt   DateTime?
+
+  // INTAKE/PRODUCT_EXIT are a real two-stage weighing (truck loaded, then
+  // empty, net computed) -- both fields used. CALYX/REJECTED are a single
+  // reading (owner confirmed 2026-09-07: no truck cycle, e.g. a bin weighed
+  // once) -- only firstWeightKg is used, secondWeightKg stays null. Net
+  // weight itself is derived, not stored (see netDecapWeighingKg in
+  // src/lib/decapWeighing.ts), same "derived not typed" reasoning as every
+  // other running-balance field in this app.
+  firstWeightKg          Float?
+  secondWeightKg         Float?
+  emptyCratesDeductionKg Float?
+
+  farmSupplierName String?
+  varietyName      String?
+  cratesIn         Int?
+  cratesOut        Int?
+  recordedByName   String?
+
+  isTestData Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([decapShiftId])
 }
 
 // Named-individual training log for supervisors. supervisorName is free text
