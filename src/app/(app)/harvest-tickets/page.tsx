@@ -8,6 +8,7 @@ import Link from "next/link";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function HarvestTicketsPage() {
   const session = await auth();
@@ -30,7 +31,12 @@ export default async function HarvestTicketsPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/harvest-tickets/new">{dict.newTicket}</LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/harvest-tickets/new" className="no-print">
+            {dict.newTicket}
+          </LinkButton>
+          <PrintButton />
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

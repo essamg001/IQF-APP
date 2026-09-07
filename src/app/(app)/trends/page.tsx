@@ -9,6 +9,7 @@ import { LinkButton } from "@/components/ui/button";
 import Link from "next/link";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function TrendsPage() {
   const session = await auth();
@@ -65,9 +66,12 @@ export default async function TrendsPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/trends/import" variant="secondary">
-          {dict.importHistoricalOrders}
-        </LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/trends/import" variant="secondary" className="no-print">
+            {dict.importHistoricalOrders}
+          </LinkButton>
+          <PrintButton />
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

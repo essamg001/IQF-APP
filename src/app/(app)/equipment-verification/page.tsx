@@ -9,6 +9,7 @@ import { MetalDetectorSection } from "./metal-detector-section";
 import { ChlorineDosingSection } from "./chlorine-dosing-section";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function EquipmentVerificationPage({
   searchParams,
@@ -57,14 +58,17 @@ export default async function EquipmentVerificationPage({
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <form className="flex items-end gap-2">
-          <FieldGroup label={fullDict.common.date}>
-            <Input name="date" type="date" defaultValue={dateStr} />
-          </FieldGroup>
-          <Button type="submit" variant="secondary">
-            {fullDict.common.go}
-          </Button>
-        </form>
+        <div className="flex items-end gap-2">
+          <form className="no-print flex items-end gap-2">
+            <FieldGroup label={fullDict.common.date}>
+              <Input name="date" type="date" defaultValue={dateStr} />
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              {fullDict.common.go}
+            </Button>
+          </form>
+          <PrintButton />
+        </div>
       </div>
 
       {factories.map((f) => {

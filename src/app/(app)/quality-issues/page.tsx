@@ -6,6 +6,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function QualityIssuesPage() {
   const fullDict = getDictionary(await resolveLocale());
@@ -33,7 +34,10 @@ export default async function QualityIssuesPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/quality-issues/new">{dict.reportIssue}</LinkButton>
+        <div className="no-print flex items-center gap-2">
+          <PrintButton />
+          <LinkButton href="/quality-issues/new">{dict.reportIssue}</LinkButton>
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

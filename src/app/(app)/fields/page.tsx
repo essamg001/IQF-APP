@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { FieldsExplorer } from "./fields-explorer";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function FieldsPage() {
   const locale = await resolveLocale();
@@ -17,13 +18,16 @@ export default async function FieldsPage() {
 
   return (
     <div>
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {dict.subtitle
-            .replace("{count}", String(fields.length))
-            .replace("{farms}", String(new Set(fields.map((f) => f.farmName)).size))}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {dict.subtitle
+              .replace("{count}", String(fields.length))
+              .replace("{farms}", String(new Set(fields.map((f) => f.farmName)).size))}
+          </p>
+        </div>
+        <PrintButton />
       </div>
 
       <div className="mt-6">

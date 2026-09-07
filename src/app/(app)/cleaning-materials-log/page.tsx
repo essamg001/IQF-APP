@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { ConsumptionForm } from "./consumption-form";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function CleaningMaterialsLogPage() {
   const locale = await resolveLocale();
@@ -23,11 +24,16 @@ export default async function CleaningMaterialsLogPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-      <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
+      </div>
 
       <Card className="mt-6">
-        <div>
+        <div className="no-print">
           <ConsumptionForm
             factories={factories}
             knownMaterialNames={knownMaterialNames}

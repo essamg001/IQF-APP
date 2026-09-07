@@ -13,6 +13,7 @@ import { PersonalItemShiftRow } from "./check-row";
 import { ScreeningForm } from "./screening-form";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function PersonalItemsPage({
   searchParams,
@@ -51,9 +52,12 @@ export default async function PersonalItemsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
       <Card>
@@ -61,7 +65,7 @@ export default async function PersonalItemsPage({
           <h2 className="text-sm font-semibold text-slate-900">{dict.authorizedPersonnel}</h2>
           {!canManage && <span className="text-xs text-slate-400">{dict.onlyQualityCanEdit}</span>}
         </div>
-        {canManage && <AuthorizationForm />}
+        {canManage && <div className="no-print"><AuthorizationForm /></div>}
         <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 pt-1">
           {authorizations.map((a) => (
             <li key={a.id} className="flex items-center justify-between py-2 text-sm">
@@ -78,7 +82,7 @@ export default async function PersonalItemsPage({
                 </span>
               </span>
               {canManage && (
-                <form action={toggleAuthorizationActiveAction.bind(null, a.id)}>
+                <form className="no-print" action={toggleAuthorizationActiveAction.bind(null, a.id)}>
                   <ConfirmSubmitButton
                     confirmMessage={(a.isActive ? dict.revokeConfirm : dict.reinstateConfirm).replace("{name}", a.name)}
                     className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
@@ -96,7 +100,7 @@ export default async function PersonalItemsPage({
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-900">{dict.shiftCheckTitle}</h2>
-          <form className="flex items-end gap-2">
+          <form className="no-print flex items-end gap-2">
             <FieldGroup label={fullDict.common.date}>
               <Input name="date" type="date" defaultValue={dateStr} />
             </FieldGroup>
@@ -144,7 +148,7 @@ export default async function PersonalItemsPage({
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">{dict.screeningTitle}</h2>
         <p className="mt-1 text-xs text-slate-500">{dict.screeningSubtitle}</p>
-        <div className="mt-4">
+        <div className="no-print mt-4">
           <ScreeningForm factories={factories} knownSupervisorNames={knownScreeningSupervisorNames} />
         </div>
         <div className="mt-4 overflow-x-auto">

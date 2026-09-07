@@ -8,6 +8,7 @@ import { LinkButton } from "@/components/ui/button";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 import type { CropProtectionGrowthStage } from "@prisma/client";
 
 const STAGES: CropProtectionGrowthStage[] = ["MOTHER_PLANTS", "NURSERY", "OPEN_FIELD", "UNIDO_GREENHOUSE"];
@@ -67,10 +68,17 @@ export default async function CropProtectionPlanPage({
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        {plan && <LinkButton href={`/crop-protection-plan/${plan.id}/entries/new`}>{dict.addEntry}</LinkButton>}
+        <div className="flex items-center gap-2">
+          {plan && (
+            <LinkButton className="no-print" href={`/crop-protection-plan/${plan.id}/entries/new`}>
+              {dict.addEntry}
+            </LinkButton>
+          )}
+          <PrintButton />
+        </div>
       </div>
 
-      <div className="mt-6 flex gap-1 border-b border-slate-200">
+      <div className="no-print mt-6 flex gap-1 border-b border-slate-200">
         {STAGES.map((s) => (
           <Link
             key={s}
@@ -149,7 +157,7 @@ export default async function CropProtectionPlanPage({
                     <td className="px-3 py-2 text-slate-600">{e.proposedPhiDays ?? "—"}</td>
                     <td className="px-3 py-2 text-slate-600">{e.strictestMrlLimitMgKg ?? "—"}</td>
                     <td className="px-3 py-2 text-slate-600">{e.applicationTimeWindow ?? "—"}</td>
-                    <td className="px-3 py-2">
+                    <td className="no-print px-3 py-2">
                       <Link
                         href={`/crop-protection-plan/${plan.id}/entries/${e.id}/edit`}
                         className="text-xs text-emerald-700 hover:underline"
@@ -174,7 +182,7 @@ export default async function CropProtectionPlanPage({
                   <span>{e.commercialProductName}</span>
                   <Link
                     href={`/crop-protection-plan/${plan.id}/entries/${e.id}/edit`}
-                    className="text-xs text-emerald-700 hover:underline"
+                    className="no-print text-xs text-emerald-700 hover:underline"
                   >
                     {dict.editLink}
                   </Link>

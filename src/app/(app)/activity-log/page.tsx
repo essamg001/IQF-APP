@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { PrintButton } from "@/components/ui/print-button";
 
 function entityHref(entityType: string, entityId: string): string | null {
   switch (entityType) {
@@ -54,9 +55,12 @@ export default async function ActivityLogPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
       <Card className="overflow-x-auto p-0">

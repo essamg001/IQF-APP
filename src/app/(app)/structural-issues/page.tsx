@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dates";
 import { isStructuralIssueOverdue, STRUCTURAL_ISSUE_LOCATIONS } from "@/lib/structuralIssues";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 const STATUS_COLOR = {
   REPORTED: "amber",
@@ -69,10 +70,15 @@ export default async function StructuralIssuesPage({
             )}
           </p>
         </div>
-        <LinkButton href="/structural-issues/new">{dict.reportIssue}</LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/structural-issues/new" className="no-print">
+            {dict.reportIssue}
+          </LinkButton>
+          <PrintButton />
+        </div>
       </div>
 
-      <form className="mt-4 flex gap-3" method="get">
+      <form className="no-print mt-4 flex gap-3" method="get">
         <select name="location" defaultValue={location ?? ""} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
           <option value="">{dict.allLocations}</option>
           {STRUCTURAL_ISSUE_LOCATIONS.map((loc) => (

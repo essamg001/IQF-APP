@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import { PrintButton } from "@/components/ui/print-button";
 
 const STATUS_COLOR = {
   IN_STORAGE: "slate",
@@ -69,9 +70,12 @@ export default async function StoragePage({
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/storage/map" variant="secondary">
-          {dict.storageMapLink}
-        </LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/storage/map" variant="secondary" className="no-print">
+            {dict.storageMapLink}
+          </LinkButton>
+          <PrintButton />
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-5 gap-3">
@@ -83,7 +87,7 @@ export default async function StoragePage({
         ))}
       </div>
 
-      <form className="mt-4 flex gap-3" method="get">
+      <form className="no-print mt-4 flex gap-3" method="get">
         <select name="status" defaultValue={status ?? ""} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
           <option value="">{dict.allStatuses}</option>
           <option value="IN_STORAGE">{dict.statusInStorageOption}</option>

@@ -7,6 +7,7 @@ import { EquipmentForm } from "./equipment-form";
 import { EquipmentCard } from "./equipment-card";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function ForkliftConditionPage({
   searchParams,
@@ -42,12 +43,15 @@ export default async function ForkliftConditionPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
-      <Card>
+      <Card className="no-print">
         <form className="flex flex-wrap items-end gap-3">
           <FieldGroup label={fullDict.common.factory}>
             <Select name="factoryId" defaultValue={factoryId}>
@@ -76,7 +80,7 @@ export default async function ForkliftConditionPage({
         </form>
       </Card>
 
-      <Card>
+      <Card className="no-print">
         <h2 className="text-sm font-semibold text-slate-900">{dict.registerEquipmentTitle}</h2>
         <EquipmentForm factoryId={factoryId} action={addForkliftEquipmentAction} />
       </Card>

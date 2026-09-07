@@ -9,6 +9,7 @@ import Link from "next/link";
 import { PostDecapForm } from "./post-decap-form";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function PostDecapQualityPage({
   searchParams,
@@ -63,9 +64,12 @@ export default async function PostDecapQualityPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
       <div className="flex gap-4">
@@ -80,7 +84,7 @@ export default async function PostDecapQualityPage({
         </Badge>
       </div>
 
-      <Card className="max-w-3xl">
+      <Card className="no-print max-w-3xl">
         <form className="flex flex-wrap items-end gap-3">
           <FieldGroup label={fullDict.common.date}>
             <Input name="date" type="date" defaultValue={dateStr} />
@@ -97,7 +101,7 @@ export default async function PostDecapQualityPage({
         </form>
       </Card>
 
-      <div className="max-w-3xl">
+      <div className="no-print max-w-3xl">
         <PostDecapForm
           date={dateStr}
           shiftType={shiftType}

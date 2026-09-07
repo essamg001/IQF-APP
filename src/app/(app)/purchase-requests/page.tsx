@@ -8,6 +8,7 @@ import Link from "next/link";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 const STATUS_COLOR = {
   REQUESTED: "amber",
@@ -41,6 +42,7 @@ export default async function PurchaseRequestsPage() {
   const canManage = canManagePurchasing(session?.user);
   const canApproveAcct = canApproveAccounting(session?.user);
 
+  const now = new Date();
   const requests = await prisma.purchaseRequest.findMany({
     include: { factory: true, items: true, _count: { select: { photos: true } } },
     orderBy: { requestedAt: "desc" },
@@ -76,8 +78,14 @@ export default async function PurchaseRequestsPage() {
               </span>
             )}
           </p>
+          <p className="print-only mt-1 text-xs text-slate-500">
+            {common.printedOn.replace("{date}", formatDate(now, "dd MMM yyyy HH:mm", locale))}
+          </p>
         </div>
-        <LinkButton href="/purchase-requests/new">{dict.newRequest}</LinkButton>
+        <div className="no-print flex items-center gap-2">
+          <PrintButton />
+          <LinkButton href="/purchase-requests/new">{dict.newRequest}</LinkButton>
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

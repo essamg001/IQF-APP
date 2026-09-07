@@ -12,6 +12,7 @@ import { TestDataBadge, TEST_DATA_TEXT_CLASS } from "@/components/test-data-badg
 import { cn } from "@/lib/cn";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 const MICRO_COLOR = {
   PENDING: "amber",
@@ -40,6 +41,7 @@ export default async function ProductionPage() {
     SLICED: dict.formatSliced,
     DICED: dict.formatDiced,
   };
+  const now = new Date();
   const lots = await prisma.productionLot.findMany({
     include: {
       shift: true,
@@ -58,8 +60,14 @@ export default async function ProductionPage() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+          <p className="print-only mt-1 text-xs text-slate-500">
+            {fullDict.common.printedOn.replace("{date}", formatDate(now, "dd MMM yyyy HH:mm", locale))}
+          </p>
         </div>
-        <LinkButton href="/production/new">{dict.logProductionLot}</LinkButton>
+        <div className="no-print flex items-center gap-2">
+          <PrintButton />
+          <LinkButton href="/production/new">{dict.logProductionLot}</LinkButton>
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

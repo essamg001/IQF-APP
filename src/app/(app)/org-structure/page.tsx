@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/button";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 import type { OrgPosition } from "@prisma/client";
 
 function buildTree(positions: OrgPosition[]) {
@@ -43,7 +44,7 @@ function PositionRow({
             {position.headcount > 0 && ` · ${dict.headcountSuffix.replace("{count}", String(position.headcount))}`}
           </p>
         </div>
-        <Link href={`/org-structure/${position.id}/edit`} className="text-xs text-emerald-700 hover:underline">
+        <Link href={`/org-structure/${position.id}/edit`} className="no-print text-xs text-emerald-700 hover:underline">
           {dict.editLink}
         </Link>
       </div>
@@ -72,7 +73,12 @@ export default async function OrgStructurePage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/org-structure/new">{dict.addPosition}</LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/org-structure/new" className="no-print">
+            {dict.addPosition}
+          </LinkButton>
+          <PrintButton />
+        </div>
       </div>
 
       <Card className="mt-6">

@@ -6,6 +6,7 @@ import { egyptDateKey, egyptDateOnly, egyptMonthKey, formatYMD, parseDateKey } f
 import { QualityPeriodTable, type MetricDef, type Period, type PeriodRow } from "./quality-period-table";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 import type { Locale } from "@prisma/client";
 
 // English versions drive the actual aggregation (only `.key` is read there);
@@ -191,7 +192,8 @@ export default async function QualityPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="no-print flex gap-2">
+          <PrintButton />
           <LinkButton href="/arrival-inspection" variant="secondary">
             {dict.logArrivalInspection}
           </LinkButton>

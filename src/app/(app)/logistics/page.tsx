@@ -11,6 +11,7 @@ import { formatDate } from "@/lib/dates";
 import { differenceInDays } from "date-fns";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function LogisticsPage({
   searchParams,
@@ -111,6 +112,7 @@ export default async function LogisticsPage({
             {isLoadOutStation ? dict.subtitleLoadOut : dict.subtitleLogistics}
           </p>
         </div>
+        <PrintButton />
       </div>
 
       <h2 className="mt-6 text-sm font-semibold text-slate-900">
@@ -172,7 +174,7 @@ export default async function LogisticsPage({
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="no-print px-4 py-2">
                     <LinkButton href={`/logistics/new?orderId=${o.id}`} variant="secondary" className="text-xs">
                       {o.containers.length === 0 ? loadOutDict.takeToLoadOut : loadOutDict.addAnotherContainer}
                     </LinkButton>
@@ -220,7 +222,7 @@ export default async function LogisticsPage({
       )}
 
       <h2 className="mt-6 text-sm font-semibold text-slate-900">{dict.containersHeading}</h2>
-      <Card className="mt-2 p-3">
+      <Card className="no-print mt-2 p-3">
         <form className="flex items-end gap-3">
           <div className="flex-1">
             <label className="mb-1 block text-sm font-medium text-slate-700">{dict.searchLabel}</label>

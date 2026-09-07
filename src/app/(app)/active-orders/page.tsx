@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dates";
 import type { Format } from "@prisma/client";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 const STAGE_COLOR = {
   CONFIRMED: "slate",
@@ -45,9 +46,12 @@ export default async function ActiveOrdersPage() {
           <h1 className="text-xl font-semibold text-slate-900">{fullDict.nav.activeOrders}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle.replace("{count}", String(orders.length))}</p>
         </div>
-        <LinkButton href="/orders" variant="secondary">
-          {dict.allOrders}
-        </LinkButton>
+        <div className="flex items-center gap-2">
+          <PrintButton />
+          <LinkButton href="/orders" variant="secondary" className="no-print">
+            {dict.allOrders}
+          </LinkButton>
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

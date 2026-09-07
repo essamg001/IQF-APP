@@ -11,6 +11,7 @@ import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { CertificationForm } from "./certification-form";
 import { deleteCertificationAction } from "./actions";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function CertificationsPage() {
   const session = await auth();
@@ -34,12 +35,15 @@ export default async function CertificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
-      <Card>
+      <Card className="no-print">
         <CertificationForm />
       </Card>
 
@@ -52,7 +56,7 @@ export default async function CertificationsPage() {
               <th className="px-4 py-2 font-medium">{dict.colValidTo}</th>
               <th className="px-4 py-2 font-medium">{dict.colStatus}</th>
               <th className="px-4 py-2 font-medium">{dict.colNotes}</th>
-              <th className="px-4 py-2 font-medium"></th>
+              <th className="no-print px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -67,7 +71,7 @@ export default async function CertificationsPage() {
                     <Badge color={trainingExpiryColor(status)}>{STATUS_LABEL[status]}</Badge>
                   </td>
                   <td className="px-4 py-2 text-slate-500">{c.notes ?? "—"}</td>
-                  <td className="px-4 py-2">
+                  <td className="no-print px-4 py-2">
                     <div className="flex items-center gap-3">
                       <Link href={`/certifications/${c.id}/edit`} className="text-xs text-emerald-700 hover:underline">
                         {fullDict.common.edit}

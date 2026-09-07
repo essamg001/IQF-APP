@@ -9,6 +9,7 @@ import { ItemForm } from "./item-form";
 import { ToolShiftRow } from "./check-row";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function ToolInventoryPage({
   searchParams,
@@ -34,14 +35,19 @@ export default async function ToolInventoryPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">{dict.registeredTools}</h2>
-        <ItemForm />
+        <div className="no-print">
+          <ItemForm />
+        </div>
         <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100 pt-1">
           {items.map((i) => (
             <li key={i.id} className="flex items-center justify-between py-2 text-sm">
@@ -50,7 +56,7 @@ export default async function ToolInventoryPage({
                 <span className="text-slate-400"> × {i.count}</span>
                 {i.location && <span className="text-slate-400"> · {i.location}</span>}
               </span>
-              <form action={toggleToolInventoryItemActiveAction.bind(null, i.id)}>
+              <form action={toggleToolInventoryItemActiveAction.bind(null, i.id)} className="no-print">
                 <ConfirmSubmitButton
                   confirmMessage={(i.isActive ? dict.retireConfirm : dict.reinstateConfirm).replace("{name}", i.name)}
                   className="text-xs text-slate-400 hover:text-slate-600 hover:underline"
@@ -67,7 +73,7 @@ export default async function ToolInventoryPage({
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-900">{dict.shiftCheckTitle}</h2>
-          <form className="flex items-end gap-2">
+          <form className="no-print flex items-end gap-2">
             <FieldGroup label={fullDict.common.date}>
               <Input name="date" type="date" defaultValue={dateStr} />
             </FieldGroup>

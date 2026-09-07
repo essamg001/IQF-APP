@@ -16,6 +16,7 @@ import { TestDataBadge } from "@/components/test-data-badge";
 import { cn } from "@/lib/cn";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 // Same slice-to-40 truncation as before, except a linked-to lot is never
 // silently dropped just because it's old -- it's spliced back in at the
@@ -85,9 +86,12 @@ export default async function LabPage({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -122,7 +126,9 @@ export default async function LabPage({ searchParams }: { searchParams: Promise<
                     shift.holdSince ? formatDate(shift.holdSince, "dd MMM yyyy HH:mm", locale) : "—"
                   )}
                 </p>
-                <ResolveHoldForm shiftId={shift.id} />
+                <div className="no-print">
+                  <ResolveHoldForm shiftId={shift.id} />
+                </div>
               </div>
             ))}
           </div>
@@ -159,7 +165,7 @@ export default async function LabPage({ searchParams }: { searchParams: Promise<
                       current="dispatch"
                       labels={[dict.awaitingDispatchTitle, dict.sentAwaitingResultTitle, dict.resolvedTitle]}
                     />
-                    <form action={markSentToLabAction.bind(null, r.id)} className="flex flex-wrap items-end gap-3">
+                    <form action={markSentToLabAction.bind(null, r.id)} className="no-print flex flex-wrap items-end gap-3">
                       <FieldGroup label={dict.labNameLabel}>
                         <Input name="labName" className="w-64" />
                       </FieldGroup>
@@ -299,7 +305,7 @@ export default async function LabPage({ searchParams }: { searchParams: Promise<
                       current="dispatch"
                       labels={[dict.awaitingDispatchTitle, dict.sentAwaitingResultTitle, dict.resolvedTitle]}
                     />
-                    <form action={markMrlSentToLabAction.bind(null, r.id)} className="flex flex-wrap items-end gap-3">
+                    <form action={markMrlSentToLabAction.bind(null, r.id)} className="no-print flex flex-wrap items-end gap-3">
                       <FieldGroup label={dict.labNameLabel}>
                         <Input name="labName" className="w-64" />
                       </FieldGroup>

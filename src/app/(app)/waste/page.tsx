@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { DisposalForm } from "./disposal-form";
+import { PrintButton } from "@/components/ui/print-button";
 
 const CLASSIFICATION_COLOR = { HAZARDOUS: "red", ORGANIC: "green", OTHER: "slate" } as const;
 
@@ -48,8 +49,13 @@ export default async function WastePage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-      <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
+      </div>
 
       <div className="mt-4 grid grid-cols-4 gap-3">
         <Card className="p-3 text-center">
@@ -123,7 +129,7 @@ export default async function WastePage() {
       <Card className="mt-6">
         <h2 className="text-sm font-semibold text-slate-900">{dict.disposalRegisterTitle}</h2>
         <p className="mt-1 text-xs text-slate-500">{dict.disposalRegisterSubtitle}</p>
-        <div className="mt-4">
+        <div className="no-print mt-4">
           <DisposalForm
             factories={factories}
             knownSupervisorNames={knownSupervisorNames}

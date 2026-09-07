@@ -9,6 +9,7 @@ import { canSignAsHeadOfProduction, canSignAsHeadOfMaintenance } from "@/lib/rol
 import { CleaningShiftCard } from "./cleaning-shift-card";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function CleaningPage({
   searchParams,
@@ -43,7 +44,8 @@ export default async function CleaningPage({
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
         <div className="flex items-end gap-3">
-          <form className="flex items-end gap-2">
+          <PrintButton />
+          <form className="no-print flex items-end gap-2">
             <FieldGroup label={fullDict.common.date}>
               <Input name="date" type="date" defaultValue={dateStr} />
             </FieldGroup>
@@ -51,7 +53,7 @@ export default async function CleaningPage({
               {fullDict.common.go}
             </Button>
           </form>
-          <LinkButton href="/cleaning/history" variant="secondary">
+          <LinkButton href="/cleaning/history" variant="secondary" className="no-print">
             {dict.viewHistory}
           </LinkButton>
         </div>

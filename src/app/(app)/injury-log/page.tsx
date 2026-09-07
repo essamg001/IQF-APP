@@ -7,6 +7,7 @@ import { InjuryRegisterSection } from "./injury-register-section";
 import { runningBalances } from "@/lib/injuryLog";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function InjuryLogPage({
   searchParams,
@@ -53,12 +54,15 @@ export default async function InjuryLogPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
-      <Card>
+      <Card className="no-print">
         <form className="flex flex-wrap items-end gap-3">
           <FieldGroup label={fullDict.common.factory}>
             <Select name="factoryId" defaultValue={factoryId}>
@@ -92,7 +96,7 @@ export default async function InjuryLogPage({
         <p className="mt-1 text-xs text-slate-500">
           {dict.monthHeaderSubtitle.replace("{month}", MONTH_LABELS[month - 1]).replace("{year}", String(year))}
         </p>
-        <form action={updateMonthlyFirstAidSupplyLogAction} className="mt-3 grid grid-cols-3 gap-3">
+        <form action={updateMonthlyFirstAidSupplyLogAction} className="no-print mt-3 grid grid-cols-3 gap-3">
           <input type="hidden" name="factoryId" value={factoryId} />
           <input type="hidden" name="month" value={month} />
           <input type="hidden" name="year" value={year} />

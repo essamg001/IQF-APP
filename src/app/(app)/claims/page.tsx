@@ -8,6 +8,7 @@ import Link from "next/link";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 const REASON_LABEL_KEY = {
   QUALITY: "claimReasonQuality",
@@ -46,7 +47,12 @@ export default async function ClaimsPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/claims/new">{dict.fileClaim}</LinkButton>
+        <div className="flex items-center gap-2">
+          <PrintButton />
+          <LinkButton href="/claims/new" className="no-print">
+            {dict.fileClaim}
+          </LinkButton>
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

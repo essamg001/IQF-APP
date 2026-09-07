@@ -8,6 +8,7 @@ import { canSignAsHeadOfProduction } from "@/lib/roles";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { ChecklistFactoryCard } from "./checklist-factory-card";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function DailyChecklistPage({
   searchParams,
@@ -45,20 +46,23 @@ export default async function DailyChecklistPage({
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <form className="flex items-end gap-2">
-          <FieldGroup label={common.date}>
-            <Input name="date" type="date" defaultValue={dateStr} />
-          </FieldGroup>
-          <FieldGroup label={fullDict.dailyReport.shift}>
-            <Select name="shiftType" defaultValue={shiftType}>
-              <option value="DAY">{dict.shift1Day}</option>
-              <option value="NIGHT">{dict.shift2Night}</option>
-            </Select>
-          </FieldGroup>
-          <Button type="submit" variant="secondary">
-            {common.go}
-          </Button>
-        </form>
+        <div className="flex items-end gap-2">
+          <form className="no-print flex items-end gap-2">
+            <FieldGroup label={common.date}>
+              <Input name="date" type="date" defaultValue={dateStr} />
+            </FieldGroup>
+            <FieldGroup label={fullDict.dailyReport.shift}>
+              <Select name="shiftType" defaultValue={shiftType}>
+                <option value="DAY">{dict.shift1Day}</option>
+                <option value="NIGHT">{dict.shift2Night}</option>
+              </Select>
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              {common.go}
+            </Button>
+          </form>
+          <PrintButton />
+        </div>
       </div>
 
       {factories.map((f) => (

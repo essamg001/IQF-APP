@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function ClientsPage() {
   const [session, clients] = await Promise.all([
@@ -28,7 +29,14 @@ export default async function ClientsPage() {
             {clients.length} {dict.clientCountSuffix}
           </p>
         </div>
-        {canManage && <LinkButton href="/clients/new">{dict.newClient}</LinkButton>}
+        <div className="flex items-center gap-2">
+          <PrintButton />
+          {canManage && (
+            <LinkButton href="/clients/new" className="no-print">
+              {dict.newClient}
+            </LinkButton>
+          )}
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dates";
 import { getOrderLifecycleStatus, summarizeLifecycle, type LifecycleStepKey } from "@/lib/orderLifecycle";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 const STAGE_COLOR = {
@@ -79,7 +80,12 @@ export default async function OrdersPage() {
             {orders.length} {dict.orderCountSuffix}
           </p>
         </div>
-        <LinkButton href="/orders/new">{dict.newOrder}</LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/orders/new" className="no-print">
+            {dict.newOrder}
+          </LinkButton>
+          <PrintButton />
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

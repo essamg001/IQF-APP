@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import type { AlertType } from "@prisma/client";
+import { PrintButton } from "@/components/ui/print-button";
 
 // Severity is a property of the alert TYPE (what happened), independent of
 // whether it's been read yet (that's a separate, freshness signal -- see the
@@ -111,8 +112,13 @@ export default async function AlertsPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-      <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
+      </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
         <table className="w-full text-start text-sm">
@@ -123,7 +129,7 @@ export default async function AlertsPage() {
               <th className="px-4 py-2 font-medium">{dict.colRaised}</th>
               <th className="px-4 py-2 font-medium">{common.status}</th>
               <th className="px-4 py-2 font-medium">{dict.colDecision}</th>
-              <th className="px-4 py-2 font-medium"></th>
+              <th className="no-print px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -148,7 +154,11 @@ export default async function AlertsPage() {
                     <Badge color={a.status === "UNREAD" ? "blue" : "slate"}>{STATUS_LABEL[a.status]}</Badge>
                   </td>
                   <td className="px-4 py-2">
-                    {check?.overrideStatus === "PENDING" && canOverride && <QualityOverrideActions checkId={check.id} />}
+                    {check?.overrideStatus === "PENDING" && canOverride && (
+                      <span className="no-print">
+                        <QualityOverrideActions checkId={check.id} />
+                      </span>
+                    )}
                     {check?.overrideStatus === "PENDING" && !canOverride && (
                       <span className="text-xs text-slate-400">{dict.ownerOrProductionOnly}</span>
                     )}
@@ -170,7 +180,7 @@ export default async function AlertsPage() {
                   </td>
                   <td className="px-4 py-2">
                     {a.status === "UNREAD" && !check && (
-                      <form action={markAlertReadAction.bind(null, a.id)}>
+                      <form action={markAlertReadAction.bind(null, a.id)} className="no-print">
                         <Button type="submit" variant="ghost" className="text-xs">
                           {dict.markRead}
                         </Button>

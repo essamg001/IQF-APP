@@ -14,6 +14,7 @@ import {
   translateCleaningFrequency,
   translateCleaningZoneTitle,
 } from "@/lib/i18n/cleaningTerms";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function CleaningSchedulePage({
   searchParams,
@@ -45,16 +46,19 @@ export default async function CleaningSchedulePage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {dict.subtitle
-            .replace("{taskCount}", String(MASTER_CLEANING_TASK_COUNT))
-            .replace("{zoneCount}", String(MASTER_CLEANING_SCHEDULE.length))}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {dict.subtitle
+              .replace("{taskCount}", String(MASTER_CLEANING_TASK_COUNT))
+              .replace("{zoneCount}", String(MASTER_CLEANING_SCHEDULE.length))}
+          </p>
+        </div>
+        <PrintButton />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-1 border-b border-slate-200">
           {factories.map((f) => (
             <a

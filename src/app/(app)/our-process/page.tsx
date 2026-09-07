@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function OurProcessPage() {
   const locale = await resolveLocale();
@@ -32,6 +33,9 @@ export default async function OurProcessPage() {
             {dict.heroTitle}
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-200">{dict.heroSubtitle}</p>
+        </div>
+        <div className="no-print absolute right-6 top-6">
+          <PrintButton />
         </div>
       </section>
 

@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function FieldSprayLogPage() {
   const locale = await resolveLocale();
@@ -33,7 +34,12 @@ export default async function FieldSprayLogPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <LinkButton href="/field-spray-log/new">{dict.logSprayButton}</LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton className="no-print" href="/field-spray-log/new">
+            {dict.logSprayButton}
+          </LinkButton>
+          <PrintButton />
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

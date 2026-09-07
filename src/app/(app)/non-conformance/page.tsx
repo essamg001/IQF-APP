@@ -6,6 +6,7 @@ import Link from "next/link";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function NonConformancePage() {
   const locale = await resolveLocale();
@@ -43,7 +44,12 @@ export default async function NonConformancePage() {
             )}
           </p>
         </div>
-        <LinkButton href="/non-conformance/new">{dict.reportButton}</LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href="/non-conformance/new" className="no-print">
+            {dict.reportButton}
+          </LinkButton>
+          <PrintButton />
+        </div>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">

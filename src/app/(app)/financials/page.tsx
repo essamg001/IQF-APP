@@ -13,6 +13,7 @@ import { updateContainerValueAction, removeContainerCostAction } from "../logist
 import { AddCostForm } from "../logistics/[id]/add-cost-form";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 import Link from "next/link";
 
 // Same math as the order detail page used to run before its value display
@@ -87,9 +88,12 @@ export default async function FinancialsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{financialsDict.title}</h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-500">{financialsDict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{financialsDict.title}</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">{financialsDict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -128,7 +132,7 @@ export default async function FinancialsPage() {
                 <td className="px-4 py-2">{o.client.name}</td>
                 <td className="px-4 py-2">${o.valueUsd.toLocaleString()}</td>
                 <td className="px-4 py-2">${netValues[i].toLocaleString()}</td>
-                <td className="px-4 py-2">
+                <td className="no-print px-4 py-2">
                   <form action={updateOrderValueAction.bind(null, o.id)} className="flex items-end gap-2">
                     <FieldGroup label={o.valueUsd > 0 ? dict.updateValueLabel : dict.setValueLabel}>
                       <Input name="valueUsd" type="number" step="0.01" min="0" defaultValue={o.valueUsd || ""} className="w-32" />
@@ -198,7 +202,7 @@ export default async function FinancialsPage() {
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">{logisticsDict.containerValueTitle}</h3>
-                    <form action={updateContainerValueAction.bind(null, c.id)} className="mt-3 space-y-3">
+                    <form action={updateContainerValueAction.bind(null, c.id)} className="no-print mt-3 space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <FieldGroup label={logisticsDict.pricePerKgLabel}>
                           <Input name="pricePerKgUsd" type="number" step="0.001" min="0" defaultValue={c.pricePerKgUsd ?? ""} />
@@ -237,7 +241,7 @@ export default async function FinancialsPage() {
                               {cost.description && <span className="ms-2 text-slate-500">{cost.description}</span>}
                               <span className="ms-2 text-xs text-slate-400">{cost.incurredAt.toDateString()}</span>
                             </div>
-                            <form action={removeContainerCostAction.bind(null, c.id, cost.id)}>
+                            <form action={removeContainerCostAction.bind(null, c.id, cost.id)} className="no-print">
                               <ConfirmSubmitButton
                                 confirmMessage={logisticsDict.removeCostConfirm
                                   .replace("{amount}", `$${cost.amountUsd.toLocaleString()}`)
@@ -250,7 +254,7 @@ export default async function FinancialsPage() {
                         ))}
                       </ul>
                     )}
-                    <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="no-print mt-4 border-t border-slate-100 pt-4">
                       <AddCostForm containerId={c.id} />
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { FlowDiagram } from "./flow-diagram";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function HaccpFlowDiagramPage() {
   const session = await auth();
@@ -17,9 +18,12 @@ export default async function HaccpFlowDiagramPage() {
 
   return (
     <div>
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">

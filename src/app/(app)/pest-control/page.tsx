@@ -9,6 +9,7 @@ import { RodentTrapForm } from "./rodent-trap-form";
 import { RodentTrapCard } from "./rodent-trap-card";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function PestControlPage({
   searchParams,
@@ -46,12 +47,15 @@ export default async function PestControlPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
-      <Card>
+      <Card className="no-print">
         <form className="flex flex-wrap items-end gap-3">
           <FieldGroup label={fullDict.common.factory}>
             <Select name="factoryId" defaultValue={factoryId}>
@@ -85,7 +89,7 @@ export default async function PestControlPage({
         <p className="mt-1 text-sm text-slate-500">{dict.lightTrapsSubtitle}</p>
       </div>
 
-      <Card>
+      <Card className="no-print">
         <h3 className="text-sm font-semibold text-slate-900">{dict.registerLightTrapTitle}</h3>
         <LightTrapForm factoryId={factoryId} action={addLightTrapAction} />
       </Card>
@@ -104,7 +108,7 @@ export default async function PestControlPage({
         <p className="mt-1 text-sm text-slate-500">{dict.rodentControlSubtitle}</p>
       </div>
 
-      <Card>
+      <Card className="no-print">
         <h3 className="text-sm font-semibold text-slate-900">{dict.registerRodentTrapTitle}</h3>
         <RodentTrapForm factoryId={factoryId} action={addRodentTrapAction} />
       </Card>
