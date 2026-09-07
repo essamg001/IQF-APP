@@ -5,6 +5,7 @@ import {
   totalDailyChecklistItemCount,
 } from "@/lib/dailyChecklist";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import type { Locale } from "@prisma/client";
 import { ChecklistSectionForm } from "./checklist-section-form";
 
 type Score = { itemKey: string; score: number };
@@ -19,6 +20,7 @@ export function ChecklistFactoryCard({
   supervisorsByDepartment,
   canEdit,
   dict,
+  locale,
 }: {
   factoryId: string;
   factoryName: string;
@@ -28,6 +30,7 @@ export function ChecklistFactoryCard({
   supervisorsByDepartment: SupervisorEntry[];
   canEdit: boolean;
   dict: Dictionary["dailyChecklist"];
+  locale: Locale;
 }) {
   const total = totalDailyChecklistItemCount();
   const scoredCount = scores.length;
@@ -48,10 +51,12 @@ export function ChecklistFactoryCard({
           const supervisorName = department
             ? supervisorsByDepartment.find((e) => e.department === department)?.supervisorName
             : null;
+          const localizedLabel = locale === "AR" ? section.labelAr : section.label;
+          const localizedItems = section.items.map((i) => ({ key: i.key, text: locale === "AR" ? i.textAr : i.text }));
           return (
             <div key={section.key} className="rounded-md border border-slate-200 p-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-red-600">
-                {section.letter}. {section.label}
+                {section.letter}. {localizedLabel}
                 {supervisorName && <span className="ms-1 font-normal normal-case text-slate-500">({supervisorName})</span>}
               </h4>
               <div className="mt-1">
@@ -61,7 +66,7 @@ export function ChecklistFactoryCard({
                   date={date}
                   shiftType={shiftType}
                   sectionKey={section.key}
-                  items={section.items}
+                  items={localizedItems}
                   scores={sectionScores}
                   canEdit={canEdit}
                   dict={dict}

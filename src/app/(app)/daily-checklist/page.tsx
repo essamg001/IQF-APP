@@ -76,6 +76,7 @@ export default async function DailyChecklistPage({
           supervisorsByDepartment={supervisorEntries.filter((e) => e.factoryId === f.id)}
           canEdit={canEdit}
           dict={dict}
+          locale={locale}
         />
       ))}
 
