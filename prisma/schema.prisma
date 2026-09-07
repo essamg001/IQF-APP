@@ -193,6 +193,7 @@ enum AlertType {
   CERTIFICATION_EXPIRING
   PALLET_AWAITING_RESHELVE
   PACKAGING_LOW_STOCK
+  WAREHOUSE_STOCK_LOW
 }
 
 enum AlertStatus {
@@ -2894,6 +2895,68 @@ model PackagingMaterialItem {
 
   @@index([dailyLogId])
   @@index([materialId])
+}
+
+// General warehouse stock (cleaning materials, consumables, etc. -- NOT
+// packaging, that's the model above) mirrors PackagingMaterial's
+// catalog+log shape, but as ONE shared balance across both IQF units (the
+// owner confirmed a single central warehouse, unlike packaging which is
+// per-factory), and as a manual periodic stock-take rather than something
+// tied to production output or auto-deducted anywhere. See the Release
+// Order form (STO 02406) this mirrors -- itemName/description/unit here
+// echo that form's own columns.
+model WarehouseStockItem {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String?
+  code          String?
+  unit          String?
+  minStockLevel Float?
+  notes         String?
+  isTestData    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  logItems WarehouseStockLogItem[]
+}
+
+// One header per stock-take date -- @@unique([date]) since this is a single
+// shared warehouse, not per-factory like PackagingMaterialsDailyLog.
+model WarehouseStockLog {
+  id                  String   @id @default(cuid())
+  date                DateTime
+  storeSupervisorName String?
+  createdAt           DateTime @default(now())
+
+  items WarehouseStockLogItem[]
+
+  @@unique([date])
+}
+
+// Closing balance is derived, not stored -- same reasoning as
+// PackagingMaterialItem (see closingBalance() in packagingMaterials.ts,
+// reused as-is here since the math is identical). itemName/unit are
+// denormalized snapshots; itemId links back to the canonical
+// WarehouseStockItem (nullable so an ad-hoc entry never blocks on the
+// catalog existing first).
+model WarehouseStockLogItem {
+  id               String            @id @default(cuid())
+  logId            String
+  log              WarehouseStockLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+  itemId           String?
+  item             WarehouseStockItem? @relation(fields: [itemId], references: [id])
+  itemName         String
+  unit             String?
+  openingBalance   Float?
+  quantityReceived Float? // e.g. purchased in / restocked
+  quantityUsed     Float? // e.g. released to a department
+  quantityDamaged  Float?
+  issuedTo         String? // which department/requester it went to
+  reason           String? // matches the Release Order form's "Reason for request"
+  createdAt        DateTime @default(now())
+
+  @@index([logId])
+  @@index([itemId])
 }
 
 // A flat daily consumption log -- how much of which cleaning chemical was

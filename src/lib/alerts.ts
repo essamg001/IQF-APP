@@ -7,6 +7,7 @@ import { formatViolation, formatTrendWarning, type LimitViolation, type TrendWar
 import { bothLabsApprovedFilter } from "@/lib/microbiology";
 import { getCompanySettings } from "@/lib/companySettings";
 import { getPackagingLowStockWarnings } from "@/lib/packagingMaterials";
+import { getWarehouseStockLowStockWarnings } from "@/lib/warehouseStock";
 
 const MICRO_PENDING_DAYS_THRESHOLD = 3;
 const GLOBALGAP_EXPIRY_WARNING_DAYS = 30;
@@ -40,6 +41,7 @@ export async function generateAlerts() {
     checkPackagingLowStock(),
     checkOrderAllocationOverdue(),
     checkPurchaseRequestOverdue(),
+    checkWarehouseStockLow(),
   ]);
 }
 
@@ -822,5 +824,18 @@ async function checkPackagingLowStock() {
       await upsertAlert("PACKAGING_LOW_STOCK", w.material.id, "OWNER", message);
       await upsertAlert("PACKAGING_LOW_STOCK", w.material.id, "PRODUCTION", message);
     }
+  }
+}
+
+// A warehouse stock item at or under its set minimum -- same ongoing
+// condition pattern as checkPackagingLowStock, just for the single shared
+// warehouse balance (see src/lib/warehouseStock.ts). Targeted at OWNER
+// only, same reasoning as checkPurchaseRequestOverdue: there's no dedicated
+// "Store Supervisor" Role enum value to target directly.
+async function checkWarehouseStockLow() {
+  const warnings = await getWarehouseStockLowStockWarnings();
+  for (const w of warnings) {
+    const message = `${w.item.name} is at ${w.closingBalance}${w.item.unit ? ` ${w.item.unit}` : ""}, at or below its minimum stock level of ${w.item.minStockLevel}.`;
+    await upsertAlert("WAREHOUSE_STOCK_LOW", w.item.id, "OWNER", message);
   }
 }

@@ -65,6 +65,9 @@ export async function resolveAlertHrefs(
       case "PACKAGING_LOW_STOCK":
         hrefs.set(a.id, "/packaging-materials");
         break;
+      case "WAREHOUSE_STOCK_LOW":
+        hrefs.set(a.id, "/warehouse-stock");
+        break;
       case "SCALE_OUT_OF_TOLERANCE":
         hrefs.set(a.id, "/scale-calibration");
         break;
