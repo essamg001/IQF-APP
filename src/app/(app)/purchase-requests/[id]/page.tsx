@@ -24,6 +24,7 @@ import { OrderForm } from "./order-form";
 import { ConfirmActionForm } from "./confirm-action-form";
 import { WarehouseCheckForm } from "./warehouse-check-form";
 import { DelayForm } from "./delay-form";
+import { AssignSpecialistForm } from "./assign-specialist-form";
 
 const STATUS_COLOR = {
   REQUESTED: "amber",
@@ -93,11 +94,10 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold text-slate-900">
-          {dict.listHeading.replace("{count}", String(request.items.length))}
-        </h1>
+        <h1 className="text-xl font-semibold text-slate-900">{request.trackingNumber}</h1>
         <Badge color={STATUS_COLOR[request.status]}>{STATUS_LABEL[request.status]}</Badge>
       </div>
+      <p className="text-sm text-slate-500">{dict.listHeading.replace("{count}", String(request.items.length))}</p>
 
       <Card>
         <h2 className="text-sm font-semibold text-slate-900">{dict.itemsCardTitle}</h2>
@@ -108,8 +108,10 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
                 <th className="px-2 py-1 font-medium">{dict.colItem}</th>
                 <th className="px-2 py-1 font-medium">{dict.colCategory}</th>
                 <th className="px-2 py-1 font-medium">{dict.rowQuantity}</th>
+                <th className="px-2 py-1 font-medium">{dict.colUnit}</th>
                 <th className="px-2 py-1 font-medium">{dict.colSource}</th>
                 <th className="px-2 py-1 font-medium">{dict.rowReason}</th>
+                <th className="px-2 py-1 font-medium">{dict.colSpecialist}</th>
               </tr>
             </thead>
             <tbody>
@@ -117,25 +119,41 @@ export default async function PurchaseRequestDetailPage({ params }: { params: Pr
                 <tr key={i.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-2 py-1 font-medium text-slate-900">{i.itemDescription}</td>
                   <td className="px-2 py-1">
-                    <Badge color="slate">{CATEGORY_LABEL[i.category]}</Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {i.categories.length > 0
+                        ? i.categories.map((c) => (
+                            <Badge key={c} color="slate">
+                              {CATEGORY_LABEL[c]}
+                            </Badge>
+                          ))
+                        : "—"}
+                    </div>
                   </td>
                   <td className="px-2 py-1 text-slate-600">{i.quantity ?? "—"}</td>
+                  <td className="px-2 py-1 text-slate-600">{i.unit ?? "—"}</td>
                   <td className="px-2 py-1 text-slate-600">
                     {i.sourceType === "LOCAL" ? dict.sourceLocal : i.sourceType === "IMPORTED" ? dict.sourceImported : "—"}
                   </td>
                   <td className="px-2 py-1 text-slate-600">{i.reason ?? "—"}</td>
+                  <td className="px-2 py-1 text-slate-600">{i.assignedSpecialistName ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {canManage && (
+          <>
+            <h3 className="mt-4 text-xs font-semibold text-slate-700">{dict.assignSpecialistTitle}</h3>
+            <AssignSpecialistForm requestId={request.id} items={request.items} />
+          </>
+        )}
       </Card>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <h2 className="text-sm font-semibold text-slate-900">{dict.requestDetailsCard}</h2>
           <dl className="mt-3 space-y-2 text-sm">
-            <Row label={common.factory} value={request.factory.name} />
+            <Row label={common.factory} value={request.isJointOrder ? dict.jointOrderBadge : request.factory?.name} />
             <Row label={dict.rowRequestedBy} value={request.requestedByName} />
             <Row label={dict.requestedLabel} value={formatDate(request.requestedAt, "dd MMM yyyy HH:mm", locale)} />
           </dl>

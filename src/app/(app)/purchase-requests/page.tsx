@@ -37,13 +37,6 @@ export default async function PurchaseRequestsPage() {
     CONFIRMED_WORKING: dict.statusConfirmedWorking,
   } as const;
 
-  const CATEGORY_LABEL = {
-    CLEANING_MATERIALS: dict.categoryCleaningMaterials,
-    EQUIPMENT: dict.categoryEquipment,
-    SPARE_PARTS: dict.categorySpareParts,
-    OTHER: common.other,
-  } as const;
-
   const session = await auth();
   const canManage = canManagePurchasing(session?.user);
   const canApproveAcct = canApproveAccounting(session?.user);
@@ -91,8 +84,8 @@ export default async function PurchaseRequestsPage() {
         <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>
+              <th className="px-4 py-2 font-medium">{dict.colTrackingNumber}</th>
               <th className="px-4 py-2 font-medium">{dict.colItem}</th>
-              <th className="px-4 py-2 font-medium">{dict.colCategory}</th>
               <th className="px-4 py-2 font-medium">{common.factory}</th>
               <th className="px-4 py-2 font-medium">{dict.colRequestedBy}</th>
               <th className="px-4 py-2 font-medium">{dict.requestedLabel}</th>
@@ -102,23 +95,22 @@ export default async function PurchaseRequestsPage() {
           </thead>
           <tbody>
             {requests.map((r) => {
-              const distinctCategories = [...new Set(r.items.map((i) => i.category))];
-              const categoryLabel =
-                distinctCategories.length === 1 ? CATEGORY_LABEL[distinctCategories[0]] : dict.categoryMixed;
               return (
                 <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2">
                     <Link href={`/purchase-requests/${r.id}`} className="font-medium text-emerald-700 hover:underline">
-                      {r.items.map((i) => i.itemDescription).join(", ")}
+                      {r.trackingNumber}
                     </Link>
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">
+                    {r.items.map((i) => i.itemDescription).join(", ")}
                     {r._count.photos > 0 && (
                       <span className="ms-1.5 text-xs text-slate-400">
                         ({r._count.photos} {dict.photoCountSuffix})
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-slate-600">{categoryLabel}</td>
-                  <td className="px-4 py-2 text-slate-600">{r.factory.name}</td>
+                  <td className="px-4 py-2 text-slate-600">{r.isJointOrder ? dict.jointOrderBadge : r.factory?.name}</td>
                   <td className="px-4 py-2 text-slate-600">{r.requestedByName}</td>
                   <td className="px-4 py-2 text-slate-500">{formatDate(r.requestedAt, "dd MMM yyyy", locale)}</td>
                   <td className="px-4 py-2 text-slate-500">

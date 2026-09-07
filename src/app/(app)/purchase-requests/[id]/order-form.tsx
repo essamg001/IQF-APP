@@ -22,7 +22,7 @@ export function OrderForm({ requestId, action }: { requestId: string; action: Or
         <Input name="supplierName" placeholder={dict.supplierPlaceholder} />
       </FieldGroup>
       <FieldGroup label={dict.orderReferenceLabel}>
-        <Input name="orderReference" />
+        <Input name="orderReference" required />
       </FieldGroup>
       <FieldGroup label={dict.costUsdLabel}>
         <Input name="costUsd" type="number" step="0.01" min="0" />

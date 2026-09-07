@@ -15,18 +15,36 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+const CATEGORY_VALUES = ["CLEANING_MATERIALS", "EQUIPMENT", "SPARE_PARTS", "OTHER"] as const;
+
 const lineItemSchema = z.object({
-  category: z.enum(["CLEANING_MATERIALS", "EQUIPMENT", "SPARE_PARTS", "OTHER"]),
+  categories: z.array(z.enum(CATEGORY_VALUES)).default([]),
   itemDescription: z.string().min(1),
   quantity: z.string().optional(),
+  unit: z.string().optional(),
   reason: z.string().optional(),
   sourceType: z.string().optional().transform((v) => (v === "LOCAL" || v === "IMPORTED" ? v : undefined)),
 });
 
-const requestSchema = z.object({
-  factoryId: z.string().min(1),
-  items: z.array(lineItemSchema).min(1, "Add at least one item."),
-});
+const requestSchema = z
+  .object({
+    factoryId: z.string().optional(),
+    isJointOrder: z.boolean(),
+    items: z.array(lineItemSchema).min(1, "Add at least one item."),
+  })
+  .refine((data) => data.isJointOrder || !!data.factoryId, {
+    message: "Select a factory, or choose the joint-order option for both IQF units.",
+  });
+
+async function generateTrackingNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const count = await prisma.purchaseRequest.count({ where: { trackingNumber: { startsWith: `PR-${year}-` } } });
+  for (let i = count + 1; ; i++) {
+    const candidate = `PR-${year}-${String(i).padStart(4, "0")}`;
+    const existing = await prisma.purchaseRequest.findUnique({ where: { trackingNumber: candidate } });
+    if (!existing) return candidate;
+  }
+}
 
 // Requests come from Head of Production or Head of Maintenance -- the two
 // teams the owner named, not the whole Production role (no dedicated
@@ -46,7 +64,11 @@ export async function createPurchaseRequestAction(_prevState: string | undefined
     items = [];
   }
 
-  const parsed = requestSchema.safeParse({ factoryId: raw.factoryId, items });
+  const parsed = requestSchema.safeParse({
+    factoryId: raw.factoryId,
+    isJointOrder: formData.get("isJointOrder") === "on",
+    items,
+  });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
   // A photo is optional here -- unlike a structural issue, there's usually
@@ -63,9 +85,12 @@ export async function createPurchaseRequestAction(_prevState: string | undefined
     }
   }
 
+  const trackingNumber = await generateTrackingNumber();
   const created = await prisma.purchaseRequest.create({
     data: {
-      factoryId: parsed.data.factoryId,
+      trackingNumber,
+      factoryId: parsed.data.isJointOrder ? undefined : parsed.data.factoryId,
+      isJointOrder: parsed.data.isJointOrder,
       requestedByName: session!.user.name || session!.user.email,
       requestedByUserId: session!.user.id,
       items: { create: parsed.data.items },
@@ -78,7 +103,7 @@ export async function createPurchaseRequestAction(_prevState: string | undefined
     action: "PURCHASE_REQUEST_CREATED",
     entityType: "PurchaseRequest",
     entityId: created.id,
-    detail: `${parsed.data.items.length} item(s): ${parsed.data.items.map((i) => i.itemDescription).join(", ")}`,
+    detail: `${trackingNumber} — ${parsed.data.items.length} item(s): ${parsed.data.items.map((i) => i.itemDescription).join(", ")}`,
   });
 
   revalidatePath("/purchase-requests");
@@ -225,7 +250,9 @@ export async function acknowledgePurchasingReceiptAction(id: string, _prevState:
 
 const orderSchema = z.object({
   supplierName: z.string().optional(),
-  orderReference: z.string().optional(),
+  // The owner was explicit that the PO number is required once an order is
+  // actually placed -- not optional metadata.
+  orderReference: z.string().min(1, "A purchase order number is required to mark this as ordered."),
   costUsd: z.coerce.number().nonnegative().optional(),
   expectedDeliveryDate: z.string().optional(),
 });
@@ -309,6 +336,39 @@ export async function recordDeliveryDelayAction(id: string, _prevState: string |
     entityType: "PurchaseRequest",
     entityId: id,
     detail: parsed.data.delayReason,
+  });
+
+  revalidatePath(`/purchase-requests/${id}`);
+  return "ok";
+}
+
+/**
+ * Free-text, per item -- who in Purchasing owns actually sourcing it.
+ * Not gated to a particular status: Purchasing might want to assign this
+ * as soon as a request is forwarded, or only once they're ready to place
+ * the order. No status change, just an editable label.
+ */
+export async function assignPurchasingSpecialistAction(id: string, _prevState: string | undefined, formData: FormData) {
+  const session = await auth();
+  if (!canManagePurchasing(session?.user)) {
+    return "Only the Owner or Head of Purchasing can assign a specialist.";
+  }
+
+  const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id }, include: { items: true } });
+
+  await prisma.$transaction(
+    existing.items.map((item) => {
+      const raw = formData.get(`specialist_${item.id}`);
+      const value = typeof raw === "string" && raw.trim() ? raw.trim() : null;
+      return prisma.purchaseRequestItem.update({ where: { id: item.id }, data: { assignedSpecialistName: value } });
+    })
+  );
+
+  await logActivity({
+    actorId: session!.user.id,
+    action: "PURCHASE_REQUEST_SPECIALIST_ASSIGNED",
+    entityType: "PurchaseRequest",
+    entityId: id,
   });
 
   revalidatePath(`/purchase-requests/${id}`);

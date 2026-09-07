@@ -54,18 +54,18 @@ enum ShiftType {
   NIGHT
 }
 
-enum PurchaseCategory {
-  CLEANING_MATERIALS
-  EQUIPMENT
-  SPARE_PARTS
-  OTHER
-}
-
 // Informational only -- doesn't gate or branch the approval workflow, just
 // flags whether an item is sourced from the Egyptian market or imported.
 enum PurchaseItemSource {
   LOCAL
   IMPORTED
+}
+
+enum PurchaseCategory {
+  CLEANING_MATERIALS
+  EQUIPMENT
+  SPARE_PARTS
+  OTHER
 }
 
 // Requested -> warehouse checks stock -> (available: straight to Received)
@@ -2363,9 +2363,16 @@ model MasterCleaningTaskLog {
 // works -- "delivered" and "works" are deliberately two different facts,
 // since a piece of equipment can arrive damaged or wrong.
 model PurchaseRequest {
-  id              String           @id @default(cuid())
-  factoryId       String
-  factory         Factory          @relation(fields: [factoryId], references: [id])
+  id             String @id @default(cuid())
+  trackingNumber String @unique // e.g. PR-2026-0001, auto-generated at creation -- see generateTrackingNumber
+
+  // Null (with isJointOrder true) means the request is shared across both
+  // IQF units rather than tied to one -- the owner explicitly asked for
+  // this option since some items (e.g. shared cleaning supplies) get
+  // ordered once for both factories together.
+  factoryId    String?
+  factory      Factory? @relation(fields: [factoryId], references: [id])
+  isJointOrder Boolean  @default(false)
 
   status PurchaseRequestStatus @default(REQUESTED)
 
@@ -2442,15 +2449,25 @@ model PurchaseRequest {
 // ConfirmedWorking pipeline above as a single unit (the owner's explicit
 // call: items entered together are not independently approved/ordered).
 model PurchaseRequestItem {
-  id                String           @id @default(cuid())
+  id                String              @id @default(cuid())
   purchaseRequestId String
-  purchaseRequest   PurchaseRequest  @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
-  category          PurchaseCategory
+  purchaseRequest   PurchaseRequest     @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  // A multi-select, not a single dropdown -- the owner asked for one item to
+  // be taggable with more than one category at once (e.g. an item that's
+  // both Equipment and Spare Parts).
+  categories        PurchaseCategory[]  @default([])
   itemDescription   String
   quantity          String?
+  unit              String?
   reason            String?
   sourceType        PurchaseItemSource?
-  createdAt         DateTime         @default(now())
+  // Which purchasing specialist owns actually sourcing this item -- set by
+  // Purchasing once the request reaches them, not by the original
+  // requester. Free text, not a User reference: there's no dedicated
+  // "purchasing specialist" role/user list in this app, just Head of
+  // Purchasing.
+  assignedSpecialistName String?
+  createdAt              DateTime @default(now())
 
   @@index([purchaseRequestId])
 }
