@@ -4065,6 +4065,8 @@ const ar = {
     noStockOrOrders: "لا يوجد مخزون أو طلبات معلّقة لعرضها بعد.",
     shortfallHeadline: "نقص {count} باليتة عبر {lines} خط إنتاج",
     shortfallHeadlineNote: "الإجمالي عبر كل درجة/شكل يوجد به نقص حاليًا — راجع الجدول أدناه لمعرفة أيها.",
+    noStockHeadline: "لا يوجد مخزون جاهز للبيع في التخزين",
+    noStockHeadlineNote: "لم يُعتمد أي شيء للبيع بعد — هذا يختلف عن \"كل الطلبات مُغطّاة\".",
     noShortfallHeadline: "كل طلب معلّق مُغطّى بالمخزون الجاهز",
     noShortfallHeadlineNote: "لا يوجد نقص حاليًا في أي درجة/شكل مقارنةً بما هو مُلتزَم به.",
     footnote:

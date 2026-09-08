@@ -4109,6 +4109,8 @@ const en = {
     noStockOrOrders: "No stock or pending orders to show yet.",
     shortfallHeadline: "Short {count} pallets across {lines} product line(s)",
     shortfallHeadlineNote: "Total across every grade/format currently short — see below for which ones.",
+    noStockHeadline: "No ready-to-sell stock in storage",
+    noStockHeadlineNote: "Nothing has cleared to sell yet — this isn't the same as \"all orders covered.\"",
     noShortfallHeadline: "Every pending order is covered by ready stock",
     noShortfallHeadlineNote: "No grade/format is currently short against what's committed.",
     footnote:

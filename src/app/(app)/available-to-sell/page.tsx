@@ -93,6 +93,11 @@ export default async function AvailableToSellPage({
 
   const shortRows = rows.filter((r) => r.availablePallets < 0);
   const totalShortPallets = shortRows.reduce((s, r) => s + Math.abs(r.availablePallets), 0);
+  // Zero ready stock is its own red flag, distinct from "no unmet demand" --
+  // an empty warehouse with zero orders would otherwise read as a clean
+  // green "all covered" when there's actually nothing to sell at all.
+  const totalReadyPallets = readyPallets.filter((p) => isMrlCleared(p.lot.mrlResult)).length;
+  const hasShortfall = shortRows.length > 0 || totalReadyPallets === 0;
 
   return (
     <div>
@@ -104,12 +109,16 @@ export default async function AvailableToSellPage({
         <PrintButton />
       </div>
 
-      {shortRows.length > 0 ? (
+      {hasShortfall ? (
         <Card className="mt-6 border-red-200 bg-red-50">
           <p className="text-xs font-medium uppercase tracking-wide text-red-700">
-            {dict.shortfallHeadline.replace("{count}", String(totalShortPallets)).replace("{lines}", String(shortRows.length))}
+            {shortRows.length > 0
+              ? dict.shortfallHeadline.replace("{count}", String(totalShortPallets)).replace("{lines}", String(shortRows.length))
+              : dict.noStockHeadline}
           </p>
-          <p className="mt-1 text-xs text-red-700">{dict.shortfallHeadlineNote}</p>
+          <p className="mt-1 text-xs text-red-700">
+            {shortRows.length > 0 ? dict.shortfallHeadlineNote : dict.noStockHeadlineNote}
+          </p>
         </Card>
       ) : (
         <Card className="mt-6 border-emerald-200 bg-emerald-50">
