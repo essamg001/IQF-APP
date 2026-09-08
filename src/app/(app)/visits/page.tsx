@@ -73,7 +73,7 @@ export default async function VisitsPage() {
                   </Link>
                 </td>
                 <td className="px-4 py-2">{v.organization ?? "—"}</td>
-                <td className="px-4 py-2">{v.factory.name}</td>
+                <td className="px-4 py-2">{v.factory?.name ?? dict.bothFactoriesLabel}</td>
                 <td className="px-4 py-2">{v.purpose}</td>
                 <td className="px-4 py-2">
                   {v.isAudit ? <Badge color="blue">{dict.auditBadge}</Badge> : <Badge color="slate">{dict.visitBadge}</Badge>}

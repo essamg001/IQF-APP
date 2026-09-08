@@ -60,7 +60,7 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
         </div>
         <p className="mt-1 text-sm text-slate-500">
           {visit.organization ? `${visit.organization} · ` : ""}
-          {visit.factory.name} · {formatDate(visit.date, "dd MMM yyyy", locale)} · {visit.purpose}
+          {visit.factory?.name ?? dict.bothFactoriesLabel} · {formatDate(visit.date, "dd MMM yyyy", locale)} · {visit.purpose}
         </p>
       </div>
 

@@ -10,7 +10,10 @@ import { z } from "zod";
 import { canAccessVisits } from "@/lib/roles";
 
 const visitSchema = z.object({
-  factoryId: z.string().min(1),
+  // Omitted (the "Both Factories" option) means the visit applies to the
+  // whole site -- most visits do. Only set for the rare visit genuinely
+  // scoped to just one factory.
+  factoryId: z.string().optional(),
   date: z.string().min(1),
   visitorNames: z.string().min(1),
   organization: z.string().min(1, "A company name is required."),
@@ -133,9 +136,17 @@ export async function raiseFindingAsNonConformanceAction(visitId: string, findin
   });
   if (!finding || finding.category !== "ISSUE" || finding.linkedNonConformanceReportId) return;
 
+  // A Non-Conformance Report always names one specific factory, but a
+  // "Both Factories" visit doesn't -- fall back to whichever factory sorts
+  // first rather than block the escalation entirely. Worth a real
+  // factory-picker on this action later if both-factories findings turn out
+  // to get escalated often; for now this is a reasonable default, not a
+  // guess anyone would silently trust for something safety-critical.
+  const factoryId = finding.visit.factoryId ?? (await prisma.factory.findFirst({ orderBy: { name: "asc" } }))!.id;
+
   const nc = await prisma.nonConformanceReport.create({
     data: {
-      factoryId: finding.visit.factoryId,
+      factoryId,
       date: finding.visit.date,
       location: finding.area || "—",
       description: finding.description,

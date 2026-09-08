@@ -32,7 +32,8 @@ export function VisitForm({
             <Input name="date" type="date" defaultValue={today} required />
           </FieldGroup>
           <FieldGroup label={dict.common.factory}>
-            <Select name="factoryId" required defaultValue={factories[0]?.id ?? ""}>
+            <Select name="factoryId" defaultValue="">
+              <option value="">{t.bothFactoriesOption}</option>
               {factories.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}

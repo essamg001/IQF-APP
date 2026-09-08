@@ -2802,6 +2802,11 @@ model InjuryRecord {
   sickLeaveDays       Int?
   returnToWorkDate    DateTime?
   referredToPhysician Boolean  @default(false)
+  // A separate, lighter-weight disposition from referredToPhysician -- an
+  // on-site clinic visit doesn't require an external referral, and the two
+  // aren't mutually exclusive (a case can start at the in-house clinic and
+  // still get referred out afterward).
+  sentToInHouseClinic Boolean  @default(false)
 
   bluePlasterReleaseTime   String?
   bluePlasterItemsReleased Int?
@@ -3510,10 +3515,14 @@ model CropProtectionEntry {
 // most visits are just a log entry with optional feedback. When a visitor is
 // a client auditor, isAudit is set and detailed findings can be attached.
 model FactoryVisit {
-  id               String    @id @default(cuid())
-  factoryId        String
-  factory          Factory   @relation(fields: [factoryId], references: [id])
-  date             DateTime
+  id        String   @id @default(cuid())
+  // Null means "both factories" -- the common case, since most visitors
+  // (an NFSA audit, a client visit) walk the whole site, not one factory.
+  // Only set when the data-entry person picks a specific factory for the
+  // rare visit that's genuinely scoped to just one.
+  factoryId String?
+  factory   Factory? @relation(fields: [factoryId], references: [id])
+  date      DateTime
   // Multiple visitors can arrive together under one company -- one visit
   // record, one sign-off, several names.
   visitorNames     String[] @default([])
