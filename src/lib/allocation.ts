@@ -286,3 +286,35 @@ export async function explainZeroAllocation(
 
   return "SPEC_FAIL";
 }
+
+/**
+ * How many pallets short the system is, system-wide, for a grade+format --
+ * the same "ready minus committed" arithmetic Available-to-Sell uses, pulled
+ * out so the order page's NO_STOCK detail can show the real number inline
+ * instead of making someone click through to Available-to-Sell just to see
+ * it. Returns 0 when there's no shortfall (ready stock covers every pending
+ * order, or exceeds it).
+ */
+export async function getSystemShortfall(
+  params: { grade: Grade; format: Format },
+  client: Prisma.TransactionClient | typeof prisma = prisma
+): Promise<number> {
+  const { grade, format } = params;
+
+  const [readyCount, pendingOrders] = await Promise.all([
+    client.pallet.count({
+      where: {
+        status: "IN_STORAGE",
+        packingDate: { not: null },
+        lot: { grade, format, shift: { is: { onHold: false } }, mrlResult: { status: "APPROVED" }, ...bothLabsApprovedFilter },
+      },
+    }),
+    client.order.findMany({
+      where: { grade, format, stage: { in: ["CONFIRMED", "IN_PRODUCTION", "PACKED"] }, cancelledAt: null },
+      select: { quantityPallets: true, _count: { select: { pallets: true } } },
+    }),
+  ]);
+
+  const committed = pendingOrders.reduce((s, o) => s + Math.max(0, o.quantityPallets - o._count.pallets), 0);
+  return Math.max(0, committed - readyCount);
+}

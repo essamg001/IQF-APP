@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { differenceInCalendarDays } from "date-fns";
 import { isMrlCleared } from "@/lib/mrl";
 import { isMicroCleared } from "@/lib/microbiology";
-import { explainZeroAllocation } from "@/lib/allocation";
+import { explainZeroAllocation, getSystemShortfall } from "@/lib/allocation";
 
 // The single source of truth for "where is this order, really." Only the
 // stages that are still real, unambiguous facts stay in the manual
@@ -100,7 +100,11 @@ export async function getOrderLifecycleStatus(order: OrderForLifecycle): Promise
     if (allocatedCount === 0) {
       const reason = await explainZeroAllocation({ grade: order.grade, format: order.format });
       if (reason === "NO_STOCK") {
-        detail = `No in-storage stock of Grade ${order.grade} ${order.format} exists yet.`;
+        // The shortfall count is already knowable the instant this reason
+        // comes back -- showing it here means nobody has to click through
+        // to Available-to-Sell just to see a number the app already has.
+        const shortfall = await getSystemShortfall({ grade: order.grade, format: order.format });
+        detail = `No in-storage stock of Grade ${order.grade} ${order.format} exists yet -- short by ${shortfall} pallet(s) system-wide.`;
         // Not the same link/label as the LAB_PENDING case below -- this is
         // a structural, system-wide shortage (nothing to allocate from at
         // all, matching or not), not a matter of waiting on one lot's lab
