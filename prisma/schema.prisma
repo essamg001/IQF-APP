@@ -2801,12 +2801,7 @@ model InjuryRecord {
   occurredInWork      Boolean
   sickLeaveDays       Int?
   returnToWorkDate    DateTime?
-  referredToPhysician Boolean  @default(false)
-  // A separate, lighter-weight disposition from referredToPhysician -- an
-  // on-site clinic visit doesn't require an external referral, and the two
-  // aren't mutually exclusive (a case can start at the in-house clinic and
-  // still get referred out afterward).
-  sentToInHouseClinic Boolean  @default(false)
+  referredToInHouseClinic Boolean @default(false)
 
   bluePlasterReleaseTime   String?
   bluePlasterItemsReleased Int?

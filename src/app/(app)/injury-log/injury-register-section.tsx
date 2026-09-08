@@ -41,7 +41,6 @@ export function InjuryRegisterSection({
                 <th className="py-1 pe-3 font-medium">{t.colInjury}</th>
                 <th className="py-1 pe-3 font-medium">{t.colInOut}</th>
                 <th className="py-1 pe-3 font-medium">{t.colSickLeave}</th>
-                <th className="py-1 pe-3 font-medium">{t.colPhysician}</th>
                 <th className="py-1 pe-3 font-medium">{t.colInHouseClinic}</th>
                 <th className="py-1 pe-3 font-medium">{t.colBluePlasterBal}</th>
                 <th className="py-1 pe-3 font-medium">{t.colGlovesBal}</th>
@@ -56,8 +55,7 @@ export function InjuryRegisterSection({
                   <td className="py-1 pe-3 text-slate-600">{r.injuryDescription}</td>
                   <td className="py-1 pe-3">{r.occurredInWork ? t.inWork : t.outOfWork}</td>
                   <td className="py-1 pe-3">{r.sickLeaveDays ?? "—"}</td>
-                  <td className="py-1 pe-3">{r.referredToPhysician ? dict.common.yes : dict.common.no}</td>
-                  <td className="py-1 pe-3">{r.sentToInHouseClinic ? dict.common.yes : dict.common.no}</td>
+                  <td className="py-1 pe-3">{r.referredToInHouseClinic ? dict.common.yes : dict.common.no}</td>
                   <td className="py-1 pe-3">{bluePlasterBalances[i] ?? "—"}</td>
                   <td className="py-1 pe-3">{glovesBalances[i] ?? "—"}</td>
                   <td className="py-1 pe-3">{r.endOfDayConfirmed ? dict.common.yes : dict.common.no}</td>
@@ -111,10 +109,7 @@ export function InjuryRegisterSection({
             <Input name="returnToWorkDate" type="date" />
           </FieldGroup>
           <label className="mb-1 flex items-end gap-2 pb-2 text-sm text-slate-700">
-            <input type="checkbox" name="referredToPhysician" /> {t.referredToPhysicianLabel}
-          </label>
-          <label className="mb-1 flex items-end gap-2 pb-2 text-sm text-slate-700">
-            <input type="checkbox" name="sentToInHouseClinic" /> {t.sentToInHouseClinicLabel}
+            <input type="checkbox" name="referredToInHouseClinic" /> {t.referredToInHouseClinicLabel}
           </label>
         </div>
         <div className="grid grid-cols-4 gap-3">
