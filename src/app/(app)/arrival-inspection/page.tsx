@@ -22,7 +22,7 @@ export default async function ArrivalInspectionPage() {
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-  const [todaysChecks, harvestTickets] = await Promise.all([
+  const [todaysChecks, harvestTickets, factories] = await Promise.all([
     prisma.qualityCheck.findMany({
       where: {
         checkpoint: "RAW_MATERIAL",
@@ -47,6 +47,7 @@ export default async function ArrivalInspectionPage() {
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
+    prisma.factory.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const accepted = todaysChecks.filter((c) => c.decision === "ACCEPTED").length;
@@ -81,6 +82,7 @@ export default async function ArrivalInspectionPage() {
             appliesToWholeDelivery: c.appliesToWholeDelivery,
           }))}
           harvestTickets={harvestTickets}
+          factories={factories}
         />
       </div>
 

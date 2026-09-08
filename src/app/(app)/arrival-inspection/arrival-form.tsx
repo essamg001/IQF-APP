@@ -50,9 +50,11 @@ type HarvestTicketOption = {
 export function ArrivalInspectionForm({
   todaysChecks,
   harvestTickets,
+  factories,
 }: {
   todaysChecks: TodaysCheck[];
   harvestTickets: HarvestTicketOption[];
+  factories: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(createArrivalCheckAction, undefined);
   const fullDict = useTranslations();
@@ -60,6 +62,8 @@ export function ArrivalInspectionForm({
 
   // Shift/delivery header fields carry over between consecutive samples from
   // the same truck; only the per-pallet fields (in SampleFields below) reset.
+  const [factoryId, setFactoryId] = useState(factories[0]?.id ?? "");
+  const [shiftType, setShiftType] = useState("DAY");
   const [shiftNumber, setShiftNumber] = useState("");
   const [source, setSource] = useState("");
   // Every delivery comes from the same single farm (MAFA 4 / farm code M4),
@@ -108,6 +112,21 @@ export function ArrivalInspectionForm({
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">{dict.formTitle}</h2>
         <div className="grid grid-cols-3 gap-3">
+          <FieldGroup label={dict.factoryLabel}>
+            <Select name="factoryId" value={factoryId} onChange={(e) => setFactoryId(e.target.value)}>
+              {factories.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </Select>
+          </FieldGroup>
+          <FieldGroup label={dict.shiftTypeLabel}>
+            <Select name="shiftType" value={shiftType} onChange={(e) => setShiftType(e.target.value)}>
+              <option value="DAY">{dict.shiftTypeDay}</option>
+              <option value="NIGHT">{dict.shiftTypeNight}</option>
+            </Select>
+          </FieldGroup>
           <FieldGroup label={dict.shiftNumber}>
             <Input name="shiftNumber" value={shiftNumber} onChange={(e) => setShiftNumber(e.target.value)} />
           </FieldGroup>

@@ -499,6 +499,7 @@ model Factory {
   wasteDisposalRecords        WasteDisposalRecord[]
   bannedItemScreeningRecords  BannedItemScreeningRecord[]
   cleaningMaterialConsumptionRecords CleaningMaterialConsumptionRecord[]
+  qualityChecks                      QualityCheck[]
 }
 
 
@@ -1018,7 +1019,19 @@ model QualityCheck {
   decapQcApprover         String? // the QC number (QC1-QC51) who approved it to leave the decap facility -- required on Post-Decap Quality itself, optionally echoed here
   transportVehicleNo      String?
   receiptNoteNo           String?
+  // Despite the name, this is the real pallet count for the delivery (the
+  // form's own label is "Number of Pallets") -- named after an earlier
+  // iteration of this checkpoint, kept as-is rather than risking a real-data
+  // column rename for what's otherwise a cosmetic inconsistency.
   numberOfBoxesReceived   Int?
+  // Which IQF factory this specific delivery arrived at, and which shift --
+  // added 2026-09-07 so per-factory, per-shift arrival pallet counts can
+  // actually be reported (Daily Report). RAW_MATERIAL checks only; every
+  // other checkpoint stays factory-agnostic the way it always has (decap is
+  // one shared facility, and other checkpoints don't need this dimension).
+  factoryId               String?
+  factory                 Factory?         @relation(fields: [factoryId], references: [id])
+  shiftType                ShiftType?
   crateWeightKg           Float?
   sizeCaliber             String?
   moldSignsPct            Float? // بوادر عفن — distinct from Mold itself (mouldPct)

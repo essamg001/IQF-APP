@@ -12,6 +12,7 @@ import { TemperatureSection } from "./temperature-section";
 import { DecapEfficiencySection } from "./decap-efficiency-section";
 import { getDecapWeighingTotalsForDate } from "@/lib/decapWeighing";
 import { LabourSection } from "./labour-section";
+import { ArrivalPalletsSection } from "./arrival-pallets-section";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { PrintButton } from "@/components/ui/print-button";
@@ -45,6 +46,7 @@ export default async function DailyReportPage({
     decapWeighingTotals,
     decapWeightInAgg,
     labourEntries,
+    arrivalChecks,
   ] = await Promise.all([
     prisma.factory.findMany({ orderBy: { code: "asc" } }),
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -76,6 +78,10 @@ export default async function DailyReportPage({
     }),
     prisma.dailyLabourEntry.findMany({
       where: { date: { gte: dayStart, lt: dayEnd } },
+    }),
+    prisma.qualityCheck.findMany({
+      where: { checkpoint: "RAW_MATERIAL", factoryId: { not: null }, createdAt: { gte: dayStart, lt: dayEnd } },
+      select: { factoryId: true, shiftType: true, numberOfBoxesReceived: true },
     }),
   ]);
 
@@ -113,6 +119,17 @@ export default async function DailyReportPage({
         rejectedKg={decapWeighingTotals.rejectedKg}
         fromRealWeighings={decapWeighingTotals.weighingCount > 0}
       />
+
+      {factories.map((f) => (
+        <ArrivalPalletsSection
+          key={f.id}
+          factoryName={`${f.name}${f.code ? ` (${f.code})` : ""}`}
+          checks={arrivalChecks.filter((c) => c.factoryId === f.id)}
+          title={dict.arrivalPalletsTitle}
+          dayLabel={dict.arrivalPalletsDayLabel}
+          nightLabel={dict.arrivalPalletsNightLabel}
+        />
+      ))}
 
       {factories.map((f) => (
         <EfficiencySection

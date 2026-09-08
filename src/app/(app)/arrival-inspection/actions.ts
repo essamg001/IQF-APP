@@ -17,6 +17,8 @@ const arrivalCheckSchema = z
   .object({
     appliesToWholeDelivery: z.boolean(),
 
+    factoryId: z.string().min(1, "Factory is required."),
+    shiftType: z.enum(["DAY", "NIGHT"]),
     shiftNumber: z.string().optional(),
     rawMaterialSource: z.string().optional(),
     farmCode: z.string().optional(),
