@@ -32,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 role={session.user.role}
                 isHeadOfSales={session.user.isHeadOfSales}
                 isHeadOfProduction={session.user.isHeadOfProduction}
+                financialsRestricted={session.user.financialsRestricted}
                 station={session.user.station}
               />
             </div>

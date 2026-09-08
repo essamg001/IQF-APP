@@ -268,6 +268,11 @@ model User {
   // every other isHeadOf* flag. No dedicated "Accounting" role exists
   // either.
   isHeadOfAccounting Boolean @default(false)
+  // Lets an Owner-tier account (e.g. a trial/testing login) keep full access
+  // everywhere else while still being denied Financials and Historical
+  // Trends -- the OWNER role itself is otherwise an unconditional bypass on
+  // every canSeeX() gate, so this is the one flag that can override it.
+  financialsRestricted Boolean @default(false)
   station            Station?
   locale             Locale   @default(EN)
   createdAt          DateTime @default(now())

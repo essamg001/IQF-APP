@@ -19,8 +19,11 @@ export function canSeePricing(role: Role | undefined | null) {
  * sensitive than order-level pricing, so access is deliberately narrower:
  * the Owner plus whoever is flagged as head of sales — not the whole Sales role.
  */
-export function canSeeHistoricalTrends(user: { role: Role; isHeadOfSales: boolean } | undefined | null) {
+export function canSeeHistoricalTrends(
+  user: { role: Role; isHeadOfSales: boolean; financialsRestricted: boolean } | undefined | null
+) {
   if (!user) return false;
+  if (user.financialsRestricted) return false;
   return user.role === "OWNER" || user.isHeadOfSales;
 }
 
@@ -33,8 +36,11 @@ export function canSeeHistoricalTrends(user: { role: Role; isHeadOfSales: boolea
  * itself used to be visible inline (via canSeePricing) on Orders/Dashboard/
  * Active Orders -- it now lives only behind this gate, on /financials.
  */
-export function canSeeFinancials(user: { role: Role; isHeadOfSales: boolean } | undefined | null) {
+export function canSeeFinancials(
+  user: { role: Role; isHeadOfSales: boolean; financialsRestricted: boolean } | undefined | null
+) {
   if (!user) return false;
+  if (user.financialsRestricted) return false;
   return user.role === "OWNER" || user.isHeadOfSales;
 }
 

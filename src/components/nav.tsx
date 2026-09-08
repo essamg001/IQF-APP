@@ -136,16 +136,18 @@ export function Nav({
   role,
   isHeadOfSales,
   isHeadOfProduction,
+  financialsRestricted,
   station,
 }: {
   role: Role;
   isHeadOfSales: boolean;
   isHeadOfProduction: boolean;
+  financialsRestricted: boolean;
   station: Station | null;
 }) {
   const pathname = usePathname();
   const dict = useTranslations();
-  const canSeeTrends = role === "OWNER" || isHeadOfSales;
+  const canSeeTrends = !financialsRestricted && (role === "OWNER" || isHeadOfSales);
   const canSeeVisits = role === "OWNER" || isHeadOfProduction;
 
   if (station) {

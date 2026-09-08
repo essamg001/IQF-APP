@@ -17,6 +17,7 @@ declare module "next-auth" {
       isHeadOfPurchasing: boolean;
       isStoreSupervisor: boolean;
       isHeadOfAccounting: boolean;
+      financialsRestricted: boolean;
       station: Station | null;
       locale: Locale;
     };
@@ -29,6 +30,7 @@ declare module "next-auth" {
     isHeadOfPurchasing: boolean;
     isStoreSupervisor: boolean;
     isHeadOfAccounting: boolean;
+    financialsRestricted: boolean;
     station: Station | null;
     locale: Locale;
   }
@@ -65,6 +67,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           isHeadOfPurchasing: user.isHeadOfPurchasing,
           isStoreSupervisor: user.isStoreSupervisor,
           isHeadOfAccounting: user.isHeadOfAccounting,
+          financialsRestricted: user.financialsRestricted,
           station: user.station,
           locale: user.locale,
         };
@@ -82,6 +85,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.isHeadOfPurchasing = user.isHeadOfPurchasing;
         token.isStoreSupervisor = user.isStoreSupervisor;
         token.isHeadOfAccounting = user.isHeadOfAccounting;
+        token.financialsRestricted = user.financialsRestricted;
         token.station = user.station;
         token.locale = user.locale;
       }
@@ -97,6 +101,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.isHeadOfPurchasing = token.isHeadOfPurchasing as boolean;
         session.user.isStoreSupervisor = token.isStoreSupervisor as boolean;
         session.user.isHeadOfAccounting = token.isHeadOfAccounting as boolean;
+        session.user.financialsRestricted = (token.financialsRestricted as boolean) ?? false;
         session.user.station = (token.station as Station | null) ?? null;
         session.user.locale = (token.locale as Locale) ?? "EN";
       }
