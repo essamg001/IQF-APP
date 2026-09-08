@@ -530,6 +530,38 @@ export async function raiseScaleOutOfToleranceAlert(params: {
 }
 
 /**
+ * Fired the moment an hourly free-chlorine reading drifts more than 10% off
+ * the dosing pump's own set point -- a real, threshold-crossed deviation,
+ * not just the person logging the reading remembering to tick the manual
+ * "deviation occurred" checkbox.
+ */
+export async function raiseChlorineDosingOutOfToleranceAlert(params: {
+  checkId: string;
+  factoryName: string;
+  freeChlorinePpm: number;
+  setPointPpm: number;
+}) {
+  const deltaPpm = params.freeChlorinePpm - params.setPointPpm;
+  const message = `${params.factoryName}: free chlorine reading ${params.freeChlorinePpm} ppm is ${deltaPpm >= 0 ? "+" : ""}${deltaPpm.toFixed(2)} ppm off the ${params.setPointPpm} ppm set point -- more than 10% out of tolerance.`;
+  const messageAr = `${params.factoryName}: قراءة الكلور الحر ${params.freeChlorinePpm} جزء في المليون تنحرف بمقدار ${deltaPpm >= 0 ? "+" : ""}${deltaPpm.toFixed(2)} جزء في المليون عن نقطة الضبط ${params.setPointPpm} جزء في المليون -- خارج الحد المسموح بأكثر من 10%.`;
+
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
+    await prisma.alert.create({
+      data: {
+        type: "CHLORINE_DOSING_OUT_OF_TOLERANCE",
+        relatedEntityType: "CHLORINE_DOSING_OUT_OF_TOLERANCE",
+        relatedEntityId: params.checkId,
+        targetRole: role,
+        message,
+        messageAr,
+      },
+    });
+    const recipients = await prisma.user.findMany({ where: { role } });
+    await Promise.all(recipients.map((u) => sendEmail(u.email, "IQF Alert: Chlorine Dosing Out of Tolerance", message)));
+  }
+}
+
+/**
  * Fired the moment a rodent trap/bait station check finds a live or dead
  * rodent -- a food-safety event worth immediate attention, not something
  * that should wait to be noticed on the next visit to this page.

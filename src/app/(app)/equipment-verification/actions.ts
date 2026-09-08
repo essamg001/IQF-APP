@@ -7,6 +7,7 @@ import { parseLocalDateOnly, parseDateSafe } from "@/lib/dates";
 import { logActivity } from "@/lib/activityLog";
 import { isMetalDetectorMaintenanceLocked } from "@/lib/equipmentVerification";
 import { isCurrentHourSlot } from "@/lib/shiftHours";
+import { raiseChlorineDosingOutOfToleranceAlert } from "@/lib/alerts";
 import { z } from "zod";
 
 const metalDetectorSchema = z.object({
@@ -266,6 +267,26 @@ export async function createChlorineDosingCheckAction(_prevState: string | undef
     entityId: created.id,
     detail: parsed.data.deviationOccurred ? `Deviation — ${parsed.data.correctiveAction}` : "Within standard",
   });
+
+  // A real threshold check, independent of whether "deviation occurred" was
+  // manually ticked -- fires the moment the reading itself is more than 10%
+  // off the pump's own set point.
+  const factory = await prisma.factory.findUnique({
+    where: { id: parsed.data.factoryId },
+    select: { name: true, chlorineSetPointPpm: true },
+  });
+  if (factory?.chlorineSetPointPpm != null && parsed.data.freeChlorinePpm != null) {
+    const setPointPpm = factory.chlorineSetPointPpm;
+    const outOfTolerance = Math.abs(parsed.data.freeChlorinePpm - setPointPpm) > setPointPpm * 0.1;
+    if (outOfTolerance) {
+      await raiseChlorineDosingOutOfToleranceAlert({
+        checkId: created.id,
+        factoryName: factory.name,
+        freeChlorinePpm: parsed.data.freeChlorinePpm,
+        setPointPpm,
+      });
+    }
+  }
 
   revalidatePath("/equipment-verification");
   return "ok";

@@ -21,11 +21,11 @@ type SortOption = (typeof SORT_OPTIONS)[number];
 export default async function StructuralIssuesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ location?: string; sort?: string }>;
+  searchParams: Promise<{ location?: string; sort?: string; overdue?: string }>;
 }) {
   const locale = await resolveLocale();
   const dict = getDictionary(locale).structuralIssues;
-  const { location, sort } = await searchParams;
+  const { location, sort, overdue: overdueOnly } = await searchParams;
   const sortOption: SortOption = (SORT_OPTIONS as readonly string[]).includes(sort ?? "")
     ? (sort as SortOption)
     : "reportedDesc";
@@ -45,14 +45,18 @@ export default async function StructuralIssuesPage({
           ? { proposedCompletionDate: "asc" as const }
           : { reportedAt: "desc" as const };
 
-  const issues = await prisma.structuralIssue.findMany({
+  const fetchedIssues = await prisma.structuralIssue.findMany({
     where: location ? { location } : undefined,
     include: { factory: true, _count: { select: { photos: true } } },
     orderBy,
     take: 200,
   });
 
-  const overdueCount = issues.filter((i) => isStructuralIssueOverdue(i)).length;
+  const overdueCount = fetchedIssues.filter((i) => isStructuralIssueOverdue(i)).length;
+  // Overdue isn't a stored field (see isStructuralIssueOverdue's own
+  // "derived, not typed" comment), so this filters the already-fetched page
+  // rather than something Prisma's `where` can express directly.
+  const issues = overdueOnly === "1" ? fetchedIssues.filter((i) => isStructuralIssueOverdue(i)) : fetchedIssues;
 
   return (
     <div>
@@ -63,9 +67,11 @@ export default async function StructuralIssuesPage({
             {dict.subtitle}
             {overdueCount > 0 && (
               <span className="ms-2">
-                <Badge color="red">
-                  {overdueCount} {dict.overdue}
-                </Badge>
+                <Link href="/structural-issues?overdue=1">
+                  <Badge color="red">
+                    {overdueCount} {dict.overdue}
+                  </Badge>
+                </Link>
               </span>
             )}
           </p>
@@ -93,6 +99,10 @@ export default async function StructuralIssuesPage({
           <option value="location">{dict.sortLocation}</option>
           <option value="targetCompletion">{dict.sortTargetCompletion}</option>
         </select>
+        <label className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">
+          <input type="checkbox" name="overdue" value="1" defaultChecked={overdueOnly === "1"} />
+          {dict.overdueOnlyLabel}
+        </label>
         <button className="rounded-md bg-emerald-700 px-3.5 py-2 text-sm font-medium text-white">{dict.filterButton}</button>
       </form>
 

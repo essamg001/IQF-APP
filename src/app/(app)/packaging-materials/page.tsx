@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { canSeeFinancials } from "@/lib/roles";
 import { Card } from "@/components/ui/card";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -18,8 +16,6 @@ export default async function PackagingMaterialsPage({
 }: {
   searchParams: Promise<{ factoryId?: string; date?: string }>;
 }) {
-  const session = await auth();
-  const canSeeCost = canSeeFinancials(session?.user);
   const fullDict = getDictionary(await resolveLocale());
   const dict = fullDict.packagingMaterials;
   const { factoryId: factoryIdParam, date: dateParam } = await searchParams;
@@ -147,7 +143,7 @@ export default async function PackagingMaterialsPage({
       )}
 
       <Card>
-        <MaterialsSection factoryId={factoryId} materials={materials} canSeeCost={canSeeCost} />
+        <MaterialsSection factoryId={factoryId} materials={materials} />
       </Card>
 
       <Card>

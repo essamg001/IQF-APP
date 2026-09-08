@@ -71,6 +71,9 @@ export async function resolveAlertHrefs(
       case "SCALE_OUT_OF_TOLERANCE":
         hrefs.set(a.id, "/scale-calibration");
         break;
+      case "CHLORINE_DOSING_OUT_OF_TOLERANCE":
+        hrefs.set(a.id, "/equipment-verification");
+        break;
       case "RODENT_DETECTED":
         hrefs.set(a.id, "/pest-control");
         break;

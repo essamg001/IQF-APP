@@ -32,6 +32,7 @@ export function ChlorineDosingSection({
   const [presetHour, setPresetHour] = useState<number | null>(null);
   const [dosingAgent, setDosingAgent] = useState<"CHLORINE" | "PERACETIC_ACID" | "OTHER">("CHLORINE");
   const [dosingAgentOther, setDosingAgentOther] = useState("");
+  const [freeChlorineInput, setFreeChlorineInput] = useState("");
   const shiftDate = parseLocalDateOnly(date) ?? now;
   const hours = SHIFT_HOURS[shiftType];
 
@@ -97,7 +98,13 @@ export function ChlorineDosingSection({
                 <td className="py-1 pr-2">
                   {c.freeChlorinePpm ?? "—"}
                   {c.freeChlorinePpm != null && setPointPpm != null && (
-                    <span className="text-slate-400">
+                    <span
+                      className={
+                        Math.abs(c.freeChlorinePpm - setPointPpm) > setPointPpm * 0.1
+                          ? "font-medium text-red-600"
+                          : "text-emerald-600"
+                      }
+                    >
                       {" "}
                       ({dict.vsSetPoint.replace(
                         "{delta}",
@@ -170,12 +177,45 @@ export function ChlorineDosingSection({
               (dosingAgent !== "CHLORINE" ? ` — ${dict.dosingAgentReadingNote}` : "")
             }
           >
-            <Input name="freeChlorinePpm" type="number" step="0.01" className="px-1.5 py-1 text-xs" />
+            <Input
+              name="freeChlorinePpm"
+              type="number"
+              step="0.01"
+              value={freeChlorineInput}
+              onChange={(e) => setFreeChlorineInput(e.target.value)}
+              className="px-1.5 py-1 text-xs"
+            />
           </FieldGroup>
           <FieldGroup label={dict.fruitTransit}>
             <Input name="fruitTransitSeconds" type="number" step="1" className="px-1.5 py-1 text-xs" />
           </FieldGroup>
         </div>
+
+        {setPointPpm != null && freeChlorineInput !== "" && !Number.isNaN(Number(freeChlorineInput)) && (
+          (() => {
+            const delta = Number(freeChlorineInput) - setPointPpm;
+            const outOfTolerance = Math.abs(delta) > setPointPpm * 0.1;
+            return (
+              <div
+                className={`rounded-md border p-2 text-[11px] ${
+                  outOfTolerance ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                <p className="font-medium uppercase tracking-wide">{dict.deltaFromSetPoint}</p>
+                <p className="mt-0.5 text-sm font-semibold">
+                  {(delta >= 0 ? "+" : "") + delta.toFixed(2)} ppm
+                  <span className="ms-1.5 font-normal">
+                    ({outOfTolerance ? dict.deltaOutOfTolerance : dict.deltaWithinTolerance})
+                  </span>
+                </p>
+              </div>
+            );
+          })()
+        )}
+        {(setPointPpm == null || freeChlorineInput === "") && (
+          <p className="text-[11px] text-slate-400">{dict.deltaFromSetPointHint}</p>
+        )}
+
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-1 text-[11px] text-slate-700">
             <input type="checkbox" name="deviationOccurred" /> {dict.deviationOccurred}

@@ -33,6 +33,7 @@ const CRITICAL_ALERT_TYPES = new Set<AlertType>([
   "BLADE_KNIFE_MISMATCH",
   "BLADE_KNIFE_DAMAGED",
   "SCALE_OUT_OF_TOLERANCE",
+  "CHLORINE_DOSING_OUT_OF_TOLERANCE",
   "RODENT_DETECTED",
   "TOOL_INVENTORY_DISCREPANCY",
 ]);
@@ -84,6 +85,7 @@ export default async function AlertsPage() {
     BLADE_KNIFE_MISMATCH: dict.typeBladeKnifeMismatch,
     BLADE_KNIFE_DAMAGED: dict.typeBladeKnifeDamaged,
     SCALE_OUT_OF_TOLERANCE: dict.typeScaleOutOfTolerance,
+    CHLORINE_DOSING_OUT_OF_TOLERANCE: dict.typeChlorineDosingOutOfTolerance,
     RODENT_DETECTED: dict.typeRodentDetected,
     TOOL_INVENTORY_DISCREPANCY: dict.typeToolInventoryDiscrepancy,
     SHIFT_MISSING_POST_DECAP_LINK: dict.typeShiftMissingPostDecapLink,
