@@ -3731,7 +3731,9 @@ const ar = {
     title: "طلبات الشراء",
     subtitle:
       "أي شيء يحتاجه المصنع — مواد تنظيف، معدات، قطع غيار — يتم متابعته من الطلب وحتى تأكيد عمله بشكل سليم.",
-    awaitingReview: "بانتظار المراجعة",
+    requiresMyAction: "يتطلب إجرائي",
+    showingMyActionOnly: "يتم عرض الطلبات التي تنتظرك فقط.",
+    showAllRequests: "عرض كل الطلبات",
     newRequest: "طلب جديد",
     colTrackingNumber: "رقم التتبع",
     colItem: "الصنف",

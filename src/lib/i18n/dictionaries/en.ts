@@ -3773,7 +3773,9 @@ const en = {
     title: "Purchase Requests",
     subtitle:
       "Anything the factory needs — cleaning materials, equipment, spare parts — tracked from request through to confirmed working.",
-    awaitingReview: "awaiting review",
+    requiresMyAction: "requires my action",
+    showingMyActionOnly: "Showing only requests waiting on you.",
+    showAllRequests: "Show all requests",
     newRequest: "New Request",
     colTrackingNumber: "Tracking #",
     colItem: "Item",

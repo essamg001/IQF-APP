@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { canManagePurchasing, canApproveAccounting } from "@/lib/roles";
+import { isPurchaseRequestMyTurn } from "@/lib/purchaseRequests";
 import { LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,12 @@ const STATUS_COLOR = {
   CONFIRMED_WORKING: "green",
 } as const;
 
-export default async function PurchaseRequestsPage() {
+export default async function PurchaseRequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mine?: string }>;
+}) {
+  const { mine } = await searchParams;
   const locale = await resolveLocale();
   const fullDict = getDictionary(locale);
   const dict = fullDict.purchaseRequests;
@@ -39,8 +44,6 @@ export default async function PurchaseRequestsPage() {
   } as const;
 
   const session = await auth();
-  const canManage = canManagePurchasing(session?.user);
-  const canApproveAcct = canApproveAccounting(session?.user);
 
   const now = new Date();
   const requests = await prisma.purchaseRequest.findMany({
@@ -49,12 +52,12 @@ export default async function PurchaseRequestsPage() {
     take: 200,
   });
 
-  // The warehouse forwards straight to Accounting now, not Purchasing --
-  // Accounting's queue is anything awaiting their approve/reject decision;
-  // Purchasing's queue only starts once Accounting has approved (status
-  // APPROVED), whether or not they've acknowledged receipt yet.
-  const pendingAccountingCount = requests.filter((r) => r.status === "FORWARDED_TO_ACCOUNTING").length;
-  const pendingCount = requests.filter((r) => r.status === "APPROVED").length;
+  // Same status+role logic the detail page uses to decide which action card
+  // to show -- one shared predicate so this badge/filter and the detail
+  // page never disagree about whose turn it is.
+  const myTurnCount = requests.filter((r) => isPurchaseRequestMyTurn(r, session?.user)).length;
+  const showingMine = mine === "1";
+  const visibleRequests = showingMine ? requests.filter((r) => isPurchaseRequestMyTurn(r, session?.user)) : requests;
 
   return (
     <div>
@@ -63,21 +66,24 @@ export default async function PurchaseRequestsPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {dict.subtitle}
-            {pendingAccountingCount > 0 && canApproveAcct && (
+            {myTurnCount > 0 && (
               <span className="ms-2">
-                <Badge color="amber">
-                  {pendingAccountingCount} {dict.awaitingReview}
-                </Badge>
-              </span>
-            )}
-            {pendingCount > 0 && canManage && (
-              <span className="ms-2">
-                <Badge color="amber">
-                  {pendingCount} {dict.awaitingReview}
-                </Badge>
+                <Link href="/purchase-requests?mine=1">
+                  <Badge color="amber">
+                    {myTurnCount} {dict.requiresMyAction}
+                  </Badge>
+                </Link>
               </span>
             )}
           </p>
+          {showingMine && (
+            <p className="mt-1 text-xs text-slate-400">
+              {dict.showingMyActionOnly}{" "}
+              <Link href="/purchase-requests" className="text-emerald-700 hover:underline">
+                {dict.showAllRequests}
+              </Link>
+            </p>
+          )}
           <p className="print-only mt-1 text-xs text-slate-500">
             {common.printedOn.replace("{date}", formatDate(now, "dd MMM yyyy HH:mm", locale))}
           </p>
@@ -102,7 +108,7 @@ export default async function PurchaseRequestsPage() {
             </tr>
           </thead>
           <tbody>
-            {requests.map((r) => {
+            {visibleRequests.map((r) => {
               return (
                 <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className="px-4 py-2">
@@ -130,7 +136,7 @@ export default async function PurchaseRequestsPage() {
                 </tr>
               );
             })}
-            {requests.length === 0 && (
+            {visibleRequests.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                   {dict.noRequests}

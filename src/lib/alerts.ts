@@ -14,6 +14,7 @@ const GLOBALGAP_EXPIRY_WARNING_DAYS = 30;
 const CERTIFICATION_EXPIRY_WARNING_DAYS = 30;
 const ORDER_ALLOCATION_ALERT_DAYS = 7;
 const ORDER_SHIP_DATE_ALERT_DAYS = 3;
+const PURCHASE_REQUEST_PENDING_ALERT_DAYS = 3;
 
 async function upsertAlert(type: AlertType, relatedEntityId: string, targetRole: Role, message: string, messageAr?: string) {
   const existing = await prisma.alert.findFirst({
@@ -65,6 +66,56 @@ async function checkPurchaseRequestOverdue() {
     const itemLabel = request.items[0]?.itemDescription ?? "item(s)";
     const message = `Purchase request for ${itemLabel}${request.supplierName ? ` (${request.supplierName})` : ""} is ${daysOverdue} day(s) overdue against its ${request.revisedDeliveryDate ? "revised" : "expected"} delivery date.`;
     const messageAr = `طلب الشراء الخاص بـ ${itemLabel}${request.supplierName ? ` (${request.supplierName})` : ""} متأخر ${daysOverdue} يوم عن موعد التسليم ${request.revisedDeliveryDate ? "المعدَّل" : "المتوقع"}.`;
+    await upsertAlert("PURCHASE_REQUEST_OVERDUE", request.id, "OWNER", message, messageAr);
+  }
+
+  // Same alert type, a different trigger: a request that's been *sitting*
+  // untouched at whichever stage needs someone's decision -- Warehouse
+  // (REQUESTED), Accounting (FORWARDED_TO_ACCOUNTING), or Purchasing
+  // (APPROVED) -- for a while, not just one that's already ordered and now
+  // running late on delivery. Alerts.targetRole is a base Role, not one of
+  // these narrow isHeadOf* responsibilities, so -- same as the
+  // already-ordered case above -- this reaches the Owner rather than the
+  // specific person; the Owner already sees/routes everything under the
+  // app's narrow-accountability model.
+  const pending = await prisma.purchaseRequest.findMany({
+    where: { status: { in: ["REQUESTED", "FORWARDED_TO_ACCOUNTING", "APPROVED"] } },
+    select: {
+      id: true,
+      status: true,
+      supplierName: true,
+      requestedAt: true,
+      warehouseCheckedAt: true,
+      accountingApprovedAt: true,
+      items: { select: { itemDescription: true }, take: 1 },
+    },
+  });
+
+  const STAGE_LABEL: Record<string, string> = {
+    REQUESTED: "a warehouse stock check",
+    FORWARDED_TO_ACCOUNTING: "Accounting's approval",
+    APPROVED: "Purchasing to place the order",
+  };
+  const STAGE_LABEL_AR: Record<string, string> = {
+    REQUESTED: "فحص مخزون المستودع",
+    FORWARDED_TO_ACCOUNTING: "موافقة الحسابات",
+    APPROVED: "قيام المشتريات بطلب الشراء",
+  };
+
+  for (const request of pending) {
+    const stageStartedAt =
+      request.status === "APPROVED"
+        ? (request.accountingApprovedAt ?? request.requestedAt)
+        : request.status === "FORWARDED_TO_ACCOUNTING"
+          ? (request.warehouseCheckedAt ?? request.requestedAt)
+          : request.requestedAt;
+
+    const daysPending = differenceInDays(new Date(), stageStartedAt);
+    if (daysPending < PURCHASE_REQUEST_PENDING_ALERT_DAYS) continue;
+
+    const itemLabel = request.items[0]?.itemDescription ?? "item(s)";
+    const message = `Purchase request for ${itemLabel}${request.supplierName ? ` (${request.supplierName})` : ""} has been waiting ${daysPending} day(s) for ${STAGE_LABEL[request.status]}.`;
+    const messageAr = `طلب الشراء الخاص بـ ${itemLabel}${request.supplierName ? ` (${request.supplierName})` : ""} ينتظر منذ ${daysPending} يوم ${STAGE_LABEL_AR[request.status]}.`;
     await upsertAlert("PURCHASE_REQUEST_OVERDUE", request.id, "OWNER", message, messageAr);
   }
 }
