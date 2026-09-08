@@ -1419,6 +1419,8 @@ const en = {
     colType: "Type",
     colLocation: "Location",
     colFactory: "Factory",
+    bothFactoriesOption: "Both Factories (mutual issue)",
+    bothFactoriesLabel: "Both Factories",
     colReportedBy: "Reported By",
     colStatus: "Status",
     verified: "Verified",

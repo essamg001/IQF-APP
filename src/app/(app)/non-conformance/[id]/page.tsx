@@ -71,7 +71,7 @@ export default async function NonConformanceDetailPage({ params }: { params: Pro
       </p>
 
       <Card className="space-y-3">
-        <Row label={fullDict.common.factory} value={report.factory.name} />
+        <Row label={fullDict.common.factory} value={report.factory?.name ?? dict.bothFactoriesLabel} />
         <Row label={dict.productReferenceRow} value={report.productOrReference} />
         <Row label={fullDict.common.description} value={report.description} />
         <Row label={dict.reportedBy} value={report.reportedByName} />

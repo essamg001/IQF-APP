@@ -1401,6 +1401,8 @@ const ar = {
     colType: "النوع",
     colLocation: "الموقع",
     colFactory: "المصنع",
+    bothFactoriesOption: "كلا المصنعين (مشكلة مشتركة)",
+    bothFactoriesLabel: "كلا المصنعين",
     colReportedBy: "المُبلِغ",
     colStatus: "الحالة",
     verified: "تم التحقق",

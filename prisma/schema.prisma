@@ -3168,9 +3168,12 @@ enum NonConformanceSource {
 }
 
 model NonConformanceReport {
-  id        String  @id @default(cuid())
-  factoryId String
-  factory   Factory @relation(fields: [factoryId], references: [id])
+  id String @id @default(cuid())
+  // Null means "both factories" -- a mutual non-conformance (a product-wide
+  // issue, a shared-supplier defect) genuinely affects both, not one. Same
+  // pattern as FactoryVisit.factoryId.
+  factoryId String?
+  factory   Factory? @relation(fields: [factoryId], references: [id])
 
   date               DateTime
   location           String

@@ -30,12 +30,13 @@ export function ReportForm({
             <Input name="date" type="date" defaultValue={today} required />
           </FieldGroup>
           <FieldGroup label={dict.common.factory}>
-            <Select name="factoryId" required defaultValue={defaults?.factoryId ?? factories[0]?.id ?? ""}>
+            <Select name="factoryId" defaultValue={defaults?.factoryId ?? factories[0]?.id ?? ""}>
               {factories.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
                 </option>
               ))}
+              <option value="">{t.bothFactoriesOption}</option>
             </Select>
           </FieldGroup>
           <FieldGroup label={t.ncTypeLabel}>

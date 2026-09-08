@@ -9,7 +9,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 const reportSchema = z.object({
-  factoryId: z.string().min(1),
+  // Omitted (the "Both Factories" option) means the non-conformance is
+  // mutual to both -- a product-wide or shared-supplier issue, not one
+  // factory's problem.
+  factoryId: z.string().optional(),
   date: z.string().min(1),
   location: z.string().min(1),
   productOrReference: z.string().optional(),

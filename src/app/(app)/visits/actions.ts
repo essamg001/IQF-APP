@@ -136,17 +136,12 @@ export async function raiseFindingAsNonConformanceAction(visitId: string, findin
   });
   if (!finding || finding.category !== "ISSUE" || finding.linkedNonConformanceReportId) return;
 
-  // A Non-Conformance Report always names one specific factory, but a
-  // "Both Factories" visit doesn't -- fall back to whichever factory sorts
-  // first rather than block the escalation entirely. Worth a real
-  // factory-picker on this action later if both-factories findings turn out
-  // to get escalated often; for now this is a reasonable default, not a
-  // guess anyone would silently trust for something safety-critical.
-  const factoryId = finding.visit.factoryId ?? (await prisma.factory.findFirst({ orderBy: { name: "asc" } }))!.id;
-
   const nc = await prisma.nonConformanceReport.create({
     data: {
-      factoryId,
+      // A "Both Factories" visit (null factoryId) now maps straight onto a
+      // "Both Factories" NC report -- no more guessing a single factory for
+      // a finding that was never scoped to just one.
+      factoryId: finding.visit.factoryId,
       date: finding.visit.date,
       location: finding.area || "—",
       description: finding.description,

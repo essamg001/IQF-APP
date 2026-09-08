@@ -74,7 +74,7 @@ export default async function NonConformancePage() {
                 </td>
                 <td className="px-4 py-2">{TYPE_LABEL[r.ncType] ?? r.ncType}</td>
                 <td className="px-4 py-2">{r.location}</td>
-                <td className="px-4 py-2">{r.factory.name}</td>
+                <td className="px-4 py-2">{r.factory?.name ?? dict.bothFactoriesLabel}</td>
                 <td className="px-4 py-2">{r.reportedByName}</td>
                 <td className="px-4 py-2">
                   {r.verifiedAt ? <Badge color="green">{dict.verified}</Badge> : <Badge color="amber">{dict.open}</Badge>}
