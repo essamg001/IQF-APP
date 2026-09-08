@@ -91,6 +91,9 @@ export default async function AvailableToSellPage({
     })
   ).filter((r) => r.readyPalletCount > 0 || r.committed > 0 || r.pendingMicroCount > 0);
 
+  const shortRows = rows.filter((r) => r.availablePallets < 0);
+  const totalShortPallets = shortRows.reduce((s, r) => s + Math.abs(r.availablePallets), 0);
+
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
@@ -101,7 +104,21 @@ export default async function AvailableToSellPage({
         <PrintButton />
       </div>
 
-      <Card className="mt-6 overflow-x-auto p-0">
+      {shortRows.length > 0 ? (
+        <Card className="mt-6 border-red-200 bg-red-50">
+          <p className="text-xs font-medium uppercase tracking-wide text-red-700">
+            {dict.shortfallHeadline.replace("{count}", String(totalShortPallets)).replace("{lines}", String(shortRows.length))}
+          </p>
+          <p className="mt-1 text-xs text-red-700">{dict.shortfallHeadlineNote}</p>
+        </Card>
+      ) : (
+        <Card className="mt-6 border-emerald-200 bg-emerald-50">
+          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">{dict.noShortfallHeadline}</p>
+          <p className="mt-1 text-xs text-emerald-700">{dict.noShortfallHeadlineNote}</p>
+        </Card>
+      )}
+
+      <Card className="mt-4 overflow-x-auto p-0">
         <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>

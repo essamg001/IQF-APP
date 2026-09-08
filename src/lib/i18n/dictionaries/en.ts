@@ -4107,6 +4107,10 @@ const en = {
     fullyCommitted: "Fully committed",
     availableSuffix: "{count} pallets ({tonnes}t)",
     noStockOrOrders: "No stock or pending orders to show yet.",
+    shortfallHeadline: "Short {count} pallets across {lines} product line(s)",
+    shortfallHeadlineNote: "Total across every grade/format currently short — see below for which ones.",
+    noShortfallHeadline: "Every pending order is covered by ready stock",
+    noShortfallHeadlineNote: "No grade/format is currently short against what's committed.",
     footnote:
       '"Ready to sell" counts pallets currently in storage whose lot has passed microbiology approval. "Committed" is the remaining unallocated quantity on orders that are Confirmed, In Production, or Packed. "Pending microbiology" is stock physically in storage but not yet cleared to sell.',
   },
