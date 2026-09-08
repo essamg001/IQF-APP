@@ -634,6 +634,15 @@ model FieldSprayRecord {
   id            String   @id @default(cuid())
   fieldId       String
   field         Field    @relation(fields: [fieldId], references: [id])
+  // Set when the chemical was picked from the Open Field Crop Protection
+  // Plan's approved product list -- chemicalName/noHarvestDays/phiLimitDays
+  // are then derived server-side from that entry's own proposedPhiDays, not
+  // typed by the person logging the spray. Null for a product typed in by
+  // hand (not on the approved list, or the plan has no PHI on file for it --
+  // e.g. a biological control agent), which is the only case that still
+  // requires someone to enter noHarvestDays themselves.
+  cropProtectionEntryId String?
+  cropProtectionEntry   CropProtectionEntry? @relation(fields: [cropProtectionEntryId], references: [id])
   chemicalName  String
   sprayDate     DateTime
   noHarvestDays Int      @default(12)
@@ -643,7 +652,10 @@ model FieldSprayRecord {
   // The standard's required pre-harvest interval, distinct from
   // noHarvestDays above (the interval actually applied) -- lets a shorter
   // actual wait than the standard's limit show up as a real compliance gap
-  // instead of being indistinguishable from full compliance.
+  // instead of being indistinguishable from full compliance. Auto-set equal
+  // to noHarvestDays when cropProtectionEntryId is set, since the plan's PHI
+  // *is* the standard; left blank for a manually-entered product, since
+  // there's no approved standard to compare against.
   phiLimitDays           Int?
   leafCompliancePct      Float?
   globalGapCompliancePct Float?
@@ -3486,6 +3498,8 @@ model CropProtectionEntry {
   isTestData                        Boolean                         @default(false)
   createdAt                         DateTime                        @default(now())
   updatedAt                         DateTime                        @updatedAt
+
+  fieldSprayRecords FieldSprayRecord[]
 
   @@index([planId])
   @@index([targetPestOrDisease])
