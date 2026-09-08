@@ -48,7 +48,7 @@ export default async function DashboardPage() {
     structuralIssuesOverdue,
   ] = await Promise.all([
     prisma.client.count(),
-    prisma.order.count({ where: { stage: { notIn: ["DELIVERED", "PAID"] } } }),
+    prisma.order.count({ where: { stage: { notIn: ["DELIVERED", "PAID"] }, cancelledAt: null } }),
     prisma.pallet.count({ where: { status: "IN_STORAGE" } }),
     prisma.claim.count({ where: { status: { in: ["OPEN", "UNDER_REVIEW"] } } }),
     role ? prisma.alert.count({ where: { targetRole: role, status: "UNREAD" } }) : 0,

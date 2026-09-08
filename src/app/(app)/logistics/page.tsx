@@ -55,7 +55,11 @@ export default async function LogisticsPage({
   // action on it just forwarded to this one), and a station: "LOAD_OUT"
   // account already lands here, not there. One page, one name.
   const pipelineOrders = await prisma.order.findMany({
-    where: { stage: { notIn: ["DELIVERED", "PAID"] } },
+    // cancelledAt is a separate exit, not a stage -- cancelling never moves
+    // stage away from CONFIRMED/IN_PRODUCTION/PACKED, so without this a
+    // cancelled order (with its pallets already released) shows up in
+    // "Awaiting Production" as if it still genuinely needed stock.
+    where: { stage: { notIn: ["DELIVERED", "PAID"] }, cancelledAt: null },
     include: {
       client: { include: { specs: true } },
       containers: true,
@@ -77,20 +81,26 @@ export default async function LogisticsPage({
 
   // A search looks across every container ever created, not just the recent
   // 200 shown by default -- finding an old container's historical record is
-  // the whole point of searching in the first place.
+  // the whole point of searching in the first place. "Historical" there
+  // means an older real shipment from this operation, not the imported
+  // isHistorical trade ledger (that's what powers /trends, not this page) --
+  // isHistorical is always excluded, search or not.
   const allContainers = await prisma.container.findMany({
-    where: query
-      ? {
-          OR: [
-            { containerNumber: { contains: query, mode: "insensitive" } },
-            { order: { orderNumber: { contains: query, mode: "insensitive" } } },
-            { order: { client: { name: { contains: query, mode: "insensitive" } } } },
-            { sealNumber: { contains: query, mode: "insensitive" } },
-            { billOfLadingNumber: { contains: query, mode: "insensitive" } },
-            { bolsaPermitNumber: { contains: query, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
+    where: {
+      order: { isHistorical: false },
+      ...(query
+        ? {
+            OR: [
+              { containerNumber: { contains: query, mode: "insensitive" } },
+              { order: { orderNumber: { contains: query, mode: "insensitive" } } },
+              { order: { client: { name: { contains: query, mode: "insensitive" } } } },
+              { sealNumber: { contains: query, mode: "insensitive" } },
+              { billOfLadingNumber: { contains: query, mode: "insensitive" } },
+              { bolsaPermitNumber: { contains: query, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
     include: {
       order: { include: { client: true } },
       palletLines: { select: { quantityTonnes: true } },

@@ -90,6 +90,12 @@ export default async function FinancialsPage() {
   };
 
   const orders = await prisma.order.findMany({
+    // isHistorical rows are the imported past-seasons trade ledger, not
+    // real current-season value -- left in, the headline totals below
+    // (total order value, partial margin) would be computed mostly from
+    // 2023-era history rather than this season, since there are currently
+    // far fewer than 200 real orders.
+    where: { isHistorical: false },
     include: { client: true, containers: true },
     orderBy: { orderDate: "desc" },
     take: 200,
@@ -99,6 +105,7 @@ export default async function FinancialsPage() {
   const totalNetOrderValue = netValues.reduce((s, v) => s + v, 0);
 
   const containers = await prisma.container.findMany({
+    where: { order: { isHistorical: false } },
     include: {
       order: { include: { client: true } },
       palletLines: { include: { pallet: true } },

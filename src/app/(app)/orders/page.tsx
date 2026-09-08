@@ -51,6 +51,13 @@ export default async function OrdersPage() {
   const dict = getDictionary(locale).orders;
 
   const orders = await prisma.order.findMany({
+    // isHistorical rows are the imported past-seasons trade ledger that
+    // powers Historical Trends (/trends) -- not this season's live order
+    // book. Nothing else in this query already excludes them (unlike
+    // Active Orders/Logistics, this page has no stage filter at all), so
+    // without this a "recent 200" list is mostly 2023-era history the
+    // moment there are fewer than 200 real current orders.
+    where: { isHistorical: false },
     include: {
       client: { include: { specs: true } },
       containers: true,

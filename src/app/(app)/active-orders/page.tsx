@@ -34,7 +34,11 @@ export default async function ActiveOrdersPage() {
   };
 
   const orders = await prisma.order.findMany({
-    where: { stage: { notIn: ["DELIVERED", "PAID"] } },
+    // cancelledAt is a separate exit, not a stage -- a cancelled order can
+    // still sit at CONFIRMED/IN_PRODUCTION/PACKED (cancelling never moves
+    // it), so the stage filter alone lets a cancelled order keep showing up
+    // here as if it were still live.
+    where: { stage: { notIn: ["DELIVERED", "PAID"] }, cancelledAt: null },
     include: { client: true, _count: { select: { pallets: true } } },
     orderBy: { orderDate: "asc" },
   });
