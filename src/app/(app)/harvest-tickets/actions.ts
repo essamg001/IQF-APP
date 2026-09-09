@@ -1,23 +1,25 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseDateSafe } from "@/lib/dates";
 import { activeRestriction, sprayClearDate } from "@/lib/fieldSpray";
 import { raiseSprayRestrictionBlockedAlert } from "@/lib/alerts";
+import { saveUploadedFile } from "@/lib/files";
 import { z } from "zod";
 
 const plotLineSchema = z.object({
-  stationNo: z.string().optional(),
-  plotValveGhNo: z.string().optional(),
-  varietyName: z.string().optional(),
+  stationNo: z.string().min(1, "Station is required for every plot line."),
+  plotValveGhNo: z.string().min(1, "Plot/Valve/GH No. is required for every plot line."),
+  varietyName: z.string().min(1, "Variety is required for every plot line."),
   cycleNumber: z.string().optional(),
   plantingYear: z.string().optional(),
   cutNo: z.string().optional(),
   palletsCount: z.coerce.number().int().min(0).optional(),
-  cratesCount: z.coerce.number().int().min(0).optional(),
-  weightKg: z.coerce.number().min(0).optional(),
+  cratesCount: z.coerce.number().int().min(1, "Number of crates is required for every plot line."),
+  weightKg: z.coerce.number().min(0.001, "Weight is required for every plot line."),
 });
 
 const complianceLevels = ["GLOBALGAP", "SPRING", "LEAF", "OTHER", "NURTURE", "AH_DL_GROW", "FAIRTRADE", "ORGANIC_100", "BIO_SUISSE"] as const;
@@ -51,9 +53,8 @@ const ticketSchema = z.object({
   vehicleNo: z.string().optional(),
   authorizedGrower: z.string().optional(),
   cropName: z.string().optional(),
-  harvestTime: z.string().optional(),
+  harvestAt: z.string().min(1, "Harvest date/time is required."),
   harvestSupervisor: z.string().optional(),
-  harvestDate: z.string().optional(),
 
   plotLines: z.array(plotLineSchema),
 });
@@ -104,7 +105,7 @@ export async function createHarvestTicketAction(_prevState: string | undefined, 
     return match?.id;
   };
 
-  const { loadingTime, harvestTime, harvestDate, plotLines: lines, ...data } = parsed.data;
+  const { loadingTime, harvestAt, plotLines: lines, ...data } = parsed.data;
 
   const filteredLines = lines.filter((l) => l.stationNo || l.plotValveGhNo || l.varietyName);
   const resolvedFieldIds = [
@@ -138,8 +139,7 @@ export async function createHarvestTicketAction(_prevState: string | undefined, 
     data: {
       ...data,
       loadingTime: parseDateSafe(loadingTime),
-      harvestTime: parseDateSafe(harvestTime),
-      harvestDate: parseDateSafe(harvestDate),
+      harvestAt: parseDateSafe(harvestAt),
       plotLines: {
         create: lines
           .filter((l) => l.stationNo || l.plotValveGhNo || l.varietyName)
@@ -156,14 +156,12 @@ export async function createHarvestTicketAction(_prevState: string | undefined, 
 }
 
 const receiptSchema = z.object({
-  receivedDate: z.string().optional(),
-  receivedTime: z.string().optional(),
+  receivedAt: z.string().optional(),
   deliveryNumber: z.string().optional(),
   cratesReceived: z.coerce.number().int().min(0).optional(),
   palletsReceived: z.coerce.number().int().min(0).optional(),
   grossWeightKg: z.coerce.number().min(0).optional(),
   netWeightKg: z.coerce.number().min(0).optional(),
-  pricePerKgUsd: z.coerce.number().min(0).optional(),
   electronicWeightCardNo: z.string().optional(),
   productTempC: z.coerce.number().optional(),
   optimumTempC: z.coerce.number().optional(),
@@ -184,17 +182,47 @@ export async function recordReceiptAction(ticketId: string, _prevState: string |
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  const { receivedDate, receivedTime, ...data } = parsed.data;
+  const { receivedAt, ...data } = parsed.data;
 
   await prisma.harvestTicket.update({
     where: { id: ticketId },
     data: {
       ...data,
-      receivedDate: parseDateSafe(receivedDate),
-      receivedTime: parseDateSafe(receivedTime),
+      receivedAt: parseDateSafe(receivedAt),
     },
   });
 
   revalidatePath(`/harvest-tickets/${ticketId}`);
   return "ok";
+}
+
+const photoSchema = z.object({
+  caption: z.string().optional(),
+});
+
+export async function addHarvestTicketPhotoAction(harvestTicketId: string, formData: FormData) {
+  const parsed = photoSchema.parse({ caption: formData.get("caption") || undefined });
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return;
+
+  const saved = await saveUploadedFile(file, "harvest-ticket-photos");
+  const session = await auth();
+
+  await prisma.harvestTicketPhoto.create({
+    data: {
+      harvestTicketId,
+      fileName: saved.fileName,
+      originalName: saved.originalName,
+      caption: parsed.caption,
+      uploadedByUserId: session?.user.id,
+    },
+  });
+
+  revalidatePath(`/harvest-tickets/${harvestTicketId}`);
+}
+
+export async function removeHarvestTicketPhotoAction(harvestTicketId: string, photoId: string) {
+  await prisma.harvestTicketPhoto.delete({ where: { id: photoId } });
+  revalidatePath(`/harvest-tickets/${harvestTicketId}`);
 }

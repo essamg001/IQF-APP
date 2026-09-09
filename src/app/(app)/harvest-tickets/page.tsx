@@ -61,12 +61,12 @@ export default async function HarvestTicketsPage() {
                       {t.serialNumber}
                     </Link>
                   </td>
-                  <td className="px-4 py-2">{t.harvestDate ? formatDate(t.harvestDate, "dd MMM yyyy", locale) : "—"}</td>
+                  <td className="px-4 py-2">{t.harvestAt ? formatDate(t.harvestAt, "dd MMM yyyy HH:mm", locale) : "—"}</td>
                   <td className="px-4 py-2">{t.vehicleNo ?? "—"}</td>
                   <td className="px-4 py-2">{t._count.plotLines}</td>
                   <td className="px-4 py-2">{totalCrates || "—"}</td>
                   <td className="px-4 py-2">
-                    {t.receivedDate ? (
+                    {t.receivedAt ? (
                       <Badge color={t.acceptedAtPackhouse ? "green" : "red"}>
                         {t.acceptedAtPackhouse ? dict.accepted : dict.rejected}
                       </Badge>

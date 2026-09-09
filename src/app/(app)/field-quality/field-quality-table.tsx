@@ -27,7 +27,7 @@ export type TicketCheck = {
   foreignBodiesPct: number | null;
   ticket: {
     serialNumber: string | null;
-    harvestDate: Date | null;
+    harvestAt: Date | null;
     stationNo: string | null;
     plotValveGhNo: string | null;
     cutNo: string | null;
@@ -173,7 +173,7 @@ function CheckDrilldown({ checks, totalCols }: { checks: TicketCheck[]; totalCol
                   <>
                     <td className="whitespace-nowrap px-2 py-1 text-slate-700">{c.ticket.serialNumber ?? "—"}</td>
                     <td className="whitespace-nowrap px-2 py-1 text-slate-700">
-                      {c.ticket.harvestDate ? format(c.ticket.harvestDate, "dd MMM yyyy") : "—"}
+                      {c.ticket.harvestAt ? format(c.ticket.harvestAt, "dd MMM yyyy HH:mm") : "—"}
                     </td>
                     <td className="whitespace-nowrap px-2 py-1 text-slate-700">
                       {[c.ticket.stationNo, c.ticket.plotValveGhNo].filter(Boolean).join(" · ") || "—"}

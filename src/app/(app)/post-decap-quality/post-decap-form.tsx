@@ -41,11 +41,13 @@ export function PostDecapForm({
   shiftType,
   fields,
   fieldByReceiptNote,
+  harvestTicketSerials,
 }: {
   date: string;
   shiftType: "DAY" | "NIGHT";
   fields: FieldOption[];
   fieldByReceiptNote: Record<string, string>;
+  harvestTicketSerials: string[];
 }) {
   const [state, formAction, pending] = useActionState(createPostDecapCheckAction, undefined);
   const dict = useTranslations().postDecapQuality;
@@ -70,8 +72,14 @@ export function PostDecapForm({
               name="receiptNoteNo"
               value={receiptNoteNo}
               onChange={(e) => setReceiptNoteNo(e.target.value)}
+              list="post-decap-ticket-serials"
               placeholder={dict.harvestTicketSerialPlaceholder}
             />
+            <datalist id="post-decap-ticket-serials">
+              {harvestTicketSerials.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </FieldGroup>
           <FieldGroup label={dict.fieldPlot}>
             <FieldNameInput key={matchedFieldName || "manual"} defaultValue={matchedFieldName} fields={fields} placeholder={dict.fieldPlotPlaceholder} />

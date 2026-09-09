@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { FieldsExplorer } from "./fields-explorer";
 import { PrintButton } from "@/components/ui/print-button";
 
 export default async function FieldsPage() {
+  const session = await auth();
+  const canEdit = !!session?.user && ["QUALITY", "OWNER"].includes(session.user.role);
   const locale = await resolveLocale();
   const dict = getDictionary(locale).fields;
 
@@ -32,6 +35,7 @@ export default async function FieldsPage() {
 
       <div className="mt-6">
         <FieldsExplorer
+          canEdit={canEdit}
           fields={fields.map((f) => ({
             id: f.id,
             name: f.name,

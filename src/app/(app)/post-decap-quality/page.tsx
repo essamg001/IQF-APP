@@ -30,7 +30,10 @@ export default async function PostDecapQualityPage({
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [todaysChecks, fields, arrivalChecks] = await Promise.all([
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+  const [todaysChecks, fields, arrivalChecks, harvestTickets] = await Promise.all([
     prisma.qualityCheck.findMany({
       where: { checkpoint: "POST_DECAP", createdAt: { gte: startOfToday } },
       orderBy: { createdAt: "desc" },
@@ -45,6 +48,15 @@ export default async function PostDecapQualityPage({
         createdAt: { gte: startOfToday },
       },
       include: { field: true },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+    // Real harvest ticket serials, for the searchable dropdown -- not
+    // scoped to just today, since a ticket from a day or two ago can still
+    // legitimately be the one Post-Decap Quality is checking against.
+    prisma.harvestTicket.findMany({
+      where: { createdAt: { gte: fourteenDaysAgo } },
+      select: { serialNumber: true },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
@@ -107,6 +119,7 @@ export default async function PostDecapQualityPage({
           shiftType={shiftType}
           fields={fields}
           fieldByReceiptNote={fieldByReceiptNote}
+          harvestTicketSerials={harvestTickets.map((t) => t.serialNumber)}
         />
       </div>
 

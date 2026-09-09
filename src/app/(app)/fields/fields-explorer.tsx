@@ -1,9 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
+import { Input, FieldGroup } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { updateFieldPlantingDataAction } from "./actions";
 import { useTranslations } from "@/lib/i18n/locale-context";
+import type { Dictionary } from "@/lib/i18n/getDictionary";
+
+type FieldsDict = Dictionary["fields"];
 
 function MapLoading() {
   const { fields: dict } = useTranslations();
@@ -33,9 +39,10 @@ export type FieldRow = {
   boundaryLatLng: number[][][] | null;
 };
 
-export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
+export function FieldsExplorer({ fields, canEdit }: { fields: FieldRow[]; canEdit: boolean }) {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState(false);
   const { fields: dict } = useTranslations();
 
   const farmLabel = useMemo(() => {
@@ -68,15 +75,32 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
             <span className="text-xs text-slate-400">{dict.clickPlotHint}</span>
           </div>
           {hasGeometry ? (
-            <FieldsLeafletMap fields={fields} selectedFieldId={selectedFieldId} onSelect={setSelectedFieldId} />
+            <FieldsLeafletMap
+              fields={fields}
+              selectedFieldId={selectedFieldId}
+              onSelect={(id) => {
+                setSelectedFieldId(id);
+                setEditing(false);
+              }}
+            />
           ) : (
             <p className="py-8 text-center text-sm text-slate-400">{dict.noGeometry}</p>
           )}
         </Card>
 
         <Card className="p-4">
-          <h2 className="text-sm font-semibold text-slate-900">{dict.fieldDetailsTitle}</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">{dict.fieldDetailsTitle}</h2>
+            {selectedField && canEdit && !editing && (
+              <button type="button" onClick={() => setEditing(true)} className="text-xs text-emerald-700 hover:underline">
+                {dict.editPlantingData}
+              </button>
+            )}
+          </div>
           {selectedField ? (
+            editing ? (
+              <FieldPlantingDataForm field={selectedField} dict={dict} onDone={() => setEditing(false)} />
+            ) : (
             <dl className="mt-3 space-y-2 text-sm">
               <Row label={dict.rowName} value={selectedField.name} />
               <Row label={dict.rowFarm} value={selectedField.farmName} />
@@ -104,6 +128,7 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
                 </div>
               )}
             </dl>
+            )
           ) : (
             <p className="mt-3 text-sm text-slate-400">{dict.clickPlotOrRow}</p>
           )}
@@ -137,7 +162,10 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
             {filteredFields.map((f) => (
               <tr
                 key={f.id}
-                onClick={() => setSelectedFieldId(f.id)}
+                onClick={() => {
+                  setSelectedFieldId(f.id);
+                  setEditing(false);
+                }}
                 className={`cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50 ${
                   f.id === selectedFieldId ? "bg-amber-50" : ""
                 }`}
@@ -174,6 +202,34 @@ export function FieldsExplorer({ fields }: { fields: FieldRow[] }) {
         </table>
       </Card>
     </div>
+  );
+}
+
+function FieldPlantingDataForm({ field, dict, onDone }: { field: FieldRow; dict: FieldsDict; onDone: () => void }) {
+  const [state, formAction, pending] = useActionState(updateFieldPlantingDataAction.bind(null, field.id), undefined);
+
+  useEffect(() => {
+    if (state === "ok") onDone();
+  }, [state, onDone]);
+
+  return (
+    <form action={formAction} className="mt-3 space-y-3">
+      <FieldGroup label={dict.rowPlantingDate}>
+        <Input name="plantingDate" defaultValue={field.plantingDate ?? ""} placeholder={dict.plantingDatePlaceholder} />
+      </FieldGroup>
+      <FieldGroup label={dict.avgTonPerFeddanLabel}>
+        <Input name="avgTonPerFeddan" type="number" step="0.1" min="0" defaultValue={field.avgTonPerFeddan ?? ""} />
+      </FieldGroup>
+      {state && state !== "ok" && <p className="text-xs text-red-600">{state}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={pending} variant="secondary">
+          {dict.savePlantingData}
+        </Button>
+        <button type="button" onClick={onDone} className="text-xs text-slate-500 hover:underline">
+          {dict.cancelEdit}
+        </button>
+      </div>
+    </form>
   );
 }
 

@@ -44,7 +44,7 @@ const CHECK_SELECT = {
       cutNo: true,
       weightKg: true,
       cratesCount: true,
-      harvestTicket: { select: { serialNumber: true, harvestDate: true } },
+      harvestTicket: { select: { serialNumber: true, harvestAt: true } },
     },
   },
 } as const;
@@ -73,7 +73,7 @@ type Check = {
     cutNo: string | null;
     weightKg: number | null;
     cratesCount: number | null;
-    harvestTicket: { serialNumber: string; harvestDate: Date | null } | null;
+    harvestTicket: { serialNumber: string; harvestAt: Date | null } | null;
   } | null;
 };
 
@@ -145,7 +145,7 @@ function toTicketCheck(c: Check): TicketCheck {
     ticket: c.harvestTicketPlotLine
       ? {
           serialNumber: c.harvestTicketPlotLine.harvestTicket?.serialNumber ?? null,
-          harvestDate: c.harvestTicketPlotLine.harvestTicket?.harvestDate ?? null,
+          harvestAt: c.harvestTicketPlotLine.harvestTicket?.harvestAt ?? null,
           stationNo: c.harvestTicketPlotLine.stationNo,
           plotValveGhNo: c.harvestTicketPlotLine.plotValveGhNo,
           cutNo: c.harvestTicketPlotLine.cutNo,

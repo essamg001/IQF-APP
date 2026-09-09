@@ -73,7 +73,7 @@ export default async function DailyReportPage({
     prisma.decapDailyLog.findUnique({ where: { date: dayStart } }),
     getDecapWeighingTotalsForDate(dayStart),
     prisma.harvestTicket.aggregate({
-      where: { receivedDate: { gte: dayStart, lt: dayEnd } },
+      where: { receivedAt: { gte: dayStart, lt: dayEnd } },
       _sum: { netWeightKg: true },
     }),
     prisma.dailyLabourEntry.findMany({

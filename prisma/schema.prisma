@@ -310,6 +310,7 @@ model User {
   receivedPurchaseRequests  PurchaseRequest[] @relation("PurchaseReceivedBy")
   workingConfirmedPurchaseRequests PurchaseRequest[] @relation("PurchaseWorkingConfirmedBy")
   uploadedPurchaseRequestPhotos    PurchaseRequestPhoto[] @relation("PurchaseRequestPhotoUploadedBy")
+  uploadedHarvestTicketPhotos      HarvestTicketPhoto[] @relation("HarvestTicketPhotoUploadedBy")
 
   reportedStructuralIssues     StructuralIssue[] @relation("StructuralIssueReportedBy")
   acknowledgedStructuralIssues StructuralIssue[] @relation("StructuralIssueAcknowledgedBy")
@@ -716,14 +717,12 @@ model HarvestTicket {
   vehicleNo           String?
   authorizedGrower    String? // farm name/code
   cropName            String?
-  harvestTime         DateTime?
+  harvestAt           DateTime? // single date+time of harvest -- was two separate fields
   harvestSupervisor   String?
-  harvestDate         DateTime?
   ipmConfirmationDate DateTime? // from IPM03208
 
   // Packhouse/decap-facility receipt section -- completed on arrival.
-  receivedDate           DateTime?
-  receivedTime           DateTime?
+  receivedAt             DateTime? // single date+time of arrival -- was two separate fields
   deliveryNumber         String?
   cratesReceived         Int?
   palletsReceived        Int?
@@ -743,6 +742,23 @@ model HarvestTicket {
   createdAt DateTime @default(now())
 
   plotLines HarvestTicketPlotLine[]
+  photos    HarvestTicketPhoto[]
+}
+
+// The original paper harvest ticket, photographed and attached to the
+// digital record -- mirrors PurchaseRequestPhoto.
+model HarvestTicketPhoto {
+  id              String        @id @default(cuid())
+  harvestTicketId String
+  harvestTicket   HarvestTicket @relation(fields: [harvestTicketId], references: [id], onDelete: Cascade)
+  fileName        String
+  originalName    String
+  caption         String?
+  uploadedByUserId String?
+  uploadedBy      User?         @relation("HarvestTicketPhotoUploadedBy", fields: [uploadedByUserId], references: [id])
+  createdAt       DateTime      @default(now())
+
+  @@index([harvestTicketId])
 }
 
 model HarvestTicketPlotLine {

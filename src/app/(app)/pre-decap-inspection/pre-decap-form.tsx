@@ -35,8 +35,6 @@ function Pct({
   );
 }
 
-type FieldOption = { id: string; name: string };
-
 type PlotLineOption = {
   id: string;
   stationNo: string | null;
@@ -52,10 +50,8 @@ type HarvestTicketOption = {
 };
 
 export function PreDecapForm({
-  fields,
   harvestTickets,
 }: {
-  fields: FieldOption[];
   harvestTickets: HarvestTicketOption[];
 }) {
   const [state, formAction, pending] = useActionState(createPreDecapCheckAction, undefined);
@@ -67,7 +63,7 @@ export function PreDecapForm({
 
   return (
     <form action={formAction} className="space-y-4">
-      <SampleFields key={isSuccess ? state : "initial"} fields={fields} harvestTickets={harvestTickets} />
+      <SampleFields key={isSuccess ? state : "initial"} harvestTickets={harvestTickets} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       {decoded && decoded.violations.length === 0 && (
@@ -90,7 +86,7 @@ function plotLineLabel(l: PlotLineOption, unmatchedSuffix: string) {
   return l.field ? base : `${base} ${unmatchedSuffix}`;
 }
 
-function SerialPlotPicker({ tickets, fields }: { tickets: HarvestTicketOption[]; fields: FieldOption[] }) {
+function SerialPlotPicker({ tickets }: { tickets: HarvestTicketOption[] }) {
   const [serial, setSerial] = useState("");
   const matchedTicket = tickets.find((t) => t.serialNumber.trim().toLowerCase() === serial.trim().toLowerCase());
   const dict = useTranslations().preDecapInspection;
@@ -126,29 +122,39 @@ function SerialPlotPicker({ tickets, fields }: { tickets: HarvestTicketOption[];
           </Select>
         </FieldGroup>
       ) : (
-        <FieldGroup label={dict.plotNumber}>
-          <Input name="fieldName" required list="plot-suggestions" placeholder={dict.plotNumberPlaceholder} />
-          <datalist id="plot-suggestions">
-            {fields.map((f) => (
-              <option key={f.id} value={f.name} />
-            ))}
-          </datalist>
+        <FieldGroup label={dict.plotSampled}>
+          <p className="flex h-9 items-center text-xs text-amber-600">{dict.harvestTicketRequired}</p>
         </FieldGroup>
       )}
     </>
   );
 }
 
-function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harvestTickets: HarvestTicketOption[] }) {
+function SampleFields({ harvestTickets }: { harvestTickets: HarvestTicketOption[] }) {
   const { total: defectTotal, bind } = useDefectTotal(PRE_DECAP_DEFECT_FIELDS);
-  const dict = useTranslations().preDecapInspection;
+  const fullDict = useTranslations();
+  const dict = fullDict.preDecapInspection;
+  const hdict = fullDict.harvestTickets;
+  // Reuses the Harvest Ticket compliance labels rather than duplicating a
+  // second translated copy of the same 9 certification names.
+  const COMPLIANCE_LEVELS = [
+    ["GLOBALGAP", hdict.complianceGlobalGap],
+    ["SPRING", hdict.complianceSpring],
+    ["LEAF", hdict.complianceLeaf],
+    ["NURTURE", hdict.complianceNurture],
+    ["AH_DL_GROW", hdict.complianceAhDlGrow],
+    ["FAIRTRADE", hdict.complianceFairtrade],
+    ["ORGANIC_100", hdict.complianceOrganic100],
+    ["BIO_SUISSE", hdict.complianceBioSuisse],
+    ["OTHER", hdict.complianceOtherOption],
+  ] as const;
 
   return (
     <>
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">{dict.deliveryIdentityTitle}</h2>
         <div className="grid grid-cols-4 gap-3">
-          <SerialPlotPicker tickets={harvestTickets} fields={fields} />
+          <SerialPlotPicker tickets={harvestTickets} />
           <VarietyField />
           <FieldGroup label={dict.sampleNo}>
             <Input name="sampleNo" required />
@@ -167,6 +173,19 @@ function SampleFields({ fields, harvestTickets }: { fields: FieldOption[]; harve
           </FieldGroup>
           <FieldGroup label={dict.harvestSupervisor}>
             <Input name="harvestSupervisor" placeholder={dict.harvestSupervisorPlaceholder} />
+          </FieldGroup>
+          <FieldGroup label={hdict.complianceLevel}>
+            <Select name="complianceLevel" defaultValue="">
+              <option value="">—</option>
+              {COMPLIANCE_LEVELS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </FieldGroup>
+          <FieldGroup label={hdict.complianceOther}>
+            <Input name="complianceOther" />
           </FieldGroup>
         </div>
       </Card>

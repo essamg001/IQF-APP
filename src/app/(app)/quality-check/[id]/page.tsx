@@ -1,19 +1,33 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input, FieldGroup } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { limitsFor, translateLabel } from "@/lib/qualityLimits";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
+import { updateQualityCheckAction, deleteQualityCheckAction } from "../actions";
 
-export default async function QualityCheckDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function QualityCheckDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string }>;
+}) {
   const { id } = await params;
+  const { edit } = await searchParams;
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER", "PRODUCTION"].includes(session.user.role)) {
     redirect("/");
   }
+  const canEdit = ["QUALITY", "OWNER"].includes(session.user.role);
+  const editing = canEdit && edit === "1";
   const locale = await resolveLocale();
   const fullDict = getDictionary(locale);
   const dict = fullDict.qualityCheckDetail;
@@ -81,11 +95,30 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
     { label: dict.inspector, value: check.inspector?.name },
   ].filter((f) => f.value != null && f.value !== "");
 
+  const reportNonConformanceHref = `/non-conformance/new?ncType=PRODUCT&productOrReference=${encodeURIComponent(
+    check.sampleNo ?? ""
+  )}&description=${encodeURIComponent(`${CHECKPOINT_LABEL[check.checkpoint] ?? check.checkpoint} — sample ${check.sampleNo ?? check.id}`)}`;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">{CHECKPOINT_LABEL[check.checkpoint] ?? check.checkpoint}</h1>
-        <p className="mt-1 text-sm text-slate-500">{formatDate(check.createdAt, "dd MMM yyyy HH:mm", locale)}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{CHECKPOINT_LABEL[check.checkpoint] ?? check.checkpoint}</h1>
+          <p className="mt-1 text-sm text-slate-500">{formatDate(check.createdAt, "dd MMM yyyy HH:mm", locale)}</p>
+        </div>
+        {canEdit && !editing && (
+          <div className="flex shrink-0 items-center gap-3">
+            <Link href={reportNonConformanceHref} className="text-sm text-amber-700 hover:underline">
+              {dict.reportNonConformance}
+            </Link>
+            <Link href={`/quality-check/${id}?edit=1`} className="text-sm text-emerald-700 hover:underline">
+              {dict.editButton}
+            </Link>
+            <form action={deleteQualityCheckAction.bind(null, id)}>
+              <ConfirmSubmitButton confirmMessage={dict.deleteConfirm}>{dict.deleteButton}</ConfirmSubmitButton>
+            </form>
+          </div>
+        )}
       </div>
 
       <Card>
@@ -127,38 +160,63 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
         </Card>
       )}
 
-      <Card className="overflow-x-auto p-0">
-        <div className="px-4 py-3">
+      {editing ? (
+        <Card>
           <h2 className="text-sm font-semibold text-slate-900">{dict.physicalMeasurementsDefects}</h2>
           <p className="text-xs text-slate-500">{dict.bandByBandSubtitle}</p>
-        </div>
-        <table className="w-full text-start text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
-            <tr>
-              <th className="px-4 py-2 font-medium">{dict.colBand}</th>
-              <th className="px-4 py-2 font-medium">{dict.colRecordedValue}</th>
-              <th className="px-4 py-2 font-medium">{dict.colLimit}</th>
-              <th className="px-4 py-2 font-medium">{dict.colResult}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.field} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-2">{r.label}</td>
-                <td className="px-4 py-2">{r.value != null ? r.value : "—"}</td>
-                <td className="px-4 py-2 text-slate-500">{r.max != null ? `≤ ${r.max}%` : `≥ ${r.min}%`}</td>
-                <td className="px-4 py-2">
-                  {r.pass == null ? (
-                    <span className="text-slate-400">—</span>
-                  ) : (
-                    <Badge color={r.pass ? "green" : "red"}>{r.pass ? dict.pass : dict.fail}</Badge>
-                  )}
-                </td>
+          <form action={updateQualityCheckAction.bind(null, id)} className="mt-4 space-y-4">
+            <div className="grid grid-cols-4 gap-3">
+              {rows.map((r) => (
+                <FieldGroup key={r.field} label={`${r.label} (${r.max != null ? `≤${r.max}` : `≥${r.min}`})`}>
+                  <Input name={r.field} type="number" step="0.01" defaultValue={r.value ?? ""} />
+                </FieldGroup>
+              ))}
+            </div>
+            <FieldGroup label={dict.notesLabel}>
+              <Input name="notes" defaultValue={check.notes ?? ""} />
+            </FieldGroup>
+            <div className="flex gap-3">
+              <Button type="submit">{dict.saveButton}</Button>
+              <Link href={`/quality-check/${id}`} className="inline-flex items-center text-sm text-slate-500 hover:underline">
+                {dict.cancelButton}
+              </Link>
+            </div>
+          </form>
+        </Card>
+      ) : (
+        <Card className="overflow-x-auto p-0">
+          <div className="px-4 py-3">
+            <h2 className="text-sm font-semibold text-slate-900">{dict.physicalMeasurementsDefects}</h2>
+            <p className="text-xs text-slate-500">{dict.bandByBandSubtitle}</p>
+          </div>
+          <table className="w-full text-start text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
+              <tr>
+                <th className="px-4 py-2 font-medium">{dict.colBand}</th>
+                <th className="px-4 py-2 font-medium">{dict.colRecordedValue}</th>
+                <th className="px-4 py-2 font-medium">{dict.colLimit}</th>
+                <th className="px-4 py-2 font-medium">{dict.colResult}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.field} className="border-b border-slate-100 last:border-0">
+                  <td className="px-4 py-2">{r.label}</td>
+                  <td className="px-4 py-2">{r.value != null ? r.value : "—"}</td>
+                  <td className="px-4 py-2 text-slate-500">{r.max != null ? `≤ ${r.max}%` : `≥ ${r.min}%`}</td>
+                  <td className="px-4 py-2">
+                    {r.pass == null ? (
+                      <span className="text-slate-400">—</span>
+                    ) : (
+                      <Badge color={r.pass ? "green" : "red"}>{r.pass ? dict.pass : dict.fail}</Badge>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
     </div>
   );
 }

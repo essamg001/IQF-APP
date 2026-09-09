@@ -45,8 +45,8 @@ const NAV_SECTIONS: { headerKey?: NavKey; items: NavItem[] }[] = [
     headerKey: "sectionPipeline",
     items: [
       { href: "/fields", labelKey: "fields" },
-      { href: "/harvest-tickets", labelKey: "harvestTickets", roles: ["OWNER", "QUALITY"] },
       { href: "/field-spray-log", labelKey: "fieldSprayLog", roles: ["OWNER", "QUALITY"] },
+      { href: "/harvest-tickets", labelKey: "harvestTickets", roles: ["OWNER", "QUALITY"] },
       { href: "/pre-decap-inspection", labelKey: "preDecapArrivals", roles: ["OWNER", "QUALITY"] },
       { href: "/post-decap-quality", labelKey: "postDecapQuality", roles: ["OWNER", "QUALITY"] },
       { href: "/field-quality", labelKey: "fieldQuality", roles: ["OWNER", "QUALITY"] },

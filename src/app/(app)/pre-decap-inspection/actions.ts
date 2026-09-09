@@ -12,12 +12,15 @@ import { egyptDayStart } from "@/lib/timezone";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
+const complianceLevels = ["GLOBALGAP", "SPRING", "LEAF", "OTHER", "NURTURE", "AH_DL_GROW", "FAIRTRADE", "ORGANIC_100", "BIO_SUISSE"] as const;
+
 const preDecapCheckSchema = z.object({
-  fieldName: z.string().optional(),
-  plotLineId: z.string().optional(),
+  plotLineId: z.string().min(1, "Attach a harvest ticket -- enter its serial number and select the plot line that was sampled."),
   receiptNoteNo: z.string().optional(),
   varietyName: z.string().optional(),
   harvestSupervisor: z.string().optional(),
+  complianceLevel: z.enum(complianceLevels).optional(),
+  complianceOther: z.string().optional(),
 
   sampleNo: z.string().min(1),
   numberOfBoxesReceived: z.coerce.number().int().min(0).optional(),
@@ -45,8 +48,6 @@ const preDecapCheckSchema = z.object({
   foreignBodiesPct: pct(),
 
   notes: z.string().optional(),
-}).refine((data) => Boolean(data.fieldName?.trim() || data.plotLineId), {
-  message: "Select a plot (via Serial Number, or type the Plot Number).",
 });
 
 
@@ -62,30 +63,25 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  let fieldId: string | null = null;
-  let fieldLabel: string;
+  const plotLine = await prisma.harvestTicketPlotLine.findUnique({
+    where: { id: parsed.data.plotLineId },
+    include: { field: true, harvestTicket: true },
+  });
+  if (!plotLine) return "Selected plot could not be found — please re-select it.";
+  if (!plotLine.fieldId) {
+    const plotDesc = [plotLine.stationNo, plotLine.plotValveGhNo].filter(Boolean).join(" · ") || plotLine.id;
+    return `This plot line (${plotDesc}) never matched a Field record, so this check can't be tied to a field -- pick a different plot line from the harvest ticket.`;
+  }
+  const fieldId = plotLine.fieldId;
+  const fieldLabel = plotLine.field!.name;
 
-  if (parsed.data.plotLineId) {
-    const plotLine = await prisma.harvestTicketPlotLine.findUnique({
-      where: { id: parsed.data.plotLineId },
-      include: { field: true },
-    });
-    if (!plotLine) return "Selected plot could not be found — please re-select it.";
-    if (!plotLine.fieldId) {
-      const plotDesc = [plotLine.stationNo, plotLine.plotValveGhNo].filter(Boolean).join(" · ") || plotLine.id;
-      return `This plot line (${plotDesc}) never matched a Field record, so this check can't be tied to a field -- clear the Serial Number above and type the Plot Number directly instead.`;
-    }
-    fieldId = plotLine.fieldId;
-    fieldLabel = plotLine.field!.name;
-  } else {
-    const field = await prisma.field.findUnique({ where: { name: parsed.data.fieldName!.trim() } });
-    if (!field) return `Plot "${parsed.data.fieldName}" not found — check the name and try again.`;
-    fieldId = field.id;
-    fieldLabel = field.name;
+  const sampleCollectedAt = parseDateSafe(parsed.data.sampleCollectionTime);
+  if (sampleCollectedAt && plotLine.harvestTicket.receivedAt && sampleCollectedAt < plotLine.harvestTicket.receivedAt) {
+    return `Sample Collection Time can't be before the harvest ticket's arrival time (${plotLine.harvestTicket.receivedAt.toLocaleString()}).`;
   }
 
   const session = await auth();
-  const { fieldName, plotLineId, sampleCollectionTime, notes, ...data } = parsed.data;
+  const { plotLineId, sampleCollectionTime, notes, ...data } = parsed.data;
 
   const totalDefectsPct = PRE_DECAP_DEFECT_FIELDS.reduce((sum, key) => sum + (data[key] ?? 0), 0);
 
@@ -112,13 +108,14 @@ export async function createPreDecapCheckAction(_prevState: string | undefined, 
       fieldId,
       harvestTicketPlotLineId: plotLineId,
       decision,
-      complianceLevel: "GLOBALGAP",
+      complianceLevel: data.complianceLevel,
+      complianceOther: data.complianceOther,
       receiptNoteNo: data.receiptNoteNo,
       varietyName: data.varietyName,
       harvestSupervisor: data.harvestSupervisor,
       sampleNo: data.sampleNo,
       numberOfBoxesReceived: data.numberOfBoxesReceived,
-      sampleCollectionTime: parseDateSafe(sampleCollectionTime),
+      sampleCollectionTime: sampleCollectedAt,
       sampleWeightKg: data.sampleWeightKg,
       productTemperatureC: data.productTemperatureC,
       brix: data.brix,

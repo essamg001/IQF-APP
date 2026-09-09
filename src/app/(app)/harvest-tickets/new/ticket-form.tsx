@@ -70,7 +70,7 @@ function PlotLineCard({
         </button>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-3">
-        <FieldGroup label={dict.stationNo}>
+        <FieldGroup label={`${dict.stationNo} *`}>
           <Select
             value={line.stationNo ?? ""}
             onChange={(e) => {
@@ -88,7 +88,7 @@ function PlotLineCard({
             ))}
           </Select>
         </FieldGroup>
-        <FieldGroup label={dict.plotValveGhNo}>
+        <FieldGroup label={`${dict.plotValveGhNo} *`}>
           <Select value={line.plotValveGhNo ?? ""} onChange={(e) => set("plotValveGhNo", e.target.value)}>
             <option value="">—</option>
             {valves.map((v) => (
@@ -98,7 +98,7 @@ function PlotLineCard({
             ))}
           </Select>
         </FieldGroup>
-        <FieldGroup label={dict.variety}>
+        <FieldGroup label={`${dict.variety} *`}>
           <Input value={line.varietyName ?? ""} onChange={(e) => set("varietyName", e.target.value)} />
         </FieldGroup>
         <FieldGroup label={dict.cycleNo}>
@@ -113,10 +113,10 @@ function PlotLineCard({
         <FieldGroup label={dict.pallets}>
           <Input type="number" step="1" value={line.palletsCount ?? ""} onChange={(e) => set("palletsCount", e.target.value)} />
         </FieldGroup>
-        <FieldGroup label={dict.crates}>
+        <FieldGroup label={`${dict.crates} *`}>
           <Input type="number" step="1" value={line.cratesCount ?? ""} onChange={(e) => set("cratesCount", e.target.value)} />
         </FieldGroup>
-        <FieldGroup label={dict.weightKg}>
+        <FieldGroup label={`${dict.weightKg} *`}>
           <Input type="number" step="0.1" value={line.weightKg ?? ""} onChange={(e) => set("weightKg", e.target.value)} />
         </FieldGroup>
       </div>
@@ -244,14 +244,11 @@ export function TicketForm({ fields }: { fields: FieldOption[] }) {
           <FieldGroup label={dict.cropName}>
             <Input name="cropName" />
           </FieldGroup>
-          <FieldGroup label={dict.harvestTime}>
-            <Input name="harvestTime" type="datetime-local" />
+          <FieldGroup label={dict.harvestAt}>
+            <Input name="harvestAt" type="datetime-local" required defaultValue={new Date().toISOString().slice(0, 16)} />
           </FieldGroup>
           <FieldGroup label={dict.harvestSupervisor}>
             <Input name="harvestSupervisor" />
-          </FieldGroup>
-          <FieldGroup label={dict.harvestDate}>
-            <Input name="harvestDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
           </FieldGroup>
         </div>
       </Card>

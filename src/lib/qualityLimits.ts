@@ -10,7 +10,7 @@ export type LimitViolation = { label: string; value: number; min?: number; max?:
 
 const PRE_DECAP_LIMITS: LimitRule[] = [
   { field: "brix", label: "Brix", min: 7 },
-  { field: "productTemperatureC", label: "Temperature", min: 30 },
+  { field: "productTemperatureC", label: "Temperature", max: 30 },
   { field: "fruitColorPct", label: "Berry Colour", min: 85 },
   { field: "internalQualityPct", label: "Internal Quality", max: 10 },
   { field: "overmaturePct", label: "Over Maturity", max: 50 },

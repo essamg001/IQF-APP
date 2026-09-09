@@ -3,8 +3,12 @@ import { auth } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input, FieldGroup } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { canSeeFinancials } from "@/lib/roles";
 import { ReceiptForm } from "./receipt-form";
+import { addHarvestTicketPhotoAction, removeHarvestTicketPhotoAction } from "../actions";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary, type Dictionary } from "@/lib/i18n/getDictionary";
@@ -82,11 +86,15 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
   const { id } = await params;
   const canSeeCost = canSeeFinancials(session.user);
   const locale = await resolveLocale();
-  const dict = getDictionary(locale).harvestTickets;
+  const fullDict = getDictionary(locale);
+  const dict = fullDict.harvestTickets;
   const COMPLIANCE_LABEL = complianceLabel(dict);
   const ticket = await prisma.harvestTicket.findUnique({
     where: { id },
-    include: { plotLines: { include: { field: true } } },
+    include: {
+      plotLines: { include: { field: true } },
+      photos: { include: { uploadedBy: true }, orderBy: { createdAt: "desc" } },
+    },
   });
   if (!ticket) notFound();
 
@@ -100,7 +108,7 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
           </h1>
           <p className="mt-1 text-sm text-slate-500">{dict.detailSubtitle}</p>
         </div>
-        {ticket.receivedDate ? (
+        {ticket.receivedAt ? (
           <Badge color={ticket.acceptedAtPackhouse ? "green" : "red"}>
             {ticket.acceptedAtPackhouse ? dict.acceptedAtPackhouse : dict.rejectedAtPackhouse}
           </Badge>
@@ -179,14 +187,10 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
             <DetailRow label={dict.authorizedGrower} value={ticket.authorizedGrower} />
             <DetailRow label={dict.cropName} value={ticket.cropName} />
             <DetailRow
-              label={dict.harvestTime}
-              value={ticket.harvestTime ? formatDate(ticket.harvestTime, "dd MMM yyyy HH:mm", locale) : null}
+              label={dict.harvestAt}
+              value={ticket.harvestAt ? formatDate(ticket.harvestAt, "dd MMM yyyy HH:mm", locale) : null}
             />
             <DetailRow label={dict.harvestSupervisor} value={ticket.harvestSupervisor} />
-            <DetailRow
-              label={dict.harvestDate}
-              value={ticket.harvestDate ? formatDate(ticket.harvestDate, "dd MMM yyyy", locale) : null}
-            />
           </div>
         </Card>
       </div>
@@ -245,13 +249,9 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
         <h2 className="text-sm font-semibold text-slate-900">{dict.packhouseReceiptTitle}</h2>
         <p className="mt-1 text-sm text-slate-500">{dict.packhouseReceiptSubtitle}</p>
         <div className="mt-4">
-          {ticket.receivedDate ? (
+          {ticket.receivedAt ? (
             <div className="grid grid-cols-4 gap-3">
-              <DetailRow label={dict.receivedDate} value={formatDate(ticket.receivedDate, "dd MMM yyyy", locale)} />
-              <DetailRow
-                label={dict.receivedTime}
-                value={ticket.receivedTime ? formatDate(ticket.receivedTime, "HH:mm", locale) : null}
-              />
+              <DetailRow label={dict.receivedAt} value={formatDate(ticket.receivedAt, "dd MMM yyyy HH:mm", locale)} />
               <DetailRow label={dict.deliveryNumber} value={ticket.deliveryNumber} />
               <DetailRow label={dict.cratesReceived} value={ticket.cratesReceived} />
               <DetailRow label={dict.palletsReceived} value={ticket.palletsReceived} />
@@ -265,9 +265,67 @@ export default async function HarvestTicketDetailPage({ params }: { params: Prom
               <DetailRow label={dict.receivedBy} value={ticket.receivedByName} />
             </div>
           ) : (
-            <ReceiptForm ticketId={ticket.id} canSeeCost={canSeeCost} />
+            <ReceiptForm ticketId={ticket.id} />
           )}
         </div>
+      </Card>
+
+      <Card className="mt-6">
+        <h2 className="text-sm font-semibold text-slate-900">
+          {dict.photosTitle} ({ticket.photos.length})
+        </h2>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          {ticket.photos.map((p) => {
+            const isImage = /\.(jpe?g|png)$/i.test(p.fileName);
+            return (
+              <div key={p.id} className="rounded-md border border-slate-200 p-2">
+                <a href={`/api/files/harvest-ticket-photos/${p.fileName}`} target="_blank" rel="noopener noreferrer" className="block">
+                  {isImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/files/harvest-ticket-photos/${p.fileName}`}
+                      alt={p.caption ?? p.originalName}
+                      className="h-32 w-full rounded object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-32 w-full items-center justify-center rounded bg-slate-50 text-sm text-emerald-700 hover:underline">
+                      {fullDict.common.viewPdf}
+                    </div>
+                  )}
+                </a>
+                {p.caption && <p className="mt-2 text-xs text-slate-700">{p.caption}</p>}
+                <p className="mt-1 text-xs text-slate-400">
+                  {p.uploadedBy?.name ?? fullDict.common.unknown} · {formatDate(p.createdAt, "dd MMM yyyy HH:mm", locale)}
+                </p>
+                <form action={removeHarvestTicketPhotoAction.bind(null, ticket.id, p.id)} className="mt-1">
+                  <ConfirmSubmitButton confirmMessage={dict.removePhotoConfirm}>{fullDict.common.remove}</ConfirmSubmitButton>
+                </form>
+              </div>
+            );
+          })}
+          {ticket.photos.length === 0 && <p className="col-span-3 py-2 text-sm text-slate-400">{dict.noPhotos}</p>}
+        </div>
+
+        <form
+          action={addHarvestTicketPhotoAction.bind(null, ticket.id)}
+          className="mt-4 flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4"
+        >
+          <FieldGroup label={fullDict.common.photoOrDocument}>
+            <input
+              name="file"
+              type="file"
+              accept="image/jpeg,image/png,application/pdf"
+              required
+              className="block w-64 text-sm text-slate-700 file:me-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-slate-50"
+            />
+          </FieldGroup>
+          <FieldGroup label={fullDict.common.captionOptional}>
+            <Input name="caption" className="w-56" placeholder={dict.captionPlaceholder} />
+          </FieldGroup>
+          <Button type="submit" variant="secondary">
+            {fullDict.common.upload}
+          </Button>
+        </form>
       </Card>
     </div>
   );

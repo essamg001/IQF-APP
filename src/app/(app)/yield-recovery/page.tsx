@@ -118,9 +118,9 @@ export default async function YieldRecoveryPage() {
       where: {
         fieldId: { not: null },
         weightKg: { not: null },
-        harvestTicket: { OR: [{ receivedDate: { gte: queryCutoff } }, { harvestDate: { gte: queryCutoff } }] },
+        harvestTicket: { OR: [{ receivedAt: { gte: queryCutoff } }, { harvestAt: { gte: queryCutoff } }] },
       },
-      select: { fieldId: true, weightKg: true, harvestTicket: { select: { receivedDate: true, harvestDate: true } } },
+      select: { fieldId: true, weightKg: true, harvestTicket: { select: { receivedAt: true, harvestAt: true } } },
     }),
     prisma.dailyQuantityEntry.findMany({
       where: { date: { gte: queryCutoff } },
@@ -130,7 +130,7 @@ export default async function YieldRecoveryPage() {
 
   const raw: RawLine[] = plotLines
     .map((l) => {
-      const date = l.harvestTicket.receivedDate ?? l.harvestTicket.harvestDate;
+      const date = l.harvestTicket.receivedAt ?? l.harvestTicket.harvestAt;
       return date && l.fieldId && l.weightKg != null ? { fieldId: l.fieldId, weightKg: l.weightKg, date } : null;
     })
     .filter((r): r is RawLine => r !== null);
