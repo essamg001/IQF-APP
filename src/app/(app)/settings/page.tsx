@@ -79,7 +79,7 @@ export default async function SettingsPage({
             {users.map((u) => (
               <li key={u.id} className="flex items-center justify-between py-2 text-sm">
                 <span>
-                  {u.name} <span className="text-slate-400">({u.email})</span>
+                  {u.name} <span className="text-slate-400">({u.username ? `@${u.username}` : u.email})</span>
                 </span>
                 <span className="flex items-center gap-3">
                   <Badge color="slate">{ROLE_LABELS[u.role]}</Badge>

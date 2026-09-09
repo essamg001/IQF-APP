@@ -27,11 +27,15 @@ export function AddUserForm() {
 
   return (
     <form action={formAction} className="mt-4 flex flex-wrap items-end gap-3">
+      <p className="w-full text-xs text-slate-500">{dict.addUserEmailOrUsernameHint}</p>
       <FieldGroup label={dict.addUserNameLabel}>
         <Input name="name" required className="w-44" />
       </FieldGroup>
       <FieldGroup label={dict.addUserEmailLabel}>
-        <Input name="email" type="email" required className="w-56" />
+        <Input name="email" type="email" className="w-56" />
+      </FieldGroup>
+      <FieldGroup label={dict.addUserUsernameLabel}>
+        <Input name="username" type="text" className="w-40" />
       </FieldGroup>
       <FieldGroup label={dict.addUserRoleLabel}>
         <Select name="role" required className="w-40" value={role} onChange={(e) => setRole(e.target.value as Role)}>

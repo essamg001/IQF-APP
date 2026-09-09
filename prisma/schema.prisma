@@ -239,6 +239,13 @@ model User {
   id                 String   @id @default(cuid())
   name               String
   email              String   @unique
+  // Login handle for staff without a real email address (e.g. field/factory
+  // employees) -- optional since most accounts still log in by email; the
+  // Credentials provider looks a submitted identifier up against both.
+  // `email` itself stays a required column even for username-only accounts
+  // (a generated, non-deliverable placeholder is stored there) so every
+  // existing `user.email` usage elsewhere in the app keeps working unchanged.
+  username           String?  @unique
   passwordHash       String
   role               Role
   // Historical/trend financials are restricted to Owner + whoever holds this flag,

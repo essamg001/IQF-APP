@@ -129,22 +129,33 @@ export async function deleteFieldAction(id: string) {
   revalidatePath("/settings");
 }
 
-const userSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  role: z.enum(["OWNER", "SALES", "QUALITY", "PRODUCTION", "LOGISTICS"]),
-  password: z.string().min(6),
-  isHeadOfSales: z.boolean(),
-  isHeadOfProduction: z.boolean(),
-  station: z.enum(["ARRIVAL_INSPECTION", "POST_FREEZE_INSPECTION", "LOAD_OUT", "FINAL_PRODUCT_ENTRY", "LAB"]).optional(),
-});
+const userSchema = z
+  .object({
+    name: z.string().min(1),
+    email: z.string().email().optional(),
+    username: z
+      .string()
+      .min(2, "Username must be at least 2 characters.")
+      .max(30)
+      .regex(/^[a-zA-Z0-9._-]+$/, "Username can only contain letters, numbers, dots, underscores, and hyphens.")
+      .optional(),
+    role: z.enum(["OWNER", "SALES", "QUALITY", "PRODUCTION", "LOGISTICS"]),
+    password: z.string().min(6),
+    isHeadOfSales: z.boolean(),
+    isHeadOfProduction: z.boolean(),
+    station: z.enum(["ARRIVAL_INSPECTION", "POST_FREEZE_INSPECTION", "LOAD_OUT", "FINAL_PRODUCT_ENTRY", "LAB"]).optional(),
+  })
+  .refine((data) => Boolean(data.email || data.username), {
+    message: "Provide an email, a username, or both.",
+  });
 
 export async function addUserAction(_prevState: string | undefined, formData: FormData) {
   if (!(await requireOwner())) return "Only the Owner can add users.";
 
   const parsed = userSchema.safeParse({
     name: formData.get("name"),
-    email: formData.get("email"),
+    email: formData.get("email") || undefined,
+    username: formData.get("username") || undefined,
     role: formData.get("role"),
     password: formData.get("password"),
     isHeadOfSales: formData.get("isHeadOfSales") === "on",
@@ -155,14 +166,27 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
     return parsed.error.issues[0]?.message ?? "Invalid input.";
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-  if (existing) return "A user with this email already exists.";
+  if (parsed.data.email) {
+    const existingEmail = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+    if (existingEmail) return "A user with this email already exists.";
+  }
+  if (parsed.data.username) {
+    const existingUsername = await prisma.user.findUnique({ where: { username: parsed.data.username } });
+    if (existingUsername) return "A user with this username already exists.";
+  }
+
+  // `email` stays a required column even for username-only accounts (every
+  // other `user.email` usage in the app -- alert emails, activity log
+  // detail lines -- assumes it's always a string), so a login-only username
+  // gets a non-deliverable placeholder here. It's never shown to the user.
+  const email = parsed.data.email ?? `${parsed.data.username}@no-email.internal`;
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   const created = await prisma.user.create({
     data: {
       name: parsed.data.name,
-      email: parsed.data.email,
+      email,
+      username: parsed.data.username,
       role: parsed.data.role,
       isHeadOfSales: parsed.data.isHeadOfSales,
       isHeadOfProduction: parsed.data.isHeadOfProduction,
@@ -177,7 +201,7 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
     action: "USER_ADDED",
     entityType: "User",
     entityId: created.id,
-    detail: `${created.name} (${created.email}) — ${created.role}`,
+    detail: `${created.name} (${created.username ? `@${created.username}` : created.email}) — ${created.role}`,
   });
 
   revalidatePath("/settings");

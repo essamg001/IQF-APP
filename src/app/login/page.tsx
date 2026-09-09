@@ -53,8 +53,8 @@ export default function LoginPage() {
         <form action={formAction} className="mt-6 space-y-4">
           <input type="hidden" name="locale" value={locale} />
           <div>
-            <Label htmlFor="email">{dict.login.email}</Label>
-            <Input id="email" name="email" type="email" required autoComplete="email" />
+            <Label htmlFor="identifier">{dict.login.identifier}</Label>
+            <Input id="identifier" name="identifier" type="text" required autoComplete="username" />
           </div>
           <div>
             <Label htmlFor="password">{dict.login.password}</Label>
