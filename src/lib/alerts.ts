@@ -533,7 +533,7 @@ export async function raiseBladeKnifeMismatchAlert(params: {
   const message = `Blade/knife mismatch: ${params.workerName} issued knife #${params.issuedKnifeNumber} but returned #${params.returnedKnifeNumber} -- a piece may be unaccounted for.`;
   const messageAr = `عدم تطابق السكين: تم صرف السكين رقم ${params.issuedKnifeNumber} لـ ${params.workerName} لكن تم إرجاع السكين رقم ${params.returnedKnifeNumber} -- قد يكون هناك جزء مفقود.`;
 
-  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+  for (const role of ["QUALITY", "PRODUCTION", "MAINTENANCE"] as const) {
     await prisma.alert.create({
       data: {
         type: "BLADE_KNIFE_MISMATCH",
@@ -564,7 +564,7 @@ export async function raiseScaleOutOfToleranceAlert(params: {
   const message = `Scale #${params.scaleNumber} is out of tolerance: deviation ${params.deviationG}g exceeds its ±${params.maxPermissibleErrorG}g limit -- weights recorded on this scale may be wrong.`;
   const messageAr = `الميزان رقم ${params.scaleNumber} خارج نطاق التفاوت المسموح: الانحراف ${params.deviationG} جم يتجاوز الحد ±${params.maxPermissibleErrorG} جم -- الأوزان المسجلة على هذا الميزان قد تكون غير دقيقة.`;
 
-  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER", "MAINTENANCE"] as const) {
     await prisma.alert.create({
       data: {
         type: "SCALE_OUT_OF_TOLERANCE",
@@ -596,7 +596,7 @@ export async function raiseChlorineDosingOutOfToleranceAlert(params: {
   const message = `${params.factoryName}: free chlorine reading ${params.freeChlorinePpm} ppm is ${deltaPpm >= 0 ? "+" : ""}${deltaPpm.toFixed(2)} ppm off the ${params.setPointPpm} ppm set point -- more than 10% out of tolerance.`;
   const messageAr = `${params.factoryName}: قراءة الكلور الحر ${params.freeChlorinePpm} جزء في المليون تنحرف بمقدار ${deltaPpm >= 0 ? "+" : ""}${deltaPpm.toFixed(2)} جزء في المليون عن نقطة الضبط ${params.setPointPpm} جزء في المليون -- خارج الحد المسموح بأكثر من 10%.`;
 
-  for (const role of ["QUALITY", "PRODUCTION", "OWNER"] as const) {
+  for (const role of ["QUALITY", "PRODUCTION", "OWNER", "MAINTENANCE"] as const) {
     await prisma.alert.create({
       data: {
         type: "CHLORINE_DOSING_OUT_OF_TOLERANCE",
@@ -662,7 +662,7 @@ export async function raiseToolInventoryDiscrepancyAlert(params: {
   const message = `Tool inventory discrepancy: "${params.toolName}" — ${params.countedTotal} accounted for at check-out, but ${params.registeredCount} are registered. A piece may be unaccounted for.`;
   const messageAr = `تباين في جرد الأدوات: "${params.toolName}" — تم حصر ${params.countedTotal} عند التسليم، بينما المسجل ${params.registeredCount}. قد يكون هناك جزء مفقود.`;
 
-  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+  for (const role of ["QUALITY", "PRODUCTION", "MAINTENANCE"] as const) {
     await prisma.alert.create({
       data: {
         type: "TOOL_INVENTORY_DISCREPANCY",
@@ -695,7 +695,7 @@ export async function raiseBladeKnifeDamagedAlert(params: {
   const message = `Knife #${params.knifeNumber} returned by ${params.workerName} came back ${conditionLabel} -- a fragment may be unaccounted for.`;
   const messageAr = `السكين رقم ${params.knifeNumber} الذي أعاده ${params.workerName} عاد ${conditionLabelAr} -- قد يكون هناك جزء مفقود.`;
 
-  for (const role of ["QUALITY", "PRODUCTION"] as const) {
+  for (const role of ["QUALITY", "PRODUCTION", "MAINTENANCE"] as const) {
     await prisma.alert.create({
       data: {
         type: "BLADE_KNIFE_DAMAGED",
