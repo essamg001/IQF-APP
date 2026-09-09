@@ -43,6 +43,7 @@ export function AddUserForm() {
           <option value="QUALITY">{roleDict.roleQuality}</option>
           <option value="PRODUCTION">{roleDict.roleProduction}</option>
           <option value="LOGISTICS">{roleDict.roleLogistics}</option>
+          <option value="MAINTENANCE">{roleDict.roleMaintenance}</option>
           <option value="OWNER">{roleDict.roleOwner}</option>
         </Select>
       </FieldGroup>
@@ -66,6 +67,9 @@ export function AddUserForm() {
       </label>
       <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" name="isHeadOfProduction" /> {dict.headOfProductionCheckbox}
+      </label>
+      <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" name="isHeadOfMaintenance" /> {dict.headOfMaintenanceCheckbox}
       </label>
       <Button type="submit" variant="secondary" disabled={pending}>
         {pending ? dict.adding : dict.addUserButton}

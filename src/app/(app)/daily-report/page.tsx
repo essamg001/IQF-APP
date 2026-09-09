@@ -23,7 +23,7 @@ export default async function DailyReportPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   const session = await auth();
-  if (!session?.user || !["OWNER", "QUALITY", "PRODUCTION"].includes(session.user.role)) {
+  if (!session?.user || !["OWNER", "QUALITY", "PRODUCTION", "MAINTENANCE"].includes(session.user.role)) {
     redirect("/");
   }
 

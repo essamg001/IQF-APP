@@ -6,6 +6,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   QUALITY: "Quality",
   PRODUCTION: "Production",
   LOGISTICS: "Logistics",
+  MAINTENANCE: "Maintenance",
 };
 
 export const ROLES_WITH_PRICING_ACCESS: Role[] = ["OWNER", "SALES"];

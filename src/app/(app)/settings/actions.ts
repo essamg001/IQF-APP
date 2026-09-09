@@ -139,10 +139,11 @@ const userSchema = z
       .max(30)
       .regex(/^[a-zA-Z0-9._-]+$/, "Username can only contain letters, numbers, dots, underscores, and hyphens.")
       .optional(),
-    role: z.enum(["OWNER", "SALES", "QUALITY", "PRODUCTION", "LOGISTICS"]),
+    role: z.enum(["OWNER", "SALES", "QUALITY", "PRODUCTION", "LOGISTICS", "MAINTENANCE"]),
     password: z.string().min(6),
     isHeadOfSales: z.boolean(),
     isHeadOfProduction: z.boolean(),
+    isHeadOfMaintenance: z.boolean(),
     station: z.enum(["ARRIVAL_INSPECTION", "POST_FREEZE_INSPECTION", "LOAD_OUT", "FINAL_PRODUCT_ENTRY", "LAB"]).optional(),
   })
   .refine((data) => Boolean(data.email || data.username), {
@@ -160,6 +161,7 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
     password: formData.get("password"),
     isHeadOfSales: formData.get("isHeadOfSales") === "on",
     isHeadOfProduction: formData.get("isHeadOfProduction") === "on",
+    isHeadOfMaintenance: formData.get("isHeadOfMaintenance") === "on",
     station: formData.get("station") || undefined,
   });
   if (!parsed.success) {
@@ -190,6 +192,7 @@ export async function addUserAction(_prevState: string | undefined, formData: Fo
       role: parsed.data.role,
       isHeadOfSales: parsed.data.isHeadOfSales,
       isHeadOfProduction: parsed.data.isHeadOfProduction,
+      isHeadOfMaintenance: parsed.data.isHeadOfMaintenance,
       station: parsed.data.station,
       passwordHash,
     },

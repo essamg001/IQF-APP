@@ -47,6 +47,7 @@ const en = {
     roleQuality: "Quality",
     roleProduction: "Production",
     roleLogistics: "Logistics",
+    roleMaintenance: "Maintenance",
     months: [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
@@ -3336,6 +3337,7 @@ const en = {
     passwordLabel: "Password",
     headOfSalesCheckbox: "Head of Sales (sees historical/trend financials)",
     headOfProductionCheckbox: "Head of Production (can sign off loading an out-of-spec pallet)",
+    headOfMaintenanceCheckbox: "Head of Maintenance (can sign the Cleaning Mode maintenance sign-off)",
     adding: "Adding…",
     addUserButton: "Add user",
   },

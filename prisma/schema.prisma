@@ -13,6 +13,7 @@ enum Role {
   QUALITY
   PRODUCTION
   LOGISTICS
+  MAINTENANCE
 }
 
 enum Grade {

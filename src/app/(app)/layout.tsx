@@ -17,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     QUALITY: dict.common.roleQuality,
     PRODUCTION: dict.common.roleProduction,
     LOGISTICS: dict.common.roleLogistics,
+    MAINTENANCE: dict.common.roleMaintenance,
   } as const;
 
   return (

@@ -46,6 +46,7 @@ const ar = {
     roleQuality: "الجودة",
     roleProduction: "الإنتاج",
     roleLogistics: "اللوجستيات",
+    roleMaintenance: "الصيانة",
     months: [
       "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
       "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
@@ -3294,6 +3295,7 @@ const ar = {
     passwordLabel: "كلمة المرور",
     headOfSalesCheckbox: "رئيس المبيعات (يرى البيانات المالية التاريخية/الاتجاهات)",
     headOfProductionCheckbox: "رئيس الإنتاج (يمكنه اعتماد تحميل باليتة غير مطابقة للمواصفات)",
+    headOfMaintenanceCheckbox: "رئيس الصيانة (يمكنه اعتماد جانب الصيانة في وضع التنظيف)",
     adding: "جارٍ الإضافة…",
     addUserButton: "إضافة مستخدم",
   },

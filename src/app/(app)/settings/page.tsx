@@ -43,6 +43,7 @@ export default async function SettingsPage({
     QUALITY: fullDict.common.roleQuality,
     PRODUCTION: fullDict.common.roleProduction,
     LOGISTICS: fullDict.common.roleLogistics,
+    MAINTENANCE: fullDict.common.roleMaintenance,
   } as const;
   const STATION_LABELS = {
     ARRIVAL_INSPECTION: dict.stationArrivalInspection,
