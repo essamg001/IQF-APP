@@ -2978,7 +2978,7 @@ const en = {
     setPointPlaceholder: "e.g. -18",
     containerLoadOutRecordTitle: "📦 Container Load-Out Record",
     containerLoadOutRecordBody:
-      'This is the final, authoritative record of exactly what was loaded into this container — filled out at the dock as pallets are loaded, not at production. It exists so that if a client ever disputes what shipped, or a claim comes in, you have pallet-by-pallet proof of what left the factory in {container}. (Digital equivalent of form GEN03115 — "Identification of Packed Pallets".) A container holds ~25t loose or ~24t palletised — since a pallet is 1.2t, that rarely divides evenly, so a pallet\'s remaining cartons often carry over into the next container.',
+      'This is the final, authoritative record of exactly what was loaded into this container — filled out at the dock as pallets are loaded, not at production. It exists so that if a client ever disputes what shipped, or a claim comes in, you have pallet-by-pallet proof of what left the factory in {container}. (Digital equivalent of form GEN03115 — "Identification of Packed Pallets".) A container holds ~25t loose or ~24t palletised — since a pallet is 1t, that rarely divides evenly, so a pallet\'s remaining cartons often carry over into the next container.',
     selectEllipsis: "Select…",
     palletisedShort: "Palletised — pallet ships as-is",
     unpalletisedShort: "Unpalletised — cartons stacked loose",

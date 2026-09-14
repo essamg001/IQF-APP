@@ -51,7 +51,7 @@ export async function createOrderAction(_prevState: string | undefined, formData
 
   const { quantityTonnes, valueUsd, shipDate, ...rest } = parsed.data;
   // Pallets are the actual allocatable unit in storage, so the tonnage the
-  // client agrees to gets converted to whole pallets at 1.2t each.
+  // client agrees to gets converted to whole pallets at 1t each.
   const quantityPallets = Math.max(1, Math.round(quantityTonnes / PALLET_WEIGHT_TONNES));
   const orderNumber = await generateOrderNumber();
 

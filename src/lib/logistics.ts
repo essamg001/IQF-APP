@@ -15,8 +15,8 @@ export const LOAD_TYPE_LABEL: Record<"PALLETISED" | "UNPALLETISED", string> = {
 // A full pallet is a known, fixed quantity -- no need to weigh or count it
 // by hand at packing time. A partial pallet's weight/carton count varies, so
 // those still need manual entry.
-export const FULL_PALLET_WEIGHT_TONNES = 1.2;
-export const FULL_PALLET_CARTON_COUNT = 120;
+export const FULL_PALLET_WEIGHT_TONNES = 1;
+export const FULL_PALLET_CARTON_COUNT = 100;
 
 /** A manifest that already has both sign-offs on file is locked against further edits -- see reopenContainerManifestAction. */
 export function isManifestLocked(container: { loadOutSignedAt: Date | null; qualitySignedAt: Date | null }): boolean {
