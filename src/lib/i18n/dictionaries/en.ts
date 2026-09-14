@@ -898,13 +898,13 @@ const en = {
   decapWeighing: {
     title: "Decap Weighing",
     subtitle:
-      "One weighing card per event (Electronic Weight Card, ACC01121) — intake, product exit, calyx, or rejected — recorded per pack house per shift. Product exit and intake are a two-stage weighing (loaded, then empty); calyx and rejected are a single reading.",
+      "One weighing card per event (Electronic Weight Card, ACC01121) — intake, final product, calyx, or rejected — recorded per pack house per shift. Final product and intake are a two-stage weighing (loaded, then empty); calyx and rejected are a single reading.",
     dailyTotalsTitle: "Day's Totals (all pack houses combined)",
     collectiveNote: "Collective total = sum of every pack house's weighings for this date, computed automatically, not entered separately.",
     shiftDay: "Day Shift",
     shiftNight: "Night Shift",
     typeIntake: "Intake",
-    typeProductExit: "Product Exit",
+    typeProductExit: "Final Product",
     typeCalyx: "Calyx",
     typeRejected: "Rejected",
     weighingTypeLabel: "Weighing type",
