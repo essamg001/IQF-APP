@@ -17,7 +17,8 @@ import type { ProductionLot, Field, Pallet, ShiftLog, Grade, Format } from "@pri
 import { useTranslations, useLocale } from "@/lib/i18n/locale-context";
 import type { Dictionary } from "@/lib/i18n/getDictionary";
 
-type LotWithRelations = ProductionLot & { fields: { field: Field }[]; pallets: Pallet[]; shift: ShiftLog };
+type LotWithRelations = ProductionLot & { fields: { field: Field }[]; pallets: Pallet[]; shift: ShiftLog; factory: { id: string; name: string } };
+type FactoryOption = { id: string; name: string };
 
 type CrushedBrokenKey = "crushedBrokenFruit" | "crushedBrokenSlices" | "irregularBrokenCubes";
 
@@ -106,13 +107,15 @@ function formLabelFor(dict: Dictionary["postFreezeInspection"], lotFormat: Forma
   return grade === "A" ? dict.formLabelWholeA : dict.formLabelWholeB;
 }
 
-export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] }) {
+export function PostFreezeInspectionForm({ lots, factories }: { lots: LotWithRelations[]; factories: FactoryOption[] }) {
   const [state, formAction, pending] = useActionState(createPostFreezeCheckAction, undefined);
+  const [factoryId, setFactoryId] = useState("");
   const [lotNumber, setLotNumber] = useState("");
   const [operationDate, setOperationDate] = useState(() => toDateOnlyString(new Date()));
   const [expiryDate, setExpiryDate] = useState(() => toDateOnlyString(addYears(new Date(), 2)));
 
-  const selectedLot = lots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase());
+  const visibleLots = factoryId ? lots.filter((l) => l.factory.id === factoryId) : lots;
+  const selectedLot = visibleLots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase());
   const pallets = selectedLot?.pallets ?? [];
   const grade = selectedLot?.grade ?? "A";
   const lotFormat = selectedLot?.format ?? "WHOLE";
@@ -138,6 +141,16 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">{formLabelFor(dict, lotFormat, grade)}</h2>
         <div className="grid grid-cols-3 gap-3">
+          <FieldGroup label={dict.factoryLabel}>
+            <Select value={factoryId} onChange={(e) => { setFactoryId(e.target.value); setLotNumber(""); }}>
+              <option value="">{dict.allFactoriesOption}</option>
+              {factories.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </Select>
+          </FieldGroup>
           <FieldGroup label={dict.lotNumber}>
             <Input
               name="lotNumber"
@@ -148,7 +161,7 @@ export function PostFreezeInspectionForm({ lots }: { lots: LotWithRelations[] })
               onChange={(e) => setLotNumber(e.target.value)}
             />
             <datalist id="lot-suggestions">
-              {lots.map((l) => (
+              {visibleLots.map((l) => (
                 <option key={l.id} value={l.lotNumber} />
               ))}
             </datalist>
@@ -343,9 +356,13 @@ function MeasurementFields({ grade, format: lotFormat }: { grade: Grade; format:
         <div className="grid grid-cols-4 gap-3">
           <Pct name="overmaturePct" label={dict.overmature} limit={limits.overmature} {...bind("overmaturePct")} />
           <Pct name="incompleteMaturityPct" label={dict.incompleteMaturity} limit={limits.incompleteMaturity} {...bind("incompleteMaturityPct")} />
-          <FieldGroup label={dict.capsuleRemains}>
-            <Input name="capsuleRemainsCount" type="number" step="0.1" min="0" />
-          </FieldGroup>
+          {grade === "B" && lotFormat === "WHOLE" ? (
+            <Pct name="capsuleRemainsPct" label={dict.capsuleRemains} limit="5%" {...bind("capsuleRemainsPct")} />
+          ) : (
+            <FieldGroup label={dict.capsuleRemains}>
+              <Input name="capsuleRemainsCount" type="number" step="0.1" min="0" />
+            </FieldGroup>
+          )}
           <FieldGroup label={dict.leafRemains}>
             <Input name="leafRemainsCount" type="number" step="0.1" min="0" />
           </FieldGroup>

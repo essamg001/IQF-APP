@@ -38,7 +38,9 @@ function Pct({
   );
 }
 
-type TodaysCheck = { receiptNoteNo: string | null; appliesToWholeDelivery: boolean };
+type TodaysCheck = { receiptNoteNo: string | null; appliesToWholeDelivery: boolean; palletsCovered: number | null };
+
+const COMPLIANCE_LEVEL_OPTIONS = ["GLOBALGAP", "SPRING", "LEAF", "NURTURE", "AH_DL_GROW", "FAIRTRADE", "ORGANIC_100", "BIO_SUISSE", "OTHER"] as const;
 type HarvestTicketOption = {
   id: string;
   serialNumber: string;
@@ -103,7 +105,9 @@ export function ArrivalInspectionForm({
   const decoded = isSuccess ? decodeActionResult(state) : null;
 
   const inspectedCount = receiptNoteNo
-    ? todaysChecks.filter((c) => c.receiptNoteNo === receiptNoteNo && !c.appliesToWholeDelivery).length
+    ? todaysChecks
+        .filter((c) => c.receiptNoteNo === receiptNoteNo && !c.appliesToWholeDelivery)
+        .reduce((sum, c) => sum + (c.palletsCovered ?? 1), 0)
     : 0;
   const palletsReceivedNum = Number(palletsReceived) || 0;
 
@@ -196,6 +200,21 @@ export function ArrivalInspectionForm({
               onChange={(e) => setPalletsReceived(e.target.value)}
             />
           </FieldGroup>
+          <FieldGroup label={dict.numberOfCrates}>
+            <Input name="numberOfCratesReceived" type="number" min="0" />
+          </FieldGroup>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-slate-500">{dict.complianceLevel}</p>
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            {COMPLIANCE_LEVEL_OPTIONS.map((level) => (
+              <label key={level} className="flex items-center gap-1.5 text-xs text-slate-700">
+                <input type="checkbox" name="complianceLevels" value={level} />
+                {level === "OTHER" ? fullDict.common.other : level.replace(/_/g, " ")}
+              </label>
+            ))}
+          </div>
+          <Input name="complianceOther" placeholder={dict.complianceOtherPlaceholder} className="mt-2 max-w-xs" />
         </div>
         {palletsReceivedNum > 0 && (
           <p className="text-xs text-slate-500">
@@ -233,6 +252,13 @@ function SampleFields() {
   const [wholeDelivery, setWholeDelivery] = useState(false);
   const { total: defectTotal, bind } = useDefectTotal(DECAP_SHARED_DEFECT_FIELDS);
   const dict = useTranslations().arrivalInspection;
+  // Grays out past times in the picker as a UX hint -- the server is the
+  // real enforcement (see actions.ts), since this is only checked at mount.
+  const [nowLocal] = useState(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  });
 
   return (
     <>
@@ -257,7 +283,11 @@ function SampleFields() {
                 <Input name="sampleNo" required />
               </FieldGroup>
               <FieldGroup label={dict.sampleCollectionTime}>
-                <Input name="sampleCollectionTime" type="datetime-local" />
+                <Input name="sampleCollectionTime" type="datetime-local" min={nowLocal} />
+              </FieldGroup>
+              <FieldGroup label={dict.palletsCovered}>
+                <Input name="palletsCovered" type="number" min="1" defaultValue="1" />
+                <p className="mt-1 text-[11px] text-slate-400">{dict.palletsCoveredHint}</p>
               </FieldGroup>
               <FieldGroup label={dict.sampleWeightKg}>
                 <Input name="sampleWeightKg" type="number" step="0.01" />

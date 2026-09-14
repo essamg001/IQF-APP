@@ -8,10 +8,12 @@ import { Input, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { limitsFor, translateLabel } from "@/lib/qualityLimits";
+import { canEditQualityCheckpoint } from "@/lib/roles";
 import { formatDate } from "@/lib/dates";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { updateQualityCheckAction, deleteQualityCheckAction } from "../actions";
+import { PrintButton } from "@/components/ui/print-button";
 
 export default async function QualityCheckDetailPage({
   params,
@@ -26,8 +28,6 @@ export default async function QualityCheckDetailPage({
   if (!session?.user || !["QUALITY", "OWNER", "PRODUCTION"].includes(session.user.role)) {
     redirect("/");
   }
-  const canEdit = ["QUALITY", "OWNER"].includes(session.user.role);
-  const editing = canEdit && edit === "1";
   const locale = await resolveLocale();
   const fullDict = getDictionary(locale);
   const dict = fullDict.qualityCheckDetail;
@@ -49,6 +49,9 @@ export default async function QualityCheckDetailPage({
     },
   });
   if (!check) notFound();
+
+  const canEdit = canEditQualityCheckpoint(check.checkpoint, session.user);
+  const editing = canEdit && edit === "1";
 
   // Same rule set the form itself checks against on save -- every band this
   // checkpoint measures, alongside its limit, whether or not it happened to
@@ -76,6 +79,8 @@ export default async function QualityCheckDetailPage({
     { label: dict.processingLine, value: check.processingLine },
     { label: dict.transportVehicleNo, value: check.transportVehicleNo },
     { label: dict.numberOfBoxesPalletsReceived, value: check.numberOfBoxesReceived },
+    { label: dict.numberOfCratesReceived, value: check.numberOfCratesReceived },
+    { label: dict.palletsCovered, value: check.palletsCovered && check.palletsCovered > 1 ? check.palletsCovered : null },
     { label: dict.harvestSupervisor, value: check.harvestSupervisor },
     {
       label: dict.sampleCollectionTime,
@@ -90,7 +95,10 @@ export default async function QualityCheckDetailPage({
     { label: dict.foreignOdor, value: check.foreignOdor },
     { label: dict.foreignTaste, value: check.foreignTaste },
     { label: dict.wholeDeliveryRejection, value: check.appliesToWholeDelivery ? fullDict.common.yes : null },
-    { label: dict.complianceLevel, value: check.complianceLevel },
+    {
+      label: dict.complianceLevel,
+      value: check.complianceLevels.length > 0 ? check.complianceLevels.join(", ").replace(/_/g, " ") : check.complianceLevel,
+    },
     { label: dict.divertedTo, value: check.divertedTo },
     { label: dict.inspector, value: check.inspector?.name },
   ].filter((f) => f.value != null && f.value !== "");
@@ -106,17 +114,22 @@ export default async function QualityCheckDetailPage({
           <h1 className="text-xl font-semibold text-slate-900">{CHECKPOINT_LABEL[check.checkpoint] ?? check.checkpoint}</h1>
           <p className="mt-1 text-sm text-slate-500">{formatDate(check.createdAt, "dd MMM yyyy HH:mm", locale)}</p>
         </div>
-        {canEdit && !editing && (
+        {!editing && (
           <div className="flex shrink-0 items-center gap-3">
-            <Link href={reportNonConformanceHref} className="text-sm text-amber-700 hover:underline">
+            <PrintButton />
+            <Link href={reportNonConformanceHref} className="no-print text-sm text-amber-700 hover:underline">
               {dict.reportNonConformance}
             </Link>
-            <Link href={`/quality-check/${id}?edit=1`} className="text-sm text-emerald-700 hover:underline">
-              {dict.editButton}
-            </Link>
-            <form action={deleteQualityCheckAction.bind(null, id)}>
-              <ConfirmSubmitButton confirmMessage={dict.deleteConfirm}>{dict.deleteButton}</ConfirmSubmitButton>
-            </form>
+            {canEdit && (
+              <>
+                <Link href={`/quality-check/${id}?edit=1`} className="no-print text-sm text-emerald-700 hover:underline">
+                  {dict.editButton}
+                </Link>
+                <form action={deleteQualityCheckAction.bind(null, id)} className="no-print">
+                  <ConfirmSubmitButton confirmMessage={dict.deleteConfirm}>{dict.deleteButton}</ConfirmSubmitButton>
+                </form>
+              </>
+            )}
           </div>
         )}
       </div>

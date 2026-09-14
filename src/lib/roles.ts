@@ -1,4 +1,4 @@
-import type { Role } from "@prisma/client";
+import type { Role, QualityCheckpoint } from "@prisma/client";
 
 export const ROLE_LABELS: Record<Role, string> = {
   OWNER: "Owner",
@@ -147,4 +147,21 @@ export function canManageClients(role: Role | undefined | null) {
  */
 export function canAccessLab(role: Role | undefined | null) {
   return !!role && (role === "OWNER" || role === "QUALITY");
+}
+
+/**
+ * Editing/deleting a logged quality check. Owner can always. RAW_MATERIAL
+ * (Arrival Inspection) is intentionally narrower than every other
+ * checkpoint -- only Head of Production, not the whole Quality role, since
+ * the Owner wants the Quality supervisors who do the day-to-day inspecting
+ * to not be able to edit/delete their own records after the fact.
+ */
+export function canEditQualityCheckpoint(
+  checkpoint: QualityCheckpoint,
+  user: { role: Role; isHeadOfProduction: boolean } | undefined | null
+) {
+  if (!user) return false;
+  if (user.role === "OWNER") return true;
+  if (checkpoint === "RAW_MATERIAL") return user.isHeadOfProduction;
+  return user.role === "QUALITY";
 }

@@ -3,21 +3,29 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input, FieldGroup } from "@/components/ui/field";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrivalInspectionForm } from "./arrival-form";
 import { resolveLocale } from "@/lib/i18n/resolveLocale";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { PrintButton } from "@/components/ui/print-button";
+import { parseLocalDateOnly, toDateOnlyString } from "@/lib/dates";
 
-export default async function ArrivalInspectionPage() {
+export default async function ArrivalInspectionPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const session = await auth();
   if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
     redirect("/");
   }
-  const dict = getDictionary(await resolveLocale()).arrivalInspection;
+  const fullDict = getDictionary(await resolveLocale());
+  const dict = fullDict.arrivalInspection;
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const { date: dateParam } = await searchParams;
+  const todayStr = toDateOnlyString(new Date());
+  const dateStr = dateParam ?? todayStr;
+  const isToday = dateStr === todayStr;
+  const dayStart = parseLocalDateOnly(dateStr) ?? new Date();
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
@@ -27,7 +35,7 @@ export default async function ArrivalInspectionPage() {
       where: {
         checkpoint: "RAW_MATERIAL",
         lotId: null,
-        createdAt: { gte: startOfToday },
+        createdAt: { gte: dayStart, lt: dayEnd },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -60,7 +68,17 @@ export default async function ArrivalInspectionPage() {
           <h1 className="text-xl font-semibold text-slate-900">{dict.title}</h1>
           <p className="mt-1 text-sm text-slate-500">{dict.subtitle}</p>
         </div>
-        <PrintButton />
+        <div className="flex items-end gap-2">
+          <form className="no-print flex items-end gap-2">
+            <FieldGroup label={fullDict.common.date}>
+              <Input name="date" type="date" defaultValue={dateStr} max={todayStr} />
+            </FieldGroup>
+            <Button type="submit" variant="secondary">
+              {fullDict.common.go}
+            </Button>
+          </form>
+          <PrintButton />
+        </div>
       </div>
 
       <div className="flex gap-4">
@@ -75,19 +93,26 @@ export default async function ArrivalInspectionPage() {
         </Badge>
       </div>
 
-      <div className="no-print max-w-3xl">
-        <ArrivalInspectionForm
-          todaysChecks={todaysChecks.map((c) => ({
-            receiptNoteNo: c.receiptNoteNo,
-            appliesToWholeDelivery: c.appliesToWholeDelivery,
-          }))}
-          harvestTickets={harvestTickets}
-          factories={factories}
-        />
-      </div>
+      {isToday ? (
+        <div className="no-print max-w-3xl">
+          <ArrivalInspectionForm
+            todaysChecks={todaysChecks.map((c) => ({
+              receiptNoteNo: c.receiptNoteNo,
+              appliesToWholeDelivery: c.appliesToWholeDelivery,
+              palletsCovered: c.palletsCovered,
+            }))}
+            harvestTickets={harvestTickets}
+            factories={factories}
+          />
+        </div>
+      ) : (
+        <p className="no-print max-w-3xl text-sm text-slate-500">{dict.pastDateViewOnly}</p>
+      )}
 
       <Card className="max-w-3xl overflow-x-auto p-0">
-        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">{dict.todaysLogTitle}</h2>
+        <h2 className="px-4 py-3 text-sm font-semibold text-slate-900">
+          {isToday ? dict.todaysLogTitle : dateStr}
+        </h2>
         <table className="w-full text-start text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
             <tr>

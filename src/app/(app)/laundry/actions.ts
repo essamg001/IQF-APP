@@ -53,6 +53,13 @@ export async function createLaundryRecordAction(_prevState: string | undefined, 
   return "ok";
 }
 
+const washCycleAgentSchema = z.object({
+  agentName: z.string().min(1),
+  concentrationValue: z.coerce.number().min(0).optional(),
+  concentrationUnit: z.string().optional(),
+  amountOfAgent: z.string().optional(),
+});
+
 const washCycleSchema = z.object({
   date: z.string().min(1),
   location: z.string().min(1),
@@ -60,29 +67,38 @@ const washCycleSchema = z.object({
   count: z.coerce.number().optional(),
   purpose: z.string().optional(),
   waterTemperatureC: z.coerce.number().optional(),
-  agent: z.string().optional(),
-  concentration: z.string().optional(),
   timeFrom: z.string().optional(),
   timeTo: z.string().optional(),
-  amountOfAgent: z.string().optional(),
   dryerTemperatureC: z.coerce.number().optional(),
+  agents: z.array(washCycleAgentSchema),
 });
 
 export async function createLaundryWashCycleAction(_prevState: string | undefined, formData: FormData) {
   const raw = Object.fromEntries(Array.from(formData.entries()).map(([k, v]) => [k, v === "" ? undefined : v]));
-  const parsed = washCycleSchema.safeParse(raw);
+
+  let agents: unknown = [];
+  try {
+    agents = raw.agentsJson ? JSON.parse(String(raw.agentsJson)) : [];
+  } catch {
+    agents = [];
+  }
+
+  const parsed = washCycleSchema.safeParse({ ...raw, agents });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Invalid input.";
 
   const date = parseLocalDateOnly(parsed.data.date);
   if (!date) return "That date couldn't be read.";
 
   const session = await auth();
-  const { date: _date, ...data } = parsed.data;
+  const { date: _date, agents: agentRows, ...data } = parsed.data;
 
   const created = await prisma.laundryWashCycle.create({
     data: {
       ...data,
       date,
+      agents: {
+        create: agentRows.filter((a) => a.agentName.trim()).map((a) => ({ ...a, agentName: a.agentName.trim() })),
+      },
       recordedByName: session?.user.name ?? session?.user.email ?? undefined,
       recordedByUserId: session?.user.id,
     },

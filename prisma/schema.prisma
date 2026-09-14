@@ -1029,6 +1029,10 @@ model QualityCheck {
 
   complianceLevel ComplianceLevel?
   complianceOther String?
+  // RAW_MATERIAL only -- a delivery can genuinely carry more than one
+  // accreditation at once (e.g. GlobalG.A.P. + LEAF), unlike every other
+  // checkpoint's single `complianceLevel` above.
+  complianceLevels ComplianceLevel[] @default([])
   shiftNumber     String?
 
   // Shared measurements
@@ -1066,6 +1070,14 @@ model QualityCheck {
   // iteration of this checkpoint, kept as-is rather than risking a real-data
   // column rename for what's otherwise a cosmetic inconsistency.
   numberOfBoxesReceived   Int?
+  // The real crate count for the delivery, alongside the (misleadingly
+  // named) pallet count above.
+  numberOfCratesReceived  Int?
+  // How many pallets this one sample's result is being taken to represent --
+  // normally 1 (a sample per pallet), but during peak season a supervisor
+  // may sample once per truck/load and have it cover several pallets (6-8)
+  // rather than creating a separate record for each one.
+  palletsCovered          Int?             @default(1)
   // Which IQF factory this specific delivery arrived at, and which shift --
   // added 2026-09-07 so per-factory, per-shift arrival pallet counts can
   // actually be reported (Daily Report). RAW_MATERIAL checks only; every
@@ -2414,12 +2426,13 @@ model LaundryWashCycle {
   purpose  String?
 
   waterTemperatureC Float?
-  agent             String?
-  concentration     String?
   timeFrom          String?
   timeTo            String?
-  amountOfAgent     String?
   dryerTemperatureC Float?
+
+  // A cycle can run several chemical agents at once (e.g. Clorox + Persil),
+  // each with its own concentration + unit -- see LaundryWashCycleAgent.
+  agents LaundryWashCycleAgent[]
 
   recordedByName   String?
   recordedByUserId String?
@@ -2429,6 +2442,21 @@ model LaundryWashCycle {
   isTestData Boolean @default(false)
 
   @@index([date, location])
+}
+
+model LaundryWashCycleAgent {
+  id      String           @id @default(cuid())
+  cycleId String
+  cycle   LaundryWashCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  agentName          String
+  concentrationValue Float?
+  concentrationUnit  String?
+  amountOfAgent      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([cycleId])
 }
 
 // HSE03293's end-of-day sign-off -- one per date+location, separate from the

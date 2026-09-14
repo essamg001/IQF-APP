@@ -51,6 +51,7 @@ const postFreezeSchema = z.object({
   overmaturePct: pct(),
   incompleteMaturityPct: pct(),
   capsuleRemainsCount: z.coerce.number().min(0).optional(),
+  capsuleRemainsPct: pct(),
   leafRemainsCount: z.coerce.number().min(0).optional(),
   stemFragmentsCount: z.coerce.number().min(0).optional(),
   shapeDeformitiesPct: pct(),

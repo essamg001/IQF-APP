@@ -76,16 +76,20 @@ const POST_FREEZE_PROCESS_LIMITS: LimitRule[] = [
   { field: "acidityPh", label: "PH", min: 3.1, max: 3.5 },
   { field: "sampleWeightKg", label: "Sample Weight", min: 2 },
   { field: "productTemperatureC", label: "Product Temperature", max: -18 },
-  { field: "capsuleRemainsCount", label: "Capsule Remains", max: 10 },
   { field: "leafRemainsCount", label: "Leaf Remains", max: 10 },
   { field: "stemFragmentsCount", label: "Stem Fragments", max: 1 },
   { field: "frozenProductWaitMinutes", label: "Frozen Product Waiting Period", min: 10, max: 30 },
 ];
 
 // STR03111 (Grade A) / STR03116 (Grade B) -- same checklist, tighter tolerances for A.
+// Capsule Remains is measured differently between the two real paper forms --
+// STR03116 (Grade B) specifies it as a percentage (5%), confirmed against the
+// real form; Grade A's real STR03111 number is unconfirmed, so it's left on
+// the same count-based measure Sliced/Diced use rather than guessed.
 const POST_PACKAGING_LIMITS: Record<Grade, LimitRule[]> = {
   A: [
     ...POST_FREEZE_PROCESS_LIMITS,
+    { field: "capsuleRemainsCount", label: "Capsule Remains", max: 10 },
     { field: "fruitColorPct", label: "Fruit Colour", min: 90 },
     { field: "overmaturePct", label: "Overmature", max: 3 },
     { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 3 },
@@ -105,6 +109,7 @@ const POST_PACKAGING_LIMITS: Record<Grade, LimitRule[]> = {
   ],
   B: [
     ...POST_FREEZE_PROCESS_LIMITS,
+    { field: "capsuleRemainsPct", label: "Capsule Remains", max: 5 },
     { field: "fruitColorPct", label: "Fruit Colour", min: 80 },
     { field: "overmaturePct", label: "Overmature", max: 5 },
     { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 5 },
@@ -130,6 +135,7 @@ const POST_PACKAGING_LIMITS: Record<Grade, LimitRule[]> = {
 // anyway since they mirror two separate paper forms with their own labels.
 const POST_PACKAGING_SLICED_LIMITS: LimitRule[] = [
   ...POST_FREEZE_PROCESS_LIMITS,
+  { field: "capsuleRemainsCount", label: "Capsule Remains", max: 10 },
   { field: "fruitColorPct", label: "Fruit Colour", min: 90 },
   { field: "overmaturePct", label: "Overmature", max: 2 },
   { field: "incompleteMaturityPct", label: "Incomplete Maturity", max: 2 },

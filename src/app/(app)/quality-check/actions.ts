@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { limitsFor, checkQualityLimits } from "@/lib/qualityLimits";
+import { canEditQualityCheckpoint } from "@/lib/roles";
 import type { QualityCheckpoint } from "@prisma/client";
 
 // Where "back to the log" goes after a delete -- one listing page per checkpoint.
@@ -15,9 +16,9 @@ const CHECKPOINT_PATH: Record<QualityCheckpoint, string> = {
   POST_PACKAGING: "/post-freeze-inspection",
 };
 
-async function requireEditor() {
+async function requireEditor(checkpoint: QualityCheckpoint) {
   const session = await auth();
-  if (!session?.user || !["QUALITY", "OWNER"].includes(session.user.role)) {
+  if (!session?.user || !canEditQualityCheckpoint(checkpoint, session.user)) {
     return null;
   }
   return session;
@@ -27,11 +28,11 @@ async function requireEditor() {
 // which fields a given checkpoint measures, so this doesn't need a bespoke
 // schema per checkpoint the way the create forms do.
 export async function updateQualityCheckAction(checkId: string, formData: FormData) {
-  const session = await requireEditor();
-  if (!session) return;
-
   const check = await prisma.qualityCheck.findUnique({ where: { id: checkId }, include: { lot: true } });
   if (!check) return;
+
+  const session = await requireEditor(check.checkpoint);
+  if (!session) return;
 
   const rules = limitsFor(check.checkpoint, check.lot?.grade, check.lot?.format);
   const values: Record<string, number | null> = {};
@@ -59,11 +60,11 @@ export async function updateQualityCheckAction(checkId: string, formData: FormDa
 }
 
 export async function deleteQualityCheckAction(checkId: string) {
-  const session = await requireEditor();
-  if (!session) return;
-
   const check = await prisma.qualityCheck.findUnique({ where: { id: checkId } });
   if (!check) return;
+
+  const session = await requireEditor(check.checkpoint);
+  if (!session) return;
 
   await prisma.qualityCheck.delete({ where: { id: checkId } });
 

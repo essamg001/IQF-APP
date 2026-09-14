@@ -48,6 +48,7 @@ export const DECAP_SHARED_DEFECT_FIELDS = [
 export const POST_PACKAGING_DEFECT_FIELDS = [
   "overmaturePct",
   "incompleteMaturityPct",
+  "capsuleRemainsPct",
   "shapeDeformitiesPct",
   "skinDamagePct",
   "cohesiveClustersPct",

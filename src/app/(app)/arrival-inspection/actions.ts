@@ -13,6 +13,14 @@ import { QC_NUMBER_REGEX } from "@/lib/qc";
 
 const pct = () => z.coerce.number().min(0).max(100).optional();
 
+const COMPLIANCE_LEVELS = ["GLOBALGAP", "SPRING", "LEAF", "OTHER", "NURTURE", "AH_DL_GROW", "FAIRTRADE", "ORGANIC_100", "BIO_SUISSE"] as const;
+
+// A submitted timestamp can't be earlier than right now -- the whole point is
+// stopping a supervisor from backdating an inspection to cover a missed one.
+// A couple of minutes of slack absorbs normal clock skew/typing time between
+// picking the timestamp and the request actually landing, not a loophole.
+const PAST_DATE_GRACE_MS = 2 * 60 * 1000;
+
 const arrivalCheckSchema = z
   .object({
     appliesToWholeDelivery: z.boolean(),
@@ -27,9 +35,13 @@ const arrivalCheckSchema = z
     transportVehicleNo: z.string().optional(),
     receiptNoteNo: z.string().optional(),
     varietyName: z.string().optional(),
+    complianceLevels: z.array(z.enum(COMPLIANCE_LEVELS)).optional(),
+    complianceOther: z.string().optional(),
 
     sampleNo: z.string().optional(),
     numberOfBoxesReceived: z.coerce.number().int().optional(),
+    numberOfCratesReceived: z.coerce.number().int().optional(),
+    palletsCovered: z.coerce.number().int().min(1).optional(),
     sampleCollectionTime: z.string().optional(),
     sampleWeightKg: z.coerce.number().optional(),
     productTemperatureC: z.coerce.number().optional(),
@@ -73,7 +85,15 @@ const arrivalCheckSchema = z
   .refine((data) => data.appliesToWholeDelivery || data.brix !== undefined, {
     message: "Brix is required unless this is a whole-delivery rejection.",
     path: ["brix"],
-  });
+  })
+  .refine(
+    (data) => {
+      if (!data.sampleCollectionTime) return true;
+      const parsed = new Date(data.sampleCollectionTime);
+      return !Number.isNaN(parsed.getTime()) && parsed.getTime() >= Date.now() - PAST_DATE_GRACE_MS;
+    },
+    { message: "Sample Collection Time can't be in the past.", path: ["sampleCollectionTime"] }
+  );
 
 
 export async function createArrivalCheckAction(_prevState: string | undefined, formData: FormData) {
@@ -83,6 +103,7 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
   const parsed = arrivalCheckSchema.safeParse({
     ...raw,
     appliesToWholeDelivery: formData.get("appliesToWholeDelivery") === "on",
+    complianceLevels: formData.getAll("complianceLevels"),
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Invalid input.";
@@ -127,10 +148,11 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
       lotId: null,
       decision,
       appliesToWholeDelivery: data.appliesToWholeDelivery,
+      factoryId: data.factoryId,
+      shiftType: data.shiftType,
       shiftNumber: data.shiftNumber,
-      // We certify to a single standard, so this is stamped automatically
-      // rather than asked on every fast-entry submission.
-      complianceLevel: "GLOBALGAP",
+      complianceLevels: data.complianceLevels ?? [],
+      complianceOther: data.complianceOther,
       rawMaterialSource: data.rawMaterialSource,
       farmCode: data.farmCode,
       decapPackHouse: data.decapPackHouse,
@@ -140,6 +162,8 @@ export async function createArrivalCheckAction(_prevState: string | undefined, f
       varietyName: data.varietyName,
       sampleNo: data.sampleNo,
       numberOfBoxesReceived: data.numberOfBoxesReceived,
+      numberOfCratesReceived: data.numberOfCratesReceived,
+      palletsCovered: data.palletsCovered ?? 1,
       sampleCollectionTime: parseDateSafe(sampleCollectionTime),
       sampleWeightKg: data.sampleWeightKg,
       productTemperatureC: data.productTemperatureC,

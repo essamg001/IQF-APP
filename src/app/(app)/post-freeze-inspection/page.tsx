@@ -16,11 +16,14 @@ export default async function PostFreezeInspectionPage() {
   }
   const dict = getDictionary(await resolveLocale()).postFreezeInspection;
 
-  const lots = await prisma.productionLot.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    include: { fields: { include: { field: true } }, pallets: true, shift: true },
-  });
+  const [lots, factories] = await Promise.all([
+    prisma.productionLot.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { fields: { include: { field: true } }, pallets: true, shift: true, factory: true },
+    }),
+    prisma.factory.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -43,7 +46,7 @@ export default async function PostFreezeInspectionPage() {
       </div>
 
       <div className="no-print max-w-3xl">
-        <PostFreezeInspectionForm lots={lots} />
+        <PostFreezeInspectionForm lots={lots} factories={factories} />
       </div>
 
       <Card className="max-w-3xl overflow-x-auto p-0">
