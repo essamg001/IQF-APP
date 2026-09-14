@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import { createPostFreezeCheckAction } from "./actions";
 import { Input, Select, FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { QualityLimitWarning } from "@/components/ui/quality-limit-warning";
 import { VarietyField } from "@/components/variety-field";
-import { decodeActionResult, limitsFor } from "@/lib/qualityLimits";
+import { decodeActionResult, limitsFor, checkQualityLimits } from "@/lib/qualityLimits";
 import { useDefectTotal } from "@/lib/useDefectTotal";
 import { POST_PACKAGING_DEFECT_FIELDS } from "@/lib/defectFields";
 import { addYears, formatDate, parseLocalDateOnly, toDateOnlyString } from "@/lib/dates";
@@ -113,12 +113,30 @@ export function PostFreezeInspectionForm({ lots, factories }: { lots: LotWithRel
   const [lotNumber, setLotNumber] = useState("");
   const [operationDate, setOperationDate] = useState(() => toDateOnlyString(new Date()));
   const [expiryDate, setExpiryDate] = useState(() => toDateOnlyString(addYears(new Date(), 2)));
+  const [specNotMet, setSpecNotMet] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const visibleLots = factoryId ? lots.filter((l) => l.factory.id === factoryId) : lots;
   const selectedLot = visibleLots.find((l) => l.lotNumber.toLowerCase() === lotNumber.trim().toLowerCase());
   const pallets = selectedLot?.pallets ?? [];
   const grade = selectedLot?.grade ?? "A";
   const lotFormat = selectedLot?.format ?? "WHOLE";
+
+  // Live-checked on every keystroke against the same rules the server
+  // enforces on save, so "Corrective Action" only appears once something is
+  // actually out of spec -- not just whenever a value is typed in.
+  const handleFormInput = () => {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    const rules = limitsFor("POST_PACKAGING", grade, lotFormat);
+    const values: Record<string, number> = {};
+    for (const rule of rules) {
+      const raw = formData.get(rule.field);
+      if (typeof raw === "string" && raw.trim() !== "") values[rule.field] = Number(raw);
+    }
+    values.totalDefectsPct = POST_PACKAGING_DEFECT_FIELDS.reduce((sum, key) => sum + (values[key] ?? 0), 0);
+    setSpecNotMet(checkQualityLimits("POST_PACKAGING", values, grade, lotFormat).length > 0);
+  };
 
   const isSuccess = typeof state === "string" && state.startsWith("ok:");
   const errorMessage = typeof state === "string" && !isSuccess ? state : undefined;
@@ -137,7 +155,7 @@ export function PostFreezeInspectionForm({ lots, factories }: { lots: LotWithRel
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={formRef} action={formAction} onChange={handleFormInput} className="space-y-4">
       <Card className="space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">{formLabelFor(dict, lotFormat, grade)}</h2>
         <div className="grid grid-cols-3 gap-3">
@@ -221,7 +239,7 @@ export function PostFreezeInspectionForm({ lots, factories }: { lots: LotWithRel
         </div>
       </Card>
 
-      <MeasurementFields key={isSuccess ? state : "initial"} grade={grade} format={lotFormat} />
+      <MeasurementFields key={isSuccess ? state : "initial"} grade={grade} format={lotFormat} specNotMet={specNotMet} />
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       {decoded && decoded.violations.length === 0 && (
@@ -251,7 +269,7 @@ function PalletInput({ pallets, placeholder }: { pallets: Pallet[]; placeholder:
   );
 }
 
-function MeasurementFields({ grade, format: lotFormat }: { grade: Grade; format: Format }) {
+function MeasurementFields({ grade, format: lotFormat, specNotMet }: { grade: Grade; format: Format; specNotMet: boolean }) {
   const limits = useMemo(() => displayLimitsFor(lotFormat, grade), [lotFormat, grade]);
   const { total: defectTotal, bind } = useDefectTotal(POST_PACKAGING_DEFECT_FIELDS);
   const totalDefectsMax = limitsFor("POST_PACKAGING", grade, lotFormat).find((r) => r.field === "totalDefectsPct")!.max!;
@@ -389,11 +407,13 @@ function MeasurementFields({ grade, format: lotFormat }: { grade: Grade; format:
         </p>
       </Card>
 
-      <Card className="space-y-4">
-        <FieldGroup label={dict.correctiveActionOptional}>
-          <Input name="notes" />
-        </FieldGroup>
-      </Card>
+      {specNotMet && (
+        <Card className="space-y-4">
+          <FieldGroup label={dict.correctiveActionOptional}>
+            <Input name="notes" />
+          </FieldGroup>
+        </Card>
+      )}
     </>
   );
 }
