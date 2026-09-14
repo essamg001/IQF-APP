@@ -38,13 +38,13 @@ const ticketSchema = z.object({
   fieldCleanlinessOk: z.boolean(),
   vehicleCleanlinessOk: z.boolean(),
 
-  petsPresent: z.boolean(),
+  petsPresent: z.boolean().optional(),
   petsPresentAction: z.string().optional(),
-  animalProductionNearby: z.boolean(),
+  animalProductionNearby: z.boolean().optional(),
   animalProductionNearbyAction: z.string().optional(),
-  wildDomesticAnimalActivity: z.boolean(),
+  wildDomesticAnimalActivity: z.boolean().optional(),
   wildDomesticAnimalActivityAction: z.string().optional(),
-  rodentDogActivity: z.boolean(),
+  rodentDogActivity: z.boolean().optional(),
   rodentDogActivityAction: z.string().optional(),
 
   loadingSupervisor: z.string().optional(),
@@ -71,6 +71,14 @@ export async function createHarvestTicketAction(_prevState: string | undefined, 
     plotLines = [];
   }
 
+  // Radio pair, not a checkbox -- neither option pre-selected, so an
+  // unanswered item comes through as undefined (stays null in the DB)
+  // rather than silently defaulting to "No".
+  const yesNo = (name: string) => {
+    const v = formData.get(name);
+    return v === "yes" ? true : v === "no" ? false : undefined;
+  };
+
   const parsed = ticketSchema.safeParse({
     ...raw,
     fruitConformityOk: formData.get("fruitConformityOk") === "on",
@@ -78,10 +86,10 @@ export async function createHarvestTicketAction(_prevState: string | undefined, 
     cratesCleanlinessOk: formData.get("cratesCleanlinessOk") === "on",
     fieldCleanlinessOk: formData.get("fieldCleanlinessOk") === "on",
     vehicleCleanlinessOk: formData.get("vehicleCleanlinessOk") === "on",
-    petsPresent: formData.get("petsPresent") === "on",
-    animalProductionNearby: formData.get("animalProductionNearby") === "on",
-    wildDomesticAnimalActivity: formData.get("wildDomesticAnimalActivity") === "on",
-    rodentDogActivity: formData.get("rodentDogActivity") === "on",
+    petsPresent: yesNo("petsPresent"),
+    animalProductionNearby: yesNo("animalProductionNearby"),
+    wildDomesticAnimalActivity: yesNo("wildDomesticAnimalActivity"),
+    rodentDogActivity: yesNo("rodentDogActivity"),
     plotLines,
   });
   if (!parsed.success) {

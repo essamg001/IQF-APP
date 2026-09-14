@@ -29,6 +29,37 @@ type FieldOption = { station: string; valve: string };
 
 type HarvestTicketsDict = Dictionary["harvestTickets"];
 
+// No box pre-checked -- an unanswered item stays genuinely unanswered
+// (the column is nullable) rather than silently saving as "No".
+function YesNoField({
+  name,
+  label,
+  yesLabel,
+  noLabel,
+  children,
+}: {
+  name: string;
+  label: string;
+  yesLabel: string;
+  noLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-2 items-start gap-3">
+      <div className="flex items-center gap-4">
+        <span className="text-sm text-slate-700">{label}</span>
+        <label className="flex items-center gap-1 text-sm text-slate-700">
+          <input type="radio" name={name} value="yes" /> {yesLabel}
+        </label>
+        <label className="flex items-center gap-1 text-sm text-slate-700">
+          <input type="radio" name={name} value="no" /> {noLabel}
+        </label>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function complianceLevels(dict: HarvestTicketsDict, otherLabel: string) {
   return [
     ["GLOBALGAP", dict.complianceGlobalGap],
@@ -196,30 +227,28 @@ export function TicketForm({ fields }: { fields: FieldOption[] }) {
       <Card className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-900">{dict.presenceChecklistTitle}</h2>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 items-start gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" name="petsPresent" /> {dict.petsPresent}
-            </label>
+          <YesNoField name="petsPresent" label={dict.petsPresent} yesLabel={fullDict.common.yes} noLabel={fullDict.common.no}>
             <Input name="petsPresentAction" placeholder={dict.correctiveActionIfFlagged} />
-          </div>
-          <div className="grid grid-cols-2 items-start gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" name="animalProductionNearby" /> {dict.animalProductionNearby}
-            </label>
+          </YesNoField>
+          <YesNoField
+            name="animalProductionNearby"
+            label={dict.animalProductionNearby}
+            yesLabel={fullDict.common.yes}
+            noLabel={fullDict.common.no}
+          >
             <Input name="animalProductionNearbyAction" placeholder={dict.correctiveActionIfFlagged} />
-          </div>
-          <div className="grid grid-cols-2 items-start gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" name="wildDomesticAnimalActivity" /> {dict.wildDomesticAnimalActivity}
-            </label>
+          </YesNoField>
+          <YesNoField
+            name="wildDomesticAnimalActivity"
+            label={dict.wildDomesticAnimalActivity}
+            yesLabel={fullDict.common.yes}
+            noLabel={fullDict.common.no}
+          >
             <Input name="wildDomesticAnimalActivityAction" placeholder={dict.correctiveActionIfFlagged} />
-          </div>
-          <div className="grid grid-cols-2 items-start gap-3">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" name="rodentDogActivity" /> {dict.rodentDogActivity}
-            </label>
+          </YesNoField>
+          <YesNoField name="rodentDogActivity" label={dict.rodentDogActivity} yesLabel={fullDict.common.yes} noLabel={fullDict.common.no}>
             <Input name="rodentDogActivityAction" placeholder={dict.correctiveActionIfFlagged} />
-          </div>
+          </YesNoField>
         </div>
       </Card>
 
